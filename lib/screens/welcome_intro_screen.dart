@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../services/storage_service.dart';
 import '../services/sound_service.dart';
 import '../theme.dart';
+import 'privacy_policy_screen.dart';
 
 /// 랜덤 이름 추천 후보 목록
 const List<String> kRandomCatNames = [
@@ -268,7 +269,29 @@ class _WelcomeIntroScreenState extends State<WelcomeIntroScreen> {
     if (current.isJourneyStartPage) {
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 28),
-        child: _PrimaryButton(label: '여행 시작하기', onTap: _finish),
+        child: Column(
+          children: [
+            _PrimaryButton(label: '여행 시작하기', onTap: _finish),
+            const SizedBox(height: 10),
+            GestureDetector(
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const PrivacyPolicyScreen(),
+                  ),
+                );
+              },
+              child: Text(
+                '개인정보처리방침 · 정신건강 안내 보기',
+                style: bodyFont(
+                  fontSize: 11.5,
+                  color: AppColors.inkSoft,
+                  height: 1.4,
+                ).copyWith(decoration: TextDecoration.underline),
+              ),
+            ),
+          ],
+        ),
       );
     }
     if (index == 1) {

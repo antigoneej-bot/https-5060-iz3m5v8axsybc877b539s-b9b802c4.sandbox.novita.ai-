@@ -5,6 +5,7 @@ import '../theme.dart';
 import '../services/sound_service.dart';
 import '../widgets/growth_header.dart';
 import '../widgets/garden_path_card.dart';
+import 'privacy_policy_screen.dart';
 
 /// 마이 탭 - 나의 성장 현황, 방문 기록, 사운드 설정 등을 관리하는 화면
 class MyScreen extends StatefulWidget {
@@ -58,6 +59,16 @@ class _MyScreenState extends State<MyScreen> {
         ),
         const SizedBox(height: 12),
         _SettingsCard(sound: sound, onChanged: () => setState(() {})),
+        const SizedBox(height: 12),
+        _InfoLinkRow(
+          icon: Icons.privacy_tip_rounded,
+          label: '개인정보처리방침 · 정신건강 안내',
+          onTap: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const PrivacyPolicyScreen()),
+            );
+          },
+        ),
         const SizedBox(height: 20),
         Center(
           child: Text(
@@ -236,6 +247,51 @@ class _SettingsCard extends StatelessWidget {
             activeTrackColor: AppColors.blobLavenderAccent,
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// 개인정보처리방침 등 안내 화면으로 이동하는 얇은 링크형 행.
+/// 별도 카드 없이 담백하게 눌러서 이동할 수 있도록 합니다.
+class _InfoLinkRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  const _InfoLinkRow({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+          child: Row(
+            children: [
+              Icon(icon, size: 18, color: AppColors.inkSoft),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  label,
+                  style: bodyFont(fontSize: 12.5, color: AppColors.inkSoft),
+                ),
+              ),
+              Icon(
+                Icons.arrow_forward_ios_rounded,
+                size: 13,
+                color: AppColors.inkSoft.withValues(alpha: 0.6),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
