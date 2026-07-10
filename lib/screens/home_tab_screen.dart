@@ -56,11 +56,9 @@ class HomeTabScreen extends StatelessWidget {
         Text(
           '고양이 그림자 정원',
           textAlign: TextAlign.center,
-          style: serifFont(
-            fontSize: 30,
-            fontWeight: FontWeight.w800,
-            color: AppColors.ink,
-            letterSpacing: -0.5,
+          style: titleFont(
+            fontSize: 32,
+            color: AppColors.titlePastelGreen,
           ),
         ),
         const SizedBox(height: 10),

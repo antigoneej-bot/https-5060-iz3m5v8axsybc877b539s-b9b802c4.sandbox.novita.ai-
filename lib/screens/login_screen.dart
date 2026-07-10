@@ -90,10 +90,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     Text(
                       '고양이 그림자 정원',
                       textAlign: TextAlign.center,
-                      style: serifFont(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.ink,
+                      style: titleFont(
+                        fontSize: 24,
+                        color: AppColors.titlePastelGreen,
                       ),
                     ),
                     const SizedBox(height: 6),

@@ -46,6 +46,10 @@ class AppColors {
   // 오늘의 감정 고양이 만나기 = 감정케어 → 소프트 피치
   static const catPeach = Color(0xFFE79B7E);
   static const catPeachBg = Color(0xFFFCEEE5);
+
+  // 홈 대표 타이틀용 파스텔 그린 (귀엽고 동글동글한 폰트와 함께 사용)
+  static const titlePastelGreen = Color(0xFF8FBFA0);
+  static const titlePastelGreenSoft = Color(0xFFB7D9C2);
 }
 
 /// 카테고리별 포인트 컬러 쌍 (아이콘 색상 + 배경색)
@@ -86,6 +90,24 @@ TextStyle bodyFont({
     color: color,
     letterSpacing: letterSpacing ?? 0.1,
     height: height ?? 1.4,
+  );
+}
+
+/// 홈 대표 타이틀 전용 폰트 (Jua) - 동글동글하고 귀여운 손글씨 느낌의
+/// 한글 라운드 폰트로, 앱 대표 문구("고양이 그림자 정원")에만 사용합니다.
+TextStyle titleFont({
+  double fontSize = 30,
+  FontWeight? fontWeight,
+  Color? color,
+  double? letterSpacing,
+  double? height,
+}) {
+  return GoogleFonts.jua(
+    fontSize: fontSize,
+    fontWeight: fontWeight ?? FontWeight.w400,
+    color: color,
+    letterSpacing: letterSpacing ?? 0,
+    height: height,
   );
 }
 

@@ -163,10 +163,9 @@ class _LoadingSplash extends StatelessWidget {
                 const SizedBox(height: 18),
                 Text(
                   '고양이 그림자 정원',
-                  style: serifFont(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.ink,
+                  style: titleFont(
+                    fontSize: 20,
+                    color: AppColors.titlePastelGreen,
                   ),
                 ),
                 const SizedBox(height: 20),
