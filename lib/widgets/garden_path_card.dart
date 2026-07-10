@@ -317,43 +317,94 @@ class _DottedCurvePainter extends CustomPainter {
 
 /// 흰 박스 없이, 반투명 파스텔 블롭 형태로 요약 정보를 보여주는 공용 컨테이너.
 /// StreakHeader, GrowthHeader 등 대시보드 상단 요약 위젯에 사용합니다.
-class GlassBlob extends StatelessWidget {
+///
+/// 마우스 호버가 없는 모바일에서도 살아있는 느낌을 주기 위해, 호버와 무관하게
+/// 아주 미세하게 위아래로 떠다니는(breathing) 자동 애니메이션을 항상 재생합니다.
+/// 같은 화면에 여러 개가 있을 때 모두 같은 박자로 움직이지 않도록, [floatSeed]
+/// (또는 지정하지 않으면 위젯 내부적으로 생성되는 값)로 각자 다른 리듬을 줍니다.
+class GlassBlob extends StatefulWidget {
   final Widget child;
   final Color accent;
   final Color background;
   final EdgeInsetsGeometry padding;
+
+  /// 자동 흔들림 애니메이션의 리듬(속도/위상)을 다르게 주기 위한 값(선택).
+  final int? floatSeed;
+
   const GlassBlob({
     super.key,
     required this.child,
     required this.accent,
     required this.background,
     this.padding = const EdgeInsets.symmetric(horizontal: 22, vertical: 20),
+    this.floatSeed,
   });
 
   @override
+  State<GlassBlob> createState() => _GlassBlobState();
+}
+
+class _GlassBlobState extends State<GlassBlob>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _floatController;
+
+  @override
+  void initState() {
+    super.initState();
+    final seed = widget.floatSeed ?? identityHashCode(this);
+    final rng = Random(seed);
+    // 카드마다 조금씩 다른 속도로 천천히 떠다니도록, 시작 위상도 무작위로 줍니다.
+    _floatController = AnimationController(
+      vsync: this,
+      duration: Duration(milliseconds: 4200 + rng.nextInt(2600)),
+    )..repeat(reverse: true, min: rng.nextDouble(), max: 1);
+  }
+
+  @override
+  void dispose() {
+    _floatController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: padding,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(28),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            background.withValues(alpha: 0.85),
-            background.withValues(alpha: 0.5),
+    return AnimatedBuilder(
+      animation: _floatController,
+      builder: (context, child) {
+        final t = _floatController.value;
+        final dy = sin(t * pi) * 2.4;
+        final angle = sin(t * pi) * 0.006;
+        return Transform.translate(
+          offset: Offset(0, dy),
+          child: Transform.rotate(angle: angle, child: child),
+        );
+      },
+      child: Container(
+        padding: widget.padding,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(28),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              widget.background.withValues(alpha: 0.85),
+              widget.background.withValues(alpha: 0.5),
+            ],
+          ),
+          border: Border.all(
+            color: widget.accent.withValues(alpha: 0.25),
+            width: 1.2,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: widget.accent.withValues(alpha: 0.12),
+              blurRadius: 20,
+              offset: const Offset(0, 10),
+            ),
           ],
         ),
-        border: Border.all(color: accent.withValues(alpha: 0.25), width: 1.2),
-        boxShadow: [
-          BoxShadow(
-            color: accent.withValues(alpha: 0.12),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
+        child: widget.child,
       ),
-      child: child,
     );
   }
 }

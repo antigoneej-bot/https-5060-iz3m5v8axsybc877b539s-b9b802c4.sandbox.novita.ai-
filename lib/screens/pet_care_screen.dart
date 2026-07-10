@@ -450,8 +450,9 @@ class _CareTaskTile extends StatefulWidget {
 }
 
 class _CareTaskTileState extends State<_CareTaskTile>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late final AnimationController _hoverController;
+  late final AnimationController _floatController;
   bool _hovering = false;
 
   @override
@@ -461,11 +462,19 @@ class _CareTaskTileState extends State<_CareTaskTile>
       vsync: this,
       duration: const Duration(milliseconds: 220),
     );
+    // 마우스 호버가 없는 모바일에서도 살아있는 느낌을 주기 위해, 카드마다
+    // 조금씩 다른 리듬으로 저절로 살짝 떠다니는 애니메이션을 항상 재생합니다.
+    final rng = Random(widget.seed * 53 + 17);
+    _floatController = AnimationController(
+      vsync: this,
+      duration: Duration(milliseconds: 3800 + rng.nextInt(2200)),
+    )..repeat(reverse: true, min: rng.nextDouble() * 0.6, max: 1);
   }
 
   @override
   void dispose() {
     _hoverController.dispose();
+    _floatController.dispose();
     super.dispose();
   }
 
@@ -498,14 +507,20 @@ class _CareTaskTileState extends State<_CareTaskTile>
     final background = widget.done ? AppColors.blobMint : AppColors.blobLavender;
     final radius = _blobRadius();
     return AnimatedBuilder(
-      animation: _hoverController,
+      animation: Listenable.merge([_hoverController, _floatController]),
       builder: (context, child) {
         final t = _hoverController.value;
         final wiggle = sin(t * pi * 3) * 0.03 * t;
         final scale = 1.0 + t * 0.02;
-        return Transform.rotate(
-          angle: wiggle,
-          child: Transform.scale(scale: scale, child: child),
+        final floatT = _floatController.value;
+        final floatDy = sin(floatT * pi) * 2.4;
+        final floatAngle = sin(floatT * pi) * 0.012;
+        return Transform.translate(
+          offset: Offset(0, floatDy),
+          child: Transform.rotate(
+            angle: wiggle + floatAngle,
+            child: Transform.scale(scale: scale, child: child),
+          ),
         );
       },
       child: MouseRegion(

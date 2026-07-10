@@ -124,7 +124,11 @@ class _HistoryItemState extends State<_HistoryItem>
             child: GlassBlob(
               accent: accent,
               background: background,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              floatSeed: widget.seed * 61 + 13,
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 12,
+              ),
               child: Row(
                 children: [
                   LivelyCatImage(
