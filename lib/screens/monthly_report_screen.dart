@@ -6,12 +6,43 @@ import '../data/solutions_data.dart';
 import '../theme.dart';
 import '../widgets/stars_background.dart';
 import '../widgets/garden_path_card.dart';
+import '../services/subscription_service.dart';
+import 'premium_screen.dart';
 
 /// 월간 감정 리포트 - '힐링 정원' 낮 무드로 한 달의 마음 흐름을 되돌아보는 화면
 /// 순서: 한 줄 요약 → 그래프(원형/막대/선) → 따뜻한 해석 → 조언 → 추천 명상
-class MonthlyReportScreen extends StatelessWidget {
+///
+/// 한 줄 요약 + 감정 비율(원형 그래프)는 무료로 누구나 볼 수 있고,
+/// 그 아래 상세 그래프 · 분석 · 조언 · 명상 추천은 '정원 플러스' 구독자만
+/// 볼 수 있는 프리미엄 영역입니다(비구독자에게는 잠금 카드로 안내).
+class MonthlyReportScreen extends StatefulWidget {
   final MonthlyEmotionReport report;
   const MonthlyReportScreen({super.key, required this.report});
+
+  @override
+  State<MonthlyReportScreen> createState() => _MonthlyReportScreenState();
+}
+
+class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
+  bool _isPremium = false;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final premium = await SubscriptionService().isPremium();
+    if (!mounted) return;
+    setState(() {
+      _isPremium = premium;
+      _loading = false;
+    });
+  }
+
+  MonthlyEmotionReport get report => widget.report;
 
   @override
   Widget build(BuildContext context) {
@@ -48,7 +79,9 @@ class MonthlyReportScreen extends StatelessWidget {
                     ),
                   ),
                   Expanded(
-                    child: report.isEmpty
+                    child: _loading
+                        ? const Center(child: CircularProgressIndicator())
+                        : report.isEmpty
                         ? _EmptyReportView(monthLabel: report.monthLabel)
                         : SingleChildScrollView(
                             padding: const EdgeInsets.fromLTRB(22, 12, 22, 40),
@@ -63,48 +96,51 @@ class MonthlyReportScreen extends StatelessWidget {
                                 ),
                                 const SizedBox(height: 14),
                                 _EmotionPieCard(report: report),
-                                const SizedBox(height: 24),
-                                const _SectionLabel(
-                                  icon: '✨',
-                                  label: '날짜별 감정 흐름',
-                                ),
-                                const SizedBox(height: 14),
-                                _DailyFlowLineCard(report: report),
-                                const SizedBox(height: 24),
-                                const _SectionLabel(
-                                  icon: '🌼',
-                                  label: '감정 빈도',
-                                ),
-                                const SizedBox(height: 14),
-                                _EmotionBarCard(report: report),
-                                const SizedBox(height: 24),
-                                const _SectionLabel(
-                                  icon: '🌤️',
-                                  label: '긍정 · 부정 흐름',
-                                ),
-                                const SizedBox(height: 14),
-                                _ValenceCompareCard(report: report),
                                 const SizedBox(height: 28),
-                                const _SectionLabel(
-                                  icon: '🐈',
-                                  label: '정원 고양이의 속삭임',
-                                ),
-                                const SizedBox(height: 14),
-                                _AnalysisCard(text: report.analysisText),
-                                const SizedBox(height: 24),
-                                const _SectionLabel(
-                                  icon: '🕊️',
-                                  label: '이 달의 다정한 조언',
-                                ),
-                                const SizedBox(height: 14),
-                                _AdviceCard(text: report.adviceText),
-                                const SizedBox(height: 24),
-                                const _SectionLabel(
-                                  icon: '🧘',
-                                  label: '지금 필요한 명상',
-                                ),
-                                const SizedBox(height: 14),
-                                _RecommendedMeditationCard(report: report),
+                                if (_isPremium) ...[
+                                  const _SectionLabel(
+                                    icon: '✨',
+                                    label: '날짜별 감정 흐름',
+                                  ),
+                                  const SizedBox(height: 14),
+                                  _DailyFlowLineCard(report: report),
+                                  const SizedBox(height: 24),
+                                  const _SectionLabel(
+                                    icon: '🌼',
+                                    label: '감정 빈도',
+                                  ),
+                                  const SizedBox(height: 14),
+                                  _EmotionBarCard(report: report),
+                                  const SizedBox(height: 24),
+                                  const _SectionLabel(
+                                    icon: '🌤️',
+                                    label: '긍정 · 부정 흐름',
+                                  ),
+                                  const SizedBox(height: 14),
+                                  _ValenceCompareCard(report: report),
+                                  const SizedBox(height: 28),
+                                  const _SectionLabel(
+                                    icon: '🐈',
+                                    label: '정원 고양이의 속삭임',
+                                  ),
+                                  const SizedBox(height: 14),
+                                  _AnalysisCard(text: report.analysisText),
+                                  const SizedBox(height: 24),
+                                  const _SectionLabel(
+                                    icon: '🕊️',
+                                    label: '이 달의 다정한 조언',
+                                  ),
+                                  const SizedBox(height: 14),
+                                  _AdviceCard(text: report.adviceText),
+                                  const SizedBox(height: 24),
+                                  const _SectionLabel(
+                                    icon: '🧘',
+                                    label: '지금 필요한 명상',
+                                  ),
+                                  const SizedBox(height: 14),
+                                  _RecommendedMeditationCard(report: report),
+                                ] else
+                                  _PremiumLockedSection(onUpgraded: _load),
                               ],
                             ),
                           ),
@@ -114,6 +150,69 @@ class MonthlyReportScreen extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// 비구독자에게 "상세 그래프 · 분석 · 조언 · 명상 추천"이 잠겨있음을 알리고
+/// 정원 플러스 구독 화면으로 안내하는 카드.
+class _PremiumLockedSection extends StatelessWidget {
+  final VoidCallback onUpgraded;
+  const _PremiumLockedSection({required this.onUpgraded});
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassBlob(
+      accent: AppColors.blobButterAccent,
+      background: AppColors.blobButter,
+      padding: const EdgeInsets.fromLTRB(22, 26, 22, 26),
+      child: Column(
+        children: [
+          const Text('🔒', style: TextStyle(fontSize: 26)),
+          const SizedBox(height: 14),
+          Text(
+            '여기부터는 정원 플러스\n멤버십 전용이에요',
+            textAlign: TextAlign.center,
+            style: titleFont(fontSize: 18, color: AppColors.ink, height: 1.4),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            '날짜별 감정 흐름, 감정 빈도, 긍정·부정 비교,\n'
+            '정원 고양이의 속삭임과 다정한 조언, 맞춤 명상 추천을\n'
+            '정원 플러스에서 모두 확인할 수 있어요',
+            textAlign: TextAlign.center,
+            style: bodyFont(
+              fontSize: 12.5,
+              color: AppColors.inkSoft,
+              height: 1.6,
+            ),
+          ),
+          const SizedBox(height: 18),
+          Material(
+            color: AppColors.gold,
+            borderRadius: BorderRadius.circular(999),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(999),
+              onTap: () async {
+                await Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const PremiumScreen()),
+                );
+                onUpgraded();
+              },
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 26,
+                  vertical: 13,
+                ),
+                child: Text(
+                  '정원 플러스 알아보기',
+                  style: serifFont(fontSize: 14, color: Colors.white),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -160,11 +259,7 @@ class _EmptyReportView extends StatelessWidget {
             Text(
               '$monthLabel에는 아직\n기록된 마음이 없어요',
               textAlign: TextAlign.center,
-              style: titleFont(
-                fontSize: 19,
-                color: AppColors.ink,
-                height: 1.5,
-              ),
+              style: titleFont(fontSize: 19, color: AppColors.ink, height: 1.5),
             ),
             const SizedBox(height: 10),
             Text(
@@ -200,11 +295,7 @@ class _SummaryHero extends StatelessWidget {
           const SizedBox(height: 14),
           Text(
             report.oneLineSummary,
-            style: titleFont(
-              fontSize: 19,
-              color: AppColors.ink,
-              height: 1.5,
-            ),
+            style: titleFont(fontSize: 19, color: AppColors.ink, height: 1.5),
           ),
           if (report.dominantEmotion != null) ...[
             const SizedBox(height: 16),
@@ -294,10 +385,7 @@ class _EmotionPieCard extends StatelessWidget {
                       Expanded(
                         child: Text(
                           '${e.key.emoji} ${e.key.label}',
-                          style: bodyFont(
-                            fontSize: 12,
-                            color: AppColors.ink,
-                          ),
+                          style: bodyFont(fontSize: 12, color: AppColors.ink),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
@@ -379,10 +467,7 @@ class _DailyFlowLineCard extends StatelessWidget {
                     }
                     return Text(
                       label,
-                      style: TextStyle(
-                        fontSize: 9.5,
-                        color: AppColors.inkSoft,
-                      ),
+                      style: TextStyle(fontSize: 9.5, color: AppColors.inkSoft),
                     );
                   },
                 ),
@@ -396,10 +481,7 @@ class _DailyFlowLineCard extends StatelessWidget {
                     padding: const EdgeInsets.only(top: 6),
                     child: Text(
                       '${v.toInt()}일',
-                      style: TextStyle(
-                        fontSize: 9.5,
-                        color: AppColors.inkSoft,
-                      ),
+                      style: TextStyle(fontSize: 9.5, color: AppColors.inkSoft),
                     ),
                   ),
                 ),
@@ -429,8 +511,7 @@ class _DailyFlowLineCard extends StatelessWidget {
             ],
             lineTouchData: LineTouchData(
               touchTooltipData: LineTouchTooltipData(
-                getTooltipColor: (_) =>
-                    Colors.white.withValues(alpha: 0.92),
+                getTooltipColor: (_) => Colors.white.withValues(alpha: 0.92),
                 getTooltipItems: (spots) => spots
                     .map(
                       (s) => LineTooltipItem(
@@ -560,10 +641,7 @@ class _ValenceCompareCard extends StatelessWidget {
                     report.avgIntensitySecondHalf > 0
                 ? '평균 감정 강도 · 월초 ${report.avgIntensityFirstHalf.toStringAsFixed(1)} → 월말 ${report.avgIntensitySecondHalf.toStringAsFixed(1)}'
                 : '평균 감정 강도가 아직 충분히 쌓이지 않았어요',
-            style: bodyFont(
-              fontSize: 11.5,
-              color: AppColors.inkSoft,
-            ),
+            style: bodyFont(fontSize: 11.5, color: AppColors.inkSoft),
           ),
         ],
       ),
@@ -577,19 +655,10 @@ class _ValenceCompareCard extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              label,
-              style: bodyFont(
-                fontSize: 12.5,
-                color: AppColors.ink,
-              ),
-            ),
+            Text(label, style: bodyFont(fontSize: 12.5, color: AppColors.ink)),
             Text(
               '${(pct * 100).round()}%',
-              style: bodyFont(
-                fontSize: 12,
-                color: AppColors.inkSoft,
-              ),
+              style: bodyFont(fontSize: 12, color: AppColors.inkSoft),
             ),
           ],
         ),
@@ -619,11 +688,7 @@ class _AnalysisCard extends StatelessWidget {
       background: AppColors.blobPeriwinkle,
       child: Text(
         text,
-        style: bodyFont(
-          fontSize: 13.5,
-          color: AppColors.ink,
-          height: 1.75,
-        ),
+        style: bodyFont(fontSize: 13.5, color: AppColors.ink, height: 1.75),
       ),
     );
   }
@@ -822,10 +887,7 @@ class _ReportGuideSteps extends StatelessWidget {
                 Expanded(
                   child: Text(
                     entry.value,
-                    style: bodyFont(
-                      fontSize: 12.5,
-                      color: AppColors.ink,
-                    ),
+                    style: bodyFont(fontSize: 12.5, color: AppColors.ink),
                   ),
                 ),
               ],

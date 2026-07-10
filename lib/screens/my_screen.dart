@@ -4,9 +4,11 @@ import '../providers/app_state_provider.dart';
 import '../theme.dart';
 import '../services/sound_service.dart';
 import '../services/notification_service.dart';
+import '../services/subscription_service.dart';
 import '../widgets/growth_header.dart';
 import '../widgets/garden_path_card.dart';
 import 'privacy_policy_screen.dart';
+import 'premium_screen.dart';
 
 /// 마이 탭 - 나의 성장 현황, 방문 기록, 사운드 설정 등을 관리하는 화면
 class MyScreen extends StatefulWidget {
@@ -38,6 +40,8 @@ class _MyScreenState extends State<MyScreen> {
         ),
         const SizedBox(height: 22),
         _ProfileCard(streak: app.streak, totalLetters: app.history.length),
+        const SizedBox(height: 14),
+        const _PremiumCard(),
         const SizedBox(height: 16),
         GrowthHeader(
           level: app.growthLevel,
@@ -143,6 +147,101 @@ class _ProfileCard extends StatelessWidget {
         const SizedBox(height: 2),
         Text(label, style: bodyFont(fontSize: 11, color: AppColors.inkSoft)),
       ],
+    );
+  }
+}
+
+/// 마이 탭 상단에서 정원 플러스 구독 상태를 보여주고, 눌러서 구독
+/// 안내(PremiumScreen)로 이동할 수 있는 카드.
+class _PremiumCard extends StatefulWidget {
+  const _PremiumCard();
+
+  @override
+  State<_PremiumCard> createState() => _PremiumCardState();
+}
+
+class _PremiumCardState extends State<_PremiumCard> {
+  bool _isPremium = false;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _load());
+  }
+
+  Future<void> _load() async {
+    final premium = await SubscriptionService().isPremium();
+    if (!mounted) return;
+    setState(() {
+      _isPremium = premium;
+      _loading = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(28),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(28),
+        onTap: () async {
+          await Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (_) => const PremiumScreen()));
+          _load();
+        },
+        child: GlassBlob(
+          accent: AppColors.blobPeriwinkleAccent,
+          background: AppColors.blobPeriwinkle,
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withValues(alpha: 0.6),
+                ),
+                child: const Text('🌷', style: TextStyle(fontSize: 18)),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _loading
+                          ? '정원 플러스'
+                          : _isPremium
+                          ? '정원 플러스 이용 중'
+                          : '정원 플러스로 더 깊이 돌아보기',
+                      style: pathLabelFont(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.ink,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      _isPremium ? '마음 리포트 전체 잠금 해제됨' : '상세 마음 리포트 잠금 해제하기',
+                      style: bodyFont(fontSize: 11.5, color: AppColors.inkSoft),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: AppColors.blobPeriwinkleAccent,
+                size: 20,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
