@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../theme.dart';
 import '../data/solutions_data.dart';
 import '../widgets/guide_steps.dart';
+import '../widgets/garden_path_card.dart';
 
 /// 명상 탭 - 카테고리별로 모든 명상/움직임 가이드를 자유롭게 둘러보는 화면
 class MeditationLibraryScreen extends StatelessWidget {
@@ -9,17 +10,29 @@ class MeditationLibraryScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    const accents = [
+      AppColors.blobLavenderAccent,
+      AppColors.blobMintAccent,
+      AppColors.blobPeachAccent,
+      AppColors.blobButterAccent,
+      AppColors.blobRoseAccent,
+      AppColors.blobPeriwinkleAccent,
+    ];
+    const backgrounds = [
+      AppColors.blobLavender,
+      AppColors.blobMint,
+      AppColors.blobPeach,
+      AppColors.blobButter,
+      AppColors.blobRose,
+      AppColors.blobPeriwinkle,
+    ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
           '명상 · 움직임',
           textAlign: TextAlign.center,
-          style: serifFont(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: AppColors.ink,
-          ),
+          style: titleFont(fontSize: 24, color: AppColors.titlePastelGreen),
         ),
         const SizedBox(height: 6),
         Text(
@@ -28,10 +41,14 @@ class MeditationLibraryScreen extends StatelessWidget {
           style: bodyFont(fontSize: 12.5, color: AppColors.inkSoft),
         ),
         const SizedBox(height: 20),
-        ...solutionCategories.map(
-          (cat) => Padding(
-            padding: const EdgeInsets.only(bottom: 14),
-            child: _CategorySection(category: cat),
+        ...solutionCategories.asMap().entries.map(
+          (e) => Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: _CategorySection(
+              category: e.value,
+              accent: accents[e.key % accents.length],
+              background: backgrounds[e.key % backgrounds.length],
+            ),
           ),
         ),
       ],
@@ -41,18 +58,20 @@ class MeditationLibraryScreen extends StatelessWidget {
 
 class _CategorySection extends StatelessWidget {
   final SolutionCategory category;
-  const _CategorySection({required this.category});
+  final Color accent;
+  final Color background;
+  const _CategorySection({
+    required this.category,
+    required this.accent,
+    required this.background,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.bg1,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.line),
-      ),
+    return GlassBlob(
+      accent: accent,
+      background: background,
+      padding: const EdgeInsets.all(18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -62,16 +81,18 @@ class _CategorySection extends StatelessWidget {
               const SizedBox(width: 8),
               Text(
                 category.label,
-                style: serifFont(
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
+                style: pathLabelFont(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
                   color: AppColors.ink,
                 ),
               ),
             ],
           ),
           const SizedBox(height: 12),
-          ...category.guideKeys.map((key) => _GuideTile(guideKey: key)),
+          ...category.guideKeys.map(
+            (key) => _GuideTile(guideKey: key, accent: accent),
+          ),
         ],
       ),
     );
@@ -80,7 +101,8 @@ class _CategorySection extends StatelessWidget {
 
 class _GuideTile extends StatefulWidget {
   final String guideKey;
-  const _GuideTile({required this.guideKey});
+  final Color accent;
+  const _GuideTile({required this.guideKey, required this.accent});
 
   @override
   State<_GuideTile> createState() => _GuideTileState();
@@ -88,6 +110,7 @@ class _GuideTile extends StatefulWidget {
 
 class _GuideTileState extends State<_GuideTile> {
   bool _expanded = false;
+  bool _hovering = false;
 
   @override
   Widget build(BuildContext context) {
@@ -96,20 +119,28 @@ class _GuideTileState extends State<_GuideTile> {
       padding: const EdgeInsets.only(bottom: 8),
       child: Column(
         children: [
-          Material(
-            color: AppColors.bg0,
-            borderRadius: BorderRadius.circular(12),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(12),
+          MouseRegion(
+            onEnter: (_) => setState(() => _hovering = true),
+            onExit: (_) => setState(() => _hovering = false),
+            cursor: SystemMouseCursors.click,
+            child: GestureDetector(
               onTap: () => setState(() => _expanded = !_expanded),
-              child: Container(
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
+                  horizontal: 16,
                   vertical: 12,
                 ),
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.line),
+                  borderRadius: BorderRadius.circular(999),
+                  color: Colors.white.withValues(
+                    alpha: _hovering ? 0.68 : 0.5,
+                  ),
+                  border: Border.all(
+                    color: widget.accent.withValues(
+                      alpha: _hovering ? 0.4 : 0.2,
+                    ),
+                  ),
                 ),
                 child: Row(
                   children: [
@@ -129,7 +160,7 @@ class _GuideTileState extends State<_GuideTile> {
                       _expanded
                           ? Icons.keyboard_arrow_up
                           : Icons.keyboard_arrow_down,
-                      color: AppColors.inkSoft,
+                      color: widget.accent,
                       size: 20,
                     ),
                   ],

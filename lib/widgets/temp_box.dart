@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import '../theme.dart';
+import 'garden_path_card.dart';
 
+/// 마음의 온도를 기록하는 슬라이더 블롭.
+/// 딱딱한 흰 박스 대신 로즈 톤 GlassBlob 위에 얹어, 따뜻한 온기가
+/// 느껴지도록 합니다.
 class TempBox extends StatelessWidget {
   final double value;
   final ValueChanged<double> onChanged;
@@ -22,28 +26,28 @@ class TempBox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
-      decoration: BoxDecoration(
-        color: AppColors.bg1,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.line),
-      ),
+    return GlassBlob(
+      accent: AppColors.blobRoseAccent,
+      background: AppColors.blobRose,
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 16),
       child: Column(
         children: [
           Text(
             title,
-            style: serifFont(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
+            textAlign: TextAlign.center,
+            style: pathLabelFont(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
               color: AppColors.ink,
             ),
           ),
           const SizedBox(height: 8),
           Text(
             '${label(value)}  ·  ${value.round()}°',
-            style: serifFont(fontSize: 20, color: AppColors.goldSoft),
+            style: numberFont(
+              fontSize: 19,
+              color: AppColors.blobRoseAccent,
+            ),
           ),
           const SizedBox(height: 12),
           SizedBox(
@@ -59,7 +63,7 @@ class TempBox extends StatelessWidget {
                     gradient: const LinearGradient(
                       colors: [
                         Color(0xFF6FA8DC),
-                        AppColors.gold,
+                        AppColors.blobRoseAccent,
                         Color(0xFFD9695A),
                       ],
                     ),
@@ -118,58 +122,60 @@ class TempCompareBox extends StatelessWidget {
     final same = diff == 0;
     String message;
     Color accent;
+    Color background;
     if (same) {
       message = '마음의 온도가 그대로 유지되었어요';
-      accent = AppColors.goldSoft;
+      accent = AppColors.blobButterAccent;
+      background = AppColors.blobButter;
     } else if (improved) {
       message = '마음이 ${diff.abs().round()}도만큼 따뜻해졌어요 · 오늘도 성장했어요 🌱';
-      accent = const Color(0xFFD9695A);
+      accent = AppColors.blobPeachAccent;
+      background = AppColors.blobPeach;
     } else {
       message = '마음이 ${diff.abs().round()}도만큼 차분해졌어요';
-      accent = const Color(0xFF6FA8DC);
+      accent = AppColors.blobPeriwinkleAccent;
+      background = AppColors.blobPeriwinkle;
     }
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(top: 14),
-      padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
-      decoration: BoxDecoration(
-        color: AppColors.bg1,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: accent.withValues(alpha: 0.5)),
-      ),
-      child: Column(
-        children: [
-          Text(
-            '실천 전 · 후 변화',
-            style: serifFont(
-              fontSize: 13.5,
-              fontWeight: FontWeight.bold,
-              color: AppColors.ink,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              _tempPill('실천 전', before),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: Icon(
-                  Icons.arrow_forward_rounded,
-                  color: accent,
-                  size: 20,
-                ),
+    return Padding(
+      padding: const EdgeInsets.only(top: 14),
+      child: GlassBlob(
+        accent: accent,
+        background: background,
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+        child: Column(
+          children: [
+            Text(
+              '실천 전 · 후 변화',
+              style: pathLabelFont(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                color: AppColors.ink,
               ),
-              _tempPill('실천 후', after),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            message,
-            style: bodyFont(fontSize: 12.5, color: AppColors.moon),
-            textAlign: TextAlign.center,
-          ),
-        ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _tempPill('실천 전', before),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: Icon(
+                    Icons.arrow_forward_rounded,
+                    color: accent,
+                    size: 20,
+                  ),
+                ),
+                _tempPill('실천 후', after),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              message,
+              style: bodyFont(fontSize: 12.5, color: AppColors.moon),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -181,11 +187,7 @@ class TempCompareBox extends StatelessWidget {
         const SizedBox(height: 4),
         Text(
           '${v.round()}°',
-          style: serifFont(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: AppColors.ink,
-          ),
+          style: numberFont(fontSize: 18, color: AppColors.ink),
         ),
       ],
     );

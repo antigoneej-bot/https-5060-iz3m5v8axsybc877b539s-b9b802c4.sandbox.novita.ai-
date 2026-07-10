@@ -66,19 +66,28 @@ class _LoginScreenState extends State<LoginScreen> {
                     const SizedBox(height: 20),
                     Center(
                       child: Container(
-                        width: 84,
-                        height: 84,
+                        width: 88,
+                        height: 88,
                         alignment: Alignment.center,
-                        decoration: const BoxDecoration(
+                        decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           gradient: RadialGradient(
                             colors: [
-                              Color(0xFFFFF6DF),
-                              AppColors.goldSoft,
-                              AppColors.gold,
+                              const Color(0xFFF3FBF6),
+                              AppColors.blobMintAccent,
+                              AppColors.blobMintAccent,
                             ],
-                            stops: [0, 0.55, 1],
+                            stops: const [0, 0.55, 1],
                           ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.blobMintAccent.withValues(
+                                alpha: 0.25,
+                              ),
+                              blurRadius: 24,
+                              offset: const Offset(0, 10),
+                            ),
+                          ],
                         ),
                         child: const Text(
                           '🐈‍⬛',
@@ -91,7 +100,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       '고양이 그림자 정원',
                       textAlign: TextAlign.center,
                       style: titleFont(
-                        fontSize: 24,
+                        fontSize: 26,
                         color: AppColors.titlePastelGreen,
                       ),
                     ),
@@ -134,10 +143,10 @@ class _LoginScreenState extends State<LoginScreen> {
                       child: ElevatedButton(
                         onPressed: _submitting ? null : _submit,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.gold,
+                          backgroundColor: AppColors.blobMintAccent,
                           foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
+                            borderRadius: BorderRadius.circular(999),
                           ),
                           elevation: 0,
                         ),
@@ -152,9 +161,9 @@ class _LoginScreenState extends State<LoginScreen> {
                               )
                             : Text(
                                 '로그인',
-                                style: bodyFont(
-                                  fontSize: 15.5,
-                                  fontWeight: FontWeight.bold,
+                                style: pathLabelFont(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
                                   color: Colors.white,
                                 ),
                               ),
@@ -184,7 +193,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             style: bodyFont(
                               fontSize: 12.5,
                               fontWeight: FontWeight.bold,
-                              color: AppColors.goldSoft,
+                              color: AppColors.blobMintAccent,
                             ),
                           ),
                         ),

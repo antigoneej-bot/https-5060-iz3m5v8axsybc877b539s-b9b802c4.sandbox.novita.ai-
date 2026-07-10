@@ -4,6 +4,7 @@ import '../providers/app_state_provider.dart';
 import '../theme.dart';
 import '../services/sound_service.dart';
 import '../widgets/growth_header.dart';
+import '../widgets/garden_path_card.dart';
 
 /// 마이 탭 - 나의 성장 현황, 방문 기록, 사운드 설정 등을 관리하는 화면
 class MyScreen extends StatefulWidget {
@@ -25,11 +26,7 @@ class _MyScreenState extends State<MyScreen> {
         Text(
           '마이',
           textAlign: TextAlign.center,
-          style: serifFont(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: AppColors.ink,
-          ),
+          style: titleFont(fontSize: 26, color: AppColors.titlePastelGreen),
         ),
         const SizedBox(height: 6),
         Text(
@@ -48,12 +45,15 @@ class _MyScreenState extends State<MyScreen> {
           windowDays: AppStateProvider.growthWindowDays,
         ),
         const SizedBox(height: 20),
-        Text(
-          '설정',
-          style: serifFont(
-            fontSize: 15,
-            fontWeight: FontWeight.bold,
-            color: AppColors.ink,
+        Padding(
+          padding: const EdgeInsets.only(left: 6),
+          child: Text(
+            '⚙️ 설정',
+            style: pathLabelFont(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: AppColors.ink,
+            ),
           ),
         ),
         const SizedBox(height: 12),
@@ -77,24 +77,25 @@ class _ProfileCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: AppColors.bg1,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.line),
-      ),
+    return GlassBlob(
+      accent: AppColors.blobButterAccent,
+      background: AppColors.blobButter,
+      padding: const EdgeInsets.all(20),
       child: Row(
         children: [
           Container(
             width: 56,
             height: 56,
             alignment: Alignment.center,
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               shape: BoxShape.circle,
               gradient: RadialGradient(
-                colors: [Color(0xFFFFF6DF), AppColors.goldSoft, AppColors.gold],
-                stops: [0, 0.55, 1],
+                colors: [
+                  const Color(0xFFFFF6DF),
+                  AppColors.blobButterAccent,
+                  AppColors.blobButterAccent,
+                ],
+                stops: const [0, 0.55, 1],
               ),
             ),
             child: const Text('🐱', style: TextStyle(fontSize: 26)),
@@ -104,7 +105,11 @@ class _ProfileCard extends StatelessWidget {
             child: Row(
               children: [
                 Expanded(child: _statColumn('$streak일', '연속 방문')),
-                Container(width: 1, height: 32, color: AppColors.line),
+                Container(
+                  width: 1,
+                  height: 32,
+                  color: AppColors.blobButterAccent.withValues(alpha: 0.25),
+                ),
                 Expanded(child: _statColumn('$totalLetters통', '보낸 편지')),
               ],
             ),
@@ -119,11 +124,7 @@ class _ProfileCard extends StatelessWidget {
       children: [
         Text(
           value,
-          style: serifFont(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: AppColors.goldSoft,
-          ),
+          style: numberFont(fontSize: 17, color: AppColors.blobButterAccent),
         ),
         const SizedBox(height: 2),
         Text(label, style: bodyFont(fontSize: 11, color: AppColors.inkSoft)),
@@ -139,13 +140,10 @@ class _SettingsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      decoration: BoxDecoration(
-        color: AppColors.bg1,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.line),
-      ),
+    return GlassBlob(
+      accent: AppColors.blobLavenderAccent,
+      background: AppColors.blobLavender,
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       child: Column(
         children: [
           _switchRow(
@@ -157,7 +155,10 @@ class _SettingsCard extends StatelessWidget {
               onChanged();
             },
           ),
-          const Divider(height: 1, color: AppColors.line),
+          Divider(
+            height: 1,
+            color: AppColors.blobLavenderAccent.withValues(alpha: 0.18),
+          ),
           _switchRow(
             icon: Icons.graphic_eq_rounded,
             label: '효과음',
@@ -167,14 +168,17 @@ class _SettingsCard extends StatelessWidget {
               onChanged();
             },
           ),
-          const Divider(height: 1, color: AppColors.line),
+          Divider(
+            height: 1,
+            color: AppColors.blobLavenderAccent.withValues(alpha: 0.18),
+          ),
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 10),
             child: Row(
               children: [
-                const Icon(
+                Icon(
                   Icons.volume_up_rounded,
-                  color: AppColors.inkSoft,
+                  color: AppColors.blobLavenderAccent,
                   size: 20,
                 ),
                 const SizedBox(width: 12),
@@ -186,9 +190,9 @@ class _SettingsCard extends StatelessWidget {
                   child: SliderTheme(
                     data: SliderTheme.of(context).copyWith(
                       trackHeight: 3,
-                      activeTrackColor: AppColors.gold,
-                      inactiveTrackColor: const Color(0xFFE9DEC6),
-                      thumbColor: AppColors.gold,
+                      activeTrackColor: AppColors.blobLavenderAccent,
+                      inactiveTrackColor: Colors.white.withValues(alpha: 0.6),
+                      thumbColor: AppColors.blobLavenderAccent,
                       overlayShape: SliderComponentShape.noOverlay,
                     ),
                     child: Slider(
@@ -218,7 +222,7 @@ class _SettingsCard extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         children: [
-          Icon(icon, color: AppColors.inkSoft, size: 20),
+          Icon(icon, color: AppColors.blobLavenderAccent, size: 20),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
@@ -229,7 +233,7 @@ class _SettingsCard extends StatelessWidget {
           Switch(
             value: value,
             onChanged: onChanged,
-            activeTrackColor: AppColors.gold,
+            activeTrackColor: AppColors.blobLavenderAccent,
           ),
         ],
       ),

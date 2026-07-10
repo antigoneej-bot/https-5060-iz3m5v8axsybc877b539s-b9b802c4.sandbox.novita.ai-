@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import '../theme.dart';
 import '../data/solutions_data.dart';
 import 'guide_steps.dart';
+import 'garden_path_card.dart';
 
-/// 추천 명상/움직임 목록 중 하나를 선택해서 실천하는 위젯
+/// 추천 명상/움직임 목록 중 하나를 선택해서 실천하는 위젯.
+/// 딱딱한 흰 박스 대신 버터톤 GlassBlob 위에 둥근 알약형 선택 칩을 올립니다.
 class MeditationPicker extends StatefulWidget {
   final List<String> guideKeys;
   final ValueChanged<String?>? onSelected;
@@ -18,21 +20,18 @@ class _MeditationPickerState extends State<MeditationPicker> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
-      decoration: BoxDecoration(
-        color: AppColors.bg1,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.line),
-      ),
+    return GlassBlob(
+      accent: AppColors.blobButterAccent,
+      background: AppColors.blobButter,
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             '🧘 추천 명상 · 움직임',
-            style: serifFont(
-              fontSize: 14.5,
-              fontWeight: FontWeight.bold,
+            style: pathLabelFont(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
               color: AppColors.ink,
             ),
           ),
@@ -60,15 +59,24 @@ class _MeditationPickerState extends State<MeditationPicker> {
                     vertical: 10,
                   ),
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(999),
                     gradient: active
-                        ? const LinearGradient(
-                            colors: [AppColors.goldSoft, AppColors.gold],
+                        ? LinearGradient(
+                            colors: [
+                              AppColors.blobButterAccent,
+                              AppColors.blobButterAccent.withValues(
+                                alpha: 0.8,
+                              ),
+                            ],
                           )
                         : null,
-                    color: active ? null : AppColors.bg0,
+                    color: active
+                        ? null
+                        : Colors.white.withValues(alpha: 0.55),
                     border: Border.all(
-                      color: active ? Colors.transparent : AppColors.line,
+                      color: active
+                          ? Colors.transparent
+                          : AppColors.blobButterAccent.withValues(alpha: 0.25),
                     ),
                   ),
                   child: Column(

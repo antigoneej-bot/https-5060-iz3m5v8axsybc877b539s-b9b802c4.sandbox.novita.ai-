@@ -107,11 +107,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     const SizedBox(height: 4),
                     Text(
                       '회원가입',
-                      style: serifFont(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.ink,
-                      ),
+                      style: titleFont(fontSize: 24, color: AppColors.ink),
                     ),
                     const SizedBox(height: 6),
                     Text(
@@ -176,10 +172,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       child: ElevatedButton(
                         onPressed: _submitting ? null : _submit,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.gold,
+                          backgroundColor: AppColors.blobMintAccent,
                           foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
+                            borderRadius: BorderRadius.circular(999),
                           ),
                           elevation: 0,
                         ),
@@ -194,9 +190,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
                               )
                             : Text(
                                 '회원가입',
-                                style: bodyFont(
-                                  fontSize: 15.5,
-                                  fontWeight: FontWeight.bold,
+                                style: pathLabelFont(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
                                   color: Colors.white,
                                 ),
                               ),
@@ -220,7 +216,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             style: bodyFont(
                               fontSize: 12.5,
                               fontWeight: FontWeight.bold,
-                              color: AppColors.goldSoft,
+                              color: AppColors.blobMintAccent,
                             ),
                           ),
                         ),

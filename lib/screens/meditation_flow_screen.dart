@@ -8,6 +8,7 @@ import '../widgets/animated_cat_art.dart';
 import '../widgets/temp_box.dart';
 import '../widgets/journal_box.dart';
 import '../widgets/meditation_picker.dart';
+import '../widgets/garden_path_card.dart';
 import 'onboarding_flow_screen.dart';
 
 /// 고양이 선택 이후의 전체 플로우: 사연 → 편지 → 명상 → 온도체크 → 완료
@@ -79,11 +80,7 @@ class _StoryStage extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             cat.nameKr,
-            style: serifFont(
-              fontSize: 21,
-              fontWeight: FontWeight.bold,
-              color: AppColors.ink,
-            ),
+            style: titleFont(fontSize: 22, color: AppColors.ink),
           ),
           Text(
             cat.nameEn,
@@ -94,23 +91,19 @@ class _StoryStage extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 20),
-          Container(
-            width: double.infinity,
+          GlassBlob(
+            accent: AppColors.blobLavenderAccent,
+            background: AppColors.blobLavender,
             padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: AppColors.bg1,
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: AppColors.line),
-            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   '이 고양이의 이야기',
-                  style: serifFont(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.goldSoft,
+                  style: pathLabelFont(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.blobLavenderAccent,
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -133,7 +126,7 @@ class _StoryStage extends StatelessWidget {
             child: ElevatedButton(
               onPressed: () => _onWriteLetterPressed(context),
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.gold,
+                backgroundColor: AppColors.blobPeachAccent,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(
@@ -143,7 +136,7 @@ class _StoryStage extends StatelessWidget {
               ),
               child: Text(
                 '${cat.nameKr}에게 편지쓰기',
-                style: serifFont(fontSize: 15, color: Colors.white),
+                style: pathLabelFont(fontSize: 16, color: Colors.white),
               ),
             ),
           ),
@@ -195,9 +188,9 @@ class _LetterStage extends StatelessWidget {
                   children: [
                     Text(
                       cat.nameKr,
-                      style: serifFont(
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
+                      style: pathLabelFont(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
                         color: AppColors.ink,
                       ),
                     ),
@@ -223,7 +216,7 @@ class _LetterStage extends StatelessWidget {
               onPressed: () =>
                   context.read<AppStateProvider>().goToMeditation(),
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.gold,
+                backgroundColor: AppColors.blobLavenderAccent,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(
@@ -233,7 +226,7 @@ class _LetterStage extends StatelessWidget {
               ),
               child: Text(
                 '편지 다 썼어요, 명상하러 가기',
-                style: serifFont(fontSize: 15, color: Colors.white),
+                style: pathLabelFont(fontSize: 16, color: Colors.white),
               ),
             ),
           ),
@@ -260,9 +253,9 @@ class _MeditationStage extends StatelessWidget {
           Center(
             child: Text(
               '${cat.nameKr}을(를) 위한 마음 다스리기',
-              style: serifFont(
-                fontSize: 15,
-                fontWeight: FontWeight.bold,
+              style: pathLabelFont(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
                 color: AppColors.ink,
               ),
             ),
@@ -279,7 +272,7 @@ class _MeditationStage extends StatelessWidget {
             child: ElevatedButton(
               onPressed: () => context.read<AppStateProvider>().goToTempCheck(),
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.gold,
+                backgroundColor: AppColors.blobButterAccent,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(
@@ -289,7 +282,7 @@ class _MeditationStage extends StatelessWidget {
               ),
               child: Text(
                 '실천했어요, 마음 온도 체크하기',
-                style: serifFont(fontSize: 15, color: Colors.white),
+                style: pathLabelFont(fontSize: 16, color: Colors.white),
               ),
             ),
           ),
@@ -315,9 +308,9 @@ class _TempCheckStage extends StatelessWidget {
           Text(
             '명상 · 움직임을 실천한 지금,\n마음의 온도는 어떻게 변했나요?',
             textAlign: TextAlign.center,
-            style: serifFont(
-              fontSize: 15,
-              fontWeight: FontWeight.bold,
+            style: pathLabelFont(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
               color: AppColors.ink,
               height: 1.5,
             ),
@@ -339,7 +332,7 @@ class _TempCheckStage extends StatelessWidget {
                 );
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.gold,
+                backgroundColor: AppColors.blobRoseAccent,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(
@@ -349,7 +342,7 @@ class _TempCheckStage extends StatelessWidget {
               ),
               child: Text(
                 '오늘의 편지 저장하기',
-                style: serifFont(fontSize: 15, color: Colors.white),
+                style: pathLabelFont(fontSize: 16, color: Colors.white),
               ),
             ),
           ),
@@ -377,11 +370,7 @@ class _DoneStage extends StatelessWidget {
           if (app.justLeveledUp) ...[
             Text(
               '축하해요! 성장 ${app.growthLevel}단계로 올라갔어요',
-              style: serifFont(
-                fontSize: 17,
-                fontWeight: FontWeight.bold,
-                color: AppColors.ink,
-              ),
+              style: titleFont(fontSize: 20, color: AppColors.ink),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
@@ -393,11 +382,7 @@ class _DoneStage extends StatelessWidget {
           ] else ...[
             Text(
               '오늘의 편지가 조용히 기록되었어요',
-              style: serifFont(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: AppColors.ink,
-              ),
+              style: titleFont(fontSize: 19, color: AppColors.ink),
             ),
             const SizedBox(height: 8),
             Text(
@@ -410,7 +395,7 @@ class _DoneStage extends StatelessWidget {
               '마음 온도 ${app.growthPoints} / ${AppStateProvider.growthGoalPoints}°  ·  도전 ${app.growthElapsedDays}일째',
               style: bodyFont(
                 fontSize: 12,
-                color: AppColors.goldSoft,
+                color: AppColors.blobPeachAccent,
                 fontWeight: FontWeight.w600,
               ),
               textAlign: TextAlign.center,
@@ -423,7 +408,7 @@ class _DoneStage extends StatelessWidget {
               ElevatedButton(
                 onPressed: () => context.read<AppStateProvider>().restartFlow(),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.gold,
+                  backgroundColor: AppColors.blobMintAccent,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 24,
@@ -436,7 +421,7 @@ class _DoneStage extends StatelessWidget {
                 ),
                 child: Text(
                   '다른 고양이 만나기',
-                  style: serifFont(fontSize: 13, color: Colors.white),
+                  style: pathLabelFont(fontSize: 14, color: Colors.white),
                 ),
               ),
             ],

@@ -5,6 +5,7 @@ import '../providers/daily_card_provider.dart';
 import '../models/shadow_cat.dart';
 import '../theme.dart';
 import '../widgets/animated_cat_art.dart';
+import '../widgets/garden_path_card.dart';
 
 /// 데일리 내면소통 - 타로카드처럼 펼쳐진 카드 스프레드에서 한 장을 골라
 /// 오늘의 내면 고양이와 위로/지침을 받는 화면
@@ -30,9 +31,11 @@ class _DailyCardScreenState extends State<DailyCardScreen> {
     final provider = context.watch<DailyCardProvider>();
 
     if (provider.isLoading) {
-      return const Padding(
-        padding: EdgeInsets.only(top: 80),
-        child: Center(child: CircularProgressIndicator(color: AppColors.gold)),
+      return Padding(
+        padding: const EdgeInsets.only(top: 80),
+        child: Center(
+          child: CircularProgressIndicator(color: AppColors.blobMintAccent),
+        ),
       );
     }
 
@@ -42,11 +45,7 @@ class _DailyCardScreenState extends State<DailyCardScreen> {
         Text(
           '데일리 내면소통',
           textAlign: TextAlign.center,
-          style: serifFont(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: AppColors.ink,
-          ),
+          style: titleFont(fontSize: 24, color: AppColors.titlePastelGreen),
         ),
         const SizedBox(height: 6),
         Text(
@@ -131,18 +130,24 @@ class _SpreadCardState extends State<_SpreadCard> {
         width: 68,
         height: 100,
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
+          gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [AppColors.bg2, Color(0xFFF3D9A8)],
+            colors: [
+              AppColors.blobLavender.withValues(alpha: 0.95),
+              AppColors.blobLavenderAccent.withValues(alpha: 0.55),
+            ],
           ),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.gold, width: 1.2),
-          boxShadow: const [
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: AppColors.blobLavenderAccent.withValues(alpha: 0.5),
+            width: 1.2,
+          ),
+          boxShadow: [
             BoxShadow(
-              color: Color(0x22000000),
-              blurRadius: 6,
-              offset: Offset(0, 3),
+              color: AppColors.blobLavenderAccent.withValues(alpha: 0.18),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
             ),
           ],
         ),
@@ -262,18 +267,28 @@ class _CardResultState extends State<_CardResult>
                   child: Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: AppColors.bg1,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: AppColors.gold, width: 1.5),
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          AppColors.blobPeach.withValues(alpha: 0.9),
+                          AppColors.blobPeach.withValues(alpha: 0.55),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(28),
+                      border: Border.all(
+                        color: AppColors.blobPeachAccent.withValues(alpha: 0.4),
+                        width: 1.4,
+                      ),
                       boxShadow: [
-                        const BoxShadow(
-                          color: Color(0x22000000),
-                          blurRadius: 12,
-                          offset: Offset(0, 6),
-                        ),
-                        // 카드가 뒤집힌 직후 부드럽게 번지는 골드빛
                         BoxShadow(
-                          color: AppColors.gold.withValues(
+                          color: AppColors.blobPeachAccent.withValues(alpha: 0.12),
+                          blurRadius: 12,
+                          offset: const Offset(0, 6),
+                        ),
+                        // 카드가 뒤집힌 직후 부드럽게 번지는 빛
+                        BoxShadow(
+                          color: AppColors.blobPeachAccent.withValues(
                             alpha: 0.4 * _glow.value,
                           ),
                           blurRadius: 30 * _glow.value + 4,
@@ -290,10 +305,13 @@ class _CardResultState extends State<_CardResult>
                           child: Container(
                             width: 180,
                             height: 180,
-                            decoration: const BoxDecoration(
+                            decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               gradient: RadialGradient(
-                                colors: [Color(0xFFFFF3D0), Colors.transparent],
+                                colors: [
+                                  AppColors.blobPeach.withValues(alpha: 0.9),
+                                  Colors.transparent,
+                                ],
                               ),
                             ),
                           ),
@@ -320,18 +338,14 @@ class _CardResultState extends State<_CardResult>
           Center(
             child: Text(
               '${cat.emoji} ${cat.nameKr}',
-              style: serifFont(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: AppColors.ink,
-              ),
+              style: titleFont(fontSize: 20, color: AppColors.ink),
             ),
           ),
           const SizedBox(height: 4),
           Center(
             child: Text(
               '#${cat.keyword}',
-              style: bodyFont(fontSize: 12, color: AppColors.goldSoft),
+              style: bodyFont(fontSize: 12, color: AppColors.blobPeachAccent),
             ),
           ),
           const SizedBox(height: 18),
@@ -363,14 +377,11 @@ class _MessageCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.bg1,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.line),
-      ),
+    final isFirst = icon == '💌';
+    return GlassBlob(
+      accent: isFirst ? AppColors.blobRoseAccent : AppColors.blobMintAccent,
+      background: isFirst ? AppColors.blobRose : AppColors.blobMint,
+      padding: const EdgeInsets.all(18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -380,9 +391,9 @@ class _MessageCard extends StatelessWidget {
               const SizedBox(width: 8),
               Text(
                 title,
-                style: serifFont(
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.bold,
+                style: pathLabelFont(
+                  fontSize: 14.5,
+                  fontWeight: FontWeight.w700,
                   color: AppColors.ink,
                 ),
               ),

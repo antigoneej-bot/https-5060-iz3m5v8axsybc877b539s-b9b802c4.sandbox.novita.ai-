@@ -6,6 +6,7 @@ import '../models/letter_entry.dart';
 import '../data/shadow_cats_data.dart';
 import '../theme.dart';
 import '../widgets/lively_cat_image.dart';
+import '../widgets/garden_path_card.dart';
 
 class HistoryScreen extends StatelessWidget {
   const HistoryScreen({super.key});
@@ -34,79 +35,143 @@ class HistoryScreen extends StatelessWidget {
       );
     }
     return Column(
-      children: app.history.map((entry) => _HistoryItem(entry: entry)).toList(),
+      children: app.history
+          .asMap()
+          .entries
+          .map((e) => _HistoryItem(entry: e.value, seed: e.key))
+          .toList(),
     );
   }
 }
 
-class _HistoryItem extends StatelessWidget {
+class _HistoryItem extends StatefulWidget {
   final LetterEntry entry;
-  const _HistoryItem({required this.entry});
+  final int seed;
+  const _HistoryItem({required this.entry, required this.seed});
+
+  @override
+  State<_HistoryItem> createState() => _HistoryItemState();
+}
+
+class _HistoryItemState extends State<_HistoryItem>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _hoverController;
+  bool _hovering = false;
+
+  static const _accents = [
+    AppColors.blobMintAccent,
+    AppColors.blobPeachAccent,
+    AppColors.blobLavenderAccent,
+    AppColors.blobRoseAccent,
+    AppColors.blobButterAccent,
+    AppColors.blobPeriwinkleAccent,
+  ];
+  static const _backgrounds = [
+    AppColors.blobMint,
+    AppColors.blobPeach,
+    AppColors.blobLavender,
+    AppColors.blobRose,
+    AppColors.blobButter,
+    AppColors.blobPeriwinkle,
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _hoverController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 220),
+    );
+  }
+
+  @override
+  void dispose() {
+    _hoverController.dispose();
+    super.dispose();
+  }
+
+  void _setHover(bool v) {
+    if (_hovering == v) return;
+    setState(() => _hovering = v);
+    if (v) {
+      _hoverController.forward();
+    } else {
+      _hoverController.reverse();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final entry = widget.entry;
     final cat = shadowCatById(entry.catId);
     final dateStr = DateFormat(
       'yyyy.MM.dd (E) HH:mm',
       'ko_KR',
     ).format(entry.date);
+    final accent = _accents[widget.seed % _accents.length];
+    final background = _backgrounds[widget.seed % _backgrounds.length];
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Material(
-        color: AppColors.bg1,
-        borderRadius: BorderRadius.circular(14),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(14),
+      padding: const EdgeInsets.only(bottom: 12),
+      child: MouseRegion(
+        onEnter: (_) => _setHover(true),
+        onExit: (_) => _setHover(false),
+        cursor: SystemMouseCursors.click,
+        child: GestureDetector(
           onTap: () => _showDetail(context, entry, cat.imageAsset, cat.nameKr),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppColors.line),
-            ),
-            child: Row(
-              children: [
-                LivelyCatImage(
-                  imageAsset: cat.imageAsset,
-                  width: 38,
-                  height: 38,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        dateStr,
-                        style: bodyFont(fontSize: 11, color: AppColors.inkSoft),
-                      ),
-                      Text(
-                        '${cat.emoji} ${cat.nameKr}',
-                        style: serifFont(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.ink,
-                        ),
-                      ),
-                    ],
+          child: AnimatedScale(
+            scale: _hovering ? 1.015 : 1.0,
+            duration: const Duration(milliseconds: 200),
+            child: GlassBlob(
+              accent: accent,
+              background: background,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Row(
+                children: [
+                  LivelyCatImage(
+                    imageAsset: cat.imageAsset,
+                    width: 40,
+                    height: 40,
+                    borderRadius: BorderRadius.circular(14),
                   ),
-                ),
-                if (entry.improved)
-                  const Padding(
-                    padding: EdgeInsets.only(right: 6),
-                    child: Icon(
-                      Icons.trending_up_rounded,
-                      color: Color(0xFFD9695A),
-                      size: 18,
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          dateStr,
+                          style: bodyFont(
+                            fontSize: 11,
+                            color: AppColors.inkSoft,
+                          ),
+                        ),
+                        Text(
+                          '${cat.emoji} ${cat.nameKr}',
+                          style: pathLabelFont(
+                            fontSize: 14.5,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.ink,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                Icon(
-                  Icons.chevron_right,
-                  color: AppColors.inkSoft.withValues(alpha: 0.6),
-                  size: 20,
-                ),
-              ],
+                  if (entry.improved)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 6),
+                      child: Icon(
+                        Icons.trending_up_rounded,
+                        color: accent,
+                        size: 18,
+                      ),
+                    ),
+                  Icon(
+                    Icons.chevron_right,
+                    color: accent.withValues(alpha: 0.6),
+                    size: 20,
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -123,10 +188,25 @@ class _HistoryItem extends StatelessWidget {
     showDialog(
       context: context,
       builder: (ctx) => Dialog(
-        backgroundColor: AppColors.bg1,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Padding(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        child: Container(
           padding: const EdgeInsets.all(22),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(28),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                AppColors.bg0.withValues(alpha: 0.98),
+                AppColors.blobMint.withValues(alpha: 0.7),
+              ],
+            ),
+            border: Border.all(
+              color: AppColors.blobMintAccent.withValues(alpha: 0.25),
+              width: 1.2,
+            ),
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -136,11 +216,7 @@ class _HistoryItem extends StatelessWidget {
                   Expanded(
                     child: Text(
                       name,
-                      style: serifFont(
-                        fontSize: 17,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.ink,
-                      ),
+                      style: titleFont(fontSize: 20, color: AppColors.ink),
                     ),
                   ),
                   GestureDetector(
@@ -160,7 +236,7 @@ class _HistoryItem extends StatelessWidget {
               ),
               const SizedBox(height: 14),
               ClipRRect(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(20),
                 child: Image.asset(
                   imageAsset,
                   height: 140,
@@ -172,20 +248,26 @@ class _HistoryItem extends StatelessWidget {
               if (entry.tempAfter != null)
                 Text(
                   '마음 온도: 실천 전 ${entry.tempBefore.round()}° → 실천 후 ${entry.tempAfter!.round()}°',
-                  style: bodyFont(fontSize: 12.5, color: AppColors.goldSoft),
+                  style: bodyFont(
+                    fontSize: 12.5,
+                    color: AppColors.blobPeachAccent,
+                  ),
                 )
               else
                 Text(
                   '마음 온도: ${entry.tempBefore.round()}°',
-                  style: bodyFont(fontSize: 12.5, color: AppColors.goldSoft),
+                  style: bodyFont(
+                    fontSize: 12.5,
+                    color: AppColors.blobPeachAccent,
+                  ),
                 ),
               const SizedBox(height: 10),
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.all(14),
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: AppColors.bg0,
-                  borderRadius: BorderRadius.circular(10),
+                  color: Colors.white.withValues(alpha: 0.55),
+                  borderRadius: BorderRadius.circular(18),
                 ),
                 child: Text(
                   entry.letterText.isEmpty ? '(기록된 내용이 없어요)' : entry.letterText,

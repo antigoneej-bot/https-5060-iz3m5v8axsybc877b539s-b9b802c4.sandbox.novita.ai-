@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import '../theme.dart';
+import 'garden_path_card.dart';
 
-/// 그림자 고양이에게 쓰는 편지 입력 박스
+/// 그림자 고양이에게 쓰는 편지 입력 박스.
+/// 라벤더 톤 GlassBlob 위에 얹어, 조용히 마음을 적는 공간처럼 느껴지도록
+/// 합니다.
 class JournalBox extends StatelessWidget {
   final String question;
   final String hint;
@@ -15,53 +18,60 @@ class JournalBox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
-      decoration: BoxDecoration(
-        color: AppColors.bg1,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.line),
-      ),
+    return GlassBlob(
+      accent: AppColors.blobLavenderAccent,
+      background: AppColors.blobLavender,
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             question,
-            style: serifFont(
-              fontSize: 14.5,
-              fontWeight: FontWeight.bold,
+            style: pathLabelFont(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
               color: AppColors.ink,
             ),
           ),
           const SizedBox(height: 4),
-          Text(hint, style: bodyFont(fontSize: 12, color: AppColors.goldSoft)),
-          const SizedBox(height: 10),
-          TextField(
-            controller: controller,
-            minLines: 5,
-            maxLines: 10,
-            style: bodyFont(fontSize: 13.5, color: AppColors.moon),
-            decoration: InputDecoration(
-              filled: true,
-              fillColor: AppColors.bg0,
-              hintText: '고양이에게 편지를 적어보세요…',
-              hintStyle: bodyFont(fontSize: 13, color: AppColors.inkSoft),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 10,
-              ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: const BorderSide(color: AppColors.line),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: const BorderSide(color: AppColors.line),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: const BorderSide(color: AppColors.goldSoft),
+          Text(
+            hint,
+            style: bodyFont(fontSize: 12, color: AppColors.blobLavenderAccent),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              color: Colors.white.withValues(alpha: 0.55),
+            ),
+            child: TextField(
+              controller: controller,
+              minLines: 5,
+              maxLines: 10,
+              style: bodyFont(fontSize: 13.5, color: AppColors.moon),
+              decoration: InputDecoration(
+                filled: false,
+                hintText: '고양이에게 편지를 적어보세요…',
+                hintStyle: bodyFont(fontSize: 13, color: AppColors.inkSoft),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 12,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide.none,
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide.none,
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(
+                    color: AppColors.blobLavenderAccent.withValues(alpha: 0.5),
+                    width: 1.4,
+                  ),
+                ),
               ),
             ),
           ),

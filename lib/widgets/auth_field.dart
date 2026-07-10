@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import '../theme.dart';
 
-/// 로그인/회원가입 화면에서 공용으로 쓰는 입력 필드
+/// 로그인/회원가입 화면에서 공용으로 쓰는 입력 필드.
+/// 딱딱한 사각 테두리 대신, 알약처럼 둥근 반투명 필드로 부드럽게 표시합니다.
 class AuthField extends StatelessWidget {
   final TextEditingController controller;
   final String label;
@@ -31,43 +32,55 @@ class AuthField extends StatelessWidget {
       children: [
         Text(
           label,
-          style: bodyFont(
-            fontSize: 12.5,
-            fontWeight: FontWeight.bold,
+          style: pathLabelFont(
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
             color: AppColors.ink,
           ),
         ),
         const SizedBox(height: 6),
-        TextField(
-          controller: controller,
-          obscureText: obscureText,
-          keyboardType: keyboardType,
-          onSubmitted: onSubmitted,
-          style: bodyFont(fontSize: 14, color: AppColors.moon),
-          decoration: InputDecoration(
-            filled: true,
-            fillColor: AppColors.bg1,
-            hintText: hint,
-            hintStyle: bodyFont(fontSize: 13, color: AppColors.inkSoft),
-            prefixIcon: Icon(icon, color: AppColors.inkSoft, size: 20),
-            suffixIcon: suffix,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 4,
-              vertical: 14,
+        Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            color: AppColors.blobMint.withValues(alpha: 0.45),
+            border: Border.all(
+              color: AppColors.blobMintAccent.withValues(alpha: 0.22),
             ),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppColors.line),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppColors.line),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(
-                color: AppColors.goldSoft,
-                width: 1.4,
+          ),
+          child: TextField(
+            controller: controller,
+            obscureText: obscureText,
+            keyboardType: keyboardType,
+            onSubmitted: onSubmitted,
+            style: bodyFont(fontSize: 14, color: AppColors.moon),
+            decoration: InputDecoration(
+              filled: false,
+              hintText: hint,
+              hintStyle: bodyFont(fontSize: 13, color: AppColors.inkSoft),
+              prefixIcon: Icon(
+                icon,
+                color: AppColors.blobMintAccent,
+                size: 20,
+              ),
+              suffixIcon: suffix,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 4,
+                vertical: 14,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(20),
+                borderSide: BorderSide.none,
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(20),
+                borderSide: BorderSide.none,
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(20),
+                borderSide: BorderSide(
+                  color: AppColors.blobMintAccent.withValues(alpha: 0.5),
+                  width: 1.4,
+                ),
               ),
             ),
           ),
