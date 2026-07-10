@@ -4,9 +4,10 @@ import '../models/emotion_entry.dart';
 import '../models/monthly_report.dart';
 import '../data/solutions_data.dart';
 import '../theme.dart';
-import '../widgets/moonlit_report_background.dart';
+import '../widgets/stars_background.dart';
+import '../widgets/garden_path_card.dart';
 
-/// 월간 감정 리포트 - '밤의 정원' 무드로 한 달의 마음 흐름을 되돌아보는 화면
+/// 월간 감정 리포트 - '힐링 정원' 낮 무드로 한 달의 마음 흐름을 되돌아보는 화면
 /// 순서: 한 줄 요약 → 그래프(원형/막대/선) → 따뜻한 해석 → 조언 → 추천 명상
 class MonthlyReportScreen extends StatelessWidget {
   final MonthlyEmotionReport report;
@@ -15,7 +16,7 @@ class MonthlyReportScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: MoonlitReportBackground(
+      body: GardenScaffoldBackground(
         child: SafeArea(
           child: Center(
             child: ConstrainedBox(
@@ -30,18 +31,17 @@ class MonthlyReportScreen extends StatelessWidget {
                           onPressed: () => Navigator.of(context).pop(),
                           icon: const Icon(
                             Icons.arrow_back_ios_new_rounded,
-                            color: Colors.white70,
+                            color: AppColors.ink,
                             size: 18,
                           ),
                         ),
                         const SizedBox(width: 4),
                         Text(
                           '${report.monthLabel} 마음 리포트',
-                          style: bodyFont(
-                            fontSize: 13,
-                            color: Colors.white70,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: 0.5,
+                          style: pathLabelFont(
+                            fontSize: 15,
+                            color: AppColors.ink,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
                       ],
@@ -57,46 +57,49 @@ class MonthlyReportScreen extends StatelessWidget {
                               children: [
                                 _SummaryHero(report: report),
                                 const SizedBox(height: 28),
-                                _NightSectionLabel(
-                                  icon: '🌙',
+                                const _SectionLabel(
+                                  icon: '🌷',
                                   label: '이번 달 감정 비율',
                                 ),
                                 const SizedBox(height: 14),
                                 _EmotionPieCard(report: report),
                                 const SizedBox(height: 24),
-                                _NightSectionLabel(
+                                const _SectionLabel(
                                   icon: '✨',
                                   label: '날짜별 감정 흐름',
                                 ),
                                 const SizedBox(height: 14),
                                 _DailyFlowLineCard(report: report),
                                 const SizedBox(height: 24),
-                                _NightSectionLabel(icon: '🌌', label: '감정 빈도'),
+                                const _SectionLabel(
+                                  icon: '🌼',
+                                  label: '감정 빈도',
+                                ),
                                 const SizedBox(height: 14),
                                 _EmotionBarCard(report: report),
                                 const SizedBox(height: 24),
-                                _NightSectionLabel(
-                                  icon: '🕯️',
+                                const _SectionLabel(
+                                  icon: '🌤️',
                                   label: '긍정 · 부정 흐름',
                                 ),
                                 const SizedBox(height: 14),
                                 _ValenceCompareCard(report: report),
                                 const SizedBox(height: 28),
-                                _NightSectionLabel(
-                                  icon: '🐈‍⬛',
-                                  label: '그림자 정원의 속삭임',
+                                const _SectionLabel(
+                                  icon: '🐈',
+                                  label: '정원 고양이의 속삭임',
                                 ),
                                 const SizedBox(height: 14),
                                 _AnalysisCard(text: report.analysisText),
                                 const SizedBox(height: 24),
-                                _NightSectionLabel(
+                                const _SectionLabel(
                                   icon: '🕊️',
                                   label: '이 달의 다정한 조언',
                                 ),
                                 const SizedBox(height: 14),
                                 _AdviceCard(text: report.adviceText),
                                 const SizedBox(height: 24),
-                                _NightSectionLabel(
+                                const _SectionLabel(
                                   icon: '🧘',
                                   label: '지금 필요한 명상',
                                 ),
@@ -116,50 +119,26 @@ class MonthlyReportScreen extends StatelessWidget {
   }
 }
 
-class _NightSectionLabel extends StatelessWidget {
+class _SectionLabel extends StatelessWidget {
   final String icon;
   final String label;
-  const _NightSectionLabel({required this.icon, required this.label});
+  const _SectionLabel({required this.icon, required this.label});
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Text(icon, style: const TextStyle(fontSize: 15)),
+        Text(icon, style: const TextStyle(fontSize: 16)),
         const SizedBox(width: 8),
         Text(
           label,
-          style: serifFont(
-            fontSize: 15.5,
+          style: pathLabelFont(
+            fontSize: 16,
             fontWeight: FontWeight.w700,
-            color: Colors.white.withValues(alpha: 0.92),
+            color: AppColors.titlePastelGreen,
           ),
         ),
       ],
-    );
-  }
-}
-
-/// 밤 정원 톤의 공용 카드 컨테이너 (은은한 반투명 유리 느낌)
-class _NightCard extends StatelessWidget {
-  final Widget child;
-  final EdgeInsetsGeometry padding;
-  const _NightCard({
-    required this.child,
-    this.padding = const EdgeInsets.all(18),
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: padding,
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
-      ),
-      child: child,
     );
   }
 }
@@ -176,15 +155,14 @@ class _EmptyReportView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('🌙', style: TextStyle(fontSize: 44)),
+            const Text('🌱', style: TextStyle(fontSize: 44)),
             const SizedBox(height: 16),
             Text(
               '$monthLabel에는 아직\n기록된 마음이 없어요',
               textAlign: TextAlign.center,
-              style: serifFont(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: Colors.white.withValues(alpha: 0.9),
+              style: titleFont(
+                fontSize: 19,
+                color: AppColors.ink,
                 height: 1.5,
               ),
             ),
@@ -194,7 +172,7 @@ class _EmptyReportView extends StatelessWidget {
               textAlign: TextAlign.center,
               style: bodyFont(
                 fontSize: 12.5,
-                color: Colors.white.withValues(alpha: 0.55),
+                color: AppColors.inkSoft,
                 height: 1.6,
               ),
             ),
@@ -211,33 +189,21 @@ class _SummaryHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
+    return GlassBlob(
+      accent: AppColors.blobPeachAccent,
+      background: AppColors.blobPeach,
       padding: const EdgeInsets.fromLTRB(22, 26, 22, 26),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Colors.white.withValues(alpha: 0.10),
-            Colors.white.withValues(alpha: 0.03),
-          ],
-        ),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.14)),
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('🌘', style: const TextStyle(fontSize: 26)),
+          const Text('🌞', style: TextStyle(fontSize: 26)),
           const SizedBox(height: 14),
           Text(
             report.oneLineSummary,
-            style: serifFont(
-              fontSize: 17.5,
-              fontWeight: FontWeight.w700,
-              color: Colors.white,
-              height: 1.55,
+            style: titleFont(
+              fontSize: 19,
+              color: AppColors.ink,
+              height: 1.5,
             ),
           ),
           if (report.dominantEmotion != null) ...[
@@ -253,7 +219,8 @@ class _SummaryHero extends StatelessWidget {
                   '이 달의 대표 감정 · ${report.dominantEmotion!.label}',
                   style: bodyFont(
                     fontSize: 12,
-                    color: Colors.white.withValues(alpha: 0.6),
+                    color: AppColors.blobPeachAccent,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ],
@@ -275,7 +242,9 @@ class _EmotionPieCard extends StatelessWidget {
     final sortedEntries = report.emotionRatios.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
 
-    return _NightCard(
+    return GlassBlob(
+      accent: AppColors.blobMintAccent,
+      background: AppColors.blobMint,
       child: Row(
         children: [
           SizedBox(
@@ -327,7 +296,7 @@ class _EmotionPieCard extends StatelessWidget {
                           '${e.key.emoji} ${e.key.label}',
                           style: bodyFont(
                             fontSize: 12,
-                            color: Colors.white.withValues(alpha: 0.85),
+                            color: AppColors.ink,
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -336,7 +305,7 @@ class _EmotionPieCard extends StatelessWidget {
                         '$pct%',
                         style: bodyFont(
                           fontSize: 11.5,
-                          color: Colors.white.withValues(alpha: 0.55),
+                          color: AppColors.inkSoft,
                         ),
                       ),
                     ],
@@ -366,7 +335,9 @@ class _DailyFlowLineCard extends StatelessWidget {
         ),
     ];
 
-    return _NightCard(
+    return GlassBlob(
+      accent: AppColors.blobLavenderAccent,
+      background: AppColors.blobLavender,
       padding: const EdgeInsets.fromLTRB(12, 20, 20, 12),
       child: SizedBox(
         height: 150,
@@ -379,7 +350,7 @@ class _DailyFlowLineCard extends StatelessWidget {
               drawVerticalLine: false,
               horizontalInterval: 5,
               getDrawingHorizontalLine: (v) => FlLine(
-                color: Colors.white.withValues(alpha: 0.08),
+                color: AppColors.ink.withValues(alpha: 0.08),
                 strokeWidth: 1,
               ),
             ),
@@ -410,7 +381,7 @@ class _DailyFlowLineCard extends StatelessWidget {
                       label,
                       style: TextStyle(
                         fontSize: 9.5,
-                        color: Colors.white.withValues(alpha: 0.4),
+                        color: AppColors.inkSoft,
                       ),
                     );
                   },
@@ -427,7 +398,7 @@ class _DailyFlowLineCard extends StatelessWidget {
                       '${v.toInt()}일',
                       style: TextStyle(
                         fontSize: 9.5,
-                        color: Colors.white.withValues(alpha: 0.4),
+                        color: AppColors.inkSoft,
                       ),
                     ),
                   ),
@@ -440,7 +411,7 @@ class _DailyFlowLineCard extends StatelessWidget {
                 spots: spots,
                 isCurved: true,
                 curveSmoothness: 0.28,
-                color: AppColors.gold,
+                color: AppColors.blobLavenderAccent,
                 barWidth: 2.4,
                 dotData: const FlDotData(show: false),
                 belowBarData: BarAreaData(
@@ -449,8 +420,8 @@ class _DailyFlowLineCard extends StatelessWidget {
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                     colors: [
-                      AppColors.gold.withValues(alpha: 0.28),
-                      AppColors.gold.withValues(alpha: 0.0),
+                      AppColors.blobLavenderAccent.withValues(alpha: 0.28),
+                      AppColors.blobLavenderAccent.withValues(alpha: 0.0),
                     ],
                   ),
                 ),
@@ -458,12 +429,13 @@ class _DailyFlowLineCard extends StatelessWidget {
             ],
             lineTouchData: LineTouchData(
               touchTooltipData: LineTouchTooltipData(
-                getTooltipColor: (_) => const Color(0xFF2E3652),
+                getTooltipColor: (_) =>
+                    Colors.white.withValues(alpha: 0.92),
                 getTooltipItems: (spots) => spots
                     .map(
                       (s) => LineTooltipItem(
                         '${s.x.toInt()}일 · ${s.y.toStringAsFixed(1)}',
-                        const TextStyle(color: Colors.white, fontSize: 11),
+                        TextStyle(color: AppColors.ink, fontSize: 11),
                       ),
                     )
                     .toList(),
@@ -488,7 +460,9 @@ class _EmotionBarCard extends StatelessWidget {
         ? 1
         : report.emotionCounts.values.reduce((a, b) => a > b ? a : b);
 
-    return _NightCard(
+    return GlassBlob(
+      accent: AppColors.blobButterAccent,
+      background: AppColors.blobButter,
       padding: const EdgeInsets.fromLTRB(14, 20, 18, 14),
       child: SizedBox(
         height: 160,
@@ -499,7 +473,7 @@ class _EmotionBarCard extends StatelessWidget {
               show: true,
               drawVerticalLine: false,
               getDrawingHorizontalLine: (v) => FlLine(
-                color: Colors.white.withValues(alpha: 0.06),
+                color: AppColors.ink.withValues(alpha: 0.06),
                 strokeWidth: 1,
               ),
             ),
@@ -520,8 +494,9 @@ class _EmotionBarCard extends StatelessWidget {
                   reservedSize: 30,
                   getTitlesWidget: (v, meta) {
                     final idx = v.toInt();
-                    if (idx < 0 || idx >= sorted.length)
+                    if (idx < 0 || idx >= sorted.length) {
                       return const SizedBox.shrink();
+                    }
                     return Padding(
                       padding: const EdgeInsets.only(top: 6),
                       child: Text(
@@ -546,7 +521,7 @@ class _EmotionBarCard extends StatelessWidget {
                       backDrawRodData: BackgroundBarChartRodData(
                         show: true,
                         toY: (maxCount + 1).toDouble(),
-                        color: Colors.white.withValues(alpha: 0.04),
+                        color: AppColors.ink.withValues(alpha: 0.05),
                       ),
                     ),
                   ],
@@ -570,13 +545,15 @@ class _ValenceCompareCard extends StatelessWidget {
     final posPct = total == 0 ? 0.0 : report.positiveCount / total;
     final negPct = total == 0 ? 0.0 : report.negativeCount / total;
 
-    return _NightCard(
+    return GlassBlob(
+      accent: AppColors.blobRoseAccent,
+      background: AppColors.blobRose,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _valenceRow('🌤️ 긍정 감정', posPct, const Color(0xFFE7B65C)),
+          _valenceRow('🌤️ 긍정 감정', posPct, AppColors.blobButterAccent),
           const SizedBox(height: 14),
-          _valenceRow('🌧️ 부정 감정', negPct, const Color(0xFF7C93B8)),
+          _valenceRow('🌧️ 부정 감정', negPct, AppColors.blobPeriwinkleAccent),
           const SizedBox(height: 16),
           Text(
             report.avgIntensityFirstHalf > 0 &&
@@ -585,7 +562,7 @@ class _ValenceCompareCard extends StatelessWidget {
                 : '평균 감정 강도가 아직 충분히 쌓이지 않았어요',
             style: bodyFont(
               fontSize: 11.5,
-              color: Colors.white.withValues(alpha: 0.5),
+              color: AppColors.inkSoft,
             ),
           ),
         ],
@@ -604,14 +581,14 @@ class _ValenceCompareCard extends StatelessWidget {
               label,
               style: bodyFont(
                 fontSize: 12.5,
-                color: Colors.white.withValues(alpha: 0.8),
+                color: AppColors.ink,
               ),
             ),
             Text(
               '${(pct * 100).round()}%',
               style: bodyFont(
                 fontSize: 12,
-                color: Colors.white.withValues(alpha: 0.6),
+                color: AppColors.inkSoft,
               ),
             ),
           ],
@@ -622,7 +599,7 @@ class _ValenceCompareCard extends StatelessWidget {
           child: LinearProgressIndicator(
             value: pct,
             minHeight: 7,
-            backgroundColor: Colors.white.withValues(alpha: 0.08),
+            backgroundColor: AppColors.ink.withValues(alpha: 0.08),
             valueColor: AlwaysStoppedAnimation(color),
           ),
         ),
@@ -637,12 +614,14 @@ class _AnalysisCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _NightCard(
+    return GlassBlob(
+      accent: AppColors.blobPeriwinkleAccent,
+      background: AppColors.blobPeriwinkle,
       child: Text(
         text,
         style: bodyFont(
           fontSize: 13.5,
-          color: Colors.white.withValues(alpha: 0.85),
+          color: AppColors.ink,
           height: 1.75,
         ),
       ),
@@ -656,21 +635,9 @@ class _AdviceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            AppColors.gold.withValues(alpha: 0.22),
-            AppColors.gold.withValues(alpha: 0.06),
-          ],
-        ),
-        border: Border.all(color: AppColors.gold.withValues(alpha: 0.35)),
-      ),
+    return GlassBlob(
+      accent: AppColors.blobPeachAccent,
+      background: AppColors.blobPeach,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -681,7 +648,7 @@ class _AdviceCard extends StatelessWidget {
               text,
               style: bodyFont(
                 fontSize: 13.5,
-                color: Colors.white.withValues(alpha: 0.92),
+                color: AppColors.ink,
                 height: 1.7,
                 fontWeight: FontWeight.w500,
               ),
@@ -709,7 +676,9 @@ class _RecommendedMeditationCardState
   @override
   Widget build(BuildContext context) {
     final report = widget.report;
-    return _NightCard(
+    return GlassBlob(
+      accent: AppColors.blobMintAccent,
+      background: AppColors.blobMint,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -717,7 +686,7 @@ class _RecommendedMeditationCardState
             report.recommendationReason,
             style: bodyFont(
               fontSize: 12.5,
-              color: Colors.white.withValues(alpha: 0.7),
+              color: AppColors.inkSoft,
               height: 1.6,
             ),
           ),
@@ -733,19 +702,24 @@ class _RecommendedMeditationCardState
                   Material(
                     color: Colors.transparent,
                     child: InkWell(
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(16),
                       onTap: () =>
                           setState(() => _expandedKey = expanded ? null : key),
-                      child: Container(
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
                         padding: const EdgeInsets.symmetric(
                           horizontal: 14,
                           vertical: 13,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.05),
-                          borderRadius: BorderRadius.circular(14),
+                          color: Colors.white.withValues(
+                            alpha: expanded ? 0.68 : 0.5,
+                          ),
+                          borderRadius: BorderRadius.circular(16),
                           border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.12),
+                            color: AppColors.blobMintAccent.withValues(
+                              alpha: 0.25,
+                            ),
                           ),
                         ),
                         child: Row(
@@ -761,19 +735,17 @@ class _RecommendedMeditationCardState
                                 children: [
                                   Text(
                                     guide.title,
-                                    style: bodyFont(
-                                      fontSize: 13.5,
+                                    style: pathLabelFont(
+                                      fontSize: 14.5,
                                       fontWeight: FontWeight.w700,
-                                      color: Colors.white,
+                                      color: AppColors.ink,
                                     ),
                                   ),
                                   Text(
                                     guide.subtitle,
                                     style: bodyFont(
                                       fontSize: 11,
-                                      color: Colors.white.withValues(
-                                        alpha: 0.5,
-                                      ),
+                                      color: AppColors.inkSoft,
                                     ),
                                   ),
                                 ],
@@ -783,7 +755,7 @@ class _RecommendedMeditationCardState
                               expanded
                                   ? Icons.keyboard_arrow_up
                                   : Icons.keyboard_arrow_down,
-                              color: Colors.white.withValues(alpha: 0.6),
+                              color: AppColors.blobMintAccent,
                               size: 20,
                             ),
                           ],
@@ -793,7 +765,7 @@ class _RecommendedMeditationCardState
                   ),
                   if (expanded) ...[
                     const SizedBox(height: 8),
-                    _NightGuideSteps(guide: guide),
+                    _ReportGuideSteps(guide: guide),
                   ],
                 ],
               ),
@@ -805,18 +777,21 @@ class _RecommendedMeditationCardState
   }
 }
 
-/// 밤 정원 톤에 맞춘 명상 단계 안내 (GuideSteps를 다크 배경용으로 재구성)
-class _NightGuideSteps extends StatelessWidget {
+/// 낮 정원 톤에 맞춘 명상 단계 안내 (GuideSteps를 리포트용으로 재구성)
+class _ReportGuideSteps extends StatelessWidget {
   final SolutionGuide guide;
-  const _NightGuideSteps({required this.guide});
+  const _ReportGuideSteps({required this.guide});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.04),
-        borderRadius: BorderRadius.circular(12),
+        color: Colors.white.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: AppColors.blobMintAccent.withValues(alpha: 0.2),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -832,7 +807,7 @@ class _NightGuideSteps extends StatelessWidget {
                   alignment: Alignment.center,
                   margin: const EdgeInsets.only(right: 8, top: 1),
                   decoration: BoxDecoration(
-                    color: AppColors.gold.withValues(alpha: 0.85),
+                    color: AppColors.blobMintAccent,
                     shape: BoxShape.circle,
                   ),
                   child: Text(
@@ -849,7 +824,7 @@ class _NightGuideSteps extends StatelessWidget {
                     entry.value,
                     style: bodyFont(
                       fontSize: 12.5,
-                      color: Colors.white.withValues(alpha: 0.8),
+                      color: AppColors.ink,
                     ),
                   ),
                 ),
