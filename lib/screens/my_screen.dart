@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../providers/app_state_provider.dart';
 import '../theme.dart';
 import '../services/sound_service.dart';
+import '../services/notification_service.dart';
 import '../widgets/growth_header.dart';
 import '../widgets/garden_path_card.dart';
 import 'privacy_policy_screen.dart';
@@ -59,6 +60,8 @@ class _MyScreenState extends State<MyScreen> {
         ),
         const SizedBox(height: 12),
         _SettingsCard(sound: sound, onChanged: () => setState(() {})),
+        const SizedBox(height: 14),
+        const _ReminderCard(),
         const SizedBox(height: 12),
         _InfoLinkRow(
           icon: Icons.privacy_tip_rounded,
@@ -246,6 +249,177 @@ class _SettingsCard extends StatelessWidget {
             onChanged: onChanged,
             activeTrackColor: AppColors.blobLavenderAccent,
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 데일리 돌보기 알림(로컬 푸시 리마인더) 설정 카드.
+/// 켜면 매일 지정한 시간에 "고양이가 기다리고 있어요" 알림을 받습니다.
+class _ReminderCard extends StatefulWidget {
+  const _ReminderCard();
+
+  @override
+  State<_ReminderCard> createState() => _ReminderCardState();
+}
+
+class _ReminderCardState extends State<_ReminderCard> {
+  final _notif = NotificationService();
+  bool _loading = true;
+  bool _enabled = false;
+  int _hour = 20;
+  int _minute = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _load());
+  }
+
+  Future<void> _load() async {
+    final enabled = await _notif.isEnabled();
+    final (hour, minute) = await _notif.getReminderTime();
+    if (!mounted) return;
+    setState(() {
+      _enabled = enabled;
+      _hour = hour;
+      _minute = minute;
+      _loading = false;
+    });
+  }
+
+  Future<void> _onToggle(bool v) async {
+    if (v) {
+      final granted = await _notif.enableReminder(hour: _hour, minute: _minute);
+      if (!mounted) return;
+      if (!granted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('알림 권한이 필요해요. 기기 설정에서 알림을 허용해주세요.')),
+        );
+        setState(() => _enabled = false);
+        return;
+      }
+      setState(() => _enabled = true);
+    } else {
+      await _notif.disableReminder();
+      if (!mounted) return;
+      setState(() => _enabled = false);
+    }
+  }
+
+  Future<void> _pickTime() async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay(hour: _hour, minute: _minute),
+      builder: (context, child) => Theme(
+        data: Theme.of(context).copyWith(
+          colorScheme: Theme.of(
+            context,
+          ).colorScheme.copyWith(primary: AppColors.blobPeachAccent),
+        ),
+        child: child!,
+      ),
+    );
+    if (picked == null) return;
+    setState(() {
+      _hour = picked.hour;
+      _minute = picked.minute;
+    });
+    await _notif.updateReminderTime(picked.hour, picked.minute);
+  }
+
+  String get _timeLabel {
+    final h = _hour.toString().padLeft(2, '0');
+    final m = _minute.toString().padLeft(2, '0');
+    return '$h:$m';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassBlob(
+      accent: AppColors.blobPeachAccent,
+      background: AppColors.blobPeach,
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.notifications_active_rounded,
+                  color: AppColors.blobPeachAccent,
+                  size: 20,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    '돌보기 리마인더',
+                    style: bodyFont(fontSize: 13.5, color: AppColors.moon),
+                  ),
+                ),
+                _loading
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Switch(
+                        value: _enabled,
+                        onChanged: _onToggle,
+                        activeTrackColor: AppColors.blobPeachAccent,
+                      ),
+              ],
+            ),
+          ),
+          if (!_loading && _enabled) ...[
+            Divider(
+              height: 1,
+              color: AppColors.blobPeachAccent.withValues(alpha: 0.18),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.schedule_rounded,
+                    color: AppColors.blobPeachAccent,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      '매일 $_timeLabel에 알려드려요',
+                      style: bodyFont(fontSize: 13, color: AppColors.moon),
+                    ),
+                  ),
+                  Material(
+                    color: Colors.white.withValues(alpha: 0.6),
+                    borderRadius: BorderRadius.circular(999),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(999),
+                      onTap: _pickTime,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 7,
+                        ),
+                        child: Text(
+                          '시간 변경',
+                          style: bodyFont(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.blobPeachAccent,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );

@@ -261,4 +261,33 @@ class StorageService {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_companionNameKey);
   }
+
+  // ---- Daily Care Reminder (기기 전체 공통, 매일 돌보기 알림) ----
+  static const String _reminderEnabledKey = 'daily_reminder_enabled';
+  static const String _reminderHourKey = 'daily_reminder_hour';
+  static const String _reminderMinuteKey = 'daily_reminder_minute';
+
+  static Future<bool> getReminderEnabled() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_reminderEnabledKey) ?? false;
+  }
+
+  static Future<void> setReminderEnabled(bool v) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_reminderEnabledKey, v);
+  }
+
+  /// 저장된 리마인더 시각을 반환합니다: (시, 분). 기본값은 오후 8시입니다.
+  static Future<(int, int)> getReminderTime() async {
+    final prefs = await SharedPreferences.getInstance();
+    final hour = prefs.getInt(_reminderHourKey) ?? 20;
+    final minute = prefs.getInt(_reminderMinuteKey) ?? 0;
+    return (hour, minute);
+  }
+
+  static Future<void> setReminderTime(int hour, int minute) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_reminderHourKey, hour);
+    await prefs.setInt(_reminderMinuteKey, minute);
+  }
 }

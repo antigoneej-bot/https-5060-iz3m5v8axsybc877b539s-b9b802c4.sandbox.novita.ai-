@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'services/storage_service.dart';
 import 'services/sound_service.dart';
+import 'services/notification_service.dart';
 import 'services/cat_care_service.dart';
 import 'services/daily_card_service.dart';
 import 'services/emotion_service.dart';
@@ -24,6 +25,8 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await StorageService.init();
   await SoundService().init();
+  await NotificationService().init();
+  await NotificationService().restoreIfEnabled();
   await initializeDateFormatting('ko_KR', null);
   runApp(const MysticCatApp());
 }
