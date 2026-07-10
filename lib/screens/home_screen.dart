@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_state_provider.dart';
@@ -39,6 +40,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     return Scaffold(
+      extendBody: true,
       body: GardenScaffoldBackground(
         child: SafeArea(
           bottom: false,
@@ -48,7 +50,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 520),
                   child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(24, 32, 24, 40),
+                    padding: const EdgeInsets.fromLTRB(24, 32, 24, 118),
                     child: _buildTabBody(),
                   ),
                 ),
@@ -61,11 +63,22 @@ class _HomeScreenState extends State<HomeScreen> {
                   right: 0,
                   child: Center(child: _FirstMeetingBanner()),
                 ),
+              // 정원 배경 위에 '떠 있는' 반투명 하단 내비게이션
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 520),
+                    child: _BottomNavBar(index: _navIndex, onChanged: _goTo),
+                  ),
+                ),
+              ),
             ],
           ),
         ),
       ),
-      bottomNavigationBar: _BottomNavBar(index: _navIndex, onChanged: _goTo),
     );
   }
 
@@ -91,6 +104,9 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
+/// 하단 탐색 - 딱딱한 흰 사각 박스 대신, 정원 바닥에 살짝 '떠 있는' 반투명
+/// 유리질감의 알약형 내비게이션 바입니다. 화면 가장자리에 붙지 않고
+/// 사방에 여백을 두어 부유하는 느낌을 살렸습니다.
 class _BottomNavBar extends StatelessWidget {
   final int index;
   final ValueChanged<int> onChanged;
@@ -111,58 +127,75 @@ class _BottomNavBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: BoxDecoration(
-        color: AppColors.bg1,
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(24),
-          topRight: Radius.circular(24),
-        ),
-        border: Border.all(color: AppColors.line),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 16,
-            offset: const Offset(0, -4),
-          ),
-        ],
-      ),
+      color: Colors.transparent,
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
       child: SafeArea(
         top: false,
-        child: SizedBox(
-          height: 68,
-          child: Row(
-            children: List.generate(_items.length, (i) {
-              final item = _items[i];
-              final active = index == i;
-              return Expanded(
-                child: InkWell(
-                  onTap: () => onChanged(i),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      _NavIcon(
-                        icon: item.icon,
-                        imageAsset: item.imageAsset,
-                        active: active,
-                      ),
-                      const SizedBox(height: 5),
-                      Text(
-                        item.label,
-                        style: bodyFont(
-                          fontSize: 10.5,
-                          color: active
-                              ? AppColors.goldSoft
-                              : AppColors.inkSoft,
-                          fontWeight: active
-                              ? FontWeight.w700
-                              : FontWeight.w400,
-                        ),
-                      ),
-                    ],
-                  ),
+        minimum: EdgeInsets.zero,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(32),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+            child: Container(
+              height: 66,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(32),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    AppColors.blobMint.withValues(alpha: 0.75),
+                    AppColors.blobLavender.withValues(alpha: 0.62),
+                  ],
                 ),
-              );
-            }),
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.55),
+                  width: 1.2,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.blobMintAccent.withValues(alpha: 0.2),
+                    blurRadius: 22,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: List.generate(_items.length, (i) {
+                  final item = _items[i];
+                  final active = index == i;
+                  return Expanded(
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(32),
+                      onTap: () => onChanged(i),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          _NavIcon(
+                            icon: item.icon,
+                            imageAsset: item.imageAsset,
+                            active: active,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            item.label,
+                            style: bodyFont(
+                              fontSize: 10.5,
+                              color: active
+                                  ? AppColors.titlePastelGreen
+                                  : AppColors.inkSoft,
+                              fontWeight: active
+                                  ? FontWeight.w700
+                                  : FontWeight.w400,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }),
+              ),
+            ),
           ),
         ),
       ),
@@ -209,23 +242,33 @@ class _FirstMeetingBannerState extends State<_FirstMeetingBanner> {
       opacity: _visible ? 1.0 : 0.0,
       child: Container(
         margin: const EdgeInsets.only(top: 4),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
         decoration: BoxDecoration(
-          color: AppColors.bg1,
           borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: AppColors.line),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              AppColors.blobPeach.withValues(alpha: 0.9),
+              AppColors.blobPeach.withValues(alpha: 0.65),
+            ],
+          ),
+          border: Border.all(
+            color: AppColors.blobPeachAccent.withValues(alpha: 0.3),
+            width: 1.2,
+          ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
+              color: AppColors.blobPeachAccent.withValues(alpha: 0.16),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
             ),
           ],
         ),
         child: Text(
           '${shadowCats.length}마리 중 $shown마리를 만났어요 🐾',
-          style: bodyFont(
-            fontSize: 12.5,
+          style: pathLabelFont(
+            fontSize: 13,
             fontWeight: FontWeight.w600,
             color: AppColors.ink,
           ),
@@ -256,7 +299,7 @@ class _NavIcon extends StatelessWidget {
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           border: Border.all(
-            color: active ? AppColors.goldSoft : Colors.transparent,
+            color: active ? AppColors.titlePastelGreen : Colors.transparent,
             width: 1.5,
           ),
         ),
@@ -271,7 +314,7 @@ class _NavIcon extends StatelessWidget {
     return Icon(
       icon,
       size: 22,
-      color: active ? AppColors.goldSoft : AppColors.inkSoft,
+      color: active ? AppColors.titlePastelGreen : AppColors.inkSoft,
     );
   }
 }

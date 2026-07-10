@@ -2,16 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_state_provider.dart';
 import '../theme.dart';
-import '../widgets/streak_header.dart';
 import '../widgets/growth_header.dart';
 import '../widgets/stars_background.dart';
 import '../widgets/emotion_record_sheet.dart';
 import '../widgets/monthly_report_picker_sheet.dart';
+import '../widgets/garden_path_card.dart';
 import '../providers/emotion_provider.dart';
 import 'pet_care_screen.dart';
 import 'daily_card_screen.dart';
 
-/// 홈페이지 탭 - 앱 전체 현황을 한눈에 보여주는 대시보드
+/// 홈페이지 탭 - '힐링 정원 산책로' 컨셉의 대시보드.
+/// 딱딱한 흰 사각 카드를 모두 걷어내고, 오솔길을 걷듯 좌우로 살짝씩 흔들리며
+/// 놓인 반투명 알약형 카드들을 순서대로 만나게 됩니다.
 class HomeTabScreen extends StatelessWidget {
   final VoidCallback onGoToCatSelect;
   final VoidCallback onGoToMeditation;
@@ -47,8 +49,8 @@ class HomeTabScreen extends StatelessWidget {
           textAlign: TextAlign.center,
           style: bodyFont(
             fontSize: 12,
-            color: AppColors.goldSoft,
-            letterSpacing: 3.5,
+            color: AppColors.titlePastelGreenSoft,
+            letterSpacing: 4,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -56,24 +58,17 @@ class HomeTabScreen extends StatelessWidget {
         Text(
           '고양이 그림자 정원',
           textAlign: TextAlign.center,
-          style: titleFont(
-            fontSize: 32,
-            color: AppColors.titlePastelGreen,
-          ),
+          style: titleFont(fontSize: 34, color: AppColors.titlePastelGreen),
         ),
         const SizedBox(height: 10),
         Text(
-          '36마리 그림자 고양이와 함께하는, 나의 마음챙김 저널',
+          '36마리 그림자 고양이와 함께하는,\n나의 마음챙김 산책로',
           textAlign: TextAlign.center,
-          style: bodyFont(
-            fontSize: 13.5,
-            color: AppColors.inkSoft,
-            height: 1.5,
-          ),
+          style: bodyFont(fontSize: 13.5, color: AppColors.inkSoft, height: 1.7),
         ),
-        const SizedBox(height: 40),
-        StreakHeader(streak: app.streak),
-        const SizedBox(height: 28),
+        const SizedBox(height: 34),
+        _StreakBlob(streak: app.streak),
+        const SizedBox(height: 18),
         GrowthHeader(
           level: app.growthLevel,
           points: app.growthPoints,
@@ -81,79 +76,99 @@ class HomeTabScreen extends StatelessWidget {
           goalPoints: AppStateProvider.growthGoalPoints,
           windowDays: AppStateProvider.growthWindowDays,
         ),
-        const SizedBox(height: 52),
-        _SectionHeading(title: '무엇을 해볼까요?'),
-        const SizedBox(height: 24),
-        _ActionCard(
+        const SizedBox(height: 44),
+        _PathSignpost(title: '오솔길을 따라 걸어볼까요?'),
+        const SizedBox(height: 6),
+        GardenPathCard(
           emoji: '🐾',
           title: '오늘의 감정 고양이 만나기',
           subtitle: '지금 내 기분과 닮은 고양이를 골라 편지를 써보세요',
-          color: const CategoryColor(AppColors.catPeach, AppColors.catPeachBg),
+          accent: AppColors.blobPeachAccent,
+          background: AppColors.blobPeach,
+          alignX: -0.32,
+          widthFactor: 0.92,
+          floatSeed: 1,
           onTap: onGoToCatSelect,
         ),
-        const SizedBox(height: 20),
-        _ActionCard(
+        const GardenPathConnector(
+          startX: -0.32,
+          endX: 0.3,
+          decorEmoji: '🦋',
+        ),
+        GardenPathCard(
           emoji: '🧘',
           title: '명상 · 움직임 둘러보기',
           subtitle: '호흡, 알아차림, 움직임, 표현하기 가이드를 살펴보세요',
-          color: const CategoryColor(
-            AppColors.catLavender,
-            AppColors.catLavenderBg,
-          ),
+          accent: AppColors.blobLavenderAccent,
+          background: AppColors.blobLavender,
+          alignX: 0.3,
+          widthFactor: 0.9,
+          floatSeed: 2,
           onTap: onGoToMeditation,
         ),
-        const SizedBox(height: 20),
-        _ActionCard(
+        const GardenPathConnector(startX: 0.3, endX: -0.28, decorEmoji: '🐾'),
+        GardenPathCard(
           emoji: '🌡️',
           title: '마음 온도 기록 보기',
           subtitle: '지난 편지와 마음 온도 변화를 돌아보세요',
-          color: const CategoryColor(
-            AppColors.catDustyRose,
-            AppColors.catDustyRoseBg,
-          ),
+          accent: AppColors.blobRoseAccent,
+          background: AppColors.blobRose,
+          alignX: -0.28,
+          widthFactor: 0.9,
+          floatSeed: 3,
           onTap: onGoToRecords,
         ),
-        const SizedBox(height: 20),
-        _ActionCard(
+        const GardenPathConnector(startX: -0.28, endX: 0.26, decorEmoji: '🦋'),
+        GardenPathCard(
           emoji: '🐟',
           title: '마음 돌보기',
           subtitle: '몸 돌봄과 호흡·걷기 명상, 마음기록으로 고양이를 함께 키워보세요',
-          color: const CategoryColor(AppColors.catSage, AppColors.catSageBg),
+          accent: AppColors.blobMintAccent,
+          background: AppColors.blobMint,
+          alignX: 0.26,
+          widthFactor: 0.92,
+          floatSeed: 4,
           onTap: () =>
               _pushFullScreen(context, '마음 돌보기', const PetCareScreen()),
         ),
-        const SizedBox(height: 20),
-        _ActionCard(
+        const GardenPathConnector(startX: 0.26, endX: -0.3, decorEmoji: '🐾'),
+        GardenPathCard(
           emoji: '🔮',
           title: '데일리 내면소통',
           subtitle: '오늘의 카드를 뽑아 위로와 지침을 받아보세요',
-          color: const CategoryColor(AppColors.catNavy, AppColors.catNavyBg),
+          accent: AppColors.blobPeriwinkleAccent,
+          background: AppColors.blobPeriwinkle,
+          alignX: -0.3,
+          widthFactor: 0.9,
+          floatSeed: 5,
           onTap: () =>
               _pushFullScreen(context, '데일리 내면소통', const DailyCardScreen()),
         ),
-        const SizedBox(height: 20),
-        _ActionCard(
+        const GardenPathConnector(startX: -0.3, endX: 0.28, decorEmoji: '🦋'),
+        GardenPathCard(
           emoji: emotion.hasRecordedToday ? '🌙' : '🌗',
           title: emotion.hasRecordedToday ? '오늘의 감정 다시 기록하기' : '오늘의 감정 기록하기',
           subtitle: '지금 마음을 골라 달빛 정원에 짧게 남겨보세요',
-          color: const CategoryColor(
-            AppColors.catLavender,
-            AppColors.catLavenderBg,
-          ),
+          accent: AppColors.blobLavenderAccent,
+          background: AppColors.blobLavender,
+          alignX: 0.28,
+          widthFactor: 0.9,
+          floatSeed: 6,
           onTap: () => EmotionRecordSheet.show(context),
         ),
-        const SizedBox(height: 20),
-        _ActionCard(
+        const GardenPathConnector(startX: 0.28, endX: -0.26, decorEmoji: '🐾'),
+        GardenPathCard(
           emoji: '📖',
           title: '마음 리포트 보기',
           subtitle: '한 달간의 감정 흐름을 따뜻하게 되돌아보세요',
-          color: const CategoryColor(
-            AppColors.catDustyRose,
-            AppColors.catDustyRoseBg,
-          ),
+          accent: AppColors.blobButterAccent,
+          background: AppColors.blobButter,
+          alignX: -0.26,
+          widthFactor: 0.9,
+          floatSeed: 7,
           onTap: () => MonthlyReportPickerSheet.show(context),
         ),
-        const SizedBox(height: 36),
+        const SizedBox(height: 40),
         _GardenHintCaption(),
       ],
     );
@@ -168,33 +183,104 @@ void _pushFullScreen(BuildContext context, String title, Widget child) {
   );
 }
 
-/// 섹션 제목 - 왼쪽에 작은 포인트 바를 두어 위계를 명확히 드러냅니다.
-class _SectionHeading extends StatelessWidget {
+/// 오솔길 입구에 세워진 나무 팻말 느낌의 섹션 안내 - 딱딱한 사이드바 대신
+/// 손글씨 폰트와 은은한 초록 밑줄로 위계를 드러냅니다.
+class _PathSignpost extends StatelessWidget {
   final String title;
-  const _SectionHeading({required this.title});
+  const _PathSignpost({required this.title});
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return Column(
       children: [
+        Text(
+          title,
+          textAlign: TextAlign.center,
+          style: titleFont(fontSize: 20, color: AppColors.ink),
+        ),
+        const SizedBox(height: 8),
         Container(
-          width: 4,
-          height: 18,
+          width: 64,
+          height: 3,
           decoration: BoxDecoration(
-            color: AppColors.gold,
+            color: AppColors.titlePastelGreenSoft,
             borderRadius: BorderRadius.circular(999),
           ),
         ),
-        const SizedBox(width: 10),
-        Text(
-          title,
-          style: serifFont(
-            fontSize: 18,
-            fontWeight: FontWeight.w800,
-            color: AppColors.ink,
-          ),
-        ),
       ],
+    );
+  }
+}
+
+/// 며칠째 함께하는지를 보여주는 반투명 유기적 블롭 - 흰 사각 박스를 대체
+class _StreakBlob extends StatelessWidget {
+  final int streak;
+  const _StreakBlob({required this.streak});
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassBlob(
+      accent: AppColors.blobButterAccent,
+      background: AppColors.blobButter,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0, end: 1),
+            duration: const Duration(milliseconds: 800),
+            curve: Curves.elasticOut,
+            builder: (context, value, child) {
+              return Container(
+                width: 44,
+                height: 44,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Color(0xFFFFF1D6),
+                ),
+                child: ClipOval(
+                  child: Align(
+                    alignment: Alignment.center,
+                    child: Transform.scale(
+                      scale: value,
+                      child: Container(
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: RadialGradient(
+                            center: Alignment(-0.3, -0.4),
+                            colors: [
+                              Color(0xFFFFF6DF),
+                              AppColors.goldSoft,
+                              AppColors.gold,
+                            ],
+                            stops: [0, 0.55, 1],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+          const SizedBox(width: 16),
+          RichText(
+            text: TextSpan(
+              style: bodyFont(fontSize: 13.5, color: AppColors.moon),
+              children: [
+                TextSpan(
+                  text: '$streak',
+                  style: numberFont(
+                    fontSize: 19,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.goldSoft,
+                  ),
+                ),
+                const TextSpan(text: '일째 함께하는 중'),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -247,94 +333,6 @@ class _SimpleFeatureScaffold extends StatelessWidget {
   }
 }
 
-class _ActionCard extends StatelessWidget {
-  final String emoji;
-  final String title;
-  final String subtitle;
-  final CategoryColor color;
-  final VoidCallback onTap;
-  const _ActionCard({
-    required this.emoji,
-    required this.title,
-    required this.subtitle,
-    required this.color,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: AppColors.bg1,
-      borderRadius: BorderRadius.circular(20),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(20),
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 22),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: AppColors.line),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 48,
-                height: 48,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: color.background,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Text(emoji, style: const TextStyle(fontSize: 22)),
-              ),
-              const SizedBox(width: 20),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: serifFont(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.ink,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      subtitle,
-                      style: bodyFont(
-                        fontSize: 12,
-                        color: AppColors.inkSoft,
-                        height: 1.4,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              Container(
-                width: 28,
-                height: 28,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: color.background,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  Icons.chevron_right_rounded,
-                  color: color.accent,
-                  size: 18,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 /// 새로운 월간 마음 리포트가 도착했음을 알리는 은은한 달빛 배너
 class _MonthlyReportBanner extends StatelessWidget {
   final VoidCallback onTap;
@@ -344,14 +342,14 @@ class _MonthlyReportBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: Colors.transparent,
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(28),
       child: InkWell(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(28),
         onTap: onTap,
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(28),
             gradient: const LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
@@ -377,9 +375,8 @@ class _MonthlyReportBanner extends StatelessWidget {
                   children: [
                     Text(
                       '이번 달 마음 리포트가 도착했어요',
-                      style: serifFont(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
+                      style: titleFont(
+                        fontSize: 15,
                         color: Colors.white,
                       ),
                     ),
@@ -421,7 +418,7 @@ class _GardenHintCaption extends StatelessWidget {
           style: bodyFont(
             fontSize: 11.5,
             color: AppColors.inkSoft,
-            height: 1.7,
+            height: 1.8,
           ),
         ),
       ),

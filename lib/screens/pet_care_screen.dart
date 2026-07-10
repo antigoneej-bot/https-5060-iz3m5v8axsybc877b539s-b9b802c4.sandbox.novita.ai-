@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/cat_care_provider.dart';
@@ -7,12 +8,15 @@ import '../models/shadow_cat.dart';
 import '../models/cat_care_state.dart';
 import '../utils/korean_particle.dart';
 import '../widgets/animated_cat_art.dart';
+import '../widgets/garden_path_card.dart';
 
 /// 마음 돌보기 (다마고치식) - 매일 몸(밥/물/목욕/청소)과 마음(호흡명상/걷기명상/
 /// 마음기록/감사쓰기)을 함께 돌보며 나의 그림자 고양이를 키우고 마음 온도를
 /// 유지하는 화면. 하루라도 돌보지 않으면 온도가 1도씩 내려갑니다.
 /// 처음엔 아기 고양이로 시작해서, 정성껏 돌본 날이 쌓일수록 청년을 거쳐
 /// 내가 고른 그림자 고양이의 모습으로 다 자라납니다.
+/// '힐링 정원' 컨셉에 맞춰 딱딱한 흰 사각 박스를 모두 걷어내고, 반투명
+/// 파스텔 블롭(GlassBlob)과 알약형 돌봄 카드로 다시 꾸몄습니다.
 class PetCareScreen extends StatefulWidget {
   const PetCareScreen({super.key});
 
@@ -37,7 +41,9 @@ class _PetCareScreenState extends State<PetCareScreen> {
     if (care.isLoading) {
       return const Padding(
         padding: EdgeInsets.only(top: 80),
-        child: Center(child: CircularProgressIndicator(color: AppColors.gold)),
+        child: Center(
+          child: CircularProgressIndicator(color: AppColors.blobMintAccent),
+        ),
       );
     }
 
@@ -55,11 +61,7 @@ class _PetCareScreenState extends State<PetCareScreen> {
         Text(
           '마음 돌보기',
           textAlign: TextAlign.center,
-          style: serifFont(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: AppColors.ink,
-          ),
+          style: titleFont(fontSize: 24, color: AppColors.ink),
         ),
         const SizedBox(height: 6),
         Text(
@@ -69,25 +71,18 @@ class _PetCareScreenState extends State<PetCareScreen> {
         ),
         const SizedBox(height: 22),
         _CompanionCard(cat: companion, state: care.state, name: name),
-        const SizedBox(height: 24),
-        Text(
-          '몸을 돌보기',
-          style: serifFont(
-            fontSize: 15,
-            fontWeight: FontWeight.bold,
-            color: AppColors.ink,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          '$name${subjectParticle(name)} 건강하게 지낼 수 있도록 챙겨주세요',
-          style: bodyFont(fontSize: 11.5, color: AppColors.inkSoft),
+        const SizedBox(height: 30),
+        _CareSectionSignpost(
+          emoji: '🐾',
+          title: '몸을 돌보기',
+          subtitle: '$name${subjectParticle(name)} 건강하게 지낼 수 있도록 챙겨주세요',
         ),
         const SizedBox(height: 12),
         _CareTaskTile(
           emoji: '🍚',
           label: '밥 주기',
           done: care.state.fedToday,
+          seed: 1,
           onTap: care.state.fedToday
               ? null
               : () => context.read<CatCareProvider>().feed(),
@@ -97,6 +92,7 @@ class _PetCareScreenState extends State<PetCareScreen> {
           emoji: '💧',
           label: '물 주기',
           done: care.state.wateredToday,
+          seed: 2,
           onTap: care.state.wateredToday
               ? null
               : () => context.read<CatCareProvider>().water(),
@@ -106,6 +102,7 @@ class _PetCareScreenState extends State<PetCareScreen> {
           emoji: '🛁',
           label: '목욕 시키기',
           done: care.state.bathedToday,
+          seed: 3,
           onTap: care.state.bathedToday
               ? null
               : () => context.read<CatCareProvider>().bath(),
@@ -115,29 +112,23 @@ class _PetCareScreenState extends State<PetCareScreen> {
           emoji: '🧹',
           label: '집 청소하기',
           done: care.state.cleanedToday,
+          seed: 4,
           onTap: care.state.cleanedToday
               ? null
               : () => context.read<CatCareProvider>().clean(),
         ),
-        const SizedBox(height: 24),
-        Text(
-          '마음을 돌보기',
-          style: serifFont(
-            fontSize: 15,
-            fontWeight: FontWeight.bold,
-            color: AppColors.ink,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          '당신의 마음을 돌보는 것이 곧 $name${topicParticle(name)} 돌보는 일이에요',
-          style: bodyFont(fontSize: 11.5, color: AppColors.inkSoft),
+        const SizedBox(height: 28),
+        _CareSectionSignpost(
+          emoji: '🦋',
+          title: '마음을 돌보기',
+          subtitle: '당신의 마음을 돌보는 것이 곧 $name${topicParticle(name)} 돌보는 일이에요',
         ),
         const SizedBox(height: 12),
         _CareTaskTile(
           emoji: '🌬',
           label: '5분 호흡 명상',
           done: care.state.breathingDoneToday,
+          seed: 5,
           onTap: care.state.breathingDoneToday
               ? null
               : () => context.read<CatCareProvider>().breathing(),
@@ -147,6 +138,7 @@ class _PetCareScreenState extends State<PetCareScreen> {
           emoji: '🚶',
           label: '걷기 명상',
           done: care.state.walkingDoneToday,
+          seed: 6,
           onTap: care.state.walkingDoneToday
               ? null
               : () => context.read<CatCareProvider>().walking(),
@@ -156,6 +148,7 @@ class _PetCareScreenState extends State<PetCareScreen> {
           emoji: '📖',
           label: '오늘의 마음 기록',
           done: care.state.journalingDoneToday,
+          seed: 7,
           onTap: care.state.journalingDoneToday
               ? null
               : () => context.read<CatCareProvider>().journaling(),
@@ -165,19 +158,17 @@ class _PetCareScreenState extends State<PetCareScreen> {
           emoji: '❤️',
           label: '감사 3가지 쓰기',
           done: care.state.gratitudeDoneToday,
+          seed: 8,
           onTap: care.state.gratitudeDoneToday
               ? null
               : () => context.read<CatCareProvider>().gratitude(),
         ),
-        const SizedBox(height: 18),
+        const SizedBox(height: 22),
         if (care.state.allDoneToday)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            decoration: BoxDecoration(
-              color: AppColors.bg2,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppColors.line),
-            ),
+          GlassBlob(
+            accent: AppColors.blobButterAccent,
+            background: AppColors.blobButter,
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
             child: Row(
               children: [
                 const Text('🎉', style: TextStyle(fontSize: 20)),
@@ -185,9 +176,9 @@ class _PetCareScreenState extends State<PetCareScreen> {
                 Expanded(
                   child: Text(
                     '오늘 돌봄을 모두 마쳤어요! 마음 온도가 올라갔어요.',
-                    style: bodyFont(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.bold,
+                    style: pathLabelFont(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w700,
                       color: AppColors.ink,
                     ),
                   ),
@@ -196,18 +187,15 @@ class _PetCareScreenState extends State<PetCareScreen> {
             ),
           )
         else
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            decoration: BoxDecoration(
-              color: AppColors.bg1,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppColors.line),
-            ),
+          GlassBlob(
+            accent: AppColors.blobLavenderAccent,
+            background: AppColors.blobLavender,
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
             child: Row(
               children: [
-                const Icon(
+                Icon(
                   Icons.info_outline_rounded,
-                  color: AppColors.inkSoft,
+                  color: AppColors.blobLavenderAccent,
                   size: 18,
                 ),
                 const SizedBox(width: 10),
@@ -220,6 +208,48 @@ class _PetCareScreenState extends State<PetCareScreen> {
               ],
             ),
           ),
+      ],
+    );
+  }
+}
+
+/// 섹션 사이, 오솔길 팻말처럼 손글씨 폰트로 안내하는 작은 표지판.
+class _CareSectionSignpost extends StatelessWidget {
+  final String emoji;
+  final String title;
+  final String subtitle;
+  const _CareSectionSignpost({
+    required this.emoji,
+    required this.title,
+    required this.subtitle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Text(emoji, style: const TextStyle(fontSize: 18)),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: pathLabelFont(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.ink,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: bodyFont(fontSize: 11.5, color: AppColors.inkSoft),
+              ),
+            ],
+          ),
+        ),
       ],
     );
   }
@@ -238,13 +268,13 @@ class _CompanionCard extends StatelessWidget {
   Color get _tempColor {
     switch (state.moodState) {
       case CatMoodState.warm:
-        return AppColors.gold;
+        return AppColors.blobPeachAccent;
       case CatMoodState.calm:
-        return AppColors.goldSoft;
+        return AppColors.blobButterAccent;
       case CatMoodState.tired:
         return const Color(0xFF7C93B8);
       case CatMoodState.recovering:
-        return AppColors.catSage;
+        return AppColors.blobMintAccent;
     }
   }
 
@@ -266,13 +296,10 @@ class _CompanionCard extends StatelessWidget {
     final stage = state.growthStage;
     final daysLeft = state.daysUntilNextStage;
     final displayName = stage == CatGrowthStage.adult ? cat.nameKr : name;
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: AppColors.bg1,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.line),
-      ),
+    return GlassBlob(
+      accent: AppColors.blobPeachAccent,
+      background: AppColors.blobPeach,
+      padding: const EdgeInsets.all(20),
       child: Column(
         children: [
           Stack(
@@ -289,9 +316,11 @@ class _CompanionCard extends StatelessWidget {
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.line),
+                    color: Colors.white.withValues(alpha: 0.75),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: AppColors.blobPeachAccent.withValues(alpha: 0.3),
+                    ),
                   ),
                   child: Text(
                     state.moodEmoji,
@@ -303,10 +332,13 @@ class _CompanionCard extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
             decoration: BoxDecoration(
-              color: AppColors.bg2,
+              color: Colors.white.withValues(alpha: 0.55),
               borderRadius: BorderRadius.circular(999),
+              border: Border.all(
+                color: AppColors.blobPeachAccent.withValues(alpha: 0.3),
+              ),
             ),
             child: Text(
               stage == CatGrowthStage.adult
@@ -314,19 +346,15 @@ class _CompanionCard extends StatelessWidget {
                   : state.growthStageLabel,
               style: bodyFont(
                 fontSize: 11,
-                fontWeight: FontWeight.bold,
-                color: AppColors.goldSoft,
+                fontWeight: FontWeight.w700,
+                color: AppColors.blobPeachAccent,
               ),
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           Text(
             displayName,
-            style: serifFont(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: AppColors.ink,
-            ),
+            style: titleFont(fontSize: 19, color: AppColors.ink),
           ),
           const SizedBox(height: 2),
           Text(
@@ -337,15 +365,18 @@ class _CompanionCard extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               '$displayName${topicParticle(displayName)} $daysLeft일 더 정성껏 돌보면 다음 단계로 자라나요',
-              style: bodyFont(fontSize: 11, color: AppColors.goldSoft),
+              style: bodyFont(
+                fontSize: 11,
+                color: AppColors.blobPeachAccent,
+              ),
             ),
           ],
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             decoration: BoxDecoration(
-              color: AppColors.bg0,
-              borderRadius: BorderRadius.circular(12),
+              color: Colors.white.withValues(alpha: 0.5),
+              borderRadius: BorderRadius.circular(18),
             ),
             child: Row(
               children: [
@@ -361,9 +392,9 @@ class _CompanionCard extends StatelessWidget {
                       ),
                       Text(
                         state.moodLabel,
-                        style: serifFont(
-                          fontSize: 13.5,
-                          fontWeight: FontWeight.bold,
+                        style: pathLabelFont(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
                           color: _tempColor,
                         ),
                       ),
@@ -372,22 +403,22 @@ class _CompanionCard extends StatelessWidget {
                 ),
                 Text(
                   '${state.temperature}°',
-                  style: serifFont(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
+                  style: numberFont(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
                     color: _tempColor,
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           ClipRRect(
             borderRadius: BorderRadius.circular(999),
             child: LinearProgressIndicator(
               value: (state.temperature / 100).clamp(0.0, 1.0),
               minHeight: 8,
-              backgroundColor: AppColors.bg0,
+              backgroundColor: Colors.white.withValues(alpha: 0.5),
               valueColor: AlwaysStoppedAnimation(_tempColor),
             ),
           ),
@@ -397,59 +428,145 @@ class _CompanionCard extends StatelessWidget {
   }
 }
 
-class _CareTaskTile extends StatelessWidget {
+/// 돌봄 항목 하나 - 딱딱한 흰 사각 박스 대신, 살짝 비대칭인 유기적 알약형
+/// 카드로 표현합니다. 마우스를 올리면 나뭇잎처럼 살짝 흔들리고, 완료된
+/// 항목은 부드러운 민트 톤으로 물들어 은은하게 표시됩니다.
+class _CareTaskTile extends StatefulWidget {
   final String emoji;
   final String label;
   final bool done;
   final VoidCallback? onTap;
+  final int seed;
   const _CareTaskTile({
     required this.emoji,
     required this.label,
     required this.done,
     required this.onTap,
+    required this.seed,
   });
 
   @override
+  State<_CareTaskTile> createState() => _CareTaskTileState();
+}
+
+class _CareTaskTileState extends State<_CareTaskTile>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _hoverController;
+  bool _hovering = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _hoverController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 220),
+    );
+  }
+
+  @override
+  void dispose() {
+    _hoverController.dispose();
+    super.dispose();
+  }
+
+  void _setHover(bool v) {
+    if (widget.onTap == null || _hovering == v) return;
+    setState(() => _hovering = v);
+    if (v) {
+      _hoverController.forward();
+    } else {
+      _hoverController.reverse();
+    }
+  }
+
+  BorderRadius _blobRadius() {
+    final rng = Random(widget.seed * 23 + 11);
+    double r(double base) => base + rng.nextDouble() * 10;
+    return BorderRadius.only(
+      topLeft: Radius.circular(r(22)),
+      topRight: Radius.circular(r(18)),
+      bottomLeft: Radius.circular(r(18)),
+      bottomRight: Radius.circular(r(26)),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Material(
-      color: done ? AppColors.bg2 : AppColors.bg1,
-      borderRadius: BorderRadius.circular(14),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(14),
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: AppColors.line),
-          ),
-          child: Row(
-            children: [
-              Text(emoji, style: const TextStyle(fontSize: 22)),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Text(
-                  label,
-                  style: bodyFont(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.ink,
+    final accent = widget.done
+        ? AppColors.blobMintAccent
+        : AppColors.blobLavenderAccent;
+    final background = widget.done ? AppColors.blobMint : AppColors.blobLavender;
+    final radius = _blobRadius();
+    return AnimatedBuilder(
+      animation: _hoverController,
+      builder: (context, child) {
+        final t = _hoverController.value;
+        final wiggle = sin(t * pi * 3) * 0.03 * t;
+        final scale = 1.0 + t * 0.02;
+        return Transform.rotate(
+          angle: wiggle,
+          child: Transform.scale(scale: scale, child: child),
+        );
+      },
+      child: MouseRegion(
+        onEnter: (_) => _setHover(true),
+        onExit: (_) => _setHover(false),
+        cursor: widget.onTap == null
+            ? SystemMouseCursors.basic
+            : SystemMouseCursors.click,
+        child: GestureDetector(
+          onTapDown: (_) => _setHover(true),
+          onTapCancel: () => _setHover(false),
+          onTapUp: (_) => _setHover(false),
+          onTap: widget.onTap,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 220),
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+            decoration: BoxDecoration(
+              borderRadius: radius,
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  background.withValues(alpha: widget.done ? 0.82 : 0.62),
+                  background.withValues(alpha: widget.done ? 0.55 : 0.38),
+                ],
+              ),
+              border: Border.all(
+                color: accent.withValues(alpha: _hovering ? 0.5 : 0.24),
+                width: 1.1,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: accent.withValues(alpha: _hovering ? 0.2 : 0.1),
+                  blurRadius: _hovering ? 18 : 10,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Text(widget.emoji, style: const TextStyle(fontSize: 21)),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Text(
+                    widget.label,
+                    style: pathLabelFont(
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.ink,
+                    ),
                   ),
                 ),
-              ),
-              if (done)
-                const Icon(
-                  Icons.check_circle_rounded,
-                  color: AppColors.gold,
-                  size: 24,
-                )
-              else
-                const Icon(
-                  Icons.radio_button_unchecked_rounded,
-                  color: AppColors.inkSoft,
-                  size: 24,
+                Icon(
+                  widget.done
+                      ? Icons.check_circle_rounded
+                      : Icons.radio_button_unchecked_rounded,
+                  color: accent,
+                  size: 22,
                 ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

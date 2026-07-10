@@ -50,6 +50,20 @@ class AppColors {
   // 홈 대표 타이틀용 파스텔 그린 (귀엽고 동글동글한 폰트와 함께 사용)
   static const titlePastelGreen = Color(0xFF8FBFA0);
   static const titlePastelGreenSoft = Color(0xFFB7D9C2);
+
+  // ── 힐링 정원 산책로 메뉴용 파스텔 블롭 컬러 (반투명 유기적 알약 카드) ──
+  static const blobMint = Color(0xFFDCEEE3);
+  static const blobMintAccent = Color(0xFF6FA98A);
+  static const blobPeach = Color(0xFFFBE3D9);
+  static const blobPeachAccent = Color(0xFFE0916E);
+  static const blobLavender = Color(0xFFE8E1F5);
+  static const blobLavenderAccent = Color(0xFF9C8FCB);
+  static const blobRose = Color(0xFFF6E1E6);
+  static const blobRoseAccent = Color(0xFFCB8896);
+  static const blobButter = Color(0xFFFBF0D9);
+  static const blobButterAccent = Color(0xFFC79A47);
+  static const blobPeriwinkle = Color(0xFFE6E8F5);
+  static const blobPeriwinkleAccent = Color(0xFF6B74A8);
 }
 
 /// 카테고리별 포인트 컬러 쌍 (아이콘 색상 + 배경색)
@@ -59,7 +73,9 @@ class CategoryColor {
   const CategoryColor(this.accent, this.background);
 }
 
-/// 제목 · 섹션 헤딩용 폰트 (Noto Sans KR, 굵고 또렷하여 위계가 잘 드러남)
+/// 제목 · 섹션 헤딩용 폰트 (Gowun Dodum) - 부드럽고 동글동글하면서도
+/// 가독성이 높은 라운드 한글 폰트로 전면 교체했습니다. 자간·행간을 여유롭게
+/// 주어 '힐링 정원'의 느긋한 분위기를 살립니다.
 TextStyle serifFont({
   double fontSize = 16,
   FontWeight? fontWeight,
@@ -67,16 +83,17 @@ TextStyle serifFont({
   double? letterSpacing,
   double? height,
 }) {
-  return GoogleFonts.notoSansKr(
+  return GoogleFonts.gowunDodum(
     fontSize: fontSize,
-    fontWeight: fontWeight ?? FontWeight.w700,
+    fontWeight: fontWeight ?? FontWeight.w400,
     color: color,
-    letterSpacing: letterSpacing ?? -0.2,
-    height: height,
+    letterSpacing: letterSpacing ?? 0.4,
+    height: height ?? 1.5,
   );
 }
 
-/// 본문 · 캡션용 폰트 (Noto Sans KR, 가독성 좋은 모던 산세리프)
+/// 본문 · 캡션용 폰트 (Gowun Dodum, 가독성 좋은 라운드 산세리프)
+/// 자간(letterSpacing)과 행간(height)을 기본보다 넓게 잡아 여유로운 느낌을 줍니다.
 TextStyle bodyFont({
   double fontSize = 14,
   FontWeight? fontWeight,
@@ -84,17 +101,18 @@ TextStyle bodyFont({
   double? letterSpacing,
   double? height,
 }) {
-  return GoogleFonts.notoSansKr(
+  return GoogleFonts.gowunDodum(
     fontSize: fontSize,
     fontWeight: fontWeight ?? FontWeight.w400,
     color: color,
-    letterSpacing: letterSpacing ?? 0.1,
-    height: height ?? 1.4,
+    letterSpacing: letterSpacing ?? 0.3,
+    height: height ?? 1.6,
   );
 }
 
-/// 홈 대표 타이틀 전용 폰트 (Jua) - 동글동글하고 귀여운 손글씨 느낌의
-/// 한글 라운드 폰트로, 앱 대표 문구("고양이 그림자 정원")에만 사용합니다.
+/// 홈 대표 타이틀 · 메뉴 라벨 전용 손글씨 폰트 (Gamja Flower) - 아주
+/// 동글동글하고 몽글몽글한 손글씨 느낌으로, 정원 산책로 컨셉의 표지판 글씨처럼
+/// 사용합니다. 자간을 넓게 주어 손으로 쓴 듯한 여유로운 리듬을 살립니다.
 TextStyle titleFont({
   double fontSize = 30,
   FontWeight? fontWeight,
@@ -102,12 +120,30 @@ TextStyle titleFont({
   double? letterSpacing,
   double? height,
 }) {
-  return GoogleFonts.jua(
+  return GoogleFonts.gamjaFlower(
     fontSize: fontSize,
     fontWeight: fontWeight ?? FontWeight.w400,
     color: color,
-    letterSpacing: letterSpacing ?? 0,
-    height: height,
+    letterSpacing: letterSpacing ?? 0.6,
+    height: height ?? 1.3,
+  );
+}
+
+/// 정원 산책로 메뉴판 라벨 전용 폰트 (Gamja Flower) - titleFont와 같은
+/// 손글씨 계열이지만 메뉴 알약 카드 안의 작은 글씨에 맞춘 별칭입니다.
+TextStyle pathLabelFont({
+  double fontSize = 15,
+  FontWeight? fontWeight,
+  Color? color,
+  double? letterSpacing,
+  double? height,
+}) {
+  return GoogleFonts.gamjaFlower(
+    fontSize: fontSize,
+    fontWeight: fontWeight ?? FontWeight.w400,
+    color: color,
+    letterSpacing: letterSpacing ?? 0.4,
+    height: height ?? 1.35,
   );
 }
 
@@ -130,7 +166,7 @@ TextStyle numberFont({
 final ThemeData appTheme = ThemeData(
   useMaterial3: true,
   scaffoldBackgroundColor: AppColors.bg0,
-  textTheme: GoogleFonts.notoSansKrTextTheme(
+  textTheme: GoogleFonts.gowunDodumTextTheme(
     ThemeData.light().textTheme,
   ).apply(bodyColor: AppColors.moon, displayColor: AppColors.moon),
   colorScheme: ColorScheme.light(
