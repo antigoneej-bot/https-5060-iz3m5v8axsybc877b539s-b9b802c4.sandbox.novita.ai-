@@ -238,6 +238,19 @@ class StorageService {
     await prefs.setBool(_welcomeIntroDoneKey, true);
   }
 
+  // ---- Video Intro (앱 최초 실행 시 1회만 보여주는 짧은 인트로 영상) ----
+  static const String _videoIntroDoneKey = 'video_intro_completed_v1';
+
+  static Future<bool> isVideoIntroCompleted() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_videoIntroDoneKey) ?? false;
+  }
+
+  static Future<void> setVideoIntroCompleted() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_videoIntroDoneKey, true);
+  }
+
   /// 사용자가 지어준 companion(아기고양이)의 이름을 저장합니다.
   static Future<void> setCompanionName(String name) async {
     final prefs = await SharedPreferences.getInstance();

@@ -57,8 +57,12 @@ class _AppRoot extends StatefulWidget {
 
 class _AppRootState extends State<_AppRoot> {
   bool _dataLoaded = false;
+  // 두 인트로(영상 인트로 · 웰컴 투어) 모두 "최초 1회만" 보여줍니다.
+  // 실제로 보여줄지 여부는 StorageService에 저장된 완료 기록을 확인한 뒤 결정되며,
+  // 그 확인이 끝나기 전까지는 _introChecked가 false라 로딩 스플래시만 보입니다.
+  bool _introChecked = false;
   bool _needsWelcomeIntro = false;
-  bool _needsVideoIntro = true;
+  bool _needsVideoIntro = false;
 
   @override
   void initState() {
@@ -66,6 +70,19 @@ class _AppRootState extends State<_AppRoot> {
     CatCareService.setCurrentUser(_localUserId);
     DailyCardService.setCurrentUser(_localUserId);
     EmotionService.setCurrentUser(_localUserId);
+    _bootstrap();
+  }
+
+  Future<void> _bootstrap() async {
+    final videoDone = await StorageService.isVideoIntroCompleted();
+    final welcomeDone = await StorageService.isWelcomeIntroCompleted();
+    if (!mounted) return;
+    setState(() {
+      _needsVideoIntro = !videoDone;
+      _needsWelcomeIntro = !welcomeDone;
+      _introChecked = true;
+    });
+
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
       final appState = context.read<AppStateProvider>();
@@ -78,21 +95,23 @@ class _AppRootState extends State<_AppRoot> {
       await emotion.load();
       if (!mounted) return;
       setState(() {
-        // 웰컴 투어는 최초 1회가 아니라, 인트로 영상처럼 앱에 들어갈 때마다 보여줍니다.
-        _needsWelcomeIntro = true;
         _dataLoaded = true;
       });
     });
   }
 
-  void _onWelcomeIntroFinished() {
+  void _onWelcomeIntroFinished() async {
+    await StorageService.setWelcomeIntroCompleted();
+    if (!mounted) return;
     // 웰컴 투어를 마치면 홈이 아니라, 바로 "고양이선택" 탭으로 이어져
     // 곧바로 첫 감정 고양이를 만나고 첫 편지/명상 여정을 시작할 수 있게 합니다.
     context.read<AppStateProvider>().requestHomeTab(1);
     setState(() => _needsWelcomeIntro = false);
   }
 
-  void _onVideoIntroFinished() {
+  void _onVideoIntroFinished() async {
+    await StorageService.setVideoIntroCompleted();
+    if (!mounted) return;
     setState(() => _needsVideoIntro = false);
   }
 
@@ -104,7 +123,9 @@ class _AppRootState extends State<_AppRoot> {
       switchOutCurve: Curves.easeOut,
       transitionBuilder: (child, animation) =>
           FadeTransition(opacity: animation, child: child),
-      child: _needsVideoIntro
+      child: !_introChecked
+          ? const _LoadingSplash(key: ValueKey('loading'))
+          : _needsVideoIntro
           ? VideoIntroScreen(
               key: const ValueKey('videoIntro'),
               onFinished: _onVideoIntroFinished,
