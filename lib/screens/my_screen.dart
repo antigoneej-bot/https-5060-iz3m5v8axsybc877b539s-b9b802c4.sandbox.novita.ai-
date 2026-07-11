@@ -670,8 +670,7 @@ class _FeedbackCard extends StatefulWidget {
 }
 
 class _FeedbackCardState extends State<_FeedbackCard> {
-  // TODO: 실제 운영 이메일 주소로 교체해주세요.
-  static const _feedbackEmail = 'feedback@catshadowgarden.app';
+  static const _feedbackEmail = 'antigone.ej@gmail.com';
 
   bool _sending = false;
 
