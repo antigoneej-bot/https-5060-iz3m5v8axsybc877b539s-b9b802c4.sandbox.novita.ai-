@@ -21,6 +21,14 @@ class CatCareProvider extends ChangeNotifier {
   /// 웰컴 투어에서 사용자가 지어준 아기고양이의 이름. 없으면 null.
   String? companionName;
 
+  /// 방금 성장 단계가 올라간 경우, 새로 도달한 단계. 레벨업 애니메이션을
+  /// 보여준 뒤 [clearLevelUp]으로 비워줍니다. 평소에는 null.
+  CatGrowthStage? justReachedStage;
+
+  void clearLevelUp() {
+    justReachedStage = null;
+  }
+
   Future<void> load() async {
     isLoading = true;
     notifyListeners();
@@ -39,8 +47,14 @@ class CatCareProvider extends ChangeNotifier {
       : '아기 고양이';
 
   Future<void> _complete(CareTask task) async {
+    final prevStage = state.growthStage;
     state = await CatCareService.completeTask(task);
     await SoundService().playMeow();
+    final newStage = state.growthStage;
+    if (newStage != prevStage) {
+      // 성장 단계가 올라간 순간 - 화면에서 레벨업 애니메이션을 띄울 수 있도록 표시
+      justReachedStage = newStage;
+    }
     notifyListeners();
   }
 

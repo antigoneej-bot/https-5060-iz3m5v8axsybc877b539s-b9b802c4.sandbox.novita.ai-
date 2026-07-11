@@ -9,6 +9,7 @@ import '../models/cat_care_state.dart';
 import '../utils/korean_particle.dart';
 import '../widgets/animated_cat_art.dart';
 import '../widgets/garden_path_card.dart';
+import '../widgets/level_up_overlay.dart';
 
 /// 마음 돌보기 (다마고치식) - 매일 몸(밥/물/목욕/청소)과 마음(호흡명상/걷기명상/
 /// 마음기록/감사쓰기)을 함께 돌보며 나의 그림자 고양이를 키우고 마음 온도를
@@ -55,6 +56,26 @@ class _PetCareScreenState extends State<PetCareScreen> {
     }
     final name = care.displayName;
 
+    return Stack(
+      alignment: Alignment.center,
+      clipBehavior: Clip.none,
+      children: [
+        _buildBody(care, companion, name),
+        if (care.justReachedStage != null)
+          LevelUpOverlay(
+            stage: care.justReachedStage!,
+            companionName: name,
+            imageAsset: _CompanionCard.imageAssetFor(
+              care.justReachedStage!,
+              companion,
+            ),
+            onDismiss: () => context.read<CatCareProvider>().clearLevelUp(),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildBody(CatCareProvider care, ShadowCat companion, String name) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -278,12 +299,28 @@ class _CompanionCard extends StatelessWidget {
     }
   }
 
-  /// 성장 단계에 따라 보여줄 이미지 - 아기/청년 단계에서는 공용 성장 아트를,
+  /// 특정 성장 단계에 해당하는 이미지 경로를 반환합니다 (레벨업 오버레이용).
+  static String imageAssetFor(CatGrowthStage stage, ShadowCat cat) {
+    switch (stage) {
+      case CatGrowthStage.baby:
+        return 'assets/growth/baby_cat.png';
+      case CatGrowthStage.teen:
+        return 'assets/growth/teen_cat.png';
+      case CatGrowthStage.young:
+        return 'assets/growth/young_cat.png';
+      case CatGrowthStage.adult:
+        return cat.imageAsset;
+    }
+  }
+
+  /// 성장 단계에 따라 보여줄 이미지 - 아기/소년/청년 단계에서는 공용 성장 아트를,
   /// 다 자란 단계에서는 사용자가 실제로 키우고 있는 그림자 고양이 모습을 보여줍니다.
   String get _stageImageAsset {
     switch (state.growthStage) {
       case CatGrowthStage.baby:
         return 'assets/growth/baby_cat.png';
+      case CatGrowthStage.teen:
+        return 'assets/growth/teen_cat.png';
       case CatGrowthStage.young:
         return 'assets/growth/young_cat.png';
       case CatGrowthStage.adult:
@@ -365,10 +402,7 @@ class _CompanionCard extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               '$displayName${topicParticle(displayName)} $daysLeft일 더 정성껏 돌보면 다음 단계로 자라나요',
-              style: bodyFont(
-                fontSize: 11,
-                color: AppColors.blobPeachAccent,
-              ),
+              style: bodyFont(fontSize: 11, color: AppColors.blobPeachAccent),
             ),
           ],
           const SizedBox(height: 16),
@@ -504,7 +538,9 @@ class _CareTaskTileState extends State<_CareTaskTile>
     final accent = widget.done
         ? AppColors.blobMintAccent
         : AppColors.blobLavenderAccent;
-    final background = widget.done ? AppColors.blobMint : AppColors.blobLavender;
+    final background = widget.done
+        ? AppColors.blobMint
+        : AppColors.blobLavender;
     final radius = _blobRadius();
     return AnimatedBuilder(
       animation: Listenable.merge([_hoverController, _floatController]),

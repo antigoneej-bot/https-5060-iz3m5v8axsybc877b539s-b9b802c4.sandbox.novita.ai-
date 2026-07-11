@@ -1,8 +1,9 @@
-/// 다마고치식 '마음 돌보기'에서 반려 고양이의 성장 단계
+/// 다마고치식 '마음 돌보기'에서 반려 고양이의 성장 단계 (4단계)
 /// - baby: 처음 시작 (0~2일 돌봄)
-/// - young: 청년 고양이 (3~6일 돌봄)
-/// - adult: 다 자란 고양이 - 선택한 그림자 고양이의 모습으로 완성 (7일 이상 돌봄)
-enum CatGrowthStage { baby, young, adult }
+/// - teen: 소년 고양이 (3~5일 돌봄)
+/// - young: 청년 고양이 (6~9일 돌봄)
+/// - adult: 다 자란 고양이 - 선택한 그림자 고양이의 모습으로 완성 (10일 이상 돌봄)
+enum CatGrowthStage { baby, teen, young, adult }
 
 /// 마음 온도에 따른 상태(감정) 표현.
 /// 숫자보다 직관적으로 지금 상태를 전달하기 위한 4단계 표현입니다.
@@ -65,10 +66,19 @@ class CatCareState {
     gratitudeDoneToday,
   ].where((v) => v).length;
 
-  /// 성장 단계 계산 (누적 돌봄 일수 기준)
+  /// 성장 단계 계산 (누적 돌봄 일수 기준, 4단계)
   CatGrowthStage get growthStage {
-    if (growthDays >= 7) return CatGrowthStage.adult;
-    if (growthDays >= 3) return CatGrowthStage.young;
+    if (growthDays >= 10) return CatGrowthStage.adult;
+    if (growthDays >= 6) return CatGrowthStage.young;
+    if (growthDays >= 3) return CatGrowthStage.teen;
+    return CatGrowthStage.baby;
+  }
+
+  /// 누적 돌봄 일수로부터 성장 단계를 계산합니다. (변화 감지용)
+  static CatGrowthStage stageForGrowthDays(int days) {
+    if (days >= 10) return CatGrowthStage.adult;
+    if (days >= 6) return CatGrowthStage.young;
+    if (days >= 3) return CatGrowthStage.teen;
     return CatGrowthStage.baby;
   }
 
@@ -77,8 +87,10 @@ class CatCareState {
     switch (growthStage) {
       case CatGrowthStage.baby:
         return 3 - growthDays;
+      case CatGrowthStage.teen:
+        return 6 - growthDays;
       case CatGrowthStage.young:
-        return 7 - growthDays;
+        return 10 - growthDays;
       case CatGrowthStage.adult:
         return null;
     }
@@ -89,6 +101,8 @@ class CatCareState {
     switch (growthStage) {
       case CatGrowthStage.baby:
         return '아기 고양이';
+      case CatGrowthStage.teen:
+        return '소년 고양이';
       case CatGrowthStage.young:
         return '청년 고양이';
       case CatGrowthStage.adult:
