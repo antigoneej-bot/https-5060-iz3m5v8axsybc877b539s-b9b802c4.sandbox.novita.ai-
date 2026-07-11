@@ -1,5 +1,9 @@
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import '../providers/app_state_provider.dart';
 import '../theme.dart';
 import '../services/sound_service.dart';
@@ -66,6 +70,8 @@ class _MyScreenState extends State<MyScreen> {
         _SettingsCard(sound: sound, onChanged: () => setState(() {})),
         const SizedBox(height: 14),
         const _ReminderCard(),
+        const SizedBox(height: 14),
+        const _FeedbackCard(),
         const SizedBox(height: 12),
         _InfoLinkRow(
           icon: Icons.privacy_tip_rounded,
@@ -646,6 +652,150 @@ class _ReminderCardState extends State<_ReminderCard> {
             activeTrackColor: AppColors.blobPeachAccent,
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// 사용자 의견/피드백을 이메일로 보낼 수 있는 카드.
+/// 서버 없이도 기기의 이메일 앱을 열어 미리 채워진 제목/본문으로
+/// 바로 보낼 수 있게 합니다. 앱 버전·플랫폼 정보를 자동으로 담아
+/// 보내주므로, 어떤 사용자가 어떤 상황에서 의견을 남겼는지 파악하기
+/// 쉬워집니다.
+class _FeedbackCard extends StatefulWidget {
+  const _FeedbackCard();
+
+  @override
+  State<_FeedbackCard> createState() => _FeedbackCardState();
+}
+
+class _FeedbackCardState extends State<_FeedbackCard> {
+  // TODO: 실제 운영 이메일 주소로 교체해주세요.
+  static const _feedbackEmail = 'feedback@catshadowgarden.app';
+
+  bool _sending = false;
+
+  Future<void> _openFeedback() async {
+    if (_sending) return;
+    setState(() => _sending = true);
+    try {
+      String versionInfo = '';
+      try {
+        final info = await PackageInfo.fromPlatform();
+        versionInfo = '앱 버전: ${info.version}+${info.buildNumber}';
+      } catch (_) {
+        // 버전 정보를 못 가져와도 피드백 발송 자체는 계속 진행합니다.
+      }
+      String platformInfo = 'Platform: web';
+      if (!kIsWeb) {
+        try {
+          platformInfo =
+              'Platform: ${Platform.operatingSystem} '
+              '${Platform.operatingSystemVersion}';
+        } catch (_) {
+          // ignore
+        }
+      }
+
+      final body =
+          '여기에 의견을 자유롭게 적어주세요! 😊\n\n\n\n'
+          '─────────────────\n'
+          '(아래 정보는 문제 파악에 도움이 되니 지우지 말아주세요)\n'
+          '$versionInfo\n'
+          '$platformInfo';
+
+      final uri = Uri(
+        scheme: 'mailto',
+        path: _feedbackEmail,
+        query: _encodeQuery({'subject': '[고양이 그림자 정원] 의견 보내기', 'body': body}),
+      );
+
+      final launched = await launchUrl(uri);
+      if (!launched && mounted) {
+        _showFallback();
+      }
+    } catch (_) {
+      if (mounted) _showFallback();
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
+  }
+
+  void _showFallback() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('이메일 앱을 열 수 없어요. $_feedbackEmail 로 직접 보내주세요.')),
+    );
+  }
+
+  String _encodeQuery(Map<String, String> params) {
+    return params.entries
+        .map(
+          (e) =>
+              '${Uri.encodeComponent(e.key)}=${Uri.encodeComponent(e.value)}',
+        )
+        .join('&');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(28),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(28),
+        onTap: _openFeedback,
+        child: GlassBlob(
+          accent: AppColors.blobMintAccent,
+          background: AppColors.blobMint,
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withValues(alpha: 0.6),
+                ),
+                child: const Text('💌', style: TextStyle(fontSize: 18)),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '의견 보내기',
+                      style: pathLabelFont(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.ink,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '더 좋은 정원을 만드는 데 목소리를 들려주세요',
+                      style: bodyFont(fontSize: 11.5, color: AppColors.inkSoft),
+                    ),
+                  ],
+                ),
+              ),
+              if (_sending)
+                const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              else
+                Icon(
+                  Icons.chevron_right_rounded,
+                  color: AppColors.blobMintAccent,
+                  size: 20,
+                ),
+            ],
+          ),
+        ),
       ),
     );
   }

@@ -46,5 +46,11 @@
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
         </intent>
+        <!-- 마이 화면의 '의견 보내기' 기능(mailto 링크)이 이메일 앱을
+             찾을 수 있도록 허용합니다. (Android 11+ 패키지 가시성 대응) -->
+        <intent>
+            <action android:name="android.intent.action.SENDTO"/>
+            <data android:scheme="mailto"/>
+        </intent>
     </queries>
 </manifest>
