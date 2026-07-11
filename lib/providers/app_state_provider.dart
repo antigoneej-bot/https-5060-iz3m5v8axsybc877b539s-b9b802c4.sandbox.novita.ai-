@@ -224,4 +224,23 @@ class AppStateProvider extends ChangeNotifier {
 
   /// 특정 고양이를 이미 만난 적이 있는지
   bool hasMetCat(String catId) => metCatIds.contains(catId);
+
+  /// 특정 고양이에게 지금까지 편지를 쓴 횟수(= 만난 횟수).
+  /// 도감에서 '벌써 N번째 만남' 같은 관계 누적감을 보여주는 데 쓰입니다.
+  int meetingCountFor(String catId) =>
+      history.where((e) => e.catId == catId).length;
+
+  /// 오늘 날짜에 만난 고양이(가장 최근 편지 기준)가 있다면 반환합니다.
+  /// SNS 공유 카드에서 '오늘 만난 고양이'를 보여줄 때 사용합니다.
+  LetterEntry? get todaysLetter {
+    final now = DateTime.now();
+    for (final e in history) {
+      if (e.date.year == now.year &&
+          e.date.month == now.month &&
+          e.date.day == now.day) {
+        return e;
+      }
+    }
+    return null;
+  }
 }

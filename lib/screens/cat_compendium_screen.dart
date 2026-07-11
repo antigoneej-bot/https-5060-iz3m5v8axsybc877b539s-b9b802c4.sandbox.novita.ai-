@@ -8,6 +8,7 @@ import '../providers/app_state_provider.dart';
 import '../theme.dart';
 import '../widgets/lively_cat_image.dart';
 import '../widgets/garden_path_card.dart';
+import '../widgets/share_cat_card.dart';
 
 /// "그림자 고양이 도감" - 지금까지 만난 고양이와, 아직 만나지 못한 고양이를
 /// 한눈에 볼 수 있는 수집 화면. 앱의 핵심 후크인 '36마리 그림자 감정 고양이
@@ -86,7 +87,14 @@ class CatCompendiumScreen extends StatelessWidget {
           itemBuilder: (context, index) {
             final cat = shadowCats[index];
             final met = metIds.contains(cat.id);
-            return _CompendiumTile(cat: cat, met: met, seed: index);
+            final count = met ? app.meetingCountFor(cat.id) : 0;
+            return _CompendiumTile(
+              cat: cat,
+              met: met,
+              seed: index,
+              meetingCount: count,
+              metCount: metCount,
+            );
           },
         ),
       ],
@@ -98,10 +106,14 @@ class _CompendiumTile extends StatelessWidget {
   final ShadowCat cat;
   final bool met;
   final int seed;
+  final int meetingCount;
+  final int metCount;
   const _CompendiumTile({
     required this.cat,
     required this.met,
     required this.seed,
+    this.meetingCount = 0,
+    this.metCount = 0,
   });
 
   static const _accents = [
@@ -244,6 +256,17 @@ class _CompendiumTile extends StatelessWidget {
                 color: met ? AppColors.ink : AppColors.inkSoft,
               ),
             ),
+            if (met && meetingCount > 1) ...[
+              const SizedBox(height: 2),
+              Text(
+                '×$meetingCount',
+                style: bodyFont(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  color: accent,
+                ),
+              ),
+            ],
           ],
         ),
       ),
@@ -307,6 +330,17 @@ class _CompendiumTile extends StatelessWidget {
                   fit: BoxFit.cover,
                 ),
               ),
+              if (meetingCount > 1) ...[
+                const SizedBox(height: 10),
+                Text(
+                  '벌써 $meetingCount번째 만남이에요',
+                  style: bodyFont(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: accent,
+                  ),
+                ),
+              ],
               const SizedBox(height: 14),
               Container(
                 width: double.infinity,
@@ -322,6 +356,30 @@ class _CompendiumTile extends StatelessWidget {
                     color: AppColors.moon,
                     height: 1.6,
                   ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              OutlinedButton.icon(
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  showShareCatCard(
+                    context,
+                    cat: cat,
+                    meetingCount: meetingCount,
+                    metCount: metCount,
+                  );
+                },
+                icon: Icon(Icons.ios_share_rounded, size: 15, color: accent),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: accent,
+                  side: BorderSide(color: accent.withValues(alpha: 0.5)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+                label: Text(
+                  '이 고양이 공유하기',
+                  style: pathLabelFont(fontSize: 12.5, color: accent),
                 ),
               ),
             ],

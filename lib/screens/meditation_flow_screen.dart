@@ -9,6 +9,7 @@ import '../widgets/temp_box.dart';
 import '../widgets/journal_box.dart';
 import '../widgets/meditation_picker.dart';
 import '../widgets/garden_path_card.dart';
+import '../widgets/share_cat_card.dart';
 import 'onboarding_flow_screen.dart';
 
 /// 고양이 선택 이후의 전체 플로우: 사연 → 편지 → 명상 → 온도체크 → 완료
@@ -401,7 +402,42 @@ class _DoneStage extends StatelessWidget {
               textAlign: TextAlign.center,
             ),
           ],
-          const SizedBox(height: 28),
+          const SizedBox(height: 20),
+          OutlinedButton.icon(
+            onPressed: () {
+              final cat = app.selectedCat;
+              if (cat == null) return;
+              showShareCatCard(
+                context,
+                cat: cat,
+                meetingCount: app.meetingCountFor(cat.id),
+                metCount: app.metCatCount,
+              );
+            },
+            icon: Icon(
+              Icons.ios_share_rounded,
+              size: 16,
+              color: AppColors.blobPeachAccent,
+            ),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.blobPeachAccent,
+              side: BorderSide(
+                color: AppColors.blobPeachAccent.withValues(alpha: 0.5),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(999),
+              ),
+            ),
+            label: Text(
+              '오늘 만난 고양이 공유하기',
+              style: pathLabelFont(
+                fontSize: 13,
+                color: AppColors.blobPeachAccent,
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
