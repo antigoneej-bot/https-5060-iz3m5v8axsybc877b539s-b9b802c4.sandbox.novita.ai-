@@ -1,6 +1,7 @@
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/letter_entry.dart';
+import '../models/reflection_letter_entry.dart';
 
 /// 계정별로 편지 기록 · 연속 방문일 · 성장 단계를 저장합니다.
 /// (사운드 설정처럼 기기 전체에 공통인 값은 계정과 무관하게 유지됩니다)
@@ -9,6 +10,7 @@ class StorageService {
   static String _uid = _defaultScope;
 
   static Box? _letterBox;
+  static Box? _reflectionLetterBox;
 
   static Future<void> init() async {
     await Hive.initFlutter();
@@ -21,7 +23,11 @@ class StorageService {
     if (_letterBox != null && _letterBox!.isOpen) {
       await _letterBox!.close();
     }
+    if (_reflectionLetterBox != null && _reflectionLetterBox!.isOpen) {
+      await _reflectionLetterBox!.close();
+    }
     _letterBox = await Hive.openBox('letter_entries_$_uid');
+    _reflectionLetterBox = await Hive.openBox('reflection_letters_$_uid');
   }
 
   /// 로그아웃 시 호출해서 계정 전용 데이터 접근을 닫습니다.
@@ -29,7 +35,11 @@ class StorageService {
     if (_letterBox != null && _letterBox!.isOpen) {
       await _letterBox!.close();
     }
+    if (_reflectionLetterBox != null && _reflectionLetterBox!.isOpen) {
+      await _reflectionLetterBox!.close();
+    }
     _letterBox = null;
+    _reflectionLetterBox = null;
     _uid = _defaultScope;
   }
 
@@ -239,6 +249,20 @@ class StorageService {
     await prefs.setBool(_notificationOptInKey, v);
   }
 
+  // ---- Onboarding v2 (감정 인식 루프 기준 5화면 온보딩, 앱 최초 1회) ----
+  // v1(웰컴투어+편지쓰기 온보딩)을 대체하는 새 통합 온보딩 플래그입니다.
+  static const String _onboardingV2DoneKey = 'onboarding_v2_completed';
+
+  static Future<bool> isOnboardingV2Completed() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_onboardingV2DoneKey) ?? false;
+  }
+
+  static Future<void> setOnboardingV2Completed() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_onboardingV2DoneKey, true);
+  }
+
   // ---- Welcome Intro (앱 최초 실행 시 1회만 보여주는 프리미엄 웰컴 투어) ----
   static const String _welcomeIntroDoneKey = 'welcome_intro_completed_v1';
   static const String _companionNameKey = 'companion_name';
@@ -382,5 +406,94 @@ class StorageService {
   static Future<void> setStreakEnabled(bool v) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_streakEnabledKey, v);
+  }
+
+  // ── 감정 인식 루프: 설치일(가입일) 기록 ──
+  // 주간/월간 회고의 진입 조건(가입 후 7일/30일 경과)을 계산하는 기준입니다.
+  // 계정 전환과 무관하게 기기 최초 실행 시각을 기억합니다.
+  static const String _installDateKey = 'install_date_v1';
+
+  /// 앱을 최초로 실행한 날짜/시각을 기록합니다. 이미 기록되어 있다면 아무것도
+  /// 하지 않습니다(최초 1회만 저장). main.dart의 부트스트랩에서 매번 호출해도
+  /// 안전합니다.
+  static Future<void> recordInstallDateIfNeeded() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getString(_installDateKey) != null) return;
+    await prefs.setString(_installDateKey, DateTime.now().toIso8601String());
+  }
+
+  /// 앱을 최초로 실행한 날짜/시각. 아직 기록되지 않았다면 null.
+  static Future<DateTime?> getInstallDate() async {
+    final prefs = await SharedPreferences.getInstance();
+    final iso = prefs.getString(_installDateKey);
+    if (iso == null) return null;
+    return DateTime.tryParse(iso);
+  }
+
+  /// 설치(가입) 후 지난 일수. 아직 설치일이 기록되지 않았다면 0.
+  static Future<int> daysSinceInstall({DateTime? now}) async {
+    final installDate = await getInstallDate();
+    if (installDate == null) return 0;
+    final ref = now ?? DateTime.now();
+    final installDay = DateTime(
+      installDate.year,
+      installDate.month,
+      installDate.day,
+    );
+    final today = DateTime(ref.year, ref.month, ref.day);
+    return today.difference(installDay).inDays;
+  }
+
+  // ── 감정 인식 루프: 회고를 이미 확인했는지(자동 노출 배너 중복 방지) ──
+  // 주간 회고는 '이번 주(월요일 기준)를 이미 봤는지', 월간 회고는
+  // '이번 달을 이미 봤는지'로 구분해 기록합니다. 사용자가 직접 들어와서 보는
+  // 경우에는 이 기록과 무관하게 항상 열람할 수 있습니다.
+  static const String _weeklyReflectionSeenKey = 'weekly_reflection_seen_week';
+  static const String _monthlyReflectionSeenKey =
+      'monthly_reflection_seen_month';
+
+  static Future<bool> hasSeenWeeklyReflection(String weekKey) async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_weeklyReflectionSeenKey) == weekKey;
+  }
+
+  static Future<void> markWeeklyReflectionSeen(String weekKey) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_weeklyReflectionSeenKey, weekKey);
+  }
+
+  static Future<bool> hasSeenMonthlyReflection(String monthKey) async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_monthlyReflectionSeenKey) == monthKey;
+  }
+
+  static Future<void> markMonthlyReflectionSeen(String monthKey) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_monthlyReflectionSeenKey, monthKey);
+  }
+
+  // ── 감정 인식 루프: 월간 리플렉션 레터(프리미엄) 저장 ──
+  static Box get reflectionLetterBox {
+    if (_reflectionLetterBox == null || !_reflectionLetterBox!.isOpen) {
+      throw Exception('StorageService: 사용자가 설정되지 않았습니다 (setCurrentUser 먼저 호출)');
+    }
+    return _reflectionLetterBox!;
+  }
+
+  static Future<void> saveReflectionLetter(ReflectionLetterEntry entry) async {
+    await reflectionLetterBox.put(entry.id, entry.toMap());
+  }
+
+  static List<ReflectionLetterEntry> getReflectionLettersForMonth(
+    String monthKey,
+  ) {
+    return reflectionLetterBox.values
+        .map(
+          (e) => ReflectionLetterEntry.fromMap(
+            Map<dynamic, dynamic>.from(e as Map),
+          ),
+        )
+        .where((e) => e.monthKey == monthKey)
+        .toList();
   }
 }

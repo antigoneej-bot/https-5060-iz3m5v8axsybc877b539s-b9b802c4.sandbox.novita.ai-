@@ -4,16 +4,16 @@ import '../providers/app_state_provider.dart';
 import '../data/shadow_cats_data.dart';
 import '../theme.dart';
 import '../widgets/growth_header.dart';
-import '../widgets/emotion_record_sheet.dart';
-import '../widgets/monthly_report_picker_sheet.dart';
 import '../widgets/garden_path_card.dart';
 import '../widgets/feature_scaffold.dart';
-import '../providers/emotion_provider.dart';
+import '../services/reflection_service.dart';
 import 'pet_care_screen.dart';
 import 'daily_card_screen.dart';
 import 'todays_promise_screen.dart';
 import 'day_close_screen.dart';
 import 'cat_compendium_screen.dart';
+import 'weekly_reflection_screen.dart';
+import 'monthly_shadow_reflection_screen.dart';
 
 /// 홈페이지 탭 - '힐링 정원 산책로' 컨셉의 대시보드.
 /// 딱딱한 흰 사각 카드를 모두 걷어내고, 오솔길을 걷듯 좌우로 살짝씩 흔들리며
@@ -32,22 +32,10 @@ class HomeTabScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final app = context.watch<AppStateProvider>();
-    final emotion = context.watch<EmotionProvider>();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (emotion.hasNewReport) ...[
-          _MonthlyReportBanner(
-            onTap: () async {
-              final key = emotion.newReportKey;
-              await MonthlyReportPickerSheet.show(context);
-              if (key != null && context.mounted) {
-                context.read<EmotionProvider>().markReportSeen(key);
-              }
-            },
-          ),
-          const SizedBox(height: 24),
-        ],
+        const _ReflectionBannerArea(),
         Text(
           'CAT SHADOW GARDEN',
           textAlign: TextAlign.center,
@@ -66,7 +54,7 @@ class HomeTabScreen extends StatelessWidget {
         ),
         const SizedBox(height: 10),
         Text(
-          '36마리 그림자 고양이를 한 마리씩 만나가는,\n나의 마음챙김 여정',
+          '36마리 그림자 고양이를 한 마리씩 만나며,\n내 감정을 스스로 알아차리는 시간',
           textAlign: TextAlign.center,
           style: bodyFont(
             fontSize: 13.5,
@@ -148,18 +136,6 @@ class HomeTabScreen extends StatelessWidget {
         ),
         const GardenPathConnector(startX: -0.3, endX: 0.28, decorEmoji: '🦋'),
         GardenPathCard(
-          emoji: emotion.hasRecordedToday ? '🌙' : '🌗',
-          title: emotion.hasRecordedToday ? '오늘의 감정 다시 기록하기' : '오늘의 감정 기록하기',
-          subtitle: '지금 마음을 골라 달빛 정원에 짧게 남겨보세요',
-          accent: AppColors.blobLavenderAccent,
-          background: AppColors.blobLavender,
-          alignX: 0.28,
-          widthFactor: 0.9,
-          floatSeed: 6,
-          onTap: () => EmotionRecordSheet.show(context),
-        ),
-        const GardenPathConnector(startX: 0.28, endX: -0.26, decorEmoji: '🐾'),
-        GardenPathCard(
           emoji: '🌱',
           title: '오늘의 약속',
           subtitle: '오늘 나를 위해 지켜주고 싶은 작은 약속을 남겨보세요',
@@ -182,18 +158,6 @@ class HomeTabScreen extends StatelessWidget {
           widthFactor: 0.9,
           floatSeed: 8,
           onTap: () => pushFullScreen(context, '하루 닫기', const DayCloseScreen()),
-        ),
-        const GardenPathConnector(startX: 0.3, endX: -0.28, decorEmoji: '🐾'),
-        GardenPathCard(
-          emoji: '📖',
-          title: '마음 리포트 보기',
-          subtitle: '한 달간의 감정 흐름을 따뜻하게 되돌아보세요',
-          accent: AppColors.blobButterAccent,
-          background: AppColors.blobButter,
-          alignX: -0.28,
-          widthFactor: 0.9,
-          floatSeed: 9,
-          onTap: () => MonthlyReportPickerSheet.show(context),
         ),
         const SizedBox(height: 40),
         _GardenHintCaption(),
@@ -466,10 +430,86 @@ class _StreakBlob extends StatelessWidget {
   }
 }
 
-/// 새로운 월간 마음 리포트가 도착했음을 알리는 은은한 달빛 배너
-class _MonthlyReportBanner extends StatelessWidget {
+/// 주간/월간 회고 자동 노출 배너 영역.
+/// 진입 조건(가입 후 7일/30일 경과 등)을 만족하고, 아직 이번 주기 안에
+/// 보지 않았을 때만 나타납니다. 사용자가 앱을 열었을 때 화면에 조용히
+/// 보이는 카드일 뿐, 푸시 알림 등 어떤 강제 알림도 사용하지 않습니다.
+class _ReflectionBannerArea extends StatefulWidget {
+  const _ReflectionBannerArea();
+
+  @override
+  State<_ReflectionBannerArea> createState() => _ReflectionBannerAreaState();
+}
+
+class _ReflectionBannerAreaState extends State<_ReflectionBannerArea> {
+  bool _showWeekly = false;
+  bool _showMonthly = false;
+  bool _checked = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _check();
+  }
+
+  Future<void> _check() async {
+    final app = context.read<AppStateProvider>();
+    final weekly = await ReflectionService.shouldShowWeeklyBanner(app);
+    final monthly = await ReflectionService.shouldShowMonthlyBanner(app);
+    if (!mounted) return;
+    setState(() {
+      _showWeekly = weekly;
+      // 같은 화면에 두 배너가 겹치지 않도록, 월간이 뜰 조건이면 월간을
+      // 우선합니다(더 큰 주기의 관찰이 더 의미 있는 시점이기 때문).
+      _showMonthly = monthly;
+      _showWeekly = weekly && !monthly;
+      _checked = true;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_checked || (!_showWeekly && !_showMonthly)) {
+      return const SizedBox.shrink();
+    }
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 24),
+      child: _showMonthly
+          ? _ReflectionReadyBanner(
+              emoji: '📖',
+              title: '이번 달 돌아보기가 도착했어요',
+              subtitle: '한 달간의 감정 흐름을 문장으로 되짚어볼 수 있어요',
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const MonthlyShadowReflectionScreen(),
+                ),
+              ),
+            )
+          : _ReflectionReadyBanner(
+              emoji: '🗓️',
+              title: '이번 주 돌아보기가 도착했어요',
+              subtitle: '이번 주 함께한 고양이와 요일별 흐름을 살펴보세요',
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const WeeklyReflectionScreen(),
+                ),
+              ),
+            ),
+    );
+  }
+}
+
+class _ReflectionReadyBanner extends StatelessWidget {
+  final String emoji;
+  final String title;
+  final String subtitle;
   final VoidCallback onTap;
-  const _MonthlyReportBanner({required this.onTap});
+  const _ReflectionReadyBanner({
+    required this.emoji,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -483,10 +523,17 @@ class _MonthlyReportBanner extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(28),
-            gradient: const LinearGradient(
+            gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [Color(0xFF2E3652), Color(0xFF1B2138)],
+              colors: [
+                AppColors.blobMint.withValues(alpha: 0.9),
+                AppColors.blobMint.withValues(alpha: 0.6),
+              ],
+            ),
+            border: Border.all(
+              color: AppColors.blobMintAccent.withValues(alpha: 0.3),
+              width: 1.2,
             ),
           ),
           child: Row(
@@ -496,10 +543,10 @@ class _MonthlyReportBanner extends StatelessWidget {
                 height: 44,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.12),
+                  color: Colors.white.withValues(alpha: 0.55),
                   shape: BoxShape.circle,
                 ),
-                child: const Text('🌙', style: TextStyle(fontSize: 20)),
+                child: Text(emoji, style: const TextStyle(fontSize: 20)),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -507,23 +554,24 @@ class _MonthlyReportBanner extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '이번 달 마음 리포트가 도착했어요',
-                      style: titleFont(fontSize: 15, color: Colors.white),
+                      title,
+                      style: pathLabelFont(
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.ink,
+                      ),
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '지난 한 달의 감정 흐름을 함께 돌아볼까요?',
-                      style: bodyFont(
-                        fontSize: 11.5,
-                        color: Colors.white.withValues(alpha: 0.65),
-                      ),
+                      subtitle,
+                      style: bodyFont(fontSize: 11.5, color: AppColors.inkSoft),
                     ),
                   ],
                 ),
               ),
               Icon(
                 Icons.chevron_right_rounded,
-                color: Colors.white.withValues(alpha: 0.7),
+                color: AppColors.blobMintAccent,
                 size: 20,
               ),
             ],

@@ -29,8 +29,8 @@ class AppStateProvider extends ChangeNotifier {
   FlowStage flowStage = FlowStage.selecting;
   ShadowCat? selectedCat;
 
-  double tempBefore = 50;
-  double tempAfter = 50;
+  double tempBefore = 0;
+  double tempAfter = 0;
   String? selectedMeditationKey;
 
   // ── 최초 1회 온보딩(편지쓰기 → 가입유도 → 알림동의 → 홈)에서 쓰는 상태 ──
@@ -79,8 +79,8 @@ class AppStateProvider extends ChangeNotifier {
     justLeveledUp = false;
     flowStage = FlowStage.selecting;
     selectedCat = null;
-    tempBefore = 50;
-    tempAfter = 50;
+    tempBefore = 0;
+    tempAfter = 0;
     selectedMeditationKey = null;
     notifyListeners();
   }
@@ -89,8 +89,8 @@ class AppStateProvider extends ChangeNotifier {
   void selectCat(ShadowCat cat) {
     selectedCat = cat;
     flowStage = FlowStage.story;
-    tempBefore = 50;
-    tempAfter = 50;
+    tempBefore = 0;
+    tempAfter = 0;
     selectedMeditationKey = null;
     SoundService().playMeow();
     justLeveledUp = false;
@@ -166,11 +166,14 @@ class AppStateProvider extends ChangeNotifier {
 
   /// 온보딩 중 쓴 첫 편지를 저장합니다. 온보딩에는 명상 단계가 없어
   /// 마음 온도는 편지 쓰기 전 값 그대로 유지됩니다.
-  Future<void> saveOnboardingLetter(String letterText) async {
-    if (selectedCat == null) return;
+  ///
+  /// 온보딩은 앱 부트스트랩 단계(고양이를 아직 선택하지 않은 상태)에서도
+  /// 트리거될 수 있으므로, [selectedCat]에 의존하지 않고 대상 고양이를
+  /// 인자로 직접 받습니다.
+  Future<void> saveOnboardingLetter(String letterText, ShadowCat cat) async {
     final entry = LetterEntry(
       id: '${DateTime.now().millisecondsSinceEpoch}',
-      catId: selectedCat!.id,
+      catId: cat.id,
       date: DateTime.now(),
       letterText: letterText,
       tempBefore: tempBefore,
@@ -242,5 +245,171 @@ class AppStateProvider extends ChangeNotifier {
       }
     }
     return null;
+  }
+
+  // ── 감정 인식 루프: 주간/월간 회고(관찰 결과) ──
+  // 위로가 아니라 '이런 패턴이 있었다'는 관찰을 제시하기 위한 순수 집계
+  // 로직입니다. 좋다/나쁘다 판단 없이 빈도와 흐름만 계산합니다.
+
+  /// 기준 시각(now)으로부터 최근 [days]일간(오늘 포함)의 편지만 골라냅니다.
+  List<LetterEntry> _entriesWithinDays(int days, {DateTime? now}) {
+    final ref = now ?? DateTime.now();
+    final todayStart = DateTime(ref.year, ref.month, ref.day);
+    final cutoff = todayStart.subtract(Duration(days: days - 1));
+    return history.where((e) {
+      final d = DateTime(e.date.year, e.date.month, e.date.day);
+      return !d.isBefore(cutoff) && !d.isAfter(todayStart);
+    }).toList();
+  }
+
+  /// 최근 7일간 고양이 선택 빈도(catId → 횟수)를 계산합니다.
+  Map<String, int> weeklyCatFrequency({DateTime? now}) {
+    final entries = _entriesWithinDays(7, now: now);
+    final freq = <String, int>{};
+    for (final e in entries) {
+      freq[e.catId] = (freq[e.catId] ?? 0) + 1;
+    }
+    return freq;
+  }
+
+  /// 최근 7일간 가장 자주 나타난 그림자 고양이의 id.
+  /// 편지가 없다면 null을 반환합니다(회고 화면에서 '아직 데이터가 부족해요' 처리용).
+  String? get mostFrequentCatIdThisWeek {
+    final freq = weeklyCatFrequency();
+    if (freq.isEmpty) return null;
+    String? topId;
+    int topCount = -1;
+    freq.forEach((catId, count) {
+      if (count > topCount) {
+        topCount = count;
+        topId = catId;
+      }
+    });
+    return topId;
+  }
+
+  /// 최근 7일간 기록된 편지 수(=감정을 마주한 횟수).
+  int get weeklyEntryCount => _entriesWithinDays(7).length;
+
+  /// 최근 7일을 오래된 날짜→오늘 순으로, (날짜, 그날 대표 고양이 id) 목록으로 반환합니다.
+  /// 하루에 여러 번 기록했다면 그 날 가장 마지막(최신)에 선택한 고양이를 대표로 삼습니다.
+  /// 기록이 없는 날은 catId가 null입니다(화면에서는 '미기록'이 아니라 빈 칸으로만 표시).
+  List<MapEntry<DateTime, String?>> last7DaysCatIds({DateTime? now}) {
+    final ref = now ?? DateTime.now();
+    final todayStart = DateTime(ref.year, ref.month, ref.day);
+    final result = <MapEntry<DateTime, String?>>[];
+    for (int i = 6; i >= 0; i--) {
+      final day = todayStart.subtract(Duration(days: i));
+      String? catId;
+      for (final e in history) {
+        final d = DateTime(e.date.year, e.date.month, e.date.day);
+        if (d == day) {
+          // history는 이미 최신순이라 이 날짜의 첫 항목이 그 날의 가장 최근 기록입니다.
+          catId = e.catId;
+          break;
+        }
+      }
+      result.add(MapEntry(day, catId));
+    }
+    return result;
+  }
+
+  /// 최근 7일 중 실제로 기록이 있었던 날의 수(= 관찰 결과의 'M'에 해당).
+  int get weeklyRecordedDayCount =>
+      last7DaysCatIds().where((e) => e.value != null).length;
+
+  /// 최근 4주(28일)간, 1주 단위로 가장 빈번했던 고양이 id 목록을 시간순으로
+  /// 반환합니다(0번째=4주 전 주, 3번째=이번 주). 데이터가 없는 주는 null.
+  List<String?> monthlyWeeklyDominantCatIds({DateTime? now}) {
+    final ref = now ?? DateTime.now();
+    final todayStart = DateTime(ref.year, ref.month, ref.day);
+    final result = <String?>[];
+    for (int w = 3; w >= 0; w--) {
+      final weekEnd = todayStart.subtract(Duration(days: w * 7));
+      final weekStart = weekEnd.subtract(const Duration(days: 6));
+      final weekEntries = history.where((e) {
+        final d = DateTime(e.date.year, e.date.month, e.date.day);
+        return !d.isBefore(weekStart) && !d.isAfter(weekEnd);
+      });
+      final freq = <String, int>{};
+      for (final e in weekEntries) {
+        freq[e.catId] = (freq[e.catId] ?? 0) + 1;
+      }
+      if (freq.isEmpty) {
+        result.add(null);
+        continue;
+      }
+      String? topId;
+      int topCount = -1;
+      freq.forEach((catId, count) {
+        if (count > topCount) {
+          topCount = count;
+          topId = catId;
+        }
+      });
+      result.add(topId);
+    }
+    return result;
+  }
+
+  /// 지정한 기간(양끝 포함, 날짜 단위) 안에서 가장 빈번했던 그림자 고양이 id.
+  String? _dominantCatIdInRange(DateTime start, DateTime end) {
+    final entries = history.where((e) {
+      final d = DateTime(e.date.year, e.date.month, e.date.day);
+      return !d.isBefore(start) && !d.isAfter(end);
+    });
+    final freq = <String, int>{};
+    for (final e in entries) {
+      freq[e.catId] = (freq[e.catId] ?? 0) + 1;
+    }
+    if (freq.isEmpty) return null;
+    String? topId;
+    int topCount = -1;
+    freq.forEach((catId, count) {
+      if (count > topCount) {
+        topCount = count;
+        topId = catId;
+      }
+    });
+    return topId;
+  }
+
+  /// 이번 달(최근 28일)을 전반부(1~2주)/후반부(3~4주)로 나눠 각각 최빈 고양이 id를
+  /// 반환합니다. 월간 회고 화면3의 서술형 요약(변화 있음/없음 비교)에 사용합니다.
+  (String?, String?) monthlyHalvesDominantCatIds({DateTime? now}) {
+    final ref = now ?? DateTime.now();
+    final todayStart = DateTime(ref.year, ref.month, ref.day);
+    final periodEnd = todayStart;
+    final periodStart = todayStart.subtract(const Duration(days: 27));
+    final firstHalfEnd = periodStart.add(const Duration(days: 13));
+    final secondHalfStart = periodStart.add(const Duration(days: 14));
+    final firstHalf = _dominantCatIdInRange(periodStart, firstHalfEnd);
+    final secondHalf = _dominantCatIdInRange(secondHalfStart, periodEnd);
+    return (firstHalf, secondHalf);
+  }
+
+  /// 이번 달(달력 기준) 동안 만난 그림자 고양이 id들을, 처음 만난 순서(오래된 날부터)로
+  /// 중복 없이 반환합니다. 리플렉션 레터에서 '이번 달 순서대로 등장'시키는 데 사용합니다.
+  List<String> catIdsMetThisMonth({DateTime? now}) {
+    final ref = now ?? DateTime.now();
+    final monthEntries =
+        history
+            .where((e) => e.date.year == ref.year && e.date.month == ref.month)
+            .toList()
+          ..sort((a, b) => a.date.compareTo(b.date));
+    final seen = <String>{};
+    final ordered = <String>[];
+    for (final e in monthEntries) {
+      if (seen.add(e.catId)) ordered.add(e.catId);
+    }
+    return ordered;
+  }
+
+  /// 이번 달에 기록된 편지가 하나라도 있는지 여부(월간 회고 진입 가능 조건에 사용).
+  bool hasAnyEntryThisMonth({DateTime? now}) {
+    final ref = now ?? DateTime.now();
+    return history.any(
+      (e) => e.date.year == ref.year && e.date.month == ref.month,
+    );
   }
 }

@@ -43,7 +43,7 @@ class LetterEntry {
       catId: map['catId'] as String,
       date: DateTime.parse(map['date'] as String),
       letterText: map['letterText'] as String? ?? '',
-      tempBefore: (map['tempBefore'] as num?)?.toDouble() ?? 50,
+      tempBefore: (map['tempBefore'] as num?)?.toDouble() ?? 0,
       tempAfter: (map['tempAfter'] as num?)?.toDouble(),
       meditationKey: map['meditationKey'] as String?,
     );

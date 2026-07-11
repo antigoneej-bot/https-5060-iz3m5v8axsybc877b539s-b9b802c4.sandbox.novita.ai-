@@ -15,7 +15,15 @@ import '../widgets/stars_background.dart';
 /// 자연스럽게 가입을 요청합니다. 사전 설문/목표선택/다단계 퀴즈는 두지 않습니다.
 class OnboardingFlowScreen extends StatefulWidget {
   final ShadowCat cat;
-  const OnboardingFlowScreen({super.key, required this.cat});
+
+  /// 앱 부트스트랩(인트로 직후) 단계에서 사용할 때 전달합니다. 이 화면이
+  /// 별도의 라우트로 push되지 않고 상위 AnimatedSwitcher 안에서 직접
+  /// 보여지는 경우, 완료 시 Navigator를 pop하는 대신 이 콜백으로 알립니다.
+  /// null이면(=고양이선택 후 편지쓰기 버튼에서 push된 기존 경로) 기존처럼
+  /// Navigator.popUntil로 화면을 닫습니다.
+  final VoidCallback? onFinished;
+
+  const OnboardingFlowScreen({super.key, required this.cat, this.onFinished});
 
   @override
   State<OnboardingFlowScreen> createState() => _OnboardingFlowScreenState();
@@ -43,6 +51,7 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
     // 편지를 실제로 저장 (비회원 상태에서도 로컬에 기록됨)
     await context.read<AppStateProvider>().saveOnboardingLetter(
       _letterController.text.trim(),
+      widget.cat,
     );
     await Future.delayed(const Duration(milliseconds: 1400));
     if (!mounted) return;
@@ -71,7 +80,11 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
     if (!mounted) return;
     final app = context.read<AppStateProvider>();
     app.finishOnboarding();
-    Navigator.of(context).popUntil((route) => route.isFirst);
+    if (widget.onFinished != null) {
+      widget.onFinished!();
+    } else {
+      Navigator.of(context).popUntil((route) => route.isFirst);
+    }
   }
 
   Widget _buildStep() {

@@ -7,6 +7,8 @@ import '../data/shadow_cats_data.dart';
 import '../theme.dart';
 import '../widgets/lively_cat_image.dart';
 import '../widgets/garden_path_card.dart';
+import 'weekly_reflection_screen.dart';
+import 'monthly_shadow_reflection_screen.dart';
 
 class HistoryScreen extends StatelessWidget {
   const HistoryScreen({super.key});
@@ -35,11 +37,53 @@ class HistoryScreen extends StatelessWidget {
       );
     }
     return Column(
-      children: app.history
-          .asMap()
-          .entries
-          .map((e) => _HistoryItem(entry: e.value, seed: e.key))
-          .toList(),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const _ReflectionEntryRow(),
+        const SizedBox(height: 20),
+        ...app.history.asMap().entries.map(
+          (e) => _HistoryItem(entry: e.value, seed: e.key),
+        ),
+      ],
+    );
+  }
+}
+
+/// 기록 탭 상단의 회고 진입점. 사용자가 직접 탭했을 때만 열리며, 어떤
+/// 알림도 강제로 띄우지 않습니다.
+class _ReflectionEntryRow extends StatelessWidget {
+  const _ReflectionEntryRow();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        GardenPathCard(
+          emoji: '🗓️',
+          title: '이번 주 돌아보기',
+          subtitle: '이번 주 함께한 고양이와 요일별 흐름을 살펴보세요',
+          accent: AppColors.blobMintAccent,
+          background: AppColors.blobMint,
+          floatSeed: 41,
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const WeeklyReflectionScreen()),
+          ),
+        ),
+        const SizedBox(height: 12),
+        GardenPathCard(
+          emoji: '📖',
+          title: '이번 달 돌아보기',
+          subtitle: '한 달간의 감정 흐름을 문장으로 되짚어보세요',
+          accent: AppColors.blobLavenderAccent,
+          background: AppColors.blobLavender,
+          floatSeed: 42,
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => const MonthlyShadowReflectionScreen(),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

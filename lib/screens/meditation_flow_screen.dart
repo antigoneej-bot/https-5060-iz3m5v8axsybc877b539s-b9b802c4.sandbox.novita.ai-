@@ -206,8 +206,8 @@ class _LetterStage extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           JournalBox(
-            question: '${cat.nameKr}에게 편지를 써보세요',
-            hint: '이 고양이의 마음을 알아주고, 위로와 해결 방법을 함께 적어주세요',
+            question: '${cat.nameKr}에게, 하고 싶은 말이 있나요?',
+            hint: '짧아도 괜찮아요. 이건 나를 들여다보는 기록이에요.',
             controller: controller,
           ),
           const SizedBox(height: 20),

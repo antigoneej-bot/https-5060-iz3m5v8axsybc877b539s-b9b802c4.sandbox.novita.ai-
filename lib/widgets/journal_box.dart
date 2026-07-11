@@ -13,7 +13,7 @@ class JournalBox extends StatelessWidget {
     super.key,
     required this.question,
     required this.controller,
-    this.hint = '떠오르는 대로, 편하게 적어보세요',
+    this.hint = '떠오르는 대로, 있는 그대로 적어보세요',
   });
 
   @override
@@ -51,7 +51,7 @@ class JournalBox extends StatelessWidget {
               style: bodyFont(fontSize: 13.5, color: AppColors.moon),
               decoration: InputDecoration(
                 filled: false,
-                hintText: '고양이에게 편지를 적어보세요…',
+                hintText: '지금 이 마음을 그대로 적어보세요…',
                 hintStyle: bodyFont(fontSize: 13, color: AppColors.inkSoft),
                 contentPadding: const EdgeInsets.symmetric(
                   horizontal: 14,

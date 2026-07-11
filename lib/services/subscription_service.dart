@@ -15,7 +15,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 ///   4. 앱 시작 시 in_app_purchase의 `queryPastPurchases`(또는 restore)로
 ///      기존 구독 여부를 서버가 아닌 로컬이 아닌 스토어에서 재확인하도록
 ///      [restorePurchases]를 교체합니다.
-/// 그 외의 앱 코드(PremiumScreen, MonthlyReportScreen 등)는 이 서비스의
+/// 그 외의 앱 코드(PremiumScreen, MonthlyShadowReflectionScreen 등)는 이 서비스의
 /// 퍼블릭 API(isPremium/purchasePremium/cancelPremium)만 사용하므로,
 /// 내부 구현만 교체하면 나머지 화면은 수정할 필요가 없습니다.
 class SubscriptionService {

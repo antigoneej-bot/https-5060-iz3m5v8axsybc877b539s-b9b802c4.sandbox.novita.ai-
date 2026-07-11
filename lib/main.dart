@@ -6,12 +6,10 @@ import 'services/sound_service.dart';
 import 'services/notification_service.dart';
 import 'services/cat_care_service.dart';
 import 'services/daily_card_service.dart';
-import 'services/emotion_service.dart';
 import 'services/promise_service.dart';
 import 'providers/app_state_provider.dart';
 import 'providers/cat_care_provider.dart';
 import 'providers/daily_card_provider.dart';
-import 'providers/emotion_provider.dart';
 import 'providers/promise_provider.dart';
 import 'theme.dart';
 import 'widgets/stars_background.dart';
@@ -20,12 +18,12 @@ import 'screens/welcome_intro_screen.dart';
 import 'screens/video_intro_screen.dart';
 
 /// 로그인 없이 기기 하나당 하나의 로컬 사용자로 동작합니다.
-/// (추후 로그인 기능을 다시 켤 수 있도록 auth 관련 파일들은 삭제하지 않고 보존합니다)
 const String _localUserId = 'local_user';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await StorageService.init();
+  await StorageService.recordInstallDateIfNeeded();
   await SoundService().init();
   await NotificationService().init();
   await NotificationService().restoreIfEnabled();
@@ -42,7 +40,6 @@ class MysticCatApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => AppStateProvider()),
         ChangeNotifierProvider(create: (_) => CatCareProvider()),
         ChangeNotifierProvider(create: (_) => DailyCardProvider()),
-        ChangeNotifierProvider(create: (_) => EmotionProvider()),
         ChangeNotifierProvider(create: (_) => PromiseProvider()),
       ],
       child: MaterialApp(
@@ -63,30 +60,31 @@ class _AppRoot extends StatefulWidget {
 
 class _AppRootState extends State<_AppRoot> {
   bool _dataLoaded = false;
-  // 두 인트로(영상 인트로 · 웰컴 투어) 모두 "최초 1회만" 보여줍니다.
-  // 실제로 보여줄지 여부는 StorageService에 저장된 완료 기록을 확인한 뒤 결정되며,
-  // 그 확인이 끝나기 전까지는 _introChecked가 false라 로딩 스플래시만 보입니다.
+  // "회원가입"(온보딩 완료) 여부가 인트로 게이트입니다.
+  // 아직 가입하지 않았다면 앱을 실행할 때마다(재실행 포함) 영상 인트로 →
+  // 웰컴 투어를 매번 처음부터 다시 보여줍니다. 웰컴 투어를 마치면 곧바로
+  // "고양이선택" 탭으로 이동해, 사용자가 실제로 고양이를 고르고 편지를 쓰려는
+  // 순간에 자연스럽게 가입유도(온보딩) 화면이 뜨게 됩니다(별도 라우트).
+  // 이미 가입이 완료되어 있다면 인트로를 전부 건너뛰고 곧바로 홈으로 진입합니다.
   bool _introChecked = false;
-  bool _needsWelcomeIntro = false;
   bool _needsVideoIntro = false;
+  bool _needsWelcomeIntro = false;
 
   @override
   void initState() {
     super.initState();
     CatCareService.setCurrentUser(_localUserId);
     DailyCardService.setCurrentUser(_localUserId);
-    EmotionService.setCurrentUser(_localUserId);
     PromiseService.setCurrentUser(_localUserId);
     _bootstrap();
   }
 
   Future<void> _bootstrap() async {
-    final videoDone = await StorageService.isVideoIntroCompleted();
-    final welcomeDone = await StorageService.isWelcomeIntroCompleted();
+    final signedUp = await StorageService.isOnboardingCompleted();
     if (!mounted) return;
     setState(() {
-      _needsVideoIntro = !videoDone;
-      _needsWelcomeIntro = !welcomeDone;
+      _needsVideoIntro = !signedUp;
+      _needsWelcomeIntro = !signedUp;
       _introChecked = true;
     });
 
@@ -95,18 +93,22 @@ class _AppRootState extends State<_AppRoot> {
       final appState = context.read<AppStateProvider>();
       final catCare = context.read<CatCareProvider>();
       final dailyCard = context.read<DailyCardProvider>();
-      final emotion = context.read<EmotionProvider>();
       final promise = context.read<PromiseProvider>();
       await appState.init(_localUserId);
       await catCare.load();
       await dailyCard.load();
-      await emotion.load();
       await promise.load();
       if (!mounted) return;
       setState(() {
         _dataLoaded = true;
       });
     });
+  }
+
+  void _onVideoIntroFinished() async {
+    await StorageService.setVideoIntroCompleted();
+    if (!mounted) return;
+    setState(() => _needsVideoIntro = false);
   }
 
   void _onWelcomeIntroFinished() async {
@@ -116,12 +118,6 @@ class _AppRootState extends State<_AppRoot> {
     // 곧바로 첫 감정 고양이를 만나고 첫 편지/명상 여정을 시작할 수 있게 합니다.
     context.read<AppStateProvider>().requestHomeTab(1);
     setState(() => _needsWelcomeIntro = false);
-  }
-
-  void _onVideoIntroFinished() async {
-    await StorageService.setVideoIntroCompleted();
-    if (!mounted) return;
-    setState(() => _needsVideoIntro = false);
   }
 
   @override

@@ -10,7 +10,7 @@ class CatCareService {
   static String _uid = 'guest';
   static const int maxTemperature = 100;
   static const int minTemperature = 0;
-  static const int startTemperature = 70;
+  static const int startTemperature = 0;
 
   static void setCurrentUser(String userId) {
     _uid = userId;

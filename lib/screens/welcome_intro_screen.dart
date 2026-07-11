@@ -260,7 +260,7 @@ class _WelcomeIntroScreenState extends State<WelcomeIntroScreen> {
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 28),
         child: _PrimaryButton(
-          label: '함께 시작하기',
+          label: '이름 정해주기',
           onTap: _saving ? null : _confirmName,
           loading: _saving,
         ),
@@ -271,7 +271,7 @@ class _WelcomeIntroScreenState extends State<WelcomeIntroScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 28),
         child: Column(
           children: [
-            _PrimaryButton(label: '여행 시작하기', onTap: _finish),
+            _PrimaryButton(label: '시작하기', onTap: _finish),
             const SizedBox(height: 10),
             GestureDetector(
               onTap: () {
@@ -294,13 +294,8 @@ class _WelcomeIntroScreenState extends State<WelcomeIntroScreen> {
         ),
       );
     }
-    if (index == 1) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 28),
-        child: _PrimaryButton(label: '시작하기', onTap: _goNext),
-      );
-    }
-    // 화면 2·3·4: 스와이프로도 넘어갈 수 있고, 부드러운 다음 버튼도 함께 제공
+    // 화면 1(가든 스마일)·2·3·4: 스와이프로도 넘어갈 수 있고, 부드러운 다음
+    // 버튼도 함께 제공합니다. "시작하기" 문구는 마지막 페이지에만 남깁니다.
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 28),
       child: Align(
