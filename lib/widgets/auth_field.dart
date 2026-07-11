@@ -57,11 +57,7 @@ class AuthField extends StatelessWidget {
               filled: false,
               hintText: hint,
               hintStyle: bodyFont(fontSize: 13, color: AppColors.inkSoft),
-              prefixIcon: Icon(
-                icon,
-                color: AppColors.blobMintAccent,
-                size: 20,
-              ),
+              prefixIcon: Icon(icon, color: AppColors.blobMintAccent, size: 20),
               suffixIcon: suffix,
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 4,

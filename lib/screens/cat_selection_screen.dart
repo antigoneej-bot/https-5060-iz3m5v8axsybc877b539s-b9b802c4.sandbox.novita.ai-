@@ -72,7 +72,8 @@ class _CatCard extends StatefulWidget {
   State<_CatCard> createState() => _CatCardState();
 }
 
-class _CatCardState extends State<_CatCard> with SingleTickerProviderStateMixin {
+class _CatCardState extends State<_CatCard>
+    with SingleTickerProviderStateMixin {
   bool _hovering = false;
   late final AnimationController _floatController;
 
@@ -149,10 +150,7 @@ class _CatCardState extends State<_CatCard> with SingleTickerProviderStateMixin 
             duration: const Duration(milliseconds: 200),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
-              padding: const EdgeInsets.symmetric(
-                horizontal: 8,
-                vertical: 10,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
               decoration: BoxDecoration(
                 borderRadius: radius,
                 gradient: LinearGradient(

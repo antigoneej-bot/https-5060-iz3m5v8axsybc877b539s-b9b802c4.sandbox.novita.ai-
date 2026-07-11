@@ -197,6 +197,18 @@ class CatCareService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_companionKey, catId);
   }
+
+  /// "오늘의 약속"에서 프리미엄 유저가 약속을 지켰을 때 마음 온도에 소량의
+  /// 보너스를 더합니다(성장일수는 늘리지 않고, 온도만 살짝 올려 '한 뼘 자란'
+  /// 느낌을 줍니다). 약속 체크를 취소하면 [delta]에 음수를 넘겨 되돌립니다.
+  /// 반환값은 갱신된 온도입니다.
+  static Future<int> adjustBonusTemperature(int delta) async {
+    final prefs = await SharedPreferences.getInstance();
+    int temperature = prefs.getInt(_tempKey) ?? startTemperature;
+    temperature = (temperature + delta).clamp(minTemperature, maxTemperature);
+    await prefs.setInt(_tempKey, temperature);
+    return temperature;
+  }
 }
 
 enum CareTask {

@@ -263,10 +263,7 @@ class GardenPathConnector extends StatelessWidget {
                 top: height / 2 - 10,
                 child: Opacity(
                   opacity: 0.55,
-                  child: Text(
-                    decorEmoji,
-                    style: const TextStyle(fontSize: 15),
-                  ),
+                  child: Text(decorEmoji, style: const TextStyle(fontSize: 15)),
                 ),
               ),
             ],

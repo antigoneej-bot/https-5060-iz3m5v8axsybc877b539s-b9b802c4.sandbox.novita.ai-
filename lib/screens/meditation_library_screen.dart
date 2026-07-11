@@ -133,9 +133,7 @@ class _GuideTileState extends State<_GuideTile> {
                 ),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(999),
-                  color: Colors.white.withValues(
-                    alpha: _hovering ? 0.68 : 0.5,
-                  ),
+                  color: Colors.white.withValues(alpha: _hovering ? 0.68 : 0.5),
                   border: Border.all(
                     color: widget.accent.withValues(
                       alpha: _hovering ? 0.4 : 0.2,

@@ -44,10 +44,7 @@ class TempBox extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             '${label(value)}  ·  ${value.round()}°',
-            style: numberFont(
-              fontSize: 19,
-              color: AppColors.blobRoseAccent,
-            ),
+            style: numberFont(fontSize: 19, color: AppColors.blobRoseAccent),
           ),
           const SizedBox(height: 12),
           SizedBox(

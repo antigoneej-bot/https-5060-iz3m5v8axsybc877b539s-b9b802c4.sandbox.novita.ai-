@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import '../models/emotion_entry.dart';
 import '../providers/emotion_provider.dart';
 import '../theme.dart';
+import '../screens/todays_promise_screen.dart';
+import 'feature_scaffold.dart';
 
 /// 오늘의 감정을 기록하는 바텀시트 - 감정 선택 → 강도(1~5) → 짧은 메모
 class EmotionRecordSheet extends StatefulWidget {
@@ -41,7 +43,12 @@ class _EmotionRecordSheetState extends State<EmotionRecordSheet> {
       intensity: _intensity,
       memo: _memoController.text.trim(),
     );
-    if (mounted) Navigator.of(context).pop();
+    if (!mounted) return;
+    final navigator = Navigator.of(context);
+    navigator.pop();
+    // 마음 기록을 마친 직후, 자연스럽게 "오늘의 약속" 화면으로 이어집니다.
+    // (바텀시트가 닫힌 뒤이므로, 여전히 살아있는 navigator의 context를 사용합니다)
+    pushFullScreen(navigator.context, '오늘의 약속', const TodaysPromiseScreen());
   }
 
   @override

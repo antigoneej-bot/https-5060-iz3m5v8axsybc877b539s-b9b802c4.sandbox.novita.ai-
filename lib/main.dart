@@ -7,10 +7,12 @@ import 'services/notification_service.dart';
 import 'services/cat_care_service.dart';
 import 'services/daily_card_service.dart';
 import 'services/emotion_service.dart';
+import 'services/promise_service.dart';
 import 'providers/app_state_provider.dart';
 import 'providers/cat_care_provider.dart';
 import 'providers/daily_card_provider.dart';
 import 'providers/emotion_provider.dart';
+import 'providers/promise_provider.dart';
 import 'theme.dart';
 import 'widgets/stars_background.dart';
 import 'screens/home_screen.dart';
@@ -41,6 +43,7 @@ class MysticCatApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => CatCareProvider()),
         ChangeNotifierProvider(create: (_) => DailyCardProvider()),
         ChangeNotifierProvider(create: (_) => EmotionProvider()),
+        ChangeNotifierProvider(create: (_) => PromiseProvider()),
       ],
       child: MaterialApp(
         title: '고양이 그림자 정원',
@@ -73,6 +76,7 @@ class _AppRootState extends State<_AppRoot> {
     CatCareService.setCurrentUser(_localUserId);
     DailyCardService.setCurrentUser(_localUserId);
     EmotionService.setCurrentUser(_localUserId);
+    PromiseService.setCurrentUser(_localUserId);
     _bootstrap();
   }
 
@@ -92,10 +96,12 @@ class _AppRootState extends State<_AppRoot> {
       final catCare = context.read<CatCareProvider>();
       final dailyCard = context.read<DailyCardProvider>();
       final emotion = context.read<EmotionProvider>();
+      final promise = context.read<PromiseProvider>();
       await appState.init(_localUserId);
       await catCare.load();
       await dailyCard.load();
       await emotion.load();
+      await promise.load();
       if (!mounted) return;
       setState(() {
         _dataLoaded = true;

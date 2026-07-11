@@ -282,7 +282,9 @@ class _CardResultState extends State<_CardResult>
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: AppColors.blobPeachAccent.withValues(alpha: 0.12),
+                          color: AppColors.blobPeachAccent.withValues(
+                            alpha: 0.12,
+                          ),
                           blurRadius: 12,
                           offset: const Offset(0, 6),
                         ),

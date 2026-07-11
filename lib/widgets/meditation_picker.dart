@@ -64,15 +64,11 @@ class _MeditationPickerState extends State<MeditationPicker> {
                         ? LinearGradient(
                             colors: [
                               AppColors.blobButterAccent,
-                              AppColors.blobButterAccent.withValues(
-                                alpha: 0.8,
-                              ),
+                              AppColors.blobButterAccent.withValues(alpha: 0.8),
                             ],
                           )
                         : null,
-                    color: active
-                        ? null
-                        : Colors.white.withValues(alpha: 0.55),
+                    color: active ? null : Colors.white.withValues(alpha: 0.55),
                     border: Border.all(
                       color: active
                           ? Colors.transparent

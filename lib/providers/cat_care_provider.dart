@@ -85,6 +85,27 @@ class CatCareProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// "오늘의 약속"에서 프리미엄 유저가 약속을 지켰을 때 호출합니다.
+  /// 마음 온도에 작은 보너스(+2)를 더해 '한 뼘 자란' 느낌을 주되, 성장일수
+  /// (growthDays)는 늘리지 않아 8가지 돌봄 미션의 성취감을 해치지 않습니다.
+  Future<void> applyPromiseBonus() async {
+    final newTemp = await CatCareService.adjustBonusTemperature(2);
+    state = CatCareState(
+      temperature: newTemp,
+      fedToday: state.fedToday,
+      wateredToday: state.wateredToday,
+      bathedToday: state.bathedToday,
+      cleanedToday: state.cleanedToday,
+      breathingDoneToday: state.breathingDoneToday,
+      walkingDoneToday: state.walkingDoneToday,
+      journalingDoneToday: state.journalingDoneToday,
+      gratitudeDoneToday: state.gratitudeDoneToday,
+      companionCatId: state.companionCatId,
+      growthDays: state.growthDays,
+    );
+    notifyListeners();
+  }
+
   void reset() {
     state = CatCareState(
       temperature: CatCareService.startTemperature,

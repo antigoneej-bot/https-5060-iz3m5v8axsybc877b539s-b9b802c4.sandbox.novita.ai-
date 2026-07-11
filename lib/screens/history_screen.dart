@@ -125,10 +125,7 @@ class _HistoryItemState extends State<_HistoryItem>
               accent: accent,
               background: background,
               floatSeed: widget.seed * 61 + 13,
-              padding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 12,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Row(
                 children: [
                   LivelyCatImage(

@@ -146,3 +146,20 @@ class CatCareState {
     }
   }
 }
+
+/// 성장 단계별 공용 성장 아트 이미지 경로.
+/// 성체(adult) 단계는 사용자가 실제로 키우고 있는 그림자 고양이 모습을 보여줘야
+/// 하므로, 이 함수는 빈 문자열을 반환합니다 - 호출하는 쪽에서 해당 ShadowCat의
+/// imageAsset을 대신 사용해야 합니다.
+String growthStageArtAsset(CatGrowthStage stage) {
+  switch (stage) {
+    case CatGrowthStage.baby:
+      return 'assets/growth/baby_cat.png';
+    case CatGrowthStage.teen:
+      return 'assets/growth/teen_cat.png';
+    case CatGrowthStage.young:
+      return 'assets/growth/young_cat.png';
+    case CatGrowthStage.adult:
+      return '';
+  }
+}

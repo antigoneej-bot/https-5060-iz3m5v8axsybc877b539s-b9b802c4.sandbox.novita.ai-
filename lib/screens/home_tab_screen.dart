@@ -3,13 +3,15 @@ import 'package:provider/provider.dart';
 import '../providers/app_state_provider.dart';
 import '../theme.dart';
 import '../widgets/growth_header.dart';
-import '../widgets/stars_background.dart';
 import '../widgets/emotion_record_sheet.dart';
 import '../widgets/monthly_report_picker_sheet.dart';
 import '../widgets/garden_path_card.dart';
+import '../widgets/feature_scaffold.dart';
 import '../providers/emotion_provider.dart';
 import 'pet_care_screen.dart';
 import 'daily_card_screen.dart';
+import 'todays_promise_screen.dart';
+import 'day_close_screen.dart';
 
 /// 홈페이지 탭 - '힐링 정원 산책로' 컨셉의 대시보드.
 /// 딱딱한 흰 사각 카드를 모두 걷어내고, 오솔길을 걷듯 좌우로 살짝씩 흔들리며
@@ -64,7 +66,11 @@ class HomeTabScreen extends StatelessWidget {
         Text(
           '36마리 그림자 고양이와 함께하는,\n나의 마음챙김 산책로',
           textAlign: TextAlign.center,
-          style: bodyFont(fontSize: 13.5, color: AppColors.inkSoft, height: 1.7),
+          style: bodyFont(
+            fontSize: 13.5,
+            color: AppColors.inkSoft,
+            height: 1.7,
+          ),
         ),
         const SizedBox(height: 34),
         _StreakBlob(streak: app.streak),
@@ -90,11 +96,7 @@ class HomeTabScreen extends StatelessWidget {
           floatSeed: 1,
           onTap: onGoToCatSelect,
         ),
-        const GardenPathConnector(
-          startX: -0.32,
-          endX: 0.3,
-          decorEmoji: '🦋',
-        ),
+        const GardenPathConnector(startX: -0.32, endX: 0.3, decorEmoji: '🦋'),
         GardenPathCard(
           emoji: '🧘',
           title: '명상 · 움직임 둘러보기',
@@ -128,8 +130,7 @@ class HomeTabScreen extends StatelessWidget {
           alignX: 0.26,
           widthFactor: 0.92,
           floatSeed: 4,
-          onTap: () =>
-              _pushFullScreen(context, '마음 돌보기', const PetCareScreen()),
+          onTap: () => pushFullScreen(context, '마음 돌보기', const PetCareScreen()),
         ),
         const GardenPathConnector(startX: 0.26, endX: -0.3, decorEmoji: '🐾'),
         GardenPathCard(
@@ -142,7 +143,7 @@ class HomeTabScreen extends StatelessWidget {
           widthFactor: 0.9,
           floatSeed: 5,
           onTap: () =>
-              _pushFullScreen(context, '데일리 내면소통', const DailyCardScreen()),
+              pushFullScreen(context, '데일리 내면소통', const DailyCardScreen()),
         ),
         const GardenPathConnector(startX: -0.3, endX: 0.28, decorEmoji: '🦋'),
         GardenPathCard(
@@ -158,14 +159,39 @@ class HomeTabScreen extends StatelessWidget {
         ),
         const GardenPathConnector(startX: 0.28, endX: -0.26, decorEmoji: '🐾'),
         GardenPathCard(
+          emoji: '🌱',
+          title: '오늘의 약속',
+          subtitle: '오늘 나를 위해 지켜주고 싶은 작은 약속을 남겨보세요',
+          accent: AppColors.blobRoseAccent,
+          background: AppColors.blobRose,
+          alignX: -0.26,
+          widthFactor: 0.9,
+          floatSeed: 7,
+          onTap: () =>
+              pushFullScreen(context, '오늘의 약속', const TodaysPromiseScreen()),
+        ),
+        const GardenPathConnector(startX: -0.26, endX: 0.3, decorEmoji: '🦋'),
+        GardenPathCard(
+          emoji: '🌙',
+          title: '하루 닫기',
+          subtitle: '오늘 곁에 남긴 약속들을 조용히 돌아보며 하루를 닫아요',
+          accent: AppColors.blobPeriwinkleAccent,
+          background: AppColors.blobPeriwinkle,
+          alignX: 0.3,
+          widthFactor: 0.9,
+          floatSeed: 8,
+          onTap: () => pushFullScreen(context, '하루 닫기', const DayCloseScreen()),
+        ),
+        const GardenPathConnector(startX: 0.3, endX: -0.28, decorEmoji: '🐾'),
+        GardenPathCard(
           emoji: '📖',
           title: '마음 리포트 보기',
           subtitle: '한 달간의 감정 흐름을 따뜻하게 되돌아보세요',
           accent: AppColors.blobButterAccent,
           background: AppColors.blobButter,
-          alignX: -0.26,
+          alignX: -0.28,
           widthFactor: 0.9,
-          floatSeed: 7,
+          floatSeed: 9,
           onTap: () => MonthlyReportPickerSheet.show(context),
         ),
         const SizedBox(height: 40),
@@ -173,14 +199,6 @@ class HomeTabScreen extends StatelessWidget {
       ],
     );
   }
-}
-
-void _pushFullScreen(BuildContext context, String title, Widget child) {
-  Navigator.of(context).push(
-    MaterialPageRoute(
-      builder: (_) => _SimpleFeatureScaffold(title: title, child: child),
-    ),
-  );
 }
 
 /// 오솔길 입구에 세워진 나무 팻말 느낌의 섹션 안내 - 딱딱한 사이드바 대신
@@ -285,54 +303,6 @@ class _StreakBlob extends StatelessWidget {
   }
 }
 
-/// 홈 대시보드에서 새로운 기능(마음 돌보기 / 데일리 내면소통)으로 진입할 때 쓰는
-/// 공용 화면 래퍼 - 기존 탭들과 톤을 맞춘 배경과 뒤로가기 버튼을 제공합니다.
-class _SimpleFeatureScaffold extends StatelessWidget {
-  final String title;
-  final Widget child;
-  const _SimpleFeatureScaffold({required this.title, required this.child});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: GardenScaffoldBackground(
-        child: SafeArea(
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 520),
-              child: Column(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(8, 12, 8, 0),
-                    child: Row(
-                      children: [
-                        IconButton(
-                          onPressed: () => Navigator.of(context).pop(),
-                          icon: const Icon(
-                            Icons.arrow_back_ios_new_rounded,
-                            color: AppColors.ink,
-                            size: 18,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
-                      child: child,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 /// 새로운 월간 마음 리포트가 도착했음을 알리는 은은한 달빛 배너
 class _MonthlyReportBanner extends StatelessWidget {
   final VoidCallback onTap;
@@ -375,10 +345,7 @@ class _MonthlyReportBanner extends StatelessWidget {
                   children: [
                     Text(
                       '이번 달 마음 리포트가 도착했어요',
-                      style: titleFont(
-                        fontSize: 15,
-                        color: Colors.white,
-                      ),
+                      style: titleFont(fontSize: 15, color: Colors.white),
                     ),
                     const SizedBox(height: 4),
                     Text(
