@@ -90,6 +90,21 @@ class StorageService {
     return DateTime(d.year, d.month, d.day).toIso8601String();
   }
 
+  /// 현재 저장된 연속 방문일(스트릭) 수를 그대로 반환합니다(알림 문구용).
+  static Future<int> getCurrentStreakCount() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt(_streakKey) ?? 0;
+  }
+
+  /// 오늘 이미 성장 미션(편지+명상)을 완수했는지 여부.
+  /// '스트릭 임박' 알림을 예약할지 판단하는 데 사용됩니다.
+  static Future<bool> hasCompletedGrowthToday() async {
+    final prefs = await SharedPreferences.getInstance();
+    final todayStr = _dateOnlyString(DateTime.now());
+    final days = prefs.getStringList(_growthDaysKey) ?? [];
+    return days.contains(todayStr);
+  }
+
   // ---- Growth Level (성장 단계, 계정별) ----
   // 하루에 미션(편지+명상)을 완수할 때마다 마음 온도가 1도씩 올라갑니다.
   // 14일 안에 10도를 채우면 레벨업! 14일 안에 못 채우면 도전이 초기화됩니다.
@@ -263,31 +278,109 @@ class StorageService {
   }
 
   // ---- Daily Care Reminder (기기 전체 공통, 매일 돌보기 알림) ----
+  // v1(레거시): 하나의 고정 알림만 지원했습니다. v2부터는 아침/저녁 알림을
+  // 분리하고, '위기 알림'(3일+ 미접속)과 '스트릭 임박 알림'(오늘 미완료)을
+  // 추가로 지원합니다. 레거시 설정은 [migrateLegacyReminderIfNeeded]에서
+  // 저녁 알림으로 1회 자동 이전됩니다.
   static const String _reminderEnabledKey = 'daily_reminder_enabled';
   static const String _reminderHourKey = 'daily_reminder_hour';
   static const String _reminderMinuteKey = 'daily_reminder_minute';
 
-  static Future<bool> getReminderEnabled() async {
+  static const String _morningEnabledKey = 'reminder_morning_enabled';
+  static const String _morningHourKey = 'reminder_morning_hour';
+  static const String _morningMinuteKey = 'reminder_morning_minute';
+
+  static const String _eveningEnabledKey = 'reminder_evening_enabled';
+  static const String _eveningHourKey = 'reminder_evening_hour';
+  static const String _eveningMinuteKey = 'reminder_evening_minute';
+
+  static const String _crisisEnabledKey = 'reminder_crisis_enabled';
+  static const String _streakEnabledKey = 'reminder_streak_enabled';
+
+  static const String _reminderMigratedKey = 'reminder_migrated_v2';
+
+  /// 레거시(v1) 알림 설정이 남아있다면, 1회만 저녁 알림 설정으로 옮겨줍니다.
+  static Future<void> migrateLegacyReminderIfNeeded() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_reminderEnabledKey) ?? false;
+    if (prefs.getBool(_reminderMigratedKey) ?? false) return;
+    final legacyEnabled = prefs.getBool(_reminderEnabledKey) ?? false;
+    if (legacyEnabled) {
+      final hour = prefs.getInt(_reminderHourKey) ?? 20;
+      final minute = prefs.getInt(_reminderMinuteKey) ?? 0;
+      await prefs.setBool(_eveningEnabledKey, true);
+      await prefs.setInt(_eveningHourKey, hour);
+      await prefs.setInt(_eveningMinuteKey, minute);
+    }
+    await prefs.setBool(_reminderMigratedKey, true);
   }
 
-  static Future<void> setReminderEnabled(bool v) async {
+  // -- 아침 알림 (기본 오전 9시) --
+  static Future<bool> getMorningEnabled() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_reminderEnabledKey, v);
+    return prefs.getBool(_morningEnabledKey) ?? false;
   }
 
-  /// 저장된 리마인더 시각을 반환합니다: (시, 분). 기본값은 오후 8시입니다.
-  static Future<(int, int)> getReminderTime() async {
+  static Future<void> setMorningEnabled(bool v) async {
     final prefs = await SharedPreferences.getInstance();
-    final hour = prefs.getInt(_reminderHourKey) ?? 20;
-    final minute = prefs.getInt(_reminderMinuteKey) ?? 0;
+    await prefs.setBool(_morningEnabledKey, v);
+  }
+
+  static Future<(int, int)> getMorningTime() async {
+    final prefs = await SharedPreferences.getInstance();
+    final hour = prefs.getInt(_morningHourKey) ?? 9;
+    final minute = prefs.getInt(_morningMinuteKey) ?? 0;
     return (hour, minute);
   }
 
-  static Future<void> setReminderTime(int hour, int minute) async {
+  static Future<void> setMorningTime(int hour, int minute) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_reminderHourKey, hour);
-    await prefs.setInt(_reminderMinuteKey, minute);
+    await prefs.setInt(_morningHourKey, hour);
+    await prefs.setInt(_morningMinuteKey, minute);
+  }
+
+  // -- 저녁 알림 (기본 오후 8시) --
+  static Future<bool> getEveningEnabled() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_eveningEnabledKey) ?? false;
+  }
+
+  static Future<void> setEveningEnabled(bool v) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_eveningEnabledKey, v);
+  }
+
+  static Future<(int, int)> getEveningTime() async {
+    final prefs = await SharedPreferences.getInstance();
+    final hour = prefs.getInt(_eveningHourKey) ?? 20;
+    final minute = prefs.getInt(_eveningMinuteKey) ?? 0;
+    return (hour, minute);
+  }
+
+  static Future<void> setEveningTime(int hour, int minute) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_eveningHourKey, hour);
+    await prefs.setInt(_eveningMinuteKey, minute);
+  }
+
+  // -- 위기 알림 (3일 이상 미접속 시에만 조건부 발송, 기본 켜짐) --
+  static Future<bool> getCrisisEnabled() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_crisisEnabledKey) ?? true;
+  }
+
+  static Future<void> setCrisisEnabled(bool v) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_crisisEnabledKey, v);
+  }
+
+  // -- 스트릭 임박 알림 (오늘 미완료일 때만 조건부 발송, 기본 켜짐) --
+  static Future<bool> getStreakEnabled() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_streakEnabledKey) ?? true;
+  }
+
+  static Future<void> setStreakEnabled(bool v) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_streakEnabledKey, v);
   }
 }

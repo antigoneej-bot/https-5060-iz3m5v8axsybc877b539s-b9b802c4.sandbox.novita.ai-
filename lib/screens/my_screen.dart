@@ -355,7 +355,9 @@ class _SettingsCard extends StatelessWidget {
 }
 
 /// 데일리 돌보기 알림(로컬 푸시 리마인더) 설정 카드.
-/// 켜면 매일 지정한 시간에 "고양이가 기다리고 있어요" 알림을 받습니다.
+/// 아침 / 저녁 알림을 각각 켜고 끄고 시간을 조절할 수 있고, 위기 알림(3일
+/// 이상 미접속) · 스트릭 임박 알림(오늘 미완료)도 개별적으로 켜고 끌 수
+/// 있습니다.
 class _ReminderCard extends StatefulWidget {
   const _ReminderCard();
 
@@ -366,9 +368,17 @@ class _ReminderCard extends StatefulWidget {
 class _ReminderCardState extends State<_ReminderCard> {
   final _notif = NotificationService();
   bool _loading = true;
-  bool _enabled = false;
-  int _hour = 20;
-  int _minute = 0;
+
+  bool _morningEnabled = false;
+  int _morningHour = 9;
+  int _morningMinute = 0;
+
+  bool _eveningEnabled = false;
+  int _eveningHour = 20;
+  int _eveningMinute = 0;
+
+  bool _crisisEnabled = true;
+  bool _streakEnabled = true;
 
   @override
   void initState() {
@@ -377,40 +387,96 @@ class _ReminderCardState extends State<_ReminderCard> {
   }
 
   Future<void> _load() async {
-    final enabled = await _notif.isEnabled();
-    final (hour, minute) = await _notif.getReminderTime();
+    final morningEnabled = await _notif.isMorningEnabled();
+    final (mh, mm) = await _notif.getMorningTime();
+    final eveningEnabled = await _notif.isEveningEnabled();
+    final (eh, em) = await _notif.getEveningTime();
+    final crisisEnabled = await _notif.isCrisisEnabled();
+    final streakEnabled = await _notif.isStreakEnabled();
     if (!mounted) return;
     setState(() {
-      _enabled = enabled;
-      _hour = hour;
-      _minute = minute;
+      _morningEnabled = morningEnabled;
+      _morningHour = mh;
+      _morningMinute = mm;
+      _eveningEnabled = eveningEnabled;
+      _eveningHour = eh;
+      _eveningMinute = em;
+      _crisisEnabled = crisisEnabled;
+      _streakEnabled = streakEnabled;
       _loading = false;
     });
   }
 
-  Future<void> _onToggle(bool v) async {
+  void _showPermissionDenied() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('알림 권한이 필요해요. 기기 설정에서 알림을 허용해주세요.')),
+    );
+  }
+
+  Future<void> _onToggleMorning(bool v) async {
     if (v) {
-      final granted = await _notif.enableReminder(hour: _hour, minute: _minute);
+      final granted = await _notif.enableMorning(
+        hour: _morningHour,
+        minute: _morningMinute,
+      );
       if (!mounted) return;
       if (!granted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('알림 권한이 필요해요. 기기 설정에서 알림을 허용해주세요.')),
-        );
-        setState(() => _enabled = false);
+        _showPermissionDenied();
+        setState(() => _morningEnabled = false);
         return;
       }
-      setState(() => _enabled = true);
+      setState(() => _morningEnabled = true);
     } else {
-      await _notif.disableReminder();
+      await _notif.disableMorning();
       if (!mounted) return;
-      setState(() => _enabled = false);
+      setState(() => _morningEnabled = false);
     }
   }
 
-  Future<void> _pickTime() async {
-    final picked = await showTimePicker(
+  Future<void> _onToggleEvening(bool v) async {
+    if (v) {
+      final granted = await _notif.enableEvening(
+        hour: _eveningHour,
+        minute: _eveningMinute,
+      );
+      if (!mounted) return;
+      if (!granted) {
+        _showPermissionDenied();
+        setState(() => _eveningEnabled = false);
+        return;
+      }
+      setState(() => _eveningEnabled = true);
+    } else {
+      await _notif.disableEvening();
+      if (!mounted) return;
+      setState(() => _eveningEnabled = false);
+    }
+  }
+
+  Future<void> _pickMorningTime() async {
+    final picked = await _showTimePicker(_morningHour, _morningMinute);
+    if (picked == null) return;
+    setState(() {
+      _morningHour = picked.hour;
+      _morningMinute = picked.minute;
+    });
+    await _notif.updateMorningTime(picked.hour, picked.minute);
+  }
+
+  Future<void> _pickEveningTime() async {
+    final picked = await _showTimePicker(_eveningHour, _eveningMinute);
+    if (picked == null) return;
+    setState(() {
+      _eveningHour = picked.hour;
+      _eveningMinute = picked.minute;
+    });
+    await _notif.updateEveningTime(picked.hour, picked.minute);
+  }
+
+  Future<TimeOfDay?> _showTimePicker(int hour, int minute) {
+    return showTimePicker(
       context: context,
-      initialTime: TimeOfDay(hour: _hour, minute: _minute),
+      initialTime: TimeOfDay(hour: hour, minute: minute),
       builder: (context, child) => Theme(
         data: Theme.of(context).copyWith(
           colorScheme: Theme.of(
@@ -420,17 +486,11 @@ class _ReminderCardState extends State<_ReminderCard> {
         child: child!,
       ),
     );
-    if (picked == null) return;
-    setState(() {
-      _hour = picked.hour;
-      _minute = picked.minute;
-    });
-    await _notif.updateReminderTime(picked.hour, picked.minute);
   }
 
-  String get _timeLabel {
-    final h = _hour.toString().padLeft(2, '0');
-    final m = _minute.toString().padLeft(2, '0');
+  String _timeLabel(int hour, int minute) {
+    final h = hour.toString().padLeft(2, '0');
+    final m = minute.toString().padLeft(2, '0');
     return '$h:$m';
   }
 
@@ -443,7 +503,7 @@ class _ReminderCardState extends State<_ReminderCard> {
       child: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.symmetric(vertical: 6),
+            padding: const EdgeInsets.symmetric(vertical: 10),
             child: Row(
               children: [
                 Icon(
@@ -451,74 +511,140 @@ class _ReminderCardState extends State<_ReminderCard> {
                   color: AppColors.blobPeachAccent,
                   size: 20,
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    '돌보기 리마인더',
-                    style: bodyFont(fontSize: 13.5, color: AppColors.moon),
+                const SizedBox(width: 10),
+                Text(
+                  '돌보기 리마인더',
+                  style: pathLabelFont(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.ink,
                   ),
                 ),
-                _loading
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : Switch(
-                        value: _enabled,
-                        onChanged: _onToggle,
-                        activeTrackColor: AppColors.blobPeachAccent,
-                      ),
               ],
             ),
           ),
-          if (!_loading && _enabled) ...[
+          if (_loading)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 16),
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            )
+          else ...[
             Divider(
               height: 1,
               color: AppColors.blobPeachAccent.withValues(alpha: 0.18),
             ),
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 10),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.schedule_rounded,
-                    color: AppColors.blobPeachAccent,
-                    size: 20,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      '매일 $_timeLabel에 알려드려요',
-                      style: bodyFont(fontSize: 13, color: AppColors.moon),
-                    ),
-                  ),
-                  Material(
-                    color: Colors.white.withValues(alpha: 0.6),
-                    borderRadius: BorderRadius.circular(999),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(999),
-                      onTap: _pickTime,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 7,
-                        ),
-                        child: Text(
-                          '시간 변경',
-                          style: bodyFont(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.blobPeachAccent,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+            _reminderRow(
+              emoji: '🌤️',
+              label: '아침 알림',
+              value: _morningEnabled,
+              onChanged: _onToggleMorning,
+              timeLabel: _morningEnabled
+                  ? _timeLabel(_morningHour, _morningMinute)
+                  : null,
+              onPickTime: _pickMorningTime,
+            ),
+            Divider(
+              height: 1,
+              color: AppColors.blobPeachAccent.withValues(alpha: 0.18),
+            ),
+            _reminderRow(
+              emoji: '🌙',
+              label: '저녁 알림',
+              value: _eveningEnabled,
+              onChanged: _onToggleEvening,
+              timeLabel: _eveningEnabled
+                  ? _timeLabel(_eveningHour, _eveningMinute)
+                  : null,
+              onPickTime: _pickEveningTime,
+            ),
+            Divider(
+              height: 1,
+              color: AppColors.blobPeachAccent.withValues(alpha: 0.18),
+            ),
+            _reminderRow(
+              emoji: '🐈‍⬛',
+              label: '위기 알림 (3일 이상 미접속 시)',
+              value: _crisisEnabled,
+              onChanged: (v) async {
+                await _notif.setCrisisEnabled(v);
+                if (!mounted) return;
+                setState(() => _crisisEnabled = v);
+              },
+            ),
+            Divider(
+              height: 1,
+              color: AppColors.blobPeachAccent.withValues(alpha: 0.18),
+            ),
+            _reminderRow(
+              emoji: '🔥',
+              label: '스트릭 임박 알림 (오늘 미완료 시)',
+              value: _streakEnabled,
+              onChanged: (v) async {
+                await _notif.setStreakEnabled(v);
+                if (!mounted) return;
+                setState(() => _streakEnabled = v);
+              },
             ),
           ],
+        ],
+      ),
+    );
+  }
+
+  Widget _reminderRow({
+    required String emoji,
+    required String label,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+    String? timeLabel,
+    VoidCallback? onPickTime,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        children: [
+          Text(emoji, style: const TextStyle(fontSize: 16)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              label,
+              style: bodyFont(fontSize: 12.5, color: AppColors.moon),
+            ),
+          ),
+          if (timeLabel != null && onPickTime != null) ...[
+            Material(
+              color: Colors.white.withValues(alpha: 0.6),
+              borderRadius: BorderRadius.circular(999),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(999),
+                onTap: onPickTime,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  child: Text(
+                    timeLabel,
+                    style: bodyFont(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.blobPeachAccent,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+          ],
+          Switch(
+            value: value,
+            onChanged: onChanged,
+            activeTrackColor: AppColors.blobPeachAccent,
+          ),
         ],
       ),
     );

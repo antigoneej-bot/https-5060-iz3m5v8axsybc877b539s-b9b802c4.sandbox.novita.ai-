@@ -3,6 +3,7 @@ import '../models/shadow_cat.dart';
 import '../models/letter_entry.dart';
 import '../services/storage_service.dart';
 import '../services/sound_service.dart';
+import '../services/notification_service.dart';
 
 /// 명상 저널 플로우 단계
 /// selecting: 7마리 중 지금 내 기분과 닮은 고양이 선택
@@ -156,6 +157,7 @@ class AppStateProvider extends ChangeNotifier {
     growthPoints = points;
     growthElapsedDays = elapsed;
     justLeveledUp = leveledUp;
+    await NotificationService().notifyMissionCompletedToday();
 
     await SoundService().playChime();
     flowStage = FlowStage.done;
@@ -184,6 +186,7 @@ class AppStateProvider extends ChangeNotifier {
     growthPoints = points;
     growthElapsedDays = elapsed;
     justLeveledUp = leveledUp;
+    await NotificationService().notifyMissionCompletedToday();
 
     await SoundService().playChime();
     notifyListeners();

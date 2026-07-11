@@ -3,14 +3,17 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_state_provider.dart';
 import '../data/shadow_cats_data.dart';
+import '../services/notification_service.dart';
 import '../theme.dart';
 import '../widgets/stars_background.dart';
 import '../widgets/sound_panel.dart';
+import '../widgets/feature_scaffold.dart';
 import 'home_tab_screen.dart';
 import 'cat_flow_tab_screen.dart';
 import 'meditation_library_screen.dart';
 import 'history_screen.dart';
 import 'my_screen.dart';
+import 'day_close_screen.dart';
 
 /// 앱의 최상위 셸 - 하단 5개 탭(홈페이지 / 고양이선택 / 명상 / 기록 / 마이)을 관리
 class HomeScreen extends StatefulWidget {
@@ -20,8 +23,49 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   int _navIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _handleDeepLink());
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // 알림을 탭해서 백그라운드에 있던 앱이 다시 앞으로 나올 때도 딥링크를
+    // 확인합니다(알림을 탭한 시점에는 이미 앱이 실행 중이라 initState가
+    // 다시 호출되지 않기 때문).
+    if (state == AppLifecycleState.resumed) {
+      _handleDeepLink();
+    }
+  }
+
+  /// 알림을 탭해서 들어온 경우, 종류별로 알맞은 화면/탭으로 이동합니다.
+  void _handleDeepLink() {
+    final target = NotificationService().consumePendingDeepLink();
+    if (target == null || !mounted) return;
+    switch (target) {
+      case 'evening':
+        // 저녁 알림 → 하루 닫기 화면으로 바로 이동
+        pushFullScreen(context, '하루 닫기', const DayCloseScreen());
+        break;
+      case 'morning':
+      case 'crisis':
+      case 'streak':
+        // 아침 / 위기 / 스트릭 알림 → 오늘의 감정 고양이 만나기 탭으로 이동
+        setState(() => _navIndex = 1);
+        break;
+    }
+  }
 
   void _goTo(int i) => setState(() => _navIndex = i);
 
