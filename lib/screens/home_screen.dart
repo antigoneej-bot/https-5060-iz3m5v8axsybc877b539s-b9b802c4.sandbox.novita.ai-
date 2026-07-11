@@ -230,12 +230,7 @@ class _FirstMeetingBannerState extends State<_FirstMeetingBanner> {
 
   @override
   Widget build(BuildContext context) {
-    final metCount = context
-        .watch<AppStateProvider>()
-        .history
-        .map((e) => e.catId)
-        .toSet()
-        .length;
+    final metCount = context.watch<AppStateProvider>().metCatCount;
     final shown = metCount.clamp(1, shadowCats.length);
     return AnimatedOpacity(
       duration: const Duration(milliseconds: 400),

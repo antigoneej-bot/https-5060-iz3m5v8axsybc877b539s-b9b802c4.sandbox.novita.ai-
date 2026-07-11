@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_state_provider.dart';
+import '../data/shadow_cats_data.dart';
 import '../theme.dart';
 import '../widgets/growth_header.dart';
 import '../widgets/emotion_record_sheet.dart';
@@ -12,6 +13,7 @@ import 'pet_care_screen.dart';
 import 'daily_card_screen.dart';
 import 'todays_promise_screen.dart';
 import 'day_close_screen.dart';
+import 'cat_compendium_screen.dart';
 
 /// 홈페이지 탭 - '힐링 정원 산책로' 컨셉의 대시보드.
 /// 딱딱한 흰 사각 카드를 모두 걷어내고, 오솔길을 걷듯 좌우로 살짝씩 흔들리며
@@ -64,7 +66,7 @@ class HomeTabScreen extends StatelessWidget {
         ),
         const SizedBox(height: 10),
         Text(
-          '36마리 그림자 고양이와 함께하는,\n나의 마음챙김 산책로',
+          '36마리 그림자 고양이를 한 마리씩 만나가는,\n나의 마음챙김 여정',
           textAlign: TextAlign.center,
           style: bodyFont(
             fontSize: 13.5,
@@ -72,7 +74,18 @@ class HomeTabScreen extends StatelessWidget {
             height: 1.7,
           ),
         ),
-        const SizedBox(height: 34),
+        const SizedBox(height: 30),
+        _JourneyHero(
+          metCount: app.metCatCount,
+          total: shadowCats.length,
+          onMeetCat: onGoToCatSelect,
+          onOpenCompendium: () => pushFullScreen(
+            context,
+            '그림자 고양이 도감',
+            const CatCompendiumScreen(),
+          ),
+        ),
+        const SizedBox(height: 26),
         _StreakBlob(streak: app.streak),
         const SizedBox(height: 18),
         GrowthHeader(
@@ -83,20 +96,8 @@ class HomeTabScreen extends StatelessWidget {
           windowDays: AppStateProvider.growthWindowDays,
         ),
         const SizedBox(height: 44),
-        _PathSignpost(title: '오솔길을 따라 걸어볼까요?'),
+        _PathSignpost(title: '고양이를 만난 뒤엔, 이렇게 돌봐요'),
         const SizedBox(height: 6),
-        GardenPathCard(
-          emoji: '🐾',
-          title: '오늘의 감정 고양이 만나기',
-          subtitle: '지금 내 기분과 닮은 고양이를 골라 편지를 써보세요',
-          accent: AppColors.blobPeachAccent,
-          background: AppColors.blobPeach,
-          alignX: -0.32,
-          widthFactor: 0.92,
-          floatSeed: 1,
-          onTap: onGoToCatSelect,
-        ),
-        const GardenPathConnector(startX: -0.32, endX: 0.3, decorEmoji: '🦋'),
         GardenPathCard(
           emoji: '🧘',
           title: '명상 · 움직임 둘러보기',
@@ -197,6 +198,168 @@ class HomeTabScreen extends StatelessWidget {
         const SizedBox(height: 40),
         _GardenHintCaption(),
       ],
+    );
+  }
+}
+
+/// 홈 화면 최상단, '36 그림자 고양이 여정'을 앱의 핵심 후크로 내세우는
+/// 히어로 섹션. 오늘 만날 고양이 CTA와 도감(수집 진행률) 진입점을 함께
+/// 보여주어, 다른 모든 기능이 이 여정을 중심으로 이어지도록 합니다.
+class _JourneyHero extends StatelessWidget {
+  final int metCount;
+  final int total;
+  final VoidCallback onMeetCat;
+  final VoidCallback onOpenCompendium;
+  const _JourneyHero({
+    required this.metCount,
+    required this.total,
+    required this.onMeetCat,
+    required this.onOpenCompendium,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final progress = total == 0 ? 0.0 : metCount / total;
+    final remaining = total - metCount;
+    return GlassBlob(
+      accent: AppColors.blobPeachAccent,
+      background: AppColors.blobPeach,
+      floatSeed: 1,
+      padding: const EdgeInsets.fromLTRB(22, 22, 22, 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 46,
+                height: 46,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withValues(alpha: 0.55),
+                  border: Border.all(
+                    color: AppColors.blobPeachAccent.withValues(alpha: 0.35),
+                  ),
+                ),
+                child: const Text('🐾', style: TextStyle(fontSize: 21)),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '36 그림자 고양이 여정',
+                      style: pathLabelFont(
+                        fontSize: 15.5,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.ink,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      metCount == 0
+                          ? '아직 만난 고양이가 없어요. 지금 첫 고양이를 만나볼까요?'
+                          : remaining == 0
+                          ? '36마리를 모두 만났어요. 정원이 가득 채워졌네요 🌸'
+                          : '$total마리 중 $metCount마리를 만났어요 · $remaining마리가 기다리는 중',
+                      style: bodyFont(
+                        fontSize: 11.5,
+                        color: AppColors.inkSoft,
+                        height: 1.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(999),
+            child: LinearProgressIndicator(
+              value: progress,
+              minHeight: 9,
+              backgroundColor: Colors.white.withValues(alpha: 0.55),
+              valueColor: const AlwaysStoppedAnimation(
+                AppColors.blobPeachAccent,
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: _JourneyHeroButton(
+                  label: metCount == 0 ? '고양이 만나기' : '오늘의 고양이 만나기',
+                  emoji: '🐈',
+                  filled: true,
+                  onTap: onMeetCat,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _JourneyHeroButton(
+                  label: '도감 보기',
+                  emoji: '📖',
+                  filled: false,
+                  onTap: onOpenCompendium,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _JourneyHeroButton extends StatelessWidget {
+  final String label;
+  final String emoji;
+  final bool filled;
+  final VoidCallback onTap;
+  const _JourneyHeroButton({
+    required this.label,
+    required this.emoji,
+    required this.filled,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(999),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(999),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(999),
+            color: filled
+                ? AppColors.blobPeachAccent.withValues(alpha: 0.88)
+                : Colors.white.withValues(alpha: 0.55),
+            border: Border.all(
+              color: AppColors.blobPeachAccent.withValues(
+                alpha: filled ? 0 : 0.4,
+              ),
+              width: 1.1,
+            ),
+          ),
+          child: Text(
+            '$emoji  $label',
+            style: pathLabelFont(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w700,
+              color: filled ? Colors.white : AppColors.ink,
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

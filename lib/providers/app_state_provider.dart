@@ -211,4 +211,14 @@ class AppStateProvider extends ChangeNotifier {
     history = StorageService.getAllLetters();
     notifyListeners();
   }
+
+  /// 지금까지 편지를 써서 만난 그림자 고양이들의 id 집합.
+  /// '36 그림자 고양이 여정'의 수집 진행 상황(도감)을 계산하는 기준입니다.
+  Set<String> get metCatIds => history.map((e) => e.catId).toSet();
+
+  /// 지금까지 만난 고양이 수 (0~36)
+  int get metCatCount => metCatIds.length;
+
+  /// 특정 고양이를 이미 만난 적이 있는지
+  bool hasMetCat(String catId) => metCatIds.contains(catId);
 }
