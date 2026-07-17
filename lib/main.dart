@@ -10,6 +10,8 @@ import 'services/promise_service.dart';
 import 'services/bubble_garden_service.dart';
 import 'services/buried_emotion_service.dart';
 import 'services/analytics_service.dart';
+import 'services/cat_memory_service.dart';
+import 'services/usage_history_service.dart';
 import 'providers/app_state_provider.dart';
 import 'providers/cat_care_provider.dart';
 import 'providers/daily_card_provider.dart';
@@ -92,6 +94,9 @@ class _AppRootState extends State<_AppRoot> {
     // initState에서 바로 호출하지 않고, 다른 부트스트랩 작업과 함께 여기서
     // await합니다.
     await BuriedEmotionService.setCurrentUser(_localUserId);
+    // 편지 생성 시스템(신규 8모듈 조합 엔진)이 사용하는 계정별 Hive Box.
+    await CatMemoryService.setCurrentUser(_localUserId);
+    await UsageHistoryService.setCurrentUser(_localUserId);
     final signedUp = await StorageService.isOnboardingCompleted();
     if (!mounted) return;
     setState(() {

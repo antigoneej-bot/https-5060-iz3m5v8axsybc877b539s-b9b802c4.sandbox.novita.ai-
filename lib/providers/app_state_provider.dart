@@ -10,6 +10,7 @@ import '../services/weekly_shadow_map_service.dart';
 import '../services/buried_emotion_service.dart';
 import '../services/subscription_service.dart';
 import '../services/analytics_service.dart';
+import '../services/cat_memory_service.dart';
 
 /// 명상 저널 플로우 단계
 /// selecting: 7마리 중 지금 내 기분과 닮은 고양이 선택
@@ -213,6 +214,13 @@ class AppStateProvider extends ChangeNotifier {
     history = StorageService.getAllLetters();
     currentLetterId = entry.id;
 
+    // 편지 시스템 6장(고양이 기억) - 키워드가 감지되면 회상용으로 저장.
+    await CatMemoryService.captureIfKeywordFound(
+      catId: entry.catId,
+      letterText: letterText,
+      now: entry.date,
+    );
+
     final (leveledUp, level, points, elapsed) =
         await StorageService.recordGrowthDay();
     growthLevel = level;
@@ -292,6 +300,13 @@ class AppStateProvider extends ChangeNotifier {
     );
     await StorageService.saveLetter(entry);
     history = StorageService.getAllLetters();
+
+    // 편지 시스템 6장(고양이 기억) - 키워드가 감지되면 회상용으로 저장.
+    await CatMemoryService.captureIfKeywordFound(
+      catId: entry.catId,
+      letterText: letterText,
+      now: entry.date,
+    );
 
     final (leveledUp, level, points, elapsed) =
         await StorageService.recordGrowthDay();

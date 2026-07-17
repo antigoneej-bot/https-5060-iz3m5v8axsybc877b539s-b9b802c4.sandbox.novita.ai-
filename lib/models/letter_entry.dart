@@ -1,3 +1,5 @@
+import '../utils/feature_flags.dart';
+
 /// 그림자 고양이에게 쓴 편지 기록
 class LetterEntry {
   final String id;
@@ -66,7 +68,12 @@ class LetterEntry {
   }
 
   /// 지금 시각 기준으로 답장을 열어볼 수 있는 상태인지 여부.
-  bool get isReplyReady => DateTime.now().isAfter(replyAvailableAt);
+  ///
+  /// ⚠️ [FeatureFlags.debugInstantReply]가 true인 동안에는 대기 없이 항상
+  /// true를 반환합니다(디버그 전용, 정식 배포 전 반드시 false로 되돌릴 것).
+  bool get isReplyReady =>
+      FeatureFlags.debugInstantReply ||
+      DateTime.now().isAfter(replyAvailableAt);
 
   Map<String, dynamic> toMap() {
     return {

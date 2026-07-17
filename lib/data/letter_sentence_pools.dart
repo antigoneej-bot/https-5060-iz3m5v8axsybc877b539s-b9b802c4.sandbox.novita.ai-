@@ -1,0 +1,217 @@
+/// 편지 조합 엔진이 사용하는 문장 마스터 데이터 (설계서 12장 샘플 데이터를
+/// 그대로 코드로 옮긴 것).
+///
+/// 사용자별로 바뀌지 않는 정적 리소스라 const 리스트로 앱에 내장합니다.
+/// 이후 문장을 늘리고 싶다면 이 파일에 [TaggedSentence]를 계속 추가하면
+/// 됩니다(설계서 12.9 확장 가이드 참고).
+library;
+
+import '../models/letter_tags.dart';
+import '../models/tagged_sentence.dart';
+
+// ── ① 인사 모듈 (24개) ──────────────────────────────────────────────
+const List<TaggedSentence> greetingPool = [
+  TaggedSentence(id: 'greeting_baby_01', moduleKey: 'greeting', text: '안녕! 오늘도 왔구나!', tags: SentenceTags(growth: [GrowthTag.baby])),
+  TaggedSentence(id: 'greeting_baby_02', moduleKey: 'greeting', text: '야옹, 보고 싶었어!', tags: SentenceTags(growth: [GrowthTag.baby])),
+  TaggedSentence(id: 'greeting_baby_03', moduleKey: 'greeting', text: '왔다, 왔다! 오늘도 왔다!', tags: SentenceTags(growth: [GrowthTag.baby])),
+  TaggedSentence(id: 'greeting_baby_04', moduleKey: 'greeting', text: '안녕 안녕! 진짜 반가워!', tags: SentenceTags(growth: [GrowthTag.baby])),
+  TaggedSentence(id: 'greeting_baby_05', moduleKey: 'greeting', text: '냐옹, 잘 잤어?', tags: SentenceTags(growth: [GrowthTag.baby], time: [TimeTag.morning])),
+  TaggedSentence(id: 'greeting_baby_06', moduleKey: 'greeting', text: '나 여기서 계속 기다렸어!', tags: SentenceTags(growth: [GrowthTag.baby])),
+  TaggedSentence(id: 'greeting_teen_01', moduleKey: 'greeting', text: '왔어? 오늘 하루는 어땠어?', tags: SentenceTags(growth: [GrowthTag.teen])),
+  TaggedSentence(id: 'greeting_teen_02', moduleKey: 'greeting', text: '어서 와, 궁금한 게 많았어.', tags: SentenceTags(growth: [GrowthTag.teen])),
+  TaggedSentence(id: 'greeting_teen_03', moduleKey: 'greeting', text: '오늘은 무슨 일 있었어?', tags: SentenceTags(growth: [GrowthTag.teen], time: [TimeTag.evening])),
+  TaggedSentence(id: 'greeting_teen_04', moduleKey: 'greeting', text: '안녕! 오늘 기분은 어때?', tags: SentenceTags(growth: [GrowthTag.teen])),
+  TaggedSentence(id: 'greeting_teen_05', moduleKey: 'greeting', text: '왔구나, 기다렸잖아.', tags: SentenceTags(growth: [GrowthTag.teen])),
+  TaggedSentence(id: 'greeting_teen_06', moduleKey: 'greeting', text: '오늘도 이야기해줄 거지?', tags: SentenceTags(growth: [GrowthTag.teen])),
+  TaggedSentence(id: 'greeting_young_01', moduleKey: 'greeting', text: '왔구나. 오늘도 잘 지냈어?', tags: SentenceTags(growth: [GrowthTag.young])),
+  TaggedSentence(id: 'greeting_young_02', moduleKey: 'greeting', text: '기다리고 있었어, 어서 와.', tags: SentenceTags(growth: [GrowthTag.young])),
+  TaggedSentence(id: 'greeting_young_03', moduleKey: 'greeting', text: '오늘 하루도 애썼어.', tags: SentenceTags(growth: [GrowthTag.young])),
+  TaggedSentence(id: 'greeting_young_04', moduleKey: 'greeting', text: '네가 오니까 마음이 놓여.', tags: SentenceTags(growth: [GrowthTag.young])),
+  TaggedSentence(id: 'greeting_young_05', moduleKey: 'greeting', text: '잘 왔어. 오늘은 어땠어?', tags: SentenceTags(growth: [GrowthTag.young])),
+  TaggedSentence(id: 'greeting_young_06', moduleKey: 'greeting', text: '여기 앉아, 천천히 얘기해줘.', tags: SentenceTags(growth: [GrowthTag.young])),
+  TaggedSentence(id: 'greeting_adult_01', moduleKey: 'greeting', text: '왔구나.', tags: SentenceTags(growth: [GrowthTag.adult])),
+  TaggedSentence(id: 'greeting_adult_02', moduleKey: 'greeting', text: '오늘도 여기 있었어.', tags: SentenceTags(growth: [GrowthTag.adult])),
+  TaggedSentence(id: 'greeting_adult_03', moduleKey: 'greeting', text: '말하지 않아도 알아, 왔다는 것.', tags: SentenceTags(growth: [GrowthTag.adult])),
+  TaggedSentence(id: 'greeting_adult_04', moduleKey: 'greeting', text: '조용히 곁에 있을게.', tags: SentenceTags(growth: [GrowthTag.adult])),
+  TaggedSentence(id: 'greeting_adult_05', moduleKey: 'greeting', text: '오늘 하루, 어땠어.', tags: SentenceTags(growth: [GrowthTag.adult])),
+  TaggedSentence(id: 'greeting_adult_06', moduleKey: 'greeting', text: '네가 오는 시간, 늘 기다려.', tags: SentenceTags(growth: [GrowthTag.adult])),
+];
+
+// ── ② 분위기 모듈 (24개) ────────────────────────────────────────────
+const List<TaggedSentence> moodPool = [
+  TaggedSentence(id: 'mood_season_01', moduleKey: 'mood', text: '봄바람이 부드럽게 느껴지는 날이야.', tags: SentenceTags(season: [SeasonTag.spring])),
+  TaggedSentence(id: 'mood_season_02', moduleKey: 'mood', text: '어디선가 벚꽃 냄새가 나는 것 같아.', tags: SentenceTags(season: [SeasonTag.spring])),
+  TaggedSentence(id: 'mood_season_03', moduleKey: 'mood', text: '매미 소리가 여름을 알려주네.', tags: SentenceTags(season: [SeasonTag.summer])),
+  TaggedSentence(id: 'mood_season_04', moduleKey: 'mood', text: '오늘은 유난히 햇살이 뜨겁다.', tags: SentenceTags(season: [SeasonTag.summer])),
+  TaggedSentence(id: 'mood_season_05', moduleKey: 'mood', text: '낙엽 밟는 소리가 들리는 계절이야.', tags: SentenceTags(season: [SeasonTag.autumn])),
+  TaggedSentence(id: 'mood_season_06', moduleKey: 'mood', text: '하늘이 유난히 높고 맑은 계절이야.', tags: SentenceTags(season: [SeasonTag.autumn])),
+  TaggedSentence(id: 'mood_season_07', moduleKey: 'mood', text: '코끝이 시린 겨울이 왔네.', tags: SentenceTags(season: [SeasonTag.winter])),
+  TaggedSentence(id: 'mood_season_08', moduleKey: 'mood', text: '눈 내리는 소리, 들리는 것 같아.', tags: SentenceTags(season: [SeasonTag.winter])),
+  TaggedSentence(id: 'mood_weather_01', moduleKey: 'mood', text: '하늘이 유난히 맑네.', tags: SentenceTags(weather: [WeatherTag.sunny])),
+  TaggedSentence(id: 'mood_weather_02', moduleKey: 'mood', text: '햇살이 참 좋다.', tags: SentenceTags(weather: [WeatherTag.sunny])),
+  TaggedSentence(id: 'mood_weather_03', moduleKey: 'mood', text: '빗소리가 창문을 두드리네.', tags: SentenceTags(weather: [WeatherTag.rain])),
+  TaggedSentence(id: 'mood_weather_04', moduleKey: 'mood', text: '비 오는 날엔 마음이 차분해져.', tags: SentenceTags(weather: [WeatherTag.rain])),
+  TaggedSentence(id: 'mood_weather_05', moduleKey: 'mood', text: '하얀 눈이 소리 없이 내려.', tags: SentenceTags(weather: [WeatherTag.snow])),
+  TaggedSentence(id: 'mood_weather_06', moduleKey: 'mood', text: '눈 오는 날, 왜 이렇게 예쁠까.', tags: SentenceTags(weather: [WeatherTag.snow])),
+  TaggedSentence(id: 'mood_weather_07', moduleKey: 'mood', text: '구름이 하늘을 가득 덮었어.', tags: SentenceTags(weather: [WeatherTag.cloudy])),
+  TaggedSentence(id: 'mood_weather_08', moduleKey: 'mood', text: '흐린 날엔 괜히 마음도 조용해져.', tags: SentenceTags(weather: [WeatherTag.cloudy])),
+  TaggedSentence(id: 'mood_time_01', moduleKey: 'mood', text: '아침 공기가 상큼하다.', tags: SentenceTags(time: [TimeTag.morning])),
+  TaggedSentence(id: 'mood_time_02', moduleKey: 'mood', text: '해가 막 떠오르는 시간이야.', tags: SentenceTags(time: [TimeTag.morning])),
+  TaggedSentence(id: 'mood_time_03', moduleKey: 'mood', text: '한낮의 햇살이 따뜻하게 스며들어.', tags: SentenceTags(time: [TimeTag.noon])),
+  TaggedSentence(id: 'mood_time_04', moduleKey: 'mood', text: '잠깐 쉬어가도 괜찮은 시간이야.', tags: SentenceTags(time: [TimeTag.noon])),
+  TaggedSentence(id: 'mood_time_05', moduleKey: 'mood', text: '노을이 붉게 번지는 시간이야.', tags: SentenceTags(time: [TimeTag.evening])),
+  TaggedSentence(id: 'mood_time_06', moduleKey: 'mood', text: '저녁 바람이 선선하다.', tags: SentenceTags(time: [TimeTag.evening])),
+  TaggedSentence(id: 'mood_time_07', moduleKey: 'mood', text: '달빛이 창문 틈으로 스며드는 밤이야.', tags: SentenceTags(time: [TimeTag.night])),
+  TaggedSentence(id: 'mood_time_08', moduleKey: 'mood', text: '고요한 밤, 별들이 반짝여.', tags: SentenceTags(time: [TimeTag.night])),
+];
+
+// ── ③ 사용자 감정 공감 모듈 (33개) ──────────────────────────────────
+const List<TaggedSentence> empathyPool = [
+  TaggedSentence(id: 'empathy_anxious_01', moduleKey: 'empathy', text: '마음이 조금 불안했겠다.', tags: SentenceTags(emotions: [EmotionTag.anxious])),
+  TaggedSentence(id: 'empathy_anxious_02', moduleKey: 'empathy', text: '그런 마음, 이상한 게 아니야.', tags: SentenceTags(emotions: [EmotionTag.anxious])),
+  TaggedSentence(id: 'empathy_anxious_03', moduleKey: 'empathy', text: '불안한 만큼 애쓰고 있었단 뜻이야.', tags: SentenceTags(emotions: [EmotionTag.anxious])),
+  TaggedSentence(id: 'empathy_lonely_01', moduleKey: 'empathy', text: '혼자라는 느낌, 힘들었지.', tags: SentenceTags(emotions: [EmotionTag.lonely])),
+  TaggedSentence(id: 'empathy_lonely_02', moduleKey: 'empathy', text: '그 마음, 나도 조금은 알아.', tags: SentenceTags(emotions: [EmotionTag.lonely])),
+  TaggedSentence(id: 'empathy_lonely_03', moduleKey: 'empathy', text: '외로움도 언젠가 지나가는 감정이야.', tags: SentenceTags(emotions: [EmotionTag.lonely])),
+  TaggedSentence(id: 'empathy_angry_01', moduleKey: 'empathy', text: '화가 날 만한 일이었나 봐.', tags: SentenceTags(emotions: [EmotionTag.angry])),
+  TaggedSentence(id: 'empathy_angry_02', moduleKey: 'empathy', text: '그 감정, 억지로 누르지 않아도 괜찮아.', tags: SentenceTags(emotions: [EmotionTag.angry])),
+  TaggedSentence(id: 'empathy_angry_03', moduleKey: 'empathy', text: '화났던 마음, 이제 좀 가라앉았어?', tags: SentenceTags(emotions: [EmotionTag.angry])),
+  TaggedSentence(id: 'empathy_grateful_01', moduleKey: 'empathy', text: '고마운 마음, 참 예쁘다.', tags: SentenceTags(emotions: [EmotionTag.grateful])),
+  TaggedSentence(id: 'empathy_grateful_02', moduleKey: 'empathy', text: '그런 마음을 가진 네가 좋아.', tags: SentenceTags(emotions: [EmotionTag.grateful])),
+  TaggedSentence(id: 'empathy_grateful_03', moduleKey: 'empathy', text: '작은 감사가 오늘 하루를 채웠네.', tags: SentenceTags(emotions: [EmotionTag.grateful])),
+  TaggedSentence(id: 'empathy_joyful_01', moduleKey: 'empathy', text: '기뻤겠다, 그 마음 그대로 좋아.', tags: SentenceTags(emotions: [EmotionTag.joyful])),
+  TaggedSentence(id: 'empathy_joyful_02', moduleKey: 'empathy', text: '웃는 얼굴이 그려져.', tags: SentenceTags(emotions: [EmotionTag.joyful])),
+  TaggedSentence(id: 'empathy_joyful_03', moduleKey: 'empathy', text: '좋은 일, 오래 기억됐으면 좋겠다.', tags: SentenceTags(emotions: [EmotionTag.joyful])),
+  TaggedSentence(id: 'empathy_sad_01', moduleKey: 'empathy', text: '슬펐던 마음, 다 괜찮아.', tags: SentenceTags(emotions: [EmotionTag.sad])),
+  TaggedSentence(id: 'empathy_sad_02', moduleKey: 'empathy', text: '울고 싶을 때는 울어도 돼.', tags: SentenceTags(emotions: [EmotionTag.sad])),
+  TaggedSentence(id: 'empathy_sad_03', moduleKey: 'empathy', text: '그 슬픔, 혼자 견디지 않아도 돼.', tags: SentenceTags(emotions: [EmotionTag.sad])),
+  TaggedSentence(id: 'empathy_regretful_01', moduleKey: 'empathy', text: '후회되는 순간도 있었겠다.', tags: SentenceTags(emotions: [EmotionTag.regretful])),
+  TaggedSentence(id: 'empathy_regretful_02', moduleKey: 'empathy', text: '지나간 일에 너무 오래 머물지 마.', tags: SentenceTags(emotions: [EmotionTag.regretful])),
+  TaggedSentence(id: 'empathy_regretful_03', moduleKey: 'empathy', text: '그때의 너도 나름 최선이었을 거야.', tags: SentenceTags(emotions: [EmotionTag.regretful])),
+  TaggedSentence(id: 'empathy_excited_01', moduleKey: 'empathy', text: '설레는 마음, 참 반짝인다.', tags: SentenceTags(emotions: [EmotionTag.excited])),
+  TaggedSentence(id: 'empathy_excited_02', moduleKey: 'empathy', text: '기대되는 일이 있었나 봐.', tags: SentenceTags(emotions: [EmotionTag.excited])),
+  TaggedSentence(id: 'empathy_excited_03', moduleKey: 'empathy', text: '그 설렘, 오래 간직해도 좋겠다.', tags: SentenceTags(emotions: [EmotionTag.excited])),
+  TaggedSentence(id: 'empathy_calm_01', moduleKey: 'empathy', text: '평온한 하루였구나, 다행이야.', tags: SentenceTags(emotions: [EmotionTag.calm])),
+  TaggedSentence(id: 'empathy_calm_02', moduleKey: 'empathy', text: '고요한 마음, 참 좋다.', tags: SentenceTags(emotions: [EmotionTag.calm])),
+  TaggedSentence(id: 'empathy_calm_03', moduleKey: 'empathy', text: '그런 잔잔함이 필요했던 거지.', tags: SentenceTags(emotions: [EmotionTag.calm])),
+  TaggedSentence(id: 'empathy_weary_01', moduleKey: 'empathy', text: '힘이 안 나는 날도 있는 거야.', tags: SentenceTags(emotions: [EmotionTag.weary])),
+  TaggedSentence(id: 'empathy_weary_02', moduleKey: 'empathy', text: '아무것도 안 해도 괜찮은 날이야.', tags: SentenceTags(emotions: [EmotionTag.weary])),
+  TaggedSentence(id: 'empathy_weary_03', moduleKey: 'empathy', text: '무기력한 것도 잠깐 쉬어가는 중이라는 뜻이야.', tags: SentenceTags(emotions: [EmotionTag.weary])),
+  TaggedSentence(id: 'empathy_hopeful_01', moduleKey: 'empathy', text: '작은 희망이라도 소중해.', tags: SentenceTags(emotions: [EmotionTag.hopeful])),
+  TaggedSentence(id: 'empathy_hopeful_02', moduleKey: 'empathy', text: '그 마음이 내일을 만들어.', tags: SentenceTags(emotions: [EmotionTag.hopeful])),
+  TaggedSentence(id: 'empathy_hopeful_03', moduleKey: 'empathy', text: '기대해도 괜찮아, 좋은 날이 올 거야.', tags: SentenceTags(emotions: [EmotionTag.hopeful])),
+];
+
+// ── ⑤ 작은 위로 모듈 (24개) ─────────────────────────────────────────
+const List<TaggedSentence> comfortPool = [
+  TaggedSentence(id: 'comfort_anxious_01', moduleKey: 'comfort', text: '괜찮아, 지금 이대로도 충분해.', tags: SentenceTags(emotions: [EmotionTag.anxious])),
+  TaggedSentence(id: 'comfort_anxious_02', moduleKey: 'comfort', text: '천천히 가도 돼, 급하지 않아.', tags: SentenceTags(emotions: [EmotionTag.anxious])),
+  TaggedSentence(id: 'comfort_lonely_01', moduleKey: 'comfort', text: '나 여기 있어, 혼자가 아니야.', tags: SentenceTags(emotions: [EmotionTag.lonely])),
+  TaggedSentence(id: 'comfort_lonely_02', moduleKey: 'comfort', text: '네 곁에 내가 있잖아.', tags: SentenceTags(emotions: [EmotionTag.lonely])),
+  TaggedSentence(id: 'comfort_angry_01', moduleKey: 'comfort', text: '화내도 돼, 나는 다 이해해.', tags: SentenceTags(emotions: [EmotionTag.angry])),
+  TaggedSentence(id: 'comfort_angry_02', moduleKey: 'comfort', text: '그 마음, 내가 다 받아줄게.', tags: SentenceTags(emotions: [EmotionTag.angry])),
+  TaggedSentence(id: 'comfort_grateful_01', moduleKey: 'comfort', text: '그 마음 그대로 참 따뜻해.', tags: SentenceTags(emotions: [EmotionTag.grateful])),
+  TaggedSentence(id: 'comfort_grateful_02', moduleKey: 'comfort', text: '고마운 마음이 너를 더 빛나게 해.', tags: SentenceTags(emotions: [EmotionTag.grateful])),
+  TaggedSentence(id: 'comfort_joyful_01', moduleKey: 'comfort', text: '그 기쁨, 나도 함께 느껴.', tags: SentenceTags(emotions: [EmotionTag.joyful])),
+  TaggedSentence(id: 'comfort_joyful_02', moduleKey: 'comfort', text: '좋은 순간은 오래 남을 거야.', tags: SentenceTags(emotions: [EmotionTag.joyful])),
+  TaggedSentence(id: 'comfort_sad_01', moduleKey: 'comfort', text: '울어도 돼, 내가 곁에 있을게.', tags: SentenceTags(emotions: [EmotionTag.sad])),
+  TaggedSentence(id: 'comfort_sad_02', moduleKey: 'comfort', text: '슬픔도 언젠가는 옅어질 거야.', tags: SentenceTags(emotions: [EmotionTag.sad])),
+  TaggedSentence(id: 'comfort_regretful_01', moduleKey: 'comfort', text: '괜찮아, 누구나 그럴 때가 있어.', tags: SentenceTags(emotions: [EmotionTag.regretful])),
+  TaggedSentence(id: 'comfort_regretful_02', moduleKey: 'comfort', text: '그 선택도 너다운 선택이었어.', tags: SentenceTags(emotions: [EmotionTag.regretful])),
+  TaggedSentence(id: 'comfort_excited_01', moduleKey: 'comfort', text: '그 설렘, 나도 두근거려.', tags: SentenceTags(emotions: [EmotionTag.excited])),
+  TaggedSentence(id: 'comfort_excited_02', moduleKey: 'comfort', text: '좋은 일이 생길 것 같아.', tags: SentenceTags(emotions: [EmotionTag.excited])),
+  TaggedSentence(id: 'comfort_calm_01', moduleKey: 'comfort', text: '이 평온함, 오래 지켜줄게.', tags: SentenceTags(emotions: [EmotionTag.calm])),
+  TaggedSentence(id: 'comfort_calm_02', moduleKey: 'comfort', text: '지금처럼만 있어도 충분해.', tags: SentenceTags(emotions: [EmotionTag.calm])),
+  TaggedSentence(id: 'comfort_weary_01', moduleKey: 'comfort', text: '아무것도 안 해도 돼, 오늘은.', tags: SentenceTags(emotions: [EmotionTag.weary])),
+  TaggedSentence(id: 'comfort_weary_02', moduleKey: 'comfort', text: '쉬어가는 것도 용기야.', tags: SentenceTags(emotions: [EmotionTag.weary])),
+  TaggedSentence(id: 'comfort_hopeful_01', moduleKey: 'comfort', text: '그 희망, 내가 같이 키워줄게.', tags: SentenceTags(emotions: [EmotionTag.hopeful])),
+  TaggedSentence(id: 'comfort_hopeful_02', moduleKey: 'comfort', text: '포기하지 않아도 돼.', tags: SentenceTags(emotions: [EmotionTag.hopeful])),
+  TaggedSentence(id: 'comfort_general_01', moduleKey: 'comfort', text: '네 마음, 다 괜찮아.'),
+  TaggedSentence(id: 'comfort_general_02', moduleKey: 'comfort', text: '오늘도 참 잘 견뎌냈어.'),
+];
+
+// ── ⑥ 작은 행동 제안 모듈 (21개) ────────────────────────────────────
+const List<TaggedSentence> actionPool = [
+  TaggedSentence(id: 'action_breathing_01', moduleKey: 'action', text: '잠깐 숨을 크게 들이쉬어볼까?', tags: SentenceTags(meditation: [MeditationTag.breathing])),
+  TaggedSentence(id: 'action_breathing_02', moduleKey: 'action', text: '천천히 숨을 내뱉어봐, 편안해질 거야.', tags: SentenceTags(meditation: [MeditationTag.breathing])),
+  TaggedSentence(id: 'action_breathing_03', moduleKey: 'action', text: '숨 한 번, 나랑 같이 쉬어볼까?', tags: SentenceTags(meditation: [MeditationTag.breathing])),
+  TaggedSentence(id: 'action_walking_01', moduleKey: 'action', text: '잠깐 밖으로 나가 걸어볼래?', tags: SentenceTags(meditation: [MeditationTag.walking])),
+  TaggedSentence(id: 'action_walking_02', moduleKey: 'action', text: '산책 한 번, 마음이 가벼워질 거야.', tags: SentenceTags(meditation: [MeditationTag.walking])),
+  TaggedSentence(id: 'action_walking_03', moduleKey: 'action', text: '발걸음 따라 생각도 정리될 거야.', tags: SentenceTags(meditation: [MeditationTag.walking])),
+  TaggedSentence(id: 'action_tea_01', moduleKey: 'action', text: '따뜻한 차 한 잔, 어때?', tags: SentenceTags(meditation: [MeditationTag.teaMeditation])),
+  TaggedSentence(id: 'action_tea_02', moduleKey: 'action', text: '차 향기에 마음을 잠깐 맡겨볼까?', tags: SentenceTags(meditation: [MeditationTag.teaMeditation])),
+  TaggedSentence(id: 'action_tea_03', moduleKey: 'action', text: '천천히 차를 마시며 잠깐 쉬어가자.', tags: SentenceTags(meditation: [MeditationTag.teaMeditation])),
+  TaggedSentence(id: 'action_yoga_01', moduleKey: 'action', text: '몸을 살짝 늘려보는 건 어때?', tags: SentenceTags(meditation: [MeditationTag.yoga])),
+  TaggedSentence(id: 'action_yoga_02', moduleKey: 'action', text: '가벼운 스트레칭으로 몸을 풀어보자.', tags: SentenceTags(meditation: [MeditationTag.yoga])),
+  TaggedSentence(id: 'action_yoga_03', moduleKey: 'action', text: '천천히 몸을 움직이며 숨을 느껴봐.', tags: SentenceTags(meditation: [MeditationTag.yoga])),
+  TaggedSentence(id: 'action_stretch_01', moduleKey: 'action', text: '어깨를 한 번 돌려볼까?', tags: SentenceTags(meditation: [MeditationTag.stretching])),
+  TaggedSentence(id: 'action_stretch_02', moduleKey: 'action', text: '목을 천천히 늘려보자.', tags: SentenceTags(meditation: [MeditationTag.stretching])),
+  TaggedSentence(id: 'action_stretch_03', moduleKey: 'action', text: '잠깐 몸을 풀어주는 시간, 가져볼래?', tags: SentenceTags(meditation: [MeditationTag.stretching])),
+  TaggedSentence(id: 'action_writing_01', moduleKey: 'action', text: '오늘 마음을 한 줄로 적어볼까?', tags: SentenceTags(meditation: [MeditationTag.writing])),
+  TaggedSentence(id: 'action_writing_02', moduleKey: 'action', text: '생각나는 대로 적어보는 것도 도움이 돼.', tags: SentenceTags(meditation: [MeditationTag.writing])),
+  TaggedSentence(id: 'action_writing_03', moduleKey: 'action', text: '짧게라도 오늘을 기록해두자.', tags: SentenceTags(meditation: [MeditationTag.writing])),
+  TaggedSentence(id: 'action_imagine_01', moduleKey: 'action', text: '눈을 감고 좋아하는 곳을 떠올려볼까?', tags: SentenceTags(meditation: [MeditationTag.imagineMeditation])),
+  TaggedSentence(id: 'action_imagine_02', moduleKey: 'action', text: '편안한 장소를 떠올리며 잠깐 쉬어보자.', tags: SentenceTags(meditation: [MeditationTag.imagineMeditation])),
+  TaggedSentence(id: 'action_imagine_03', moduleKey: 'action', text: '상상 속에서 잠깐 여행을 떠나보자.', tags: SentenceTags(meditation: [MeditationTag.imagineMeditation])),
+];
+
+/// 행동제안 모듈의 "그냥 안부형" 대체 문장 (설계서 8.2 - 연속 5회 건너뛰면 전환)
+const List<TaggedSentence> actionGentlePool = [
+  TaggedSentence(id: 'action_gentle_01', moduleKey: 'action', text: '오늘은 그냥 편히 쉬어도 돼.'),
+  TaggedSentence(id: 'action_gentle_02', moduleKey: 'action', text: '아무것도 하지 않아도 충분한 하루야.'),
+  TaggedSentence(id: 'action_gentle_03', moduleKey: 'action', text: '그냥 오늘 하루, 잘 보내줘.'),
+];
+
+// ── ⑦ 고양이의 오늘 감정 모듈 (21개) ────────────────────────────────
+const List<TaggedSentence> catMoodPool = [
+  TaggedSentence(id: 'catmood_good_01', moduleKey: 'catMood', text: '오늘은 왠지 기분이 좋아!', tags: SentenceTags(catMood: [CatMoodTag.good])),
+  TaggedSentence(id: 'catmood_good_02', moduleKey: 'catMood', text: '괜히 콧노래가 나와.', tags: SentenceTags(catMood: [CatMoodTag.good])),
+  TaggedSentence(id: 'catmood_good_03', moduleKey: 'catMood', text: '네 덕분에 오늘 하루가 더 좋았어.', tags: SentenceTags(catMood: [CatMoodTag.good])),
+  TaggedSentence(id: 'catmood_sleepy_01', moduleKey: 'catMood', text: '눈이 자꾸 감기네, 하암.', tags: SentenceTags(catMood: [CatMoodTag.sleepy], time: [TimeTag.night])),
+  TaggedSentence(id: 'catmood_sleepy_02', moduleKey: 'catMood', text: '오늘은 유난히 졸리다.', tags: SentenceTags(catMood: [CatMoodTag.sleepy])),
+  TaggedSentence(id: 'catmood_sleepy_03', moduleKey: 'catMood', text: '잠깐 눈 좀 감아도 될까?', tags: SentenceTags(catMood: [CatMoodTag.sleepy])),
+  TaggedSentence(id: 'catmood_worried_01', moduleKey: 'catMood', text: '오늘은 네가 좀 걱정됐어.', tags: SentenceTags(catMood: [CatMoodTag.worried])),
+  TaggedSentence(id: 'catmood_worried_02', moduleKey: 'catMood', text: '괜히 마음이 쓰이는 하루였어.', tags: SentenceTags(catMood: [CatMoodTag.worried])),
+  TaggedSentence(id: 'catmood_worried_03', moduleKey: 'catMood', text: '네 생각이 자꾸 났어.', tags: SentenceTags(catMood: [CatMoodTag.worried])),
+  TaggedSentence(id: 'catmood_cheer_01', moduleKey: 'catMood', text: '오늘도 잘 해낼 거라 믿어.', tags: SentenceTags(catMood: [CatMoodTag.cheer])),
+  TaggedSentence(id: 'catmood_cheer_02', moduleKey: 'catMood', text: '네 편이야, 항상.', tags: SentenceTags(catMood: [CatMoodTag.cheer])),
+  TaggedSentence(id: 'catmood_cheer_03', moduleKey: 'catMood', text: '오늘도 진심으로 응원할게.', tags: SentenceTags(catMood: [CatMoodTag.cheer])),
+  TaggedSentence(id: 'catmood_excited_01', moduleKey: 'catMood', text: '오늘은 왠지 신이 나!', tags: SentenceTags(catMood: [CatMoodTag.excited])),
+  TaggedSentence(id: 'catmood_excited_02', moduleKey: 'catMood', text: '괜히 발걸음이 가벼워져.', tags: SentenceTags(catMood: [CatMoodTag.excited])),
+  TaggedSentence(id: 'catmood_excited_03', moduleKey: 'catMood', text: '기분 좋은 일이 생길 것 같아!', tags: SentenceTags(catMood: [CatMoodTag.excited])),
+  TaggedSentence(id: 'catmood_playful_01', moduleKey: 'catMood', text: '오늘은 장난치고 싶은 기분이야.', tags: SentenceTags(catMood: [CatMoodTag.playful], growth: [GrowthTag.teen])),
+  TaggedSentence(id: 'catmood_playful_02', moduleKey: 'catMood', text: '살짝 놀려주고 싶은 마음, 이해해줘.', tags: SentenceTags(catMood: [CatMoodTag.playful])),
+  TaggedSentence(id: 'catmood_playful_03', moduleKey: 'catMood', text: '심심해서 자꾸 장난치고 싶어져.', tags: SentenceTags(catMood: [CatMoodTag.playful])),
+  TaggedSentence(id: 'catmood_quiet_01', moduleKey: 'catMood', text: '오늘은 그냥 조용히 있고 싶어.', tags: SentenceTags(catMood: [CatMoodTag.quiet], growth: [GrowthTag.adult])),
+  TaggedSentence(id: 'catmood_quiet_02', moduleKey: 'catMood', text: '말없이 곁에 있는 것도 좋아.', tags: SentenceTags(catMood: [CatMoodTag.quiet])),
+  TaggedSentence(id: 'catmood_quiet_03', moduleKey: 'catMood', text: '조용한 하루, 그것도 괜찮아.', tags: SentenceTags(catMood: [CatMoodTag.quiet])),
+];
+
+// ── ⑧ 마무리 모듈 (25개) ────────────────────────────────────────────
+const List<TaggedSentence> closingPool = [
+  TaggedSentence(id: 'closing_firstmeet_01', moduleKey: 'closing', text: '다음에 또 편지 써줘, 기다릴게.', tags: SentenceTags(intimacy: [IntimacyTag.firstMeet])),
+  TaggedSentence(id: 'closing_firstmeet_02', moduleKey: 'closing', text: '오늘 만나서 반가웠어.', tags: SentenceTags(intimacy: [IntimacyTag.firstMeet])),
+  TaggedSentence(id: 'closing_firstmeet_03', moduleKey: 'closing', text: '우리, 앞으로 친해지자.', tags: SentenceTags(intimacy: [IntimacyTag.firstMeet])),
+  TaggedSentence(id: 'closing_firstmeet_04', moduleKey: 'closing', text: '또 올 거지? 기다리고 있을게.', tags: SentenceTags(intimacy: [IntimacyTag.firstMeet])),
+  TaggedSentence(id: 'closing_shy_01', moduleKey: 'closing', text: '조금씩 편해지고 있는 것 같아.', tags: SentenceTags(intimacy: [IntimacyTag.shy])),
+  TaggedSentence(id: 'closing_shy_02', moduleKey: 'closing', text: '다음에도 편하게 이야기해줘.', tags: SentenceTags(intimacy: [IntimacyTag.shy])),
+  TaggedSentence(id: 'closing_shy_03', moduleKey: 'closing', text: '천천히 알아가고 싶어.', tags: SentenceTags(intimacy: [IntimacyTag.shy])),
+  TaggedSentence(id: 'closing_shy_04', moduleKey: 'closing', text: '또 이야기해줘, 오늘 좋았어.', tags: SentenceTags(intimacy: [IntimacyTag.shy])),
+  TaggedSentence(id: 'closing_friend_01', moduleKey: 'closing', text: '오늘도 고마웠어, 친구야.', tags: SentenceTags(intimacy: [IntimacyTag.friend])),
+  TaggedSentence(id: 'closing_friend_02', moduleKey: 'closing', text: '내일 또 보자!', tags: SentenceTags(intimacy: [IntimacyTag.friend])),
+  TaggedSentence(id: 'closing_friend_03', moduleKey: 'closing', text: '네 얘기 듣는 거, 늘 좋아.', tags: SentenceTags(intimacy: [IntimacyTag.friend])),
+  TaggedSentence(id: 'closing_friend_04', moduleKey: 'closing', text: '잘 자, 좋은 꿈 꿔.', tags: SentenceTags(intimacy: [IntimacyTag.friend], time: [TimeTag.night])),
+  TaggedSentence(id: 'closing_family_01', moduleKey: 'closing', text: '언제나 네 곁에 있을게.', tags: SentenceTags(intimacy: [IntimacyTag.family])),
+  TaggedSentence(id: 'closing_family_02', moduleKey: 'closing', text: '오늘도 함께해줘서 고마워.', tags: SentenceTags(intimacy: [IntimacyTag.family])),
+  TaggedSentence(id: 'closing_family_03', moduleKey: 'closing', text: '우리 사이, 참 든든하다.', tags: SentenceTags(intimacy: [IntimacyTag.family])),
+  TaggedSentence(id: 'closing_family_04', moduleKey: 'closing', text: '푹 쉬어, 내가 지켜줄게.', tags: SentenceTags(intimacy: [IntimacyTag.family])),
+  TaggedSentence(id: 'closing_lifelong_01', moduleKey: 'closing', text: '말하지 않아도 다 알아.', tags: SentenceTags(intimacy: [IntimacyTag.lifelongFriend])),
+  TaggedSentence(id: 'closing_lifelong_02', moduleKey: 'closing', text: '늘 그 자리에 있을게.', tags: SentenceTags(intimacy: [IntimacyTag.lifelongFriend])),
+  TaggedSentence(id: 'closing_lifelong_03', moduleKey: 'closing', text: '오래오래, 이렇게 함께하자.', tags: SentenceTags(intimacy: [IntimacyTag.lifelongFriend])),
+  TaggedSentence(id: 'closing_lifelong_04', moduleKey: 'closing', text: '고맙다는 말, 이제 안 해도 돼.', tags: SentenceTags(intimacy: [IntimacyTag.lifelongFriend])),
+  TaggedSentence(id: 'closing_special_birthday', moduleKey: 'closing', text: '생일 축하해, 오늘 하루 특별하게 보내.', tags: SentenceTags(specialDay: [SpecialDayTag.birthday])),
+  TaggedSentence(id: 'closing_special_day100', moduleKey: 'closing', text: '우리가 함께한 지 벌써 100일이야.', tags: SentenceTags(specialDay: [SpecialDayTag.day100])),
+  TaggedSentence(id: 'closing_special_anniv', moduleKey: 'closing', text: '1년이라는 시간, 참 소중했어.', tags: SentenceTags(specialDay: [SpecialDayTag.anniversary1y])),
+  TaggedSentence(id: 'closing_special_newyear', moduleKey: 'closing', text: '새해에도 함께하자.', tags: SentenceTags(specialDay: [SpecialDayTag.newYear])),
+  TaggedSentence(id: 'closing_special_xmas', moduleKey: 'closing', text: '메리 크리스마스, 오늘은 더 따뜻하게.', tags: SentenceTags(specialDay: [SpecialDayTag.christmas])),
+];

@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_state_provider.dart';
+import '../providers/cat_care_provider.dart';
 import '../models/letter_entry.dart';
 import '../data/shadow_cats_data.dart';
-import '../data/cat_reply_data.dart';
+import '../services/reply_text_builder.dart';
 import '../theme.dart';
 import '../widgets/lively_cat_image.dart';
 import '../widgets/garden_path_card.dart';
@@ -401,13 +402,48 @@ class _HistoryItemState extends State<_HistoryItem>
 /// 편지 상세 안, 그 고양이의 답장을 보여주는 섹션.
 /// - 아직 다음날 아침이 되지 않았다면: "아직 도착 전" 안내만 조용히 표시
 /// - 다음날 아침이 지났다면: 고양이의 답장 전문을 편지지 톤으로 보여줌
-class _CatReplySection extends StatelessWidget {
+///
+/// 답장 텍스트는 [buildReplyText]를 통해 조회하는데(신규 8모듈 조합 엔진은
+/// 반복방지 기록을 Hive에 남기기 위해 비동기로 동작), StatefulWidget +
+/// FutureBuilder로 로딩 상태를 보여줍니다.
+class _CatReplySection extends StatefulWidget {
   final LetterEntry entry;
   final String catName;
   const _CatReplySection({required this.entry, required this.catName});
 
   @override
+  State<_CatReplySection> createState() => _CatReplySectionState();
+}
+
+class _CatReplySectionState extends State<_CatReplySection> {
+  Future<String>? _replyFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.entry.isReplyReady) {
+      _replyFuture = _loadReply();
+    }
+  }
+
+  Future<String> _loadReply() {
+    final cat = shadowCatById(widget.entry.catId);
+    final app = context.read<AppStateProvider>();
+    final catCare = context.read<CatCareProvider>();
+    return buildReplyText(
+      entry: widget.entry,
+      cat: cat,
+      history: app.history,
+      growthStage: catCare.effectiveGrowthStage,
+      visitStreak: app.streak,
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final entry = widget.entry;
+    final catName = widget.catName;
+
     if (!entry.isReplyReady) {
       final remaining = entry.replyAvailableAt.difference(DateTime.now());
       final hours = remaining.inHours.clamp(0, 999);
@@ -438,50 +474,65 @@ class _CatReplySection extends StatelessWidget {
       );
     }
 
-    final cat = shadowCatById(entry.catId);
-    final reply = generateCatReply(entry, cat);
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(18),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            AppColors.blobButter.withValues(alpha: 0.85),
-            AppColors.blobButter.withValues(alpha: 0.55),
-          ],
-        ),
-        border: Border.all(
-          color: AppColors.blobButterAccent.withValues(alpha: 0.3),
-          width: 1.1,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+    return FutureBuilder<String>(
+      future: _replyFuture,
+      builder: (context, snapshot) {
+        final reply = snapshot.data ?? '';
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                AppColors.blobButter.withValues(alpha: 0.85),
+                AppColors.blobButter.withValues(alpha: 0.55),
+              ],
+            ),
+            border: Border.all(
+              color: AppColors.blobButterAccent.withValues(alpha: 0.3),
+              width: 1.1,
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('💌', style: TextStyle(fontSize: 16)),
-              const SizedBox(width: 6),
-              Text(
-                '$catName의 답장',
-                style: pathLabelFont(
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.ink,
-                ),
+              Row(
+                children: [
+                  const Text('💌', style: TextStyle(fontSize: 16)),
+                  const SizedBox(width: 6),
+                  Text(
+                    '$catName의 답장',
+                    style: pathLabelFont(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.ink,
+                    ),
+                  ),
+                ],
               ),
+              const SizedBox(height: 10),
+              if (snapshot.connectionState == ConnectionState.waiting)
+                const SizedBox(
+                  height: 18,
+                  width: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              else
+                Text(
+                  reply,
+                  style: bodyFont(
+                    fontSize: 13,
+                    color: AppColors.moon,
+                    height: 1.7,
+                  ),
+                ),
             ],
           ),
-          const SizedBox(height: 10),
-          Text(
-            reply,
-            style: bodyFont(fontSize: 13, color: AppColors.moon, height: 1.7),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
