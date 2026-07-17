@@ -1,8 +1,12 @@
 # 고양이 그림자 정원 - 개발자 인수인계 문서
 
-작성일: 2025년 (인수인계 시점)
+작성일: 2025년 최초 작성 / 2026년 최종 업데이트 (인수인계 시점)
 
 이 문서는 "고양이 그림자 정원"(Mystic Cat Journal) Flutter 앱을 이어서 개발할 개발자를 위한 인수인계 문서입니다.
+
+> ⚠️ **계약 관련 상세 내용**(견적 항목별 금액, 계약 범위와 코드 미완성 항목의 1:1 매핑)은 별도 문서 `개발_인수인계_문서.md`(또는 전달받은 리포트 폴더)를 함께 참고하세요. 이 문서(HANDOVER.md)는 코드/기술 관점의 인수인계에 집중합니다.
+>
+> **확정 계약: 베로 / A + B-1(최소 출시형) / 112만원(부가세 별도)** — Google Play 결제 연동, 로그인 UI 정리, Hive 데이터 암호화, 스토어 배포 정리가 계약 범위에 포함되어 있으며, 이는 정확히 아래 3번 항목(미완성 항목)과 대응됩니다.
 
 ---
 
@@ -20,6 +24,8 @@
   - 주간/월간 그림자 회고(reflection) 기능
   - 프리미엄('정원 플러스') 구독 화면 — **결제 미연동 (아래 3번 항목 참고)**
   - 마이페이지(피드백, 설정 등)
+  - 묘연(猫緣) 나누기 — 두 사용자가 만난 고양이 조합으로 궁합 코드를 생성/교환하는 소셜 공유 기능
+  - 로컬 행동 계측(Analytics) — 편지작성/공유/구독조회 등 12개 이벤트 + D1/D3/D7/D14/D30 리텐션 마일스톤을 기기 로컬에 기록 (Firebase 미연결, 아래 3.6 참고)
 
 ---
 
@@ -48,7 +54,8 @@
   3. `purchasePremium()` 내부 구현을 실제 구매 플로우로 교체, 구매 성공 콜백에서 `setPremium(true)` 호출
   4. 앱 시작 시 `restorePurchases()`를 스토어 기준 복원 로직으로 교체
 - `PremiumScreen`, `MonthlyShadowReflectionScreen` 등 다른 화면은 `SubscriptionService`의 퍼블릭 API(`isPremium`/`purchasePremium`/`cancelPremium`)만 사용하므로, **내부 구현만 교체하면 다른 화면은 수정할 필요 없습니다.**
-- 표시 가격: `SubscriptionService.displayPrice` = `'월 4,900원'` (실제 스토어 상품 가격과 일치시켜야 함)
+- 표시 가격: `SubscriptionService.displayPrice` = `'월 2,500원'`, `displayYearlyPrice` = `'연 15,000원'` (출시 기념 얼리버드 특가 문구 포함, 실제 스토어 상품 가격과 일치시켜야 함)
+- **⚠️ Google Play 정책 리스크**: 결제 연동 전까지 프리미엄 기능을 실제로 열어둔 채 출시하면 "결제 없이 잠금 해제되는 가짜 결제 버튼"으로 정책 위반 소지가 있습니다. 결제 연동 전에는 프리미엄 화면을 노출만 하고 실제 구매 버튼은 비활성화하거나 숨기는 것을 권장합니다.
 
 ### 3.2 소셜 로그인 (`lib/screens/onboarding_flow_screen.dart`)
 - 카카오/Apple/Google 로그인 버튼이 있으나, **실제 OAuth 인증이 연결되어 있지 않습니다.**
@@ -75,7 +82,17 @@
   - `lib/models/letter_entry.dart`: `fromMap`의 fallback 값 = 0
 - 이 값들을 다시 변경할 경우 위 3곳(및 관련 UI 슬라이더의 min/max, 초기 표시값)을 모두 함께 확인해야 합니다.
 
-### 3.5 릴리즈 서명 키
+### 3.5 로컬 데이터 보안 (Hive 암호화)
+- 현재 `lib/services/storage_service.dart`에서 사용하는 Hive 박스(편지/회고/짧은메모 등)는 **암호화되어 있지 않습니다.** 민감한 개인 일기 내용이 기기에 평문으로 저장됩니다.
+- 계약 범위(B-1)에 "일기(Hive) 암호화, Android 백업 차단"이 포함되어 있으니, 암호화 박스(`Hive.openBox` + `HiveAesCipher`) 적용과 `AndroidManifest.xml`의 `android:allowBackup` 설정을 함께 확인해 주세요.
+
+### 3.6 Analytics (선택, `lib/services/analytics_service.dart`)
+- Firebase Analytics가 연결되어 있지 않아, 모든 이벤트는 로컬(SharedPreferences 카운터 + 디버그 콘솔 출력)에만 기록됩니다. 즉 "한 기기 안의 행동 합계"만 확인 가능하고, 여러 사용자에 걸친 실제 D1/D7/D30 리텐션은 알 수 없습니다.
+- 파일 상단 주석에 Firebase 연결 4단계가 안내되어 있습니다. 핵심은 `_log()` 메서드 한 곳만 `FirebaseAnalytics.instance.logEvent(...)` 호출로 교체하면, 호출부(편지작성/공유/구독 등 12개 이벤트) 전체는 수정 없이 그대로 Firebase로 전송됩니다.
+- 디버그 빌드에서는 마이페이지 > "(개발자용) 로컬 지표 확인"에서 누적 이벤트/리텐션 마일스톤 도달 여부를 확인할 수 있습니다 (`lib/screens/analytics_debug_screen.dart`).
+- 이 항목은 계약 범위(B-1) 밖이며, 없어도 출시에는 지장이 없습니다.
+
+### 3.7 릴리즈 서명 키
 - `android/key.properties`와 `android/release-key.jks`가 이미 생성되어 있으며, `android/app/build.gradle.kts`에 release 서명 설정이 연결되어 있습니다.
 - **⚠️ 이 두 파일은 `.gitignore`에 등록되어 Git에는 포함되지 않습니다.** 별도로 안전하게 전달되니, 개발자는 동일한 위치(`android/key.properties`, `android/release-key.jks`)에 배치해야 릴리즈 빌드가 정상 동작합니다.
 - **비밀번호/키 정보는 이 문서가 아닌 별도 채널로 전달됩니다.** (아래 "전달 파일 목록" 참고)
@@ -109,14 +126,21 @@ assets/
 
 ## 5. 개발자가 해야 할 일 (체크리스트)
 
+### 계약 범위 (베로, A+B-1, 112만원) — 반드시 진행
 - [ ] `android/key.properties`, `android/release-key.jks`를 전달받은 대로 정확한 위치에 배치
 - [ ] `flutter pub get` 실행 후 `flutter build apk --release`로 빌드 검증
-- [ ] **실제 결제 연동**: `in_app_purchase` 패키지 추가 및 `SubscriptionService` 내부 구현 교체 (3.1 참고)
-- [ ] **실제 소셜 로그인 연동**: 카카오/Apple/Google SDK 연동 (3.2 참고)
-- [ ] (선택) 클라우드 동기화가 필요하면 Firebase 또는 자체 백엔드 도입 검토 — 현재는 완전히 로컬 전용 앱
+- [ ] **실제 결제 연동**: Google Play 인앱결제 구독 상품 연동, 구매·복원, 로컬 무료 프리미엄 부여 제거 (3.1 참고)
+- [ ] **로그인 UI 정리**: 가짜 소셜 로그인 제거 또는 '로컬로 계속' 플로우로 정리 (3.2 참고)
+- [ ] **로컬 데이터 암호화**: 일기(Hive) 암호화, Android 백업 차단 (3.5 참고)
+- [ ] **스토어 배포 기반 정리**: 릴리즈 서명 최종 점검, applicationId 확정, 페이월 문구·잠금 정합 확인, 개인정보처리방침·문의처 정리
 - [ ] Google Play Console 앱 등록 및 스토어 등록 정보(스크린샷, 설명, 개인정보처리방침 URL 등) 준비
+- [ ] 실제 배포 전 `flutter analyze` 및 전체 QA(웰컴투어 → 편지쓰기 → 온보딩 → 히스토리 → 회고 → 프리미엄 화면 → 묘연 나누기) 진행
+
+### 계약 범위 밖 (선택, B-2 또는 별도 협의 필요)
+- [ ] 실제 소셜 로그인(Google/카카오/Apple) SDK 연동 (3.2 참고) — 계약은 "가짜 로그인 UI 정리"까지만 포함, 실 연동은 B-2 범위
+- [ ] 클라우드 동기화가 필요하면 Firebase 또는 자체 백엔드 도입 검토 — 현재는 완전히 로컬 전용 앱
+- [ ] Firebase Analytics 연결 (3.6 참고) — 없어도 출시 가능
 - [ ] 알림 권한(`flutter_local_notifications`) 관련 Android 13+ 런타임 권한 재점검
-- [ ] 실제 배포 전 `flutter analyze` 및 전체 QA(웰컴투어 → 편지쓰기 → 온보딩 → 히스토리 → 회고 → 프리미엄 화면) 진행
 
 ---
 

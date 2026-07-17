@@ -4,11 +4,14 @@ import 'package:provider/provider.dart';
 import '../providers/app_state_provider.dart';
 import '../models/letter_entry.dart';
 import '../data/shadow_cats_data.dart';
+import '../data/cat_reply_data.dart';
 import '../theme.dart';
 import '../widgets/lively_cat_image.dart';
 import '../widgets/garden_path_card.dart';
+import '../widgets/feature_scaffold.dart';
 import 'weekly_reflection_screen.dart';
 import 'monthly_shadow_reflection_screen.dart';
+import 'mind_temperature_history_screen.dart';
 
 class HistoryScreen extends StatelessWidget {
   const HistoryScreen({super.key});
@@ -58,6 +61,20 @@ class _ReflectionEntryRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
+        GardenPathCard(
+          emoji: '🌡️',
+          title: '마음온도기록',
+          subtitle: '그동안 기록했던 마음 온도를 주간/월간으로 살펴보세요',
+          accent: AppColors.blobPeachAccent,
+          background: AppColors.blobPeach,
+          floatSeed: 40,
+          onTap: () => pushFullScreen(
+            context,
+            '마음온도기록',
+            const MindTemperatureHistoryScreen(),
+          ),
+        ),
+        const SizedBox(height: 12),
         GardenPathCard(
           emoji: '🗓️',
           title: '이번 주 돌아보기',
@@ -161,7 +178,12 @@ class _HistoryItemState extends State<_HistoryItem>
         onExit: (_) => _setHover(false),
         cursor: SystemMouseCursors.click,
         child: GestureDetector(
-          onTap: () => _showDetail(context, entry, cat.imageAsset, cat.nameKr),
+          onTap: () {
+            if (entry.isReplyReady && !entry.replySeen) {
+              context.read<AppStateProvider>().markReplySeen(entry.id);
+            }
+            _showDetail(context, entry, cat.imageAsset, cat.nameKr);
+          },
           child: AnimatedScale(
             scale: _hovering ? 1.015 : 1.0,
             duration: const Duration(milliseconds: 200),
@@ -190,22 +212,56 @@ class _HistoryItemState extends State<_HistoryItem>
                             color: AppColors.inkSoft,
                           ),
                         ),
-                        Text(
-                          '${cat.emoji} ${cat.nameKr}',
-                          style: pathLabelFont(
-                            fontSize: 14.5,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.ink,
-                          ),
+                        Row(
+                          children: [
+                            Text(
+                              '${cat.emoji} ${cat.nameKr}',
+                              style: pathLabelFont(
+                                fontSize: 14.5,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.ink,
+                              ),
+                            ),
+                            if (entry.moodEmoji != null) ...[
+                              const SizedBox(width: 6),
+                              Text(
+                                entry.moodEmoji!,
+                                style: const TextStyle(fontSize: 15),
+                              ),
+                            ],
+                            if (entry.isReplyReady && !entry.replySeen) ...[
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 7,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppColors.blobRoseAccent.withValues(
+                                    alpha: 0.85,
+                                  ),
+                                  borderRadius: BorderRadius.circular(999),
+                                ),
+                                child: Text(
+                                  '💌 답장 도착',
+                                  style: bodyFont(
+                                    fontSize: 9.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
                       ],
                     ),
                   ),
-                  if (entry.improved)
+                  if (entry.meditationKey != null)
                     Padding(
                       padding: const EdgeInsets.only(right: 6),
                       child: Icon(
-                        Icons.trending_up_rounded,
+                        Icons.self_improvement_rounded,
                         color: accent,
                         size: 18,
                       ),
@@ -290,22 +346,15 @@ class _HistoryItemState extends State<_HistoryItem>
                 ),
               ),
               const SizedBox(height: 14),
-              if (entry.tempAfter != null)
-                Text(
-                  '마음 온도: 실천 전 ${entry.tempBefore.round()}° → 실천 후 ${entry.tempAfter!.round()}°',
-                  style: bodyFont(
-                    fontSize: 12.5,
-                    color: AppColors.blobPeachAccent,
-                  ),
-                )
-              else
-                Text(
-                  '마음 온도: ${entry.tempBefore.round()}°',
-                  style: bodyFont(
-                    fontSize: 12.5,
-                    color: AppColors.blobPeachAccent,
-                  ),
+              Text(
+                entry.meditationKey != null
+                    ? '편지를 보내고 명상까지 실천해 마음 온도가 2도 올랐어요 🌱'
+                    : '편지를 보내 마음 온도가 1도 올랐어요 🌱',
+                style: bodyFont(
+                  fontSize: 12.5,
+                  color: AppColors.blobPeachAccent,
                 ),
+              ),
               const SizedBox(height: 10),
               Container(
                 width: double.infinity,
@@ -323,6 +372,8 @@ class _HistoryItemState extends State<_HistoryItem>
                   ),
                 ),
               ),
+              const SizedBox(height: 14),
+              _CatReplySection(entry: entry, catName: name),
               const SizedBox(height: 16),
               Align(
                 alignment: Alignment.centerRight,
@@ -342,6 +393,94 @@ class _HistoryItemState extends State<_HistoryItem>
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// 편지 상세 안, 그 고양이의 답장을 보여주는 섹션.
+/// - 아직 다음날 아침이 되지 않았다면: "아직 도착 전" 안내만 조용히 표시
+/// - 다음날 아침이 지났다면: 고양이의 답장 전문을 편지지 톤으로 보여줌
+class _CatReplySection extends StatelessWidget {
+  final LetterEntry entry;
+  final String catName;
+  const _CatReplySection({required this.entry, required this.catName});
+
+  @override
+  Widget build(BuildContext context) {
+    if (!entry.isReplyReady) {
+      final remaining = entry.replyAvailableAt.difference(DateTime.now());
+      final hours = remaining.inHours.clamp(0, 999);
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: AppColors.blobLavender.withValues(alpha: 0.5),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: AppColors.blobLavenderAccent.withValues(alpha: 0.25),
+          ),
+        ),
+        child: Row(
+          children: [
+            const Text('🌙', style: TextStyle(fontSize: 18)),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                hours > 0
+                    ? '$catName의 답장은 내일 아침에 도착해요 (약 $hours시간 후)'
+                    : '$catName의 답장은 내일 아침에 도착해요',
+                style: bodyFont(fontSize: 12, color: AppColors.inkSoft),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final cat = shadowCatById(entry.catId);
+    final reply = generateCatReply(entry, cat);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(18),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppColors.blobButter.withValues(alpha: 0.85),
+            AppColors.blobButter.withValues(alpha: 0.55),
+          ],
+        ),
+        border: Border.all(
+          color: AppColors.blobButterAccent.withValues(alpha: 0.3),
+          width: 1.1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Text('💌', style: TextStyle(fontSize: 16)),
+              const SizedBox(width: 6),
+              Text(
+                '$catName의 답장',
+                style: pathLabelFont(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.ink,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            reply,
+            style: bodyFont(fontSize: 13, color: AppColors.moon, height: 1.7),
+          ),
+        ],
       ),
     );
   }

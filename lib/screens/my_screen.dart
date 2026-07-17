@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import '../providers/app_state_provider.dart';
+import '../providers/cat_care_provider.dart';
 import '../theme.dart';
 import '../services/sound_service.dart';
 import '../services/notification_service.dart';
@@ -13,6 +14,10 @@ import '../widgets/growth_header.dart';
 import '../widgets/garden_path_card.dart';
 import 'privacy_policy_screen.dart';
 import 'premium_screen.dart';
+import 'about_app_screen.dart';
+import 'app_tutorial_screen.dart';
+import '../widgets/feature_scaffold.dart';
+import 'analytics_debug_screen.dart';
 
 /// 마이 탭 - 나의 성장 현황, 방문 기록, 사운드 설정 등을 관리하는 화면
 class MyScreen extends StatefulWidget {
@@ -47,13 +52,7 @@ class _MyScreenState extends State<MyScreen> {
         const SizedBox(height: 14),
         const _PremiumCard(),
         const SizedBox(height: 16),
-        GrowthHeader(
-          level: app.growthLevel,
-          points: app.growthPoints,
-          elapsedDays: app.growthElapsedDays,
-          goalPoints: AppStateProvider.growthGoalPoints,
-          windowDays: AppStateProvider.growthWindowDays,
-        ),
+        GrowthHeader(state: context.watch<CatCareProvider>().state),
         const SizedBox(height: 20),
         Padding(
           padding: const EdgeInsets.only(left: 6),
@@ -74,6 +73,31 @@ class _MyScreenState extends State<MyScreen> {
         const _FeedbackCard(),
         const SizedBox(height: 12),
         _InfoLinkRow(
+          icon: Icons.map_rounded,
+          label: '앱 사용법 튜토리얼',
+          onTap: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => const FeatureScaffold(
+                  title: '앱 사용법',
+                  child: AppTutorialScreen(),
+                ),
+              ),
+            );
+          },
+        ),
+        const SizedBox(height: 4),
+        _InfoLinkRow(
+          icon: Icons.menu_book_rounded,
+          label: '고양이 그림자 정원 소개',
+          onTap: () {
+            Navigator.of(
+              context,
+            ).push(MaterialPageRoute(builder: (_) => const AboutAppScreen()));
+          },
+        ),
+        const SizedBox(height: 4),
+        _InfoLinkRow(
           icon: Icons.privacy_tip_rounded,
           label: '개인정보처리방침 · 정신건강 안내',
           onTap: () {
@@ -82,6 +106,24 @@ class _MyScreenState extends State<MyScreen> {
             );
           },
         ),
+        // 개발/운영 확인용 - 사용자에게는 노출하지 않고 디버그 빌드에서만 표시
+        if (kDebugMode) ...[
+          const SizedBox(height: 4),
+          _InfoLinkRow(
+            icon: Icons.query_stats_rounded,
+            label: '(개발자용) 로컬 지표 확인',
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const FeatureScaffold(
+                    title: '로컬 지표',
+                    child: AnalyticsDebugScreen(),
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
         const SizedBox(height: 20),
         Center(
           child: Text(

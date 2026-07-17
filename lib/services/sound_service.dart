@@ -10,6 +10,8 @@ class SoundService {
   final AudioPlayer _bgmPlayer = AudioPlayer();
   final AudioPlayer _sfxPlayer = AudioPlayer();
   final AudioPlayer _meowPlayer = AudioPlayer();
+  final AudioPlayer _purrPlayer = AudioPlayer();
+  final AudioPlayer _bubblePlayer = AudioPlayer();
 
   bool sfxEnabled = true;
   bool bgmEnabled = false;
@@ -93,6 +95,31 @@ class SoundService {
     if (!sfxEnabled) return;
     try {
       await _meowPlayer.play(AssetSource('audio/sfx_meow.mp3'));
+    } catch (_) {}
+  }
+
+  /// 고양이를 연속으로 여러 번 쓰다듬었을 때 나오는 골골송(퍼링) 사운드.
+  Future<void> playPurr() async {
+    if (!sfxEnabled) return;
+    try {
+      await _purrPlayer.play(AssetSource('audio/sfx_purr.mp3'));
+    } catch (_) {}
+  }
+
+  /// '오늘의 그림자 방울 터뜨리기'에서 방울 하나를 터뜨렸을 때 나는
+  /// 아주 작고 부드러운 소리.
+  Future<void> playBubblePop() async {
+    if (!sfxEnabled) return;
+    try {
+      await _bubblePlayer.play(AssetSource('audio/sfx_bubble_pop.mp3'));
+    } catch (_) {}
+  }
+
+  /// 방울을 모두 터뜨려 오늘의 의식을 마쳤을 때 나는 잔잔한 완료 사운드.
+  Future<void> playGardenComplete() async {
+    if (!sfxEnabled) return;
+    try {
+      await _sfxPlayer.play(AssetSource('audio/sfx_garden_complete.mp3'));
     } catch (_) {}
   }
 }

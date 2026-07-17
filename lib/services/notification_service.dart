@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest_all.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
+import '../data/shadow_cats_data.dart';
 import 'storage_service.dart';
 
 /// 로컬 알림 리마인더 서비스.
@@ -28,6 +29,7 @@ class NotificationService {
   static const int _eveningId = 1003;
   static const int _crisisId = 1004;
   static const int _streakId = 1005;
+  static const int _catReplyId = 1006;
 
   static const int _crisisAbsenceDays = 3;
   static const int _streakHour = 21;
@@ -256,6 +258,19 @@ class NotificationService {
     return base[rng.nextInt(base.length)];
   }
 
+  /// 가장 최근에 만난 그림자 고양이의 한글 이름을 반환합니다(없으면 null).
+  /// 알림 문구 개인화(예: "OO가 기다리고 있어요")에 사용됩니다.
+  String? _lastMetCatName() {
+    try {
+      final catId = StorageService.getLastMetCatId();
+      if (catId == null) return null;
+      return shadowCatById(catId).nameKr;
+    } catch (e) {
+      if (kDebugMode) debugPrint('NotificationService 마지막 고양이 조회 실패: $e');
+      return null;
+    }
+  }
+
   Future<void> _scheduleMorning(int hour, int minute) async {
     try {
       final name = await StorageService.getCompanionName();
@@ -338,9 +353,18 @@ class NotificationService {
       if (!enabled) return;
 
       final name = await StorageService.getCompanionName();
-      final body = name != null && name.trim().isNotEmpty
-          ? '${name.trim()}가 조금 외로워하고 있어요'
-          : '그림자 고양이들이 조금 외로워하고 있어요';
+      final lastCatName = _lastMetCatName();
+      final rng = Random();
+      final String body;
+      if (name != null && name.trim().isNotEmpty) {
+        body = '${name.trim()}가 조금 외로워하고 있어요';
+      } else if (lastCatName != null && lastCatName.isNotEmpty) {
+        body = rng.nextBool()
+            ? '$lastCatName가 다시 만나길 기다리고 있어요'
+            : '마지막으로 만난 $lastCatName, 요즘 어떻게 지내나요?';
+      } else {
+        body = '그림자 고양이들이 조금 외로워하고 있어요';
+      }
 
       final now = tz.TZDateTime.now(tz.local);
       final scheduled = now.add(const Duration(days: _crisisAbsenceDays));
@@ -395,9 +419,15 @@ class NotificationService {
       if (todayTarget.isBefore(now)) return; // 오늘 그 시각이 이미 지났으면 스킵
 
       final streak = await StorageService.getCurrentStreakCount();
-      final body = streak > 0
-          ? '$streak일째 함께하고 있어요, 오늘도 잠깐 들러줄까요? 🐾'
-          : '오늘 아직 마음을 돌보지 않았어요. 잠깐 들러줄까요? 🐾';
+      final lastCatName = _lastMetCatName();
+      final String body;
+      if (streak > 0 && lastCatName != null && lastCatName.isNotEmpty) {
+        body = '$streak일째 함께하고 있어요, $lastCatName도 오늘을 기다리고 있어요 🐾';
+      } else if (streak > 0) {
+        body = '$streak일째 함께하고 있어요, 오늘도 잠깐 들러줄까요? 🐾';
+      } else {
+        body = '오늘 아직 마음을 돌보지 않았어요. 잠깐 들러줄까요? 🐾';
+      }
 
       await _plugin.zonedSchedule(
         _streakId,
@@ -421,6 +451,45 @@ class NotificationService {
       );
     } catch (e) {
       if (kDebugMode) debugPrint('NotificationService 스트릭 알림 예약 실패: $e');
+    }
+  }
+
+  /// 오늘 편지를 쓰면, 다음날 아침 그 고양이에게서 답장이 도착했다는
+  /// 알림을 예약합니다. [scheduledAt]은 [LetterEntry.replyAvailableAt]
+  /// (다음날 오전 6시)을 그대로 전달받습니다. 같은 날 편지를 여러 번 써도
+  /// 알림은 하나만 남도록, 예약 전에 이전 답장 알림을 취소합니다.
+  Future<void> scheduleCatReplyNotification({
+    required String catName,
+    required DateTime scheduledAt,
+  }) async {
+    if (kIsWeb) return;
+    await init();
+    try {
+      await _plugin.cancel(_catReplyId);
+      if (scheduledAt.isBefore(DateTime.now())) return;
+      final scheduled = tz.TZDateTime.from(scheduledAt, tz.local);
+      await _plugin.zonedSchedule(
+        _catReplyId,
+        '고양이 그림자 정원 💌',
+        '$catName에게서 답장이 도착했어요',
+        scheduled,
+        const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'cat_reply',
+            '고양이 답장 알림',
+            channelDescription: '어제 쓴 편지에 대한 고양이의 답장이 도착했음을 알려드립니다.',
+            importance: Importance.defaultImportance,
+            priority: Priority.defaultPriority,
+          ),
+          iOS: DarwinNotificationDetails(),
+        ),
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+        payload: 'catReply',
+      );
+    } catch (e) {
+      if (kDebugMode) debugPrint('NotificationService 답장 알림 예약 실패: $e');
     }
   }
 

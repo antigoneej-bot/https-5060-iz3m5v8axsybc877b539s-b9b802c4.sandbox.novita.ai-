@@ -1,11 +1,16 @@
 import 'dart:math';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/daily_card_provider.dart';
+import '../providers/app_state_provider.dart';
 import '../models/shadow_cat.dart';
+import '../services/reflection_service.dart';
+import '../services/subscription_service.dart';
 import '../theme.dart';
 import '../widgets/animated_cat_art.dart';
 import '../widgets/garden_path_card.dart';
+import 'premium_screen.dart';
 
 /// 데일리 내면소통 - 타로카드처럼 펼쳐진 카드 스프레드에서 한 장을 골라
 /// 오늘의 내면 고양이와 위로/지침을 받는 화면
@@ -49,20 +54,178 @@ class _DailyCardScreenState extends State<DailyCardScreen> {
         ),
         const SizedBox(height: 6),
         Text(
-          provider.stage == DailyCardStage.spread
-              ? '마음 가는 카드 한 장을 골라보세요'
-              : '오늘 당신에게 온 내면의 고양이예요',
+          switch (provider.stage) {
+            DailyCardStage.shuffling => '카드를 섞고 있어요...',
+            DailyCardStage.spread => '마음 가는 카드 한 장을 골라보세요',
+            DailyCardStage.revealed => '오늘 당신에게 온 내면의 고양이예요',
+          },
           textAlign: TextAlign.center,
           style: bodyFont(fontSize: 12.5, color: AppColors.inkSoft),
         ),
         const SizedBox(height: 22),
-        if (provider.stage == DailyCardStage.spread)
+        if (provider.stage == DailyCardStage.shuffling)
+          _ShuffleAnimation(
+            onFinished: () => context.read<DailyCardProvider>().finishShuffle(),
+          )
+        else if (provider.stage == DailyCardStage.spread)
           _CardSpread(
             onPick: () => context.read<DailyCardProvider>().pickCard(),
           )
         else if (provider.drawnCard != null)
           _CardResult(cat: provider.drawnCard!),
       ],
+    );
+  }
+}
+
+/// 카드를 섞는 3초 연출. 여러 장의 카드가 서로 자리를 바꾸며 뒤섞이는
+/// 모습을 보여주고(사운드는 Provider.load()에서 이미 재생 시작됨), 3초가
+/// 지나면 onFinished를 호출해 스프레드(고르기) 단계로 넘어갑니다.
+class _ShuffleAnimation extends StatefulWidget {
+  final VoidCallback onFinished;
+  const _ShuffleAnimation({required this.onFinished});
+
+  @override
+  State<_ShuffleAnimation> createState() => _ShuffleAnimationState();
+}
+
+class _ShuffleAnimationState extends State<_ShuffleAnimation>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  static const _cardCount = 7;
+  late final List<_ShuffleMove> _moves;
+
+  @override
+  void initState() {
+    super.initState();
+    final rng = Random();
+    // 각 카드마다 3초 동안 여러 번 자리를 바꾸는 랜덤한 경로를 미리 생성합니다.
+    _moves = List.generate(_cardCount, (i) {
+      final waypoints = List.generate(4, (_) {
+        return Offset(
+          (rng.nextDouble() - 0.5) * 90,
+          (rng.nextDouble() - 0.5) * 40,
+        );
+      });
+      final rotations = List.generate(4, (_) => (rng.nextDouble() - 0.5) * 0.7);
+      return _ShuffleMove(waypoints: waypoints, rotations: rotations);
+    });
+
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 3000),
+    )..forward();
+    _controller.addStatusListener((status) {
+      if (status == AnimationStatus.completed) {
+        widget.onFinished();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Offset _offsetAt(_ShuffleMove move, double t) {
+    // 4개의 경유점을 t(0~1) 구간에 따라 부드럽게 보간합니다.
+    final segment = (t * (move.waypoints.length - 1)).clamp(
+      0.0,
+      move.waypoints.length - 1.0,
+    );
+    final index = segment.floor();
+    final localT = segment - index;
+    if (index >= move.waypoints.length - 1) return move.waypoints.last;
+    return Offset.lerp(
+      move.waypoints[index],
+      move.waypoints[index + 1],
+      Curves.easeInOut.transform(localT),
+    )!;
+  }
+
+  double _rotationAt(_ShuffleMove move, double t) {
+    final segment = (t * (move.rotations.length - 1)).clamp(
+      0.0,
+      move.rotations.length - 1.0,
+    );
+    final index = segment.floor();
+    final localT = segment - index;
+    if (index >= move.rotations.length - 1) return move.rotations.last;
+    final a = move.rotations[index];
+    final b = move.rotations[index + 1];
+    return a + (b - a) * Curves.easeInOut.transform(localT);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 260,
+      child: Center(
+        child: AnimatedBuilder(
+          animation: _controller,
+          builder: (context, _) {
+            final t = _controller.value;
+            return Stack(
+              alignment: Alignment.center,
+              children: List.generate(_cardCount, (i) {
+                final move = _moves[i];
+                final offset = _offsetAt(move, t);
+                final rotation = _rotationAt(move, t);
+                return Transform.translate(
+                  offset: offset,
+                  child: Transform.rotate(
+                    angle: rotation,
+                    child: _ShuffleCardBack(),
+                  ),
+                );
+              }),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _ShuffleMove {
+  final List<Offset> waypoints;
+  final List<double> rotations;
+  const _ShuffleMove({required this.waypoints, required this.rotations});
+}
+
+class _ShuffleCardBack extends StatelessWidget {
+  const _ShuffleCardBack();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 68,
+      height: 100,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppColors.blobLavender.withValues(alpha: 0.95),
+            AppColors.blobLavenderAccent.withValues(alpha: 0.55),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: AppColors.blobLavenderAccent.withValues(alpha: 0.5),
+          width: 1.2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.blobLavenderAccent.withValues(alpha: 0.18),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      alignment: Alignment.center,
+      child: const Text('🐈', style: TextStyle(fontSize: 22)),
     );
   }
 }
@@ -354,11 +517,193 @@ class _CardResultState extends State<_CardResult>
           _MessageCard(icon: '💌', title: '오늘의 위로', body: cat.comfortMessage),
           const SizedBox(height: 12),
           _MessageCard(icon: '🧭', title: '오늘의 지침', body: cat.guidance),
+          const SizedBox(height: 12),
+          _SynchronicitySection(unconsciousCatId: cat.id),
           const SizedBox(height: 16),
           Center(
             child: Text(
               '내일 다시 새로운 카드를 뽑을 수 있어요',
               style: bodyFont(fontSize: 11.5, color: AppColors.inkSoft),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 오늘 무의식(카드뽑기)이 보여준 고양이와, 오늘 의식적으로 쓴 편지의
+/// 고양이를 비교해 보여주는 섹션. 프리미엄 전용 기능이며, 무료 유저에게는
+/// 잠금 카드(블러 + 안내)로 호기심을 유도합니다.
+class _SynchronicitySection extends StatefulWidget {
+  final String unconsciousCatId;
+  const _SynchronicitySection({required this.unconsciousCatId});
+
+  @override
+  State<_SynchronicitySection> createState() => _SynchronicitySectionState();
+}
+
+class _SynchronicitySectionState extends State<_SynchronicitySection> {
+  bool _loading = true;
+  bool _isPremium = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final premium = await SubscriptionService().isPremium();
+    if (!mounted) return;
+    setState(() {
+      _isPremium = premium;
+      _loading = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) return const SizedBox.shrink();
+
+    if (!_isPremium) {
+      return _LockedSynchronicityCard(
+        onTap: () {
+          Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (_) => const PremiumScreen()));
+        },
+      );
+    }
+
+    final app = context.watch<AppStateProvider>();
+    final consciousCatId = app.todaysLetter?.catId;
+    final sentence = ReflectionService.synchronicitySentence(
+      consciousCatId: consciousCatId,
+      unconsciousCatId: widget.unconsciousCatId,
+    );
+    if (sentence == null) {
+      return GlassBlob(
+        accent: AppColors.blobPeriwinkleAccent,
+        background: AppColors.blobPeriwinkle,
+        padding: const EdgeInsets.all(18),
+        child: Row(
+          children: [
+            const Text('✨', style: TextStyle(fontSize: 16)),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                '오늘 편지도 쓰면, 의식과 무의식을 비교해 볼 수 있어요',
+                style: bodyFont(
+                  fontSize: 12.5,
+                  color: AppColors.moon,
+                  height: 1.5,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    return GlassBlob(
+      accent: AppColors.blobPeriwinkleAccent,
+      background: AppColors.blobPeriwinkle,
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Text('✨', style: TextStyle(fontSize: 16)),
+              const SizedBox(width: 8),
+              Text(
+                '의식과 무의식',
+                style: pathLabelFont(
+                  fontSize: 14.5,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.ink,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            sentence,
+            style: bodyFont(fontSize: 13, color: AppColors.moon, height: 1.5),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LockedSynchronicityCard extends StatelessWidget {
+  final VoidCallback onTap;
+  const _LockedSynchronicityCard({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Stack(
+        children: [
+          ImageFiltered(
+            imageFilter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
+            child: GlassBlob(
+              accent: AppColors.blobPeriwinkleAccent,
+              background: AppColors.blobPeriwinkle,
+              padding: const EdgeInsets.all(18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Text('✨', style: TextStyle(fontSize: 16)),
+                      const SizedBox(width: 8),
+                      Text(
+                        '의식과 무의식',
+                        style: pathLabelFont(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.ink,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '오늘 편지에서 고른 마음과, 무작위로 뽑힌 카드가\n같았는지 비교해볼 수 있어요.',
+                    style: bodyFont(
+                      fontSize: 13,
+                      color: AppColors.moon,
+                      height: 1.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          Positioned.fill(
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.lock_outline_rounded,
+                    color: AppColors.blobPeriwinkleAccent,
+                    size: 26,
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    '프리미엄 · 의식과 무의식 비교',
+                    style: bodyFont(
+                      fontSize: 12,
+                      color: AppColors.blobPeriwinkleAccent,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],

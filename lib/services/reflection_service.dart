@@ -1,6 +1,7 @@
 import 'package:intl/intl.dart';
 import '../providers/app_state_provider.dart';
 import '../data/shadow_cats_data.dart';
+import '../models/daily_draw_entry.dart';
 import 'storage_service.dart';
 
 /// 감정 인식 루프: 주간/월간 회고의 '진입 조건 판단'과 '규칙 기반 문장 생성'을
@@ -110,5 +111,73 @@ class ReflectionService {
     final a = catNameFor(firstHalfCatId);
     final b = catNameFor(secondHalfCatId);
     return '이번 달, 당신의 감정은 초반엔 $a에서\n후반엔 $b로 흘러갔어요.';
+  }
+
+  // ── 데일리 카드뽑기(무의식) 발전: 동시성 비교 · 반복되는 그림자 ──
+  // 의식(직접 선택한 편지의 고양이)과 무의식(완전 무작위 카드뽑기 결과)을
+  // 나란히 두고 관찰하는 기능입니다. 위로/평가 언어는 쓰지 않고, '같았다/
+  // 달랐다'는 사실만 서술합니다.
+
+  /// 오늘 '의식적으로 선택한' 고양이(편지)와 '무의식이 보여준' 고양이(카드뽑기)가
+  /// 같았는지 다른지를 문장으로 만듭니다. 둘 중 하나라도 없으면 null.
+  static String? synchronicitySentence({
+    required String? consciousCatId,
+    required String? unconsciousCatId,
+  }) {
+    if (consciousCatId == null || unconsciousCatId == null) return null;
+    if (consciousCatId == unconsciousCatId) {
+      final name = catNameFor(consciousCatId);
+      return '오늘 편지에서 고른 마음과, 무작위로 뽑힌 카드가\n똑같이 $name였어요. 의식과 무의식이 같은 곳을 보고 있었나 봐요.';
+    }
+    final a = catNameFor(consciousCatId);
+    final b = catNameFor(unconsciousCatId);
+    return '오늘 편지에서는 $a를 골랐지만,\n무작위로 뽑힌 카드는 $b였어요. 서로 다른 결을 보여준 하루예요.';
+  }
+
+  /// 이번 달(달력 기준) 안에서 뽑힌 데일리 카드(무의식)만 골라냅니다.
+  static List<DailyDrawEntry> drawsThisMonth(
+    List<DailyDrawEntry> draws, {
+    DateTime? now,
+  }) {
+    final ref = now ?? DateTime.now();
+    return draws
+        .where((d) => d.date.year == ref.year && d.date.month == ref.month)
+        .toList();
+  }
+
+  /// 이번 달 데일리 카드뽑기(무의식) 결과의 고양이별 빈도(catId → 횟수).
+  static Map<String, int> monthlyDrawFrequency(
+    List<DailyDrawEntry> draws, {
+    DateTime? now,
+  }) {
+    final entries = drawsThisMonth(draws, now: now);
+    final freq = <String, int>{};
+    for (final e in entries) {
+      freq[e.catId] = (freq[e.catId] ?? 0) + 1;
+    }
+    return freq;
+  }
+
+  /// 이번 달 무의식(카드뽑기)에서 같은 그림자가 threshold회 이상 반복해서
+  /// 나타났다면, 그 사실을 알려주는 문장을 만듭니다. 없으면 null.
+  /// (위로/평가 없이 '몇 번 나타났다'는 관찰만 전달합니다)
+  static String? repeatedShadowSentence(
+    List<DailyDrawEntry> draws, {
+    DateTime? now,
+    int threshold = 3,
+  }) {
+    final freq = monthlyDrawFrequency(draws, now: now);
+    if (freq.isEmpty) return null;
+    String? topId;
+    int topCount = -1;
+    freq.forEach((catId, count) {
+      if (count > topCount) {
+        topCount = count;
+        topId = catId;
+      }
+    });
+    if (topId == null || topCount < threshold) return null;
+    final name = catNameFor(topId);
+    return '이번 달 무작위 카드뽑기에서 $name가 $topCount번\n나타났어요. 무의식이 자꾸 같은 그림자를 보여주고 있어요.';
   }
 }

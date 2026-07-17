@@ -3,9 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/shadow_cat.dart';
 import '../providers/app_state_provider.dart';
+import '../providers/cat_care_provider.dart';
 import '../services/storage_service.dart';
 import '../theme.dart';
 import '../widgets/animated_cat_art.dart';
+import '../widgets/mood_picker.dart';
 import '../widgets/stars_background.dart';
 
 /// 고양이를 처음 만난 순간 이어지는 최초 1회 온보딩 플로우.
@@ -35,6 +37,7 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
   _OnboardingStep _step = _OnboardingStep.letter;
   final TextEditingController _letterController = TextEditingController();
   bool _busy = false;
+  String? _moodEmoji;
 
   @override
   void dispose() {
@@ -43,16 +46,25 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
   }
 
   Future<void> _onSendLetter() async {
-    if (_letterController.text.trim().isEmpty || _busy) return;
+    final hasText = _letterController.text.trim().isNotEmpty;
+    final hasMood = _moodEmoji != null;
+    if ((!hasText && !hasMood) || _busy) return;
     setState(() {
       _busy = true;
       _step = _OnboardingStep.sending;
     });
-    // 편지를 실제로 저장 (비회원 상태에서도 로컬에 기록됨)
+    // 편지를 실제로 저장 (비회원 상태에서도 로컬에 기록됨). 글쓰기가 힘들거나
+    // 귀찮을 때는 이모티콘만 골라도 그날의 기록으로 남을 수 있습니다.
     await context.read<AppStateProvider>().saveOnboardingLetter(
       _letterController.text.trim(),
       widget.cat,
+      moodEmoji: _moodEmoji,
     );
+    // 온보딩 편지쓰기도 '마음기록' 임무를 실제로 실천한 행동이므로,
+    // 마음 돌보기와 자동으로 연동합니다.
+    if (mounted) {
+      await context.read<CatCareProvider>().journaling();
+    }
     await Future.delayed(const Duration(milliseconds: 1400));
     if (!mounted) return;
     setState(() {
@@ -80,6 +92,13 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
     if (!mounted) return;
     final app = context.read<AppStateProvider>();
     app.finishOnboarding();
+    // 회원가입(온보딩)이 지금 막 완료됐으므로, 여기서부터 출석 날짜 카운팅과
+    // "N일째 함께하는 중" 스트릭을 시작합니다. load()/refreshStreak()가
+    // 내부적으로 StorageService.isOnboardingCompleted()를 다시 확인해
+    // 오늘을 '1일차'로 기록합니다.
+    await context.read<CatCareProvider>().load();
+    await app.refreshStreak();
+    if (!mounted) return;
     if (widget.onFinished != null) {
       widget.onFinished!();
     } else {
@@ -95,6 +114,8 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
           cat: widget.cat,
           controller: _letterController,
           busy: _busy,
+          moodEmoji: _moodEmoji,
+          onMoodChanged: (v) => setState(() => _moodEmoji = v),
           onSend: _onSendLetter,
         );
       case _OnboardingStep.sending:
@@ -148,12 +169,16 @@ class _OnboardingLetterStep extends StatelessWidget {
   final ShadowCat cat;
   final TextEditingController controller;
   final bool busy;
+  final String? moodEmoji;
+  final ValueChanged<String?> onMoodChanged;
   final VoidCallback onSend;
   const _OnboardingLetterStep({
     super.key,
     required this.cat,
     required this.controller,
     required this.busy,
+    required this.moodEmoji,
+    required this.onMoodChanged,
     required this.onSend,
   });
 
@@ -199,6 +224,8 @@ class _OnboardingLetterStep extends StatelessWidget {
               ),
             ),
           ),
+          const SizedBox(height: 14),
+          MoodPicker(selectedEmoji: moodEmoji, onChanged: onMoodChanged),
           const SizedBox(height: 22),
           SizedBox(
             width: double.infinity,

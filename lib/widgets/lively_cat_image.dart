@@ -3,7 +3,7 @@ import 'dart:math';
 
 /// 그리드나 리스트에 촘촘히 나열되는 고양이 이미지에 쓰는
 /// 가벼운 '살아있는' 움직임 애니메이션 위젯.
-/// AnimatedCatArt보다 훨씬 저비용이라 36마리를 한 번에 그려도 부드럽습니다.
+/// AnimatedCatArt보다 훨씬 저비용이라 42마리를 한 번에 그려도 부드럽습니다.
 /// - 둥실둥실 부유 + 살짝 좌우로 갸웃거리는 정도의 미세한 움직임만 적용합니다.
 class LivelyCatImage extends StatefulWidget {
   final String imageAsset;

@@ -40,9 +40,11 @@ class PromiseProvider extends ChangeNotifier {
   }
 
   /// 약속 체크(또는 해제)를 처리합니다. 체크한 순간에만(해제할 때는 제외)
-  /// 리액션 문구를 노출하고, 프리미엄 유저라면 성장 보너스 신호를 함께 보냅니다.
+  /// 리액션 문구를 노출하고, 마음 온도 보너스 신호를 함께 보냅니다. 약속을
+  /// 지키는 기쁨은 구독 여부와 무관하므로, 누구나 약속 하나를 지킬 때마다
+  /// 마음 온도가 1도씩 오릅니다(100도 초과 시 포인트 적립은 구독자 전용).
   ///
-  /// 반환값: 프리미엄 유저가 방금 체크해서 성장 보너스를 적용해야 하면 true.
+  /// 반환값: 방금 체크해서 성장 보너스(+1도)를 적용해야 하면 true.
   /// (실제 온도 적립/성장 애니메이션은 화면에서 CatCareProvider를 통해 처리)
   Future<bool> toggleKept(String id) async {
     final idx = entries.indexWhere((e) => e.id == id);
@@ -55,12 +57,8 @@ class PromiseProvider extends ChangeNotifier {
     bool grantsBonus = false;
     if (newKept) {
       await SoundService().playChime();
-      if (isPremium) {
-        lastReaction = '하나를 지켰어요 — 고양이가 한 뼘 자랐어요 🌿';
-        grantsBonus = true;
-      } else {
-        lastReaction = '하나를 지켰네요. 고양이가 조용히 웅크려 있어요 🐾';
-      }
+      lastReaction = '하나를 지켰어요 — 고양이가 한 뼘 자랐어요 🌿';
+      grantsBonus = true;
     } else {
       lastReaction = null;
     }

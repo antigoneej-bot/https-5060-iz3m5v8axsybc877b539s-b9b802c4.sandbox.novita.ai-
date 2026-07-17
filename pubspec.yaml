@@ -26,6 +26,7 @@ dependencies:
   path_provider: ^2.1.5
   url_launcher: ^6.3.2
   package_info_plus: ^9.0.1
+  gal: ^2.3.2
 
 dev_dependencies:
   flutter_test:
@@ -38,9 +39,13 @@ flutter:
   assets:
     - assets/cards/
     - assets/cards36/
+    - assets/mochi/
     - assets/icon/
     - assets/audio/
     - assets/video/
+    - assets/video/meditation/
     - assets/nav_icons/
     - assets/growth/
+    - assets/growth/teen_frames/
+    - assets/growth/adult_frames/
     - assets/onboarding_intro/

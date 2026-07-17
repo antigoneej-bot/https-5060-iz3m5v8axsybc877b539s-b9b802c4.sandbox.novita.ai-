@@ -1,12 +1,18 @@
 import 'package:flutter/material.dart';
 import '../theme.dart';
 import '../data/solutions_data.dart';
+import 'meditation_video_player.dart';
 
 /// 명상/움직임 가이드의 단계별 안내를 보여주는 위젯 (여러 화면에서 재사용)
 /// 딱딱한 흰 박스 대신, 반투명한 민트빛 카드로 부드럽게 표시합니다.
+///
+/// [guideKey]를 함께 전달하면, 해당 키에 대응하는 영상 파일
+/// (assets/video/meditation/{guideKey}.mp4)이 준비되어 있을 때만
+/// 자동으로 "영상으로 따라하기" 재생 버튼이 함께 나타납니다.
 class GuideSteps extends StatelessWidget {
   final SolutionGuide guide;
-  const GuideSteps({super.key, required this.guide});
+  final String? guideKey;
+  const GuideSteps({super.key, required this.guide, this.guideKey});
 
   @override
   Widget build(BuildContext context) {
@@ -40,6 +46,13 @@ class GuideSteps extends StatelessWidget {
               ),
             ],
           ),
+          if (guideKey != null) ...[
+            const SizedBox(height: 10),
+            MeditationVideoPlayer(
+              assetPath: meditationVideoAssetPath(guideKey!),
+              accent: AppColors.blobMintAccent,
+            ),
+          ],
           const SizedBox(height: 10),
           ...guide.steps.asMap().entries.map(
             (entry) => Padding(

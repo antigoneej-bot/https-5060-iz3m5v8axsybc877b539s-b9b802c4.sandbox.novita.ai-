@@ -1,19 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_state_provider.dart';
+import '../providers/cat_care_provider.dart';
+import '../providers/buried_emotion_provider.dart';
 import '../data/shadow_cats_data.dart';
+import '../models/letter_entry.dart';
+import '../services/reflection_service.dart';
+import '../utils/cat_palette.dart';
 import '../theme.dart';
 import '../widgets/growth_header.dart';
 import '../widgets/garden_path_card.dart';
+import '../widgets/mochi_cat.dart';
 import '../widgets/feature_scaffold.dart';
-import '../services/reflection_service.dart';
 import 'pet_care_screen.dart';
 import 'daily_card_screen.dart';
 import 'todays_promise_screen.dart';
 import 'day_close_screen.dart';
-import 'cat_compendium_screen.dart';
 import 'weekly_reflection_screen.dart';
 import 'monthly_shadow_reflection_screen.dart';
+import 'bubble_garden_screen.dart';
+import 'weekly_shadow_map_screen.dart';
+import 'sprout_reflection_screen.dart';
+import 'cat_bond_screen.dart';
 
 /// 홈페이지 탭 - '힐링 정원 산책로' 컨셉의 대시보드.
 /// 딱딱한 흰 사각 카드를 모두 걷어내고, 오솔길을 걷듯 좌우로 살짝씩 흔들리며
@@ -32,9 +40,15 @@ class HomeTabScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final app = context.watch<AppStateProvider>();
+    final unseenReply = app.letterWithUnseenReadyReply;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (unseenReply != null) ...[
+          _CatReplyBanner(entry: unseenReply, onTap: onGoToRecords),
+          const SizedBox(height: 16),
+        ],
+        const _SproutBannerArea(),
         const _ReflectionBannerArea(),
         Text(
           'CAT SHADOW GARDEN',
@@ -54,7 +68,7 @@ class HomeTabScreen extends StatelessWidget {
         ),
         const SizedBox(height: 10),
         Text(
-          '36마리 그림자 고양이를 한 마리씩 만나며,\n내 감정을 스스로 알아차리는 시간',
+          '42마리 그림자 고양이를 한 마리씩 만나며,\n내 감정을 스스로 알아차리는 시간',
           textAlign: TextAlign.center,
           style: bodyFont(
             fontSize: 13.5,
@@ -65,24 +79,17 @@ class HomeTabScreen extends StatelessWidget {
         const SizedBox(height: 30),
         _JourneyHero(
           metCount: app.metCatCount,
-          total: shadowCats.length,
+          // ⚠️ 유료(Basic 구독) 고양이는 잠겨있으면 탭해도 "만남" 처리가
+          // 되지 않아, 비구독자는 42마리를 넘어 "만날" 수 없습니다.
+          // shadowCats.length(52)를 분모로 쓰면 영원히 채울 수 없는 목표가
+          // 되므로 무료 42마리 기준으로 표시합니다.
+          total: freeShadowCats.length,
           onMeetCat: onGoToCatSelect,
-          onOpenCompendium: () => pushFullScreen(
-            context,
-            '그림자 고양이 도감',
-            const CatCompendiumScreen(),
-          ),
         ),
         const SizedBox(height: 26),
         _StreakBlob(streak: app.streak),
         const SizedBox(height: 18),
-        GrowthHeader(
-          level: app.growthLevel,
-          points: app.growthPoints,
-          elapsedDays: app.growthElapsedDays,
-          goalPoints: AppStateProvider.growthGoalPoints,
-          windowDays: AppStateProvider.growthWindowDays,
-        ),
+        GrowthHeader(state: context.watch<CatCareProvider>().state),
         const SizedBox(height: 44),
         _PathSignpost(title: '고양이를 만난 뒤엔, 이렇게 돌봐요'),
         const SizedBox(height: 6),
@@ -147,7 +154,39 @@ class HomeTabScreen extends StatelessWidget {
           onTap: () =>
               pushFullScreen(context, '오늘의 약속', const TodaysPromiseScreen()),
         ),
-        const GardenPathConnector(startX: -0.26, endX: 0.3, decorEmoji: '🦋'),
+        const GardenPathConnector(startX: -0.26, endX: 0.28, decorEmoji: '🐾'),
+        GardenPathCard(
+          emoji: '🫧',
+          title: '오늘의 그림자 방울 터뜨리기',
+          subtitle: '오늘 마주한 감정을 방울로 만나, 하나씩 터뜨려 놓아주세요',
+          accent: AppColors.blobLavenderAccent,
+          background: AppColors.blobLavender,
+          alignX: 0.28,
+          widthFactor: 0.9,
+          floatSeed: 9,
+          onTap: () => pushFullScreen(
+            context,
+            '오늘의 그림자 방울 터뜨리기',
+            const BubbleGardenScreen(),
+          ),
+        ),
+        const GardenPathConnector(startX: 0.28, endX: -0.26, decorEmoji: '🦋'),
+        GardenPathCard(
+          emoji: '🗺️',
+          title: '주간 그림자 지도',
+          subtitle: '이번 주 자주 마주한 감정 Top 3를 지도처럼 살펴보세요',
+          accent: AppColors.blobPeachAccent,
+          background: AppColors.blobPeach,
+          alignX: -0.26,
+          widthFactor: 0.9,
+          floatSeed: 10,
+          onTap: () => pushFullScreen(
+            context,
+            '주간 그림자 지도',
+            const WeeklyShadowMapScreen(),
+          ),
+        ),
+        const GardenPathConnector(startX: -0.26, endX: 0.3, decorEmoji: '🐾'),
         GardenPathCard(
           emoji: '🌙',
           title: '하루 닫기',
@@ -158,6 +197,19 @@ class HomeTabScreen extends StatelessWidget {
           widthFactor: 0.9,
           floatSeed: 8,
           onTap: () => pushFullScreen(context, '하루 닫기', const DayCloseScreen()),
+        ),
+        const GardenPathConnector(startX: 0.3, endX: -0.24, decorEmoji: '🦋'),
+        GardenPathCard(
+          emoji: '🧵',
+          title: '묘연 나누기',
+          subtitle: '내 그림자 고양이 코드를 친구에게 보내고 나란히 살펴보세요',
+          accent: AppColors.blobRoseAccent,
+          background: AppColors.blobRose,
+          alignX: -0.24,
+          widthFactor: 0.9,
+          floatSeed: 11,
+          onTap: () =>
+              pushFullScreen(context, '묘연 나누기', const CatBondScreen()),
         ),
         const SizedBox(height: 40),
         _GardenHintCaption(),
@@ -173,12 +225,10 @@ class _JourneyHero extends StatelessWidget {
   final int metCount;
   final int total;
   final VoidCallback onMeetCat;
-  final VoidCallback onOpenCompendium;
   const _JourneyHero({
     required this.metCount,
     required this.total,
     required this.onMeetCat,
-    required this.onOpenCompendium,
   });
 
   @override
@@ -214,7 +264,7 @@ class _JourneyHero extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '36 그림자 고양이 여정',
+                      '그림자 고양이 여정',
                       style: pathLabelFont(
                         fontSize: 15.5,
                         fontWeight: FontWeight.w700,
@@ -226,7 +276,7 @@ class _JourneyHero extends StatelessWidget {
                       metCount == 0
                           ? '아직 만난 고양이가 없어요. 지금 첫 고양이를 만나볼까요?'
                           : remaining == 0
-                          ? '36마리를 모두 만났어요. 정원이 가득 채워졌네요 🌸'
+                          ? '$total마리를 모두 만났어요. 정원이 가득 채워졌네요 🌸'
                           : '$total마리 중 $metCount마리를 만났어요 · $remaining마리가 기다리는 중',
                       style: bodyFont(
                         fontSize: 11.5,
@@ -252,26 +302,11 @@ class _JourneyHero extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: _JourneyHeroButton(
-                  label: metCount == 0 ? '고양이 만나기' : '오늘의 고양이 만나기',
-                  emoji: '🐈',
-                  filled: true,
-                  onTap: onMeetCat,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _JourneyHeroButton(
-                  label: '도감 보기',
-                  emoji: '📖',
-                  filled: false,
-                  onTap: onOpenCompendium,
-                ),
-              ),
-            ],
+          _JourneyHeroButton(
+            label: metCount == 0 ? '고양이 만나기' : '오늘의 고양이 만나기',
+            emoji: '🐈',
+            filled: true,
+            onTap: onMeetCat,
           ),
         ],
       ),
@@ -357,75 +392,300 @@ class _PathSignpost extends StatelessWidget {
   }
 }
 
-/// 며칠째 함께하는지를 보여주는 반투명 유기적 블롭 - 흰 사각 박스를 대체
+/// 저녁에 쓴 편지에 대해 다음날 아침 고양이의 답장이 도착했음을 알려주는
+/// 배너. 아직 열어보지 않은 답장이 있을 때만 홈 화면 최상단 근처에
+/// 나타나며, 탭하면 기록 탭으로 이동해 바로 열어볼 수 있습니다.
+class _CatReplyBanner extends StatelessWidget {
+  final LetterEntry entry;
+  final VoidCallback onTap;
+  const _CatReplyBanner({required this.entry, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final cat = shadowCatById(entry.catId);
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(28),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(28),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(28),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                AppColors.blobButter.withValues(alpha: 0.92),
+                AppColors.blobButter.withValues(alpha: 0.62),
+              ],
+            ),
+            border: Border.all(
+              color: AppColors.blobButterAccent.withValues(alpha: 0.32),
+              width: 1.2,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.blobButterAccent.withValues(alpha: 0.18),
+                blurRadius: 18,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.6),
+                  shape: BoxShape.circle,
+                ),
+                child: const Text('💌', style: TextStyle(fontSize: 20)),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${cat.nameKr}에게서 답장이 도착했어요',
+                      style: pathLabelFont(
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.ink,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '어제 보낸 편지에 대한 답장을 열어보세요',
+                      style: bodyFont(fontSize: 11.5, color: AppColors.inkSoft),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: AppColors.blobButterAccent,
+                size: 20,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 며칠 전 땅에 묻어둔 감정이 새싹으로 다시 떠올랐을 때 조용히 보여주는
+/// 배너. "미해결 문제"가 아니라 "언제든 들여다볼 수 있는 마음이 있어요"
+/// 정도의 가벼운 존재감만 전달합니다 - 누르지 않아도 아무 문제가 없습니다.
+class _SproutBannerArea extends StatelessWidget {
+  const _SproutBannerArea();
+
+  @override
+  Widget build(BuildContext context) {
+    final sprouts = context.watch<BuriedEmotionProvider>().sprouts;
+    if (sprouts.isEmpty) return const SizedBox.shrink();
+    final entry = sprouts.first;
+    final accent = entry.catId.isEmpty
+        ? CatPalette.emptyDay
+        : CatPalette.accentFor(entry.catId);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(28),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(28),
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => FeatureScaffold(
+                title: '다시 떠오른 마음',
+                child: SproutReflectionScreen(entry: entry),
+              ),
+            ),
+          ),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(28),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  AppColors.blobPeach.withValues(alpha: 0.9),
+                  AppColors.blobPeach.withValues(alpha: 0.6),
+                ],
+              ),
+              border: Border.all(
+                color: accent.withValues(alpha: 0.3),
+                width: 1.2,
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.6),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Text('🌱', style: TextStyle(fontSize: 20)),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '정원에 작은 새싹이 돋아났어요',
+                        style: pathLabelFont(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.ink,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '며칠 전 묻어둔 마음이에요 · 지금 들여다봐도, 그냥 두어도 괜찮아요',
+                        style: bodyFont(
+                          fontSize: 11.5,
+                          color: AppColors.inkSoft,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(Icons.chevron_right_rounded, color: accent, size: 20),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 며칠째 함께하는지를 보여주는 반투명 유기적 블롭 - 흰 사각 박스를 대체.
+/// 숫자만 보여주던 이전 버전에서, 최근 7일 중 어느 날 기록했는지를 작은
+/// 점으로 함께 보여주도록 확장했습니다 - "오늘 안 하면 끊긴다"는 감각을
+/// 시각적으로 상기시켜 리텐션에 도움이 되도록 하는 목적입니다(강제 알림이
+/// 아니라 화면에 조용히 보이는 정도로만).
 class _StreakBlob extends StatelessWidget {
   final int streak;
   const _StreakBlob({required this.streak});
 
   @override
   Widget build(BuildContext context) {
+    final app = context.watch<AppStateProvider>();
+    final last7 = app.last7DaysCatIds();
+    final recordedToday = last7.isNotEmpty && last7.last.value != null;
     return GlassBlob(
       accent: AppColors.blobButterAccent,
       background: AppColors.blobButter,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
+      child: Column(
         children: [
-          TweenAnimationBuilder<double>(
-            tween: Tween(begin: 0, end: 1),
-            duration: const Duration(milliseconds: 800),
-            curve: Curves.elasticOut,
-            builder: (context, value, child) {
-              return Container(
-                width: 44,
-                height: 44,
-                decoration: const BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Color(0xFFFFF1D6),
-                ),
-                child: ClipOval(
-                  child: Align(
-                    alignment: Alignment.center,
-                    child: Transform.scale(
-                      scale: value,
-                      child: Container(
-                        decoration: const BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: RadialGradient(
-                            center: Alignment(-0.3, -0.4),
-                            colors: [
-                              Color(0xFFFFF6DF),
-                              AppColors.goldSoft,
-                              AppColors.gold,
-                            ],
-                            stops: [0, 0.55, 1],
-                          ),
-                        ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              TweenAnimationBuilder<double>(
+                tween: Tween(begin: 0, end: 1),
+                duration: const Duration(milliseconds: 800),
+                curve: Curves.elasticOut,
+                builder: (context, value, child) {
+                  return Transform.scale(
+                    scale: value,
+                    child: const MochiCat(size: 48, static: true),
+                  );
+                },
+              ),
+              const SizedBox(width: 16),
+              RichText(
+                text: TextSpan(
+                  style: bodyFont(fontSize: 13.5, color: AppColors.moon),
+                  children: [
+                    TextSpan(
+                      text: '$streak',
+                      style: numberFont(
+                        fontSize: 19,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.goldSoft,
                       ),
                     ),
-                  ),
+                    const TextSpan(text: '일째 함께하는 중'),
+                  ],
                 ),
-              );
-            },
+              ),
+            ],
           ),
-          const SizedBox(width: 16),
-          RichText(
-            text: TextSpan(
-              style: bodyFont(fontSize: 13.5, color: AppColors.moon),
+          const SizedBox(height: 14),
+          _StreakWeekDots(days: last7),
+          if (!recordedToday && streak > 0) ...[
+            const SizedBox(height: 10),
+            Text(
+              '오늘 아직 기록이 없어요 · 지금 만나면 계속 이어져요',
+              style: bodyFont(fontSize: 11, color: AppColors.blobButterAccent),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// 최근 7일간의 기록 여부를 작은 원형 점으로 나란히 보여주는 시각화.
+/// 오늘 칸이 비어 있으면 살짝 테두리를 강조해 "오늘만 채우면 이어진다"는
+/// 느낌을 은은하게 줍니다.
+class _StreakWeekDots extends StatelessWidget {
+  final List<MapEntry<DateTime, String?>> days;
+  const _StreakWeekDots({required this.days});
+
+  static const _weekdayLabels = ['월', '화', '수', '목', '금', '토', '일'];
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        for (int i = 0; i < days.length; i++)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 5),
+            child: Column(
               children: [
-                TextSpan(
-                  text: '$streak',
-                  style: numberFont(
-                    fontSize: 19,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.goldSoft,
+                Container(
+                  width: 20,
+                  height: 20,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: days[i].value != null
+                        ? CatPalette.accentFor(
+                            days[i].value!,
+                          ).withValues(alpha: 0.9)
+                        : Colors.white.withValues(alpha: 0.5),
+                    border: i == days.length - 1 && days[i].value == null
+                        ? Border.all(
+                            color: AppColors.blobButterAccent.withValues(
+                              alpha: 0.7,
+                            ),
+                            width: 1.6,
+                          )
+                        : null,
                   ),
                 ),
-                const TextSpan(text: '일째 함께하는 중'),
+                const SizedBox(height: 4),
+                Text(
+                  _weekdayLabels[days[i].key.weekday - 1],
+                  style: bodyFont(fontSize: 9.5, color: AppColors.inkSoft),
+                ),
               ],
             ),
           ),
-        ],
-      ),
+      ],
     );
   }
 }

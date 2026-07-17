@@ -8,12 +8,14 @@ import '../theme.dart';
 import '../widgets/stars_background.dart';
 import '../widgets/sound_panel.dart';
 import '../widgets/feature_scaffold.dart';
+import '../services/notice_service.dart';
 import 'home_tab_screen.dart';
 import 'cat_flow_tab_screen.dart';
 import 'meditation_library_screen.dart';
 import 'history_screen.dart';
 import 'my_screen.dart';
 import 'day_close_screen.dart';
+import 'notice_list_screen.dart';
 
 /// 앱의 최상위 셸 - 하단 5개 탭(홈페이지 / 고양이선택 / 명상 / 기록 / 마이)을 관리
 class HomeScreen extends StatefulWidget {
@@ -64,6 +66,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         // 아침 / 위기 / 스트릭 알림 → 오늘의 감정 고양이 만나기 탭으로 이동
         setState(() => _navIndex = 1);
         break;
+      case 'catReply':
+        // 답장 도착 알림 → 기록 탭으로 이동해 바로 열어볼 수 있게 함
+        setState(() => _navIndex = 3);
+        break;
     }
   }
 
@@ -94,12 +100,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 520),
                   child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(24, 32, 24, 118),
+                    padding: const EdgeInsets.fromLTRB(24, 56, 24, 118),
                     child: _buildTabBody(),
                   ),
                 ),
               ),
-              const Positioned(top: 24, right: 24, child: SoundToggleButton()),
+              const Positioned(top: 2, right: 24, child: SoundToggleButton()),
+              const Positioned(top: 2, right: 72, child: _NoticeBellButton()),
               if (app.showFirstMeetingBanner)
                 Positioned(
                   top: 16,
@@ -247,7 +254,99 @@ class _BottomNavBar extends StatelessWidget {
   }
 }
 
-/// 홈 화면 최초 진입 시 한 번만 나타나는 작은 배너: "36마리 중 1마리를 만났어요 🐾"
+/// 공지사항 진입 버튼 - 사운드 토글과 같은 톤의 반투명 원형 버튼이며,
+/// 읽지 않은 공지가 있으면 작은 배지를 함께 보여줍니다.
+class _NoticeBellButton extends StatefulWidget {
+  const _NoticeBellButton();
+
+  @override
+  State<_NoticeBellButton> createState() => _NoticeBellButtonState();
+}
+
+class _NoticeBellButtonState extends State<_NoticeBellButton> {
+  int _unread = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _refresh();
+  }
+
+  Future<void> _refresh() async {
+    final count = await NoticeService.unreadCount();
+    if (!mounted) return;
+    setState(() => _unread = count);
+  }
+
+  Future<void> _open() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) =>
+            const FeatureScaffold(title: '공지사항', child: NoticeListScreen()),
+      ),
+    );
+    _refresh();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      shape: const CircleBorder(),
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: _open,
+        child: Container(
+          width: 42,
+          height: 42,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: Colors.white.withValues(alpha: 0.55),
+            border: Border.all(
+              color: AppColors.blobMintAccent.withValues(alpha: 0.35),
+            ),
+          ),
+          child: Stack(
+            clipBehavior: Clip.none,
+            alignment: Alignment.center,
+            children: [
+              Icon(
+                Icons.notifications_none_rounded,
+                color: AppColors.ink,
+                size: 21,
+              ),
+              if (_unread > 0)
+                Positioned(
+                  top: -2,
+                  right: -2,
+                  child: Container(
+                    width: 15,
+                    height: 15,
+                    alignment: Alignment.center,
+                    decoration: const BoxDecoration(
+                      color: AppColors.blobRoseAccent,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Text(
+                      _unread > 9 ? '9+' : '$_unread',
+                      style: const TextStyle(
+                        fontSize: 8.5,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 홈 화면 최초 진입 시 한 번만 나타나는 작은 배너: "42마리 중 1마리를 만났어요 🐾"
 /// 3초 후 자동으로 사라집니다.
 class _FirstMeetingBanner extends StatefulWidget {
   const _FirstMeetingBanner();
@@ -275,7 +374,11 @@ class _FirstMeetingBannerState extends State<_FirstMeetingBanner> {
   @override
   Widget build(BuildContext context) {
     final metCount = context.watch<AppStateProvider>().metCatCount;
-    final shown = metCount.clamp(1, shadowCats.length);
+    // ⚠️ 유료(Basic 구독) 고양이는 잠겨있으면 탭해도 "만남" 처리가 되지
+    // 않아, 비구독자는 42마리를 넘어 "만날" 수 없습니다. shadowCats.length
+    // (52)를 분모로 쓰면 영원히 채울 수 없는 목표가 되므로 무료 42마리
+    // 기준으로 표시합니다.
+    final shown = metCount.clamp(1, freeShadowCats.length);
     return AnimatedOpacity(
       duration: const Duration(milliseconds: 400),
       opacity: _visible ? 1.0 : 0.0,
@@ -305,7 +408,7 @@ class _FirstMeetingBannerState extends State<_FirstMeetingBanner> {
           ],
         ),
         child: Text(
-          '${shadowCats.length}마리 중 $shown마리를 만났어요 🐾',
+          '${freeShadowCats.length}마리 중 $shown마리를 만났어요 🐾',
           style: pathLabelFont(
             fontSize: 13,
             fontWeight: FontWeight.w600,

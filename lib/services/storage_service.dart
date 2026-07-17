@@ -2,6 +2,8 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/letter_entry.dart';
 import '../models/reflection_letter_entry.dart';
+import '../models/daily_draw_entry.dart';
+import '../models/bubble_memo_entry.dart';
 
 /// 계정별로 편지 기록 · 연속 방문일 · 성장 단계를 저장합니다.
 /// (사운드 설정처럼 기기 전체에 공통인 값은 계정과 무관하게 유지됩니다)
@@ -11,6 +13,8 @@ class StorageService {
 
   static Box? _letterBox;
   static Box? _reflectionLetterBox;
+  static Box? _dailyDrawBox;
+  static Box? _bubbleMemoBox;
 
   static Future<void> init() async {
     await Hive.initFlutter();
@@ -26,8 +30,16 @@ class StorageService {
     if (_reflectionLetterBox != null && _reflectionLetterBox!.isOpen) {
       await _reflectionLetterBox!.close();
     }
+    if (_dailyDrawBox != null && _dailyDrawBox!.isOpen) {
+      await _dailyDrawBox!.close();
+    }
+    if (_bubbleMemoBox != null && _bubbleMemoBox!.isOpen) {
+      await _bubbleMemoBox!.close();
+    }
     _letterBox = await Hive.openBox('letter_entries_$_uid');
     _reflectionLetterBox = await Hive.openBox('reflection_letters_$_uid');
+    _dailyDrawBox = await Hive.openBox('daily_draw_entries_$_uid');
+    _bubbleMemoBox = await Hive.openBox('bubble_memo_entries_$_uid');
   }
 
   /// 로그아웃 시 호출해서 계정 전용 데이터 접근을 닫습니다.
@@ -38,8 +50,16 @@ class StorageService {
     if (_reflectionLetterBox != null && _reflectionLetterBox!.isOpen) {
       await _reflectionLetterBox!.close();
     }
+    if (_dailyDrawBox != null && _dailyDrawBox!.isOpen) {
+      await _dailyDrawBox!.close();
+    }
+    if (_bubbleMemoBox != null && _bubbleMemoBox!.isOpen) {
+      await _bubbleMemoBox!.close();
+    }
     _letterBox = null;
     _reflectionLetterBox = null;
+    _dailyDrawBox = null;
+    _bubbleMemoBox = null;
     _uid = _defaultScope;
   }
 
@@ -54,6 +74,20 @@ class StorageService {
     await letterBox.put(entry.id, entry.toMap());
   }
 
+  /// 이미 저장된 편지에 명상 실천 여부(meditationKey)만 덧붙여 갱신합니다.
+  /// 편지 저장(=편지 전송)과 명상 실천은 서로 다른 시점에 독립적으로
+  /// 일어나는 별개의 행동이므로, 편지가 이미 저장된 뒤에도 안전하게 이
+  /// 필드만 보완할 수 있게 합니다.
+  static Future<void> updateLetterMeditation(
+    String id,
+    String? meditationKey,
+  ) async {
+    final raw = letterBox.get(id);
+    if (raw == null) return;
+    final entry = LetterEntry.fromMap(Map<dynamic, dynamic>.from(raw as Map));
+    await letterBox.put(id, entry.withMeditationKey(meditationKey).toMap());
+  }
+
   static List<LetterEntry> getAllLetters() {
     final entries = letterBox.values
         .map((e) => LetterEntry.fromMap(Map<dynamic, dynamic>.from(e as Map)))
@@ -64,6 +98,24 @@ class StorageService {
 
   static Future<void> deleteLetter(String id) async {
     await letterBox.delete(id);
+  }
+
+  /// 가장 최근에 쓴 편지의 고양이 id를 반환합니다(없으면 null).
+  /// '마지막으로 만난 고양이' 개인화 알림 문구에 사용됩니다.
+  static String? getLastMetCatId() {
+    if (_letterBox == null || !_letterBox!.isOpen) return null;
+    final entries = getAllLetters(); // 이미 날짜 내림차순 정렬됨
+    if (entries.isEmpty) return null;
+    return entries.first.catId;
+  }
+
+  /// 이 편지의 고양이 답장을 열어봤다고 표시합니다(홈 배너를 다시 띄우지
+  /// 않기 위함).
+  static Future<void> markReplySeen(String id) async {
+    final raw = letterBox.get(id);
+    if (raw == null) return;
+    final entry = LetterEntry.fromMap(Map<dynamic, dynamic>.from(raw as Map));
+    await letterBox.put(id, entry.withReplySeen().toMap());
   }
 
   // ---- Streak tracking (연속 방문일) via SharedPreferences (계정별 키) ----
@@ -104,6 +156,24 @@ class StorageService {
   static Future<int> getCurrentStreakCount() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getInt(_streakKey) ?? 0;
+  }
+
+  /// [updateStreakOnOpen]을 호출하기 *전에* 먼저 확인해야 합니다 - 그 값이
+  /// 오늘 날짜로 갱신되어 버리기 때문에, "이번에 며칠 만에 돌아왔는지"를
+  /// 알고 싶다면 이 함수를 streak 갱신보다 먼저 불러야 합니다.
+  /// 반환값: 마지막 방문일로부터 오늘까지 며칠이 지났는지(0 = 오늘 이미 방문,
+  /// 1 = 어제 방문해서 정상적으로 이어지는 하루, 2 이상 = 그만큼 결석).
+  /// 아직 한 번도 방문한 적이 없다면 0을 반환합니다(신규 사용자는 결석으로
+  /// 취급하지 않음).
+  static Future<int> daysSinceLastVisit() async {
+    final prefs = await SharedPreferences.getInstance();
+    final lastVisit = prefs.getString(_lastVisitKey);
+    if (lastVisit == null) return 0;
+    final lastDate = DateTime.parse(lastVisit);
+    final diff = DateTime.now()
+        .difference(DateTime(lastDate.year, lastDate.month, lastDate.day))
+        .inDays;
+    return diff < 0 ? 0 : diff;
   }
 
   /// 오늘 이미 성장 미션(편지+명상)을 완수했는지 여부.
@@ -249,21 +319,7 @@ class StorageService {
     await prefs.setBool(_notificationOptInKey, v);
   }
 
-  // ---- Onboarding v2 (감정 인식 루프 기준 5화면 온보딩, 앱 최초 1회) ----
-  // v1(웰컴투어+편지쓰기 온보딩)을 대체하는 새 통합 온보딩 플래그입니다.
-  static const String _onboardingV2DoneKey = 'onboarding_v2_completed';
-
-  static Future<bool> isOnboardingV2Completed() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_onboardingV2DoneKey) ?? false;
-  }
-
-  static Future<void> setOnboardingV2Completed() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_onboardingV2DoneKey, true);
-  }
-
-  // ---- Welcome Intro (앱 최초 실행 시 1회만 보여주는 프리미엄 웰컴 투어) ----
+  // ---- Welcome Intro (앱 최초 실행 시 1회만 보여주는 3단계 웰컴 투어) ----
   static const String _welcomeIntroDoneKey = 'welcome_intro_completed_v1';
   static const String _companionNameKey = 'companion_name';
 
@@ -275,19 +331,6 @@ class StorageService {
   static Future<void> setWelcomeIntroCompleted() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_welcomeIntroDoneKey, true);
-  }
-
-  // ---- Video Intro (앱 최초 실행 시 1회만 보여주는 짧은 인트로 영상) ----
-  static const String _videoIntroDoneKey = 'video_intro_completed_v1';
-
-  static Future<bool> isVideoIntroCompleted() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_videoIntroDoneKey) ?? false;
-  }
-
-  static Future<void> setVideoIntroCompleted() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_videoIntroDoneKey, true);
   }
 
   /// 사용자가 지어준 companion(아기고양이)의 이름을 저장합니다.
@@ -495,5 +538,124 @@ class StorageService {
         )
         .where((e) => e.monthKey == monthKey)
         .toList();
+  }
+
+  // ── 데일리 카드뽑기(무의식) 히스토리 ──
+  // 매일 완전 무작위로 뽑히는 카드를 영구적으로 축적합니다. '의식적 선택'
+  // (LetterEntry)과 비교해 동시성/반복되는 그림자를 관찰하는 데 쓰입니다.
+  static Box get dailyDrawBox {
+    if (_dailyDrawBox == null || !_dailyDrawBox!.isOpen) {
+      throw Exception('StorageService: 사용자가 설정되지 않았습니다 (setCurrentUser 먼저 호출)');
+    }
+    return _dailyDrawBox!;
+  }
+
+  static Future<void> saveDailyDraw(DailyDrawEntry entry) async {
+    await dailyDrawBox.put(entry.id, entry.toMap());
+  }
+
+  static List<DailyDrawEntry> getAllDailyDraws() {
+    final entries = dailyDrawBox.values
+        .map(
+          (e) => DailyDrawEntry.fromMap(Map<dynamic, dynamic>.from(e as Map)),
+        )
+        .toList();
+    entries.sort((a, b) => b.date.compareTo(a.date));
+    return entries;
+  }
+
+  // ── 그림자 방울 한마디(BubbleMemo) ──
+  // '오늘의 그림자 방울 터뜨리기' 중, 정식 편지보다 훨씬 가벼운 한마디를
+  // 감정 고양이에게 남길 수 있는 선택 기록입니다. 편지(LetterEntry)와 같은
+  // 저장 영역(Hive) 안에 별도 박스로 함께 관리되며, "짧은 메모" 타입으로
+  // 뚜렷이 구분됩니다. 이후 같은 감정의 방울이 다시 생겼을 때, 그 고양이가
+  // 이 한마디를 낮은 확률로 회상해주는 재료로 쓰입니다.
+  static Box get bubbleMemoBox {
+    if (_bubbleMemoBox == null || !_bubbleMemoBox!.isOpen) {
+      throw Exception('StorageService: 사용자가 설정되지 않았습니다 (setCurrentUser 먼저 호출)');
+    }
+    return _bubbleMemoBox!;
+  }
+
+  static Future<void> saveBubbleMemo(BubbleMemoEntry entry) async {
+    await bubbleMemoBox.put(entry.id, entry.toMap());
+  }
+
+  static List<BubbleMemoEntry> getAllBubbleMemos() {
+    final entries = bubbleMemoBox.values
+        .map(
+          (e) => BubbleMemoEntry.fromMap(Map<dynamic, dynamic>.from(e as Map)),
+        )
+        .toList();
+    entries.sort((a, b) => b.date.compareTo(a.date));
+    return entries;
+  }
+
+  /// 특정 감정 고양이에게 남겼던 한마디들을 최신순으로 반환합니다.
+  static List<BubbleMemoEntry> getBubbleMemosForCat(String catId) {
+    return getAllBubbleMemos().where((e) => e.catId == catId).toList();
+  }
+
+  /// 이 한마디를 방금 회상(캐릭터 대사창에 노출)했다고 표시합니다.
+  /// 같은 한마디가 너무 자주 반복 회상되어 예측 가능해지지 않도록,
+  /// 회상 빈도를 제한하는 데 쓰입니다.
+  static Future<void> markBubbleMemoRecalled(String id) async {
+    final raw = bubbleMemoBox.get(id);
+    if (raw == null) return;
+    final entry = BubbleMemoEntry.fromMap(
+      Map<dynamic, dynamic>.from(raw as Map),
+    );
+    await bubbleMemoBox.put(
+      id,
+      entry.copyWith(lastRecalledAt: DateTime.now()).toMap(),
+    );
+  }
+
+  // ── 유료(Basic 구독) 캐릭터 잠금 미리보기: 무료 사용자 안내/집계 ──
+  // (기기 전체 공통, 계정과 무관 - 안내 배너는 기기당 1회만, 시도 집계는
+  // 마케팅/전환 분석용 참고 지표이므로 계정 전환과 무관하게 누적됩니다)
+
+  /// "42가지 감정으로도 충분히..." 안내 배너를 이미 봤는지 여부.
+  /// 감정체크 화면 진입 시 1회만 노출하기 위한 플래그입니다.
+  static const String _freeReassuranceSeenKey = 'free_tier_reassurance_seen_v1';
+
+  static Future<bool> hasSeenFreeTierReassurance() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_freeReassuranceSeenKey) ?? false;
+  }
+
+  static Future<void> markFreeTierReassuranceSeen() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_freeReassuranceSeenKey, true);
+  }
+
+  /// 무료 사용자가 유료 캐릭터를 탭(선택 시도)한 횟수를 캐릭터별로 누적
+  /// 집계합니다. 어떤 유료 감정이 구독 전환의 가장 강한 동기인지 분석하는
+  /// 용도입니다(서버 없이 로컬에만 쌓이는 참고 지표).
+  static const String _premiumAttemptPrefix = 'premium_attempt_count_';
+
+  static Future<void> recordPremiumCatAttempt(String catId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final key = '$_premiumAttemptPrefix$catId';
+    final current = prefs.getInt(key) ?? 0;
+    await prefs.setInt(key, current + 1);
+  }
+
+  /// 특정 유료 캐릭터에 대한 누적 시도 횟수.
+  static Future<int> getPremiumCatAttemptCount(String catId) async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt('$_premiumAttemptPrefix$catId') ?? 0;
+  }
+
+  /// 모든 유료 캐릭터의 누적 시도 횟수를 한 번에 조회합니다(분석/디버그용).
+  static Future<Map<String, int>> getAllPremiumCatAttemptCounts(
+    List<String> premiumCatIds,
+  ) async {
+    final prefs = await SharedPreferences.getInstance();
+    final result = <String, int>{};
+    for (final id in premiumCatIds) {
+      result[id] = prefs.getInt('$_premiumAttemptPrefix$id') ?? 0;
+    }
+    return result;
   }
 }

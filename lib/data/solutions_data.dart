@@ -12,6 +12,23 @@ class SolutionGuide {
   });
 }
 
+/// 명상/움직임 가이드의 안내 영상이 들어갈 자리(에셋 경로) 규칙.
+///
+/// ⚠️ 개발자 인수인계 안내 ⚠️
+/// 명상 영상을 촬영/제작해서 넣고 싶다면, 아래 규칙에 맞춰 파일 이름을
+/// 지어 `assets/video/meditation/` 폴더에 넣기만 하면 됩니다. 코드를
+/// 추가로 수정할 필요가 없습니다 — [MeditationVideoPlayer]가 해당
+/// 파일이 있으면 자동으로 "영상으로 따라하기" 재생 버튼을 보여주고,
+/// 파일이 없으면 지금처럼 텍스트 가이드만 조용히 보여줍니다.
+///
+/// 예) '태극권 - 구름 손' 가이드(키: 'taichi')의 영상을 넣고 싶다면:
+///   assets/video/meditation/taichi.mp4
+///
+/// 전체 가이드 키 목록은 [breathingGuide]의 키(= 아래 맵의 key)를 참고하세요.
+/// (breathing, boxBreathing, grounding, bodyScan, taichi, walkingMeditation …)
+String meditationVideoAssetPath(String guideKey) =>
+    'assets/video/meditation/$guideKey.mp4';
+
 final Map<String, SolutionGuide> breathingGuide = {
   'breathing': const SolutionGuide(
     title: '4-4-6 호흡법',
@@ -205,6 +222,144 @@ final Map<String, SolutionGuide> breathingGuide = {
       '5분 정도, 그저 존재하는 것만으로 충분한 시간을 가져보세요.',
     ],
   ),
+  '478Breathing': const SolutionGuide(
+    title: '4-7-8 호흡법',
+    icon: '🌊',
+    subtitle: '호흡 명상',
+    steps: [
+      '혀끝을 앞니 뒤 입천장에 살짝 대고 시작해보세요.',
+      '4초 동안 코로 조용히 숨을 들이마셔요.',
+      '7초 동안 숨을 참아요.',
+      '8초 동안 "후~" 소리를 내며 입으로 길게 내쉬어요.',
+      '이 호흡을 4회 반복하며 몸이 점점 무거워지는 걸 느껴보세요.',
+    ],
+  ),
+  'humBreathing': const SolutionGuide(
+    title: '허밍 호흡 (콧노래 호흡)',
+    icon: '🎵',
+    subtitle: '호흡 명상',
+    steps: [
+      '편안히 앉아 코로 천천히 숨을 들이마셔요.',
+      '숨을 내쉴 때 "음~" 소리를 내며 콧노래처럼 허밍해보세요.',
+      '목과 가슴에 울리는 진동을 느껴보세요.',
+      '이 허밍 호흡을 5~8회 반복하며 마음이 차분해지는 걸 느껴보세요.',
+    ],
+  ),
+  'noteAwareness': const SolutionGuide(
+    title: '지금 이 순간 알아차리기',
+    icon: '📍',
+    subtitle: '알아차림',
+    steps: [
+      '잠시 하던 일을 멈추고 지금 있는 자리를 느껴보세요.',
+      '지금 몸이 어떤 자세로 있는지 알아차려보세요.',
+      '지금 마음속에 어떤 감정이 있는지 이름을 붙여보세요 (예: "지금 나는 조금 지쳐있구나").',
+      '판단하지 말고, 그저 "지금 이렇구나" 하고 알아차리는 것으로 충분해요.',
+    ],
+  ),
+  'soundListening': const SolutionGuide(
+    title: '소리 명상',
+    icon: '🔔',
+    subtitle: '알아차림',
+    steps: [
+      '눈을 감고 주변에서 들리는 소리에 귀 기울여보세요.',
+      '가장 가까운 소리부터, 가장 먼 소리까지 차례로 찾아보세요.',
+      '소리를 좋고 싫음으로 판단하지 말고 그저 소리 그대로 들어보세요.',
+      '소리 사이에 있는 고요함도 함께 느껴보세요.',
+      '1~2분 정도 이어가며 마음이 조금씩 가라앉는 걸 느껴보세요.',
+    ],
+  ),
+  'shoulderRelease': const SolutionGuide(
+    title: '어깨·목 스트레칭',
+    icon: '🙆',
+    subtitle: '움직이는 명상',
+    steps: [
+      '어깨를 귀 쪽으로 천천히 끌어올려보세요.',
+      '3초간 멈춘 뒤, 숨을 내쉬며 툭 떨어뜨려보세요.',
+      '고개를 오른쪽으로 천천히 기울여 목 옆쪽을 늘려보세요 (5초).',
+      '반대쪽도 같은 방식으로 늘려보세요 (5초).',
+      '어깨를 뒤로 5회, 앞으로 5회 천천히 돌려보세요.',
+    ],
+  ),
+  'handStretch': const SolutionGuide(
+    title: '손·손목 풀어주기',
+    icon: '🤲',
+    subtitle: '움직이는 명상',
+    steps: [
+      '양손을 앞으로 뻗고 손가락을 활짝 펼쳐보세요.',
+      '손목을 천천히 시계 방향으로 5회 돌려보세요.',
+      '반시계 방향으로도 5회 돌려보세요.',
+      '두 손을 맞대고 꾹 눌러 손목 안쪽을 늘려보세요.',
+      '마지막으로 손을 가볍게 털어 긴장을 흘려보내세요.',
+    ],
+  ),
+  'letterToSelf': const SolutionGuide(
+    title: '나에게 편지쓰기',
+    icon: '💌',
+    subtitle: '표현하기',
+    steps: [
+      '오늘의 나에게 짧은 편지를 써보세요.',
+      '"오늘 너는 이런 걸 잘 견뎌냈어" 하고 시작해보세요.',
+      '지금 힘든 점이 있다면 있는 그대로 적어보세요.',
+      '마지막엔 "그래도 괜찮아, 나는 나를 응원해" 로 마무리해보세요.',
+    ],
+  ),
+  'threeGoodThings': const SolutionGuide(
+    title: '오늘의 좋았던 3가지',
+    icon: '🍀',
+    subtitle: '표현하기',
+    steps: [
+      '오늘 하루 중 작지만 좋았던 순간 3가지를 떠올려보세요.',
+      '각 순간을 한 문장으로 적어보세요.',
+      '그 순간이 왜 좋았는지 한 줄 덧붙여보세요.',
+      '적은 문장을 소리 내어 읽어보며 다시 느껴보세요.',
+    ],
+  ),
+  'safePlaceVisualization': const SolutionGuide(
+    title: '안전한 장소 떠올리기',
+    icon: '🏡',
+    subtitle: '진정 · 이완',
+    steps: [
+      '눈을 감고 나만 알고 있는 편안한 장소를 떠올려보세요.',
+      '그곳의 풍경, 냄새, 온도를 하나씩 상상해보세요.',
+      '그곳에 있는 나 자신의 표정을 떠올려보세요.',
+      '"나는 지금 안전하다"고 마음속으로 말해보세요.',
+      '천천히 눈을 뜨며 그 편안함을 지금 이 순간으로 가져와보세요.',
+    ],
+  ),
+  'anxietyContainer': const SolutionGuide(
+    title: '불안 담아두기 상상법',
+    icon: '📦',
+    subtitle: '진정 · 이완',
+    steps: [
+      '지금 느껴지는 불안을 하나의 물건이라고 상상해보세요.',
+      '마음속에 튼튼한 상자를 하나 떠올려보세요.',
+      '그 불안을 상자 안에 조심스럽게 넣어보세요.',
+      '상자 뚜껑을 닫고, "지금은 여기 잠시 놓아둘게" 라고 말해보세요.',
+      '필요할 때 다시 열어볼 수 있다는 걸 기억하며 마음을 놓아보세요.',
+    ],
+  ),
+  'napPrep': const SolutionGuide(
+    title: '낮잠 전 짧은 이완',
+    icon: '☁️',
+    subtitle: '수면 명상',
+    steps: [
+      '눕거나 편안히 기대어 눈을 감아보세요.',
+      '숨을 3번 천천히 들이마시고 내쉬어보세요.',
+      '"지금은 잠깐 쉬어도 되는 시간"이라고 스스로에게 말해주세요.',
+      '몸의 무게를 바닥에 맡기고 10분 정도 편히 쉬어보세요.',
+    ],
+  ),
+  'morningGratitude': const SolutionGuide(
+    title: '아침 감사 인사',
+    icon: '🌤️',
+    subtitle: '감사 명상',
+    steps: [
+      '눈을 뜨고 오늘 하루가 시작됨을 느껴보세요.',
+      '오늘 만나게 될 사람이나 순간 중 기대되는 것 하나를 떠올려보세요.',
+      '"오늘도 무사히 하루를 시작할 수 있어 감사하다" 고 마음속으로 말해보세요.',
+      '가볍게 스트레칭하며 하루를 맞이해보세요.',
+    ],
+  ),
 };
 
 /// 솔루션 대분류 (탭 그룹)
@@ -223,48 +378,97 @@ class SolutionCategory {
 
 const List<SolutionCategory> solutionCategories = [
   SolutionCategory(
-    key: 'breath',
-    label: '호흡 명상',
-    icon: '🌬️',
-    guideKeys: ['breathing', 'boxBreathing'],
+    key: 'depressed',
+    label: '우울할 때',
+    icon: '🌧️',
+    guideKeys: [
+      'mindfulThought',
+      'selfCompassion',
+      'lovingKindness',
+      'writing',
+      'letterToSelf',
+      'threeGoodThings',
+    ],
   ),
   SolutionCategory(
-    key: 'awareness',
-    label: '알아차림',
-    icon: '👁️',
-    guideKeys: ['grounding', 'bodyScan', 'mindfulThought'],
+    key: 'angry',
+    label: '화날 때',
+    icon: '🔥',
+    guideKeys: [
+      'angerCooling',
+      'tensionRelease',
+      'boxBreathing',
+      '478Breathing',
+      'anxietyContainer',
+      'safePlaceVisualization',
+    ],
+  ),
+  SolutionCategory(
+    key: 'tired',
+    label: '피곤할 때',
+    icon: '🌙',
+    guideKeys: [
+      'breathing',
+      'bodyScan',
+      'sleepMeditation',
+      'deepRestMeditation',
+      'napPrep',
+      'humBreathing',
+    ],
+  ),
+  SolutionCategory(
+    key: 'lethargic',
+    label: '무기력할 때',
+    icon: '🫥',
+    guideKeys: [
+      'noteAwareness',
+      'soundListening',
+      'morningGratitude',
+      'gratitudeExpansion',
+      'grounding',
+    ],
   ),
   SolutionCategory(
     key: 'movement',
-    label: '움직이는 명상',
-    icon: '☯️',
-    guideKeys: ['taichi', 'walkingMeditation', 'stretching'],
-  ),
-  SolutionCategory(
-    key: 'expression',
-    label: '표현하기',
-    icon: '🌸',
-    guideKeys: ['writing', 'selfCompassion', 'lovingKindness'],
-  ),
-  SolutionCategory(
-    key: 'calmDown',
-    label: '진정 · 이완',
-    icon: '🕊️',
-    guideKeys: ['tensionRelease', 'angerCooling'],
-  ),
-  SolutionCategory(
-    key: 'restSleep',
-    label: '수면 · 휴식',
-    icon: '🌙',
-    guideKeys: ['sleepMeditation', 'deepRestMeditation'],
-  ),
-  SolutionCategory(
-    key: 'gratitude',
-    label: '감사 · 확장',
-    icon: '🌷',
-    guideKeys: ['gratitudeExpansion'],
+    label: '기타 · 움직임 명상',
+    icon: '🚶',
+    guideKeys: [
+      'taichi',
+      'walkingMeditation',
+      'stretching',
+      'shoulderRelease',
+      'handStretch',
+    ],
   ),
 ];
+
+/// 카테고리 key로 [SolutionCategory]를 찾습니다.
+SolutionCategory? solutionCategoryByKey(String key) {
+  for (final c in solutionCategories) {
+    if (c.key == key) return c;
+  }
+  return null;
+}
+
+/// 오늘 고른 감정 이모티콘([MoodPicker]에서 선택한 값)에 가장 잘 맞는 명상
+/// 카테고리 key를 돌려줍니다. 맑음/설렘/행복처럼 이미 편안하거나 중립적인
+/// 감정이라면 굳이 대처법을 추천하지 않고 null을 돌려줍니다.
+String? solutionCategoryKeyForMood(String emoji) {
+  switch (emoji) {
+    case '🌧️': // 우울함
+    case '😢': // 슬픔
+      return 'depressed';
+    case '🌪️': // 화남
+      return 'angry';
+    case '⛈️': // 힘듦
+    case '❄️': // 지침
+      return 'tired';
+    case '😴': // 무기력
+      return 'lethargic';
+    default:
+      return null;
+  }
+}
 
 /// (하위 호환) 전체 카테고리 버튼 키 목록 - 기존 위젯 호환용
 List<String> get solutionCategoryKeys =>

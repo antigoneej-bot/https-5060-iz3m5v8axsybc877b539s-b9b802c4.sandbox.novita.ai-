@@ -3,11 +3,14 @@ import '../models/shadow_cat.dart';
 import '../services/daily_card_service.dart';
 import '../services/sound_service.dart';
 
-enum DailyCardStage { spread, revealed }
+/// shuffling: 카드가 뒤섞이는 3초 연출(셔플 사운드와 함께) 단계
+/// spread: 부채꼴로 펼쳐진 카드 중 한 장을 고르는 단계
+/// revealed: 고른 카드가 뒤집혀 결과를 보여주는 단계
+enum DailyCardStage { shuffling, spread, revealed }
 
 /// 데일리 내면소통(카드뽑기) 상태를 관리하는 Provider
 class DailyCardProvider extends ChangeNotifier {
-  DailyCardStage stage = DailyCardStage.spread;
+  DailyCardStage stage = DailyCardStage.shuffling;
   ShadowCat? drawnCard;
   bool isLoading = true;
   bool alreadyDrawnToday = false;
@@ -23,9 +26,18 @@ class DailyCardProvider extends ChangeNotifier {
     } else {
       drawnCard = null;
       alreadyDrawnToday = false;
-      stage = DailyCardStage.spread;
+      stage = DailyCardStage.shuffling;
+      // 셔플 연출이 시작되는 순간 섞는 소리를 함께 재생합니다.
+      await SoundService().playShuffle();
     }
     isLoading = false;
+    notifyListeners();
+  }
+
+  /// 셔플 연출(3초)이 끝났을 때 호출 - 카드를 고를 수 있는 스프레드 단계로 전환
+  void finishShuffle() {
+    if (stage != DailyCardStage.shuffling) return;
+    stage = DailyCardStage.spread;
     notifyListeners();
   }
 
@@ -40,7 +52,7 @@ class DailyCardProvider extends ChangeNotifier {
   }
 
   void reset() {
-    stage = DailyCardStage.spread;
+    stage = DailyCardStage.shuffling;
     drawnCard = null;
     alreadyDrawnToday = false;
     isLoading = true;

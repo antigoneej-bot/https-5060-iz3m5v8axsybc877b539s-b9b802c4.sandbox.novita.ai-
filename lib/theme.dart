@@ -40,7 +40,7 @@ class AppColors {
   // 데일리 내면소통 = 휴식 → 딥 네이비
   static const catNavy = Color(0xFF3A4664);
   static const catNavyBg = Color(0xFFE9EBF2);
-  // 그림자 고양이들 (36마리 도감) = 고양이정원 → 올리브
+  // 그림자 고양이들 (42마리 도감) = 고양이정원 → 올리브
   static const catOlive = Color(0xFF8D8C57);
   static const catOliveBg = Color(0xFFF2F0E0);
   // 오늘의 감정 고양이 만나기 = 감정케어 → 소프트 피치

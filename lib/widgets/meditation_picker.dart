@@ -98,7 +98,10 @@ class _MeditationPickerState extends State<MeditationPicker> {
           ),
           if (selectedKey != null) ...[
             const SizedBox(height: 16),
-            GuideSteps(guide: breathingGuide[selectedKey]!),
+            GuideSteps(
+              guide: breathingGuide[selectedKey]!,
+              guideKey: selectedKey,
+            ),
           ],
         ],
       ),

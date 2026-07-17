@@ -67,13 +67,13 @@ class _LevelUpOverlayState extends State<LevelUpOverlay>
   String get _stageLabel {
     switch (widget.stage) {
       case CatGrowthStage.baby:
-        return '아기 고양이';
+        return '0단계 · 아기 고양이';
       case CatGrowthStage.teen:
-        return '소년 고양이';
+        return '1단계 · 소년 고양이';
       case CatGrowthStage.young:
-        return '청년 고양이';
+        return '2단계 · 청년 고양이';
       case CatGrowthStage.adult:
-        return '다 자란 고양이';
+        return '3단계 · 다 자란 고양이';
     }
   }
 

@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'dart:math';
 import '../theme.dart';
+import '../providers/app_state_provider.dart';
 import 'ambient_cat_garden.dart';
+import 'garden_weather_layer.dart';
 
 /// 밝고 산뜻한 배경 위를 부드럽게 떠다니는 꽃잎 & 반짝임 파티클
 class StarsBackground extends StatefulWidget {
@@ -212,6 +215,11 @@ class GardenScaffoldBackground extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 정원 날씨(최근 7일 감정 기록의 분위기)는 데이터 시각화이므로,
+    // history가 갱신될 때마다(편지 저장, 앱 재실행 등) 자연스럽게 다시
+    // 계산되도록 watch로 구독합니다. 별도 알림/팝업 없이 화면에 진입하는
+    // 순간 배경에 조용히 반영됩니다.
+    final weather = context.watch<AppStateProvider>().gardenWeather;
     return Container(
       decoration: const BoxDecoration(
         gradient: RadialGradient(
@@ -225,6 +233,7 @@ class GardenScaffoldBackground extends StatelessWidget {
         children: [
           const Positioned.fill(child: StarsBackground()),
           const Positioned.fill(child: _SwayingLeavesLayer()),
+          Positioned.fill(child: GardenWeatherLayer(kind: weather.kind)),
           const Positioned.fill(child: AmbientCatGardenLayer()),
           child,
         ],

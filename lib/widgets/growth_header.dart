@@ -1,31 +1,23 @@
 import 'package:flutter/material.dart';
 import '../theme.dart';
+import '../models/cat_care_state.dart';
 import 'garden_path_card.dart';
 
-/// 14일 안에 미션을 10번 완수(하루 1도씩 적립)하면 레벨업되는 진행 상황 표시.
-/// 딱딱한 흰 사각 박스 대신, 반투명 파스텔 블롭(GlassBlob) 위에 얹어
-/// 바로 위 '며칠째 함께하는 중' 블롭과 톤이 이어지도록 합니다.
+/// 마음 온도(0~100도)와 성장 단계(30일 출석 단위)를 함께 보여주는 헤더.
+/// - 위쪽 원형 배지: 현재 성장 단계 번호(0~3단계)
+/// - 진행 바: 지금 마음 온도(0~100도)
+/// - 하단 문구: 다음 단계까지 남은 출석일수
 class GrowthHeader extends StatelessWidget {
-  final int level;
-  final int points; // 적립된 온도(=완수 일수)
-  final int elapsedDays; // 도전 시작 후 지난 일수 (0이면 도전 전)
-  final int goalPoints;
-  final int windowDays;
-  const GrowthHeader({
-    super.key,
-    required this.level,
-    required this.points,
-    required this.elapsedDays,
-    required this.goalPoints,
-    required this.windowDays,
-  });
+  final CatCareState state;
+  const GrowthHeader({super.key, required this.state});
 
   @override
   Widget build(BuildContext context) {
-    final progress = (points / goalPoints).clamp(0.0, 1.0);
-    final dayLabel = elapsedDays == 0
-        ? '아직 도전 전'
-        : '$elapsedDays / $windowDays일째';
+    final progress = (state.temperature / 100).clamp(0.0, 1.0);
+    final remain = state.daysUntilNextStage;
+    final dayLabel = remain == null
+        ? '가장 높은 단계까지 자랐어요'
+        : '다음 단계까지 출석 $remain일 남음';
     return GlassBlob(
       accent: AppColors.blobMintAccent,
       background: AppColors.blobMint,
@@ -51,7 +43,7 @@ class GrowthHeader extends StatelessWidget {
                   ),
                 ),
                 child: Text(
-                  '$level',
+                  '${state.growthLevelNumber}',
                   style: numberFont(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
@@ -65,7 +57,7 @@ class GrowthHeader extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '성장 $level단계',
+                      state.growthStageLabel,
                       style: pathLabelFont(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
@@ -74,7 +66,7 @@ class GrowthHeader extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '마음 온도 $points° / $goalPoints°  ·  $dayLabel',
+                      '마음 온도 ${state.temperature}° / 100°  ·  $dayLabel',
                       style: bodyFont(fontSize: 11.5, color: AppColors.inkSoft),
                     ),
                   ],

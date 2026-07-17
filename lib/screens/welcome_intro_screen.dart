@@ -61,8 +61,9 @@ class _WelcomeIntroScreenState extends State<WelcomeIntroScreen> {
   bool _showGreeting = false;
   String _greetingName = '';
 
-  // 이름짓기 화면을 앱 실행 시 가장 먼저 보여줘서, 이름을 지어준 순간부터
-  // 곧바로 그 이름과 함께 몰입할 수 있도록 첫 페이지에 배치합니다.
+  // 온보딩은 딱 3단계로만 구성합니다: ①이름짓기 → ②컨셉 소개(통합) → ③여정
+  // 시작. 예전에는 필러성 인사말/프리뷰 페이지가 더 있었지만, 사용자가
+  // 앱에 들어오기까지 너무 많은 화면을 거치지 않도록 최소한으로 줄였습니다.
   static const List<_IntroPageData> _pages = [
     _IntroPageData(
       imageAsset: 'assets/onboarding_intro/intro_naming_kitten.png',
@@ -71,18 +72,10 @@ class _WelcomeIntroScreenState extends State<WelcomeIntroScreen> {
       isNamingPage: true,
     ),
     _IntroPageData(
-      imageAsset: 'assets/onboarding_intro/intro_1_garden_smile.png',
-      title: '마음을 돌보는\n가장 따뜻한 여행이 시작됩니다.',
-    ),
-    _IntroPageData(
-      imageAsset: 'assets/onboarding_intro/intro_2_circle_emotions.png',
-      title: '오늘의 마음을 닮은\n고양이를 만나보세요.',
-    ),
-    _IntroPageData(
       imageAsset: 'assets/onboarding_intro/intro_3_growth.png',
-      title: '명상을 할수록\n당신과 고양이가 함께 성장합니다.',
+      title: '오늘의 마음을 닮은 고양이를 만나\n그림자를 인정하고 받아들이세요.',
+      subtitle: '그러면 당신의 마음고양이와 함께 성장합니다.\n내면소통 \'고양이 그림자 정원\'',
     ),
-    _IntroPageData(title: '작은 실천이\n당신의 마음을 변화시킵니다.'),
     _IntroPageData(
       imageAsset: 'assets/onboarding_intro/intro_5_garden_grown.png',
       title: '이제 당신만의\n마음 정원을 만들어 보세요.',
@@ -212,11 +205,7 @@ class _WelcomeIntroScreenState extends State<WelcomeIntroScreen> {
       padding: const EdgeInsets.fromLTRB(28, 20, 28, 0),
       child: Column(
         children: [
-          Expanded(
-            child: data.imageAsset != null
-                ? _ImageArt(imageAsset: data.imageAsset!)
-                : const _GrowthPreviewArt(),
-          ),
+          Expanded(child: _ImageArt(imageAsset: data.imageAsset!)),
           const SizedBox(height: 22),
           Text(
             data.title,
@@ -294,7 +283,7 @@ class _WelcomeIntroScreenState extends State<WelcomeIntroScreen> {
         ),
       );
     }
-    // 화면 1(가든 스마일)·2·3·4: 스와이프로도 넘어갈 수 있고, 부드러운 다음
+    // 중간 페이지(컨셉 소개): 스와이프로도 넘어갈 수 있고, 부드러운 다음
     // 버튼도 함께 제공합니다. "시작하기" 문구는 마지막 페이지에만 남깁니다.
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 28),
@@ -330,103 +319,6 @@ class _ImageArt extends StatelessWidget {
           width: double.infinity,
         ),
       ),
-    );
-  }
-}
-
-/// 화면 4: 마음 온도계 · 감정 기록 · 명상 기록 · 성장 배지를 코드로 표현한 프리뷰
-class _GrowthPreviewArt extends StatelessWidget {
-  const _GrowthPreviewArt();
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Container(
-        padding: const EdgeInsets.all(22),
-        decoration: BoxDecoration(
-          color: AppColors.bg1,
-          borderRadius: BorderRadius.circular(26),
-          border: Border.all(color: AppColors.line),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 24,
-              offset: const Offset(0, 12),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              '마음 온도',
-              style: bodyFont(fontSize: 12, color: AppColors.inkSoft),
-            ),
-            const SizedBox(height: 8),
-            Container(
-              width: 180,
-              height: 14,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(999),
-                gradient: const LinearGradient(
-                  colors: [
-                    Color(0xFF6FA8DC),
-                    AppColors.gold,
-                    Color(0xFFD9695A),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 22),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _miniBadge(
-                  icon: Icons.favorite_rounded,
-                  label: '감정 기록',
-                  color: AppColors.catDustyRose,
-                  bg: AppColors.catDustyRoseBg,
-                ),
-                const SizedBox(width: 12),
-                _miniBadge(
-                  icon: Icons.self_improvement_rounded,
-                  label: '명상 기록',
-                  color: AppColors.catLavender,
-                  bg: AppColors.catLavenderBg,
-                ),
-                const SizedBox(width: 12),
-                _miniBadge(
-                  icon: Icons.emoji_events_rounded,
-                  label: '성장 배지',
-                  color: AppColors.gold,
-                  bg: const Color(0xFFFCEFD2),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _miniBadge({
-    required IconData icon,
-    required String label,
-    required Color color,
-    required Color bg,
-  }) {
-    return Column(
-      children: [
-        Container(
-          width: 52,
-          height: 52,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
-          child: Icon(icon, color: color, size: 22),
-        ),
-        const SizedBox(height: 6),
-        Text(label, style: bodyFont(fontSize: 10.5, color: AppColors.inkSoft)),
-      ],
     );
   }
 }

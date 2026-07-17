@@ -3,10 +3,12 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:gal/gal.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import '../data/shadow_cats_data.dart';
 import '../models/shadow_cat.dart';
+import '../services/analytics_service.dart';
 import '../theme.dart';
 import 'lively_cat_image.dart';
 
@@ -79,12 +81,39 @@ class _ShareCatCardDialogState extends State<_ShareCatCardDialog> {
       );
       await file.writeAsBytes(bytes);
 
+      // 사진첩(갤러리)에도 함께 저장합니다. 저장이 실패해도(권한 거부 등)
+      // 공유 자체는 계속 진행되도록 별도로 감싸서 처리합니다.
+      bool savedToGallery = false;
+      try {
+        await Gal.putImageBytes(
+          bytes,
+          name: 'shadow_cat_${widget.cat.id}_${DateTime.now().millisecondsSinceEpoch}',
+        );
+        savedToGallery = true;
+        await AnalyticsService().logEvent(AnalyticsEvents.saveCardToGallery, {
+          'card_type': 'cat_card',
+          'cat_id': widget.cat.id,
+        });
+      } catch (e) {
+        if (kDebugMode) debugPrint('갤러리 저장 실패: $e');
+      }
+
       await SharePlus.instance.share(
         ShareParams(
           text: '오늘은 ${widget.cat.nameKr} 고양이를 만났어요 🐾 #고양이그림자정원',
           files: [XFile(file.path)],
         ),
       );
+      await AnalyticsService().logEvent(AnalyticsEvents.shareCard, {
+        'card_type': 'cat_card',
+        'cat_id': widget.cat.id,
+      });
+
+      if (savedToGallery && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('사진첩에도 저장했어요 📷')),
+        );
+      }
     } catch (e) {
       if (kDebugMode) debugPrint('공유 카드 생성 실패: $e');
       if (!mounted) return;
@@ -205,7 +234,11 @@ class ShareCatCardContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final total = shadowCats.length;
+    // ⚠️ 유료(Basic 구독) 고양이는 잠겨있으면 탭해도 "만남" 처리가 되지
+    // 않아, 비구독자는 42마리를 넘어 "만날" 수 없습니다. shadowCats.length
+    // (52)를 분모로 쓰면 영원히 채울 수 없는 목표가 되므로 무료 42마리
+    // 기준으로 표시합니다.
+    final total = freeShadowCats.length;
     return Container(
       width: 300,
       padding: const EdgeInsets.fromLTRB(22, 28, 22, 24),
@@ -285,7 +318,7 @@ class ShareCatCardContent extends StatelessWidget {
               borderRadius: BorderRadius.circular(16),
             ),
             child: Text(
-              '36마리 중 $metCount마리를 만났어요',
+              '$total마리 중 $metCount마리를 만났어요',
               textAlign: TextAlign.center,
               style: bodyFont(
                 fontSize: 12,

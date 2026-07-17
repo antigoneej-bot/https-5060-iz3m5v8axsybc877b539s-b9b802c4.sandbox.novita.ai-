@@ -1,17 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_state_provider.dart';
+import '../services/analytics_service.dart';
+import '../services/daily_card_service.dart';
 import '../services/reflection_service.dart';
-import '../services/subscription_service.dart';
 import '../theme.dart';
 import '../utils/cat_palette.dart';
 import '../widgets/garden_path_card.dart';
+import '../widgets/share_reflection_card.dart';
 import '../widgets/stars_background.dart';
-import 'premium_screen.dart';
 import 'reflection_letter_screen.dart';
 
-/// 월간 회고 — 화면3(서술형 요약) + 화면4(리플렉션 레터 유도, 프리미엄
-/// 전환점)를 세로로 이어 보여주는 스크롤 화면.
+/// 월간 회고 — 화면3(서술형 요약) + 화면4(리플렉션 레터 유도)를 세로로
+/// 이어 보여주는 스크롤 화면.
+///
+/// ⚠️ MVP 정책(6개월 한정): 월간 회고는 전체 무료로 공개합니다. 반응이
+/// 좋으면 이후 유료 요소를 다시 검토할 수 있습니다. 심층 분석형 유료
+/// 기능은 주간 그림자 지도([WeeklyShadowMapScreen])에만 유지됩니다.
 ///
 /// 화면3의 문장은 규칙 기반(빈도 계산 + 템플릿)으로 생성되며, "힘든
 /// 달이었네요" 같은 위로·평가형 표현은 절대 쓰지 않습니다.
@@ -25,23 +30,11 @@ class MonthlyShadowReflectionScreen extends StatefulWidget {
 
 class _MonthlyShadowReflectionScreenState
     extends State<MonthlyShadowReflectionScreen> {
-  bool _loadingPremium = true;
-  bool _isPremium = false;
-
   @override
   void initState() {
     super.initState();
     ReflectionService.markMonthlySeen();
-    _loadPremium();
-  }
-
-  Future<void> _loadPremium() async {
-    final premium = await SubscriptionService().isPremium();
-    if (!mounted) return;
-    setState(() {
-      _isPremium = premium;
-      _loadingPremium = false;
-    });
+    AnalyticsService().logEvent(AnalyticsEvents.monthlyReflectionView);
   }
 
   @override
@@ -93,11 +86,15 @@ class _MonthlyShadowReflectionScreenState
                                   firstHalfCatId: firstHalf,
                                   secondHalfCatId: secondHalf,
                                 ),
-                                const SizedBox(height: 22),
-                                _ReflectionLetterInviteCard(
-                                  isPremium: _isPremium,
-                                  loading: _loadingPremium,
+                                const SizedBox(height: 16),
+                                _ShareMonthlyButton(
+                                  firstHalfCatId: firstHalf,
+                                  secondHalfCatId: secondHalf,
                                 ),
+                                const SizedBox(height: 22),
+                                const _UnconsciousPatternCard(),
+                                const SizedBox(height: 22),
+                                const _ReflectionLetterInviteCard(),
                               ],
                             ),
                     ),
@@ -191,16 +188,103 @@ class _MonthlySummaryCard extends StatelessWidget {
   }
 }
 
-/// 화면 4 — 월간 리플렉션 레터 유도(프리미엄 전환점).
-/// 무료 유저는 탭하면 프리미엄 안내로, 프리미엄 유저는 실제 답장 작성
-/// 화면으로 이동합니다.
-class _ReflectionLetterInviteCard extends StatelessWidget {
-  final bool isPremium;
-  final bool loading;
-  const _ReflectionLetterInviteCard({
-    required this.isPremium,
-    required this.loading,
+/// 이번 달 돌아보기 문장을 캡처 가능한 카드로 공유하는 버튼.
+class _ShareMonthlyButton extends StatelessWidget {
+  final String? firstHalfCatId;
+  final String? secondHalfCatId;
+  const _ShareMonthlyButton({
+    required this.firstHalfCatId,
+    required this.secondHalfCatId,
   });
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: OutlinedButton.icon(
+        onPressed: () {
+          final sentence = ReflectionService.buildMonthlySummarySentence(
+            firstHalfCatId: firstHalfCatId,
+            secondHalfCatId: secondHalfCatId,
+          );
+          final accentCatId = secondHalfCatId ?? firstHalfCatId;
+          showShareReflectionCard(
+            context,
+            cardContent: ShareMonthlyCardContent(
+              sentence: sentence,
+              accentCatId: accentCatId,
+            ),
+            shareText: '이번 달 나의 그림자 정원 이야기 🌙 #고양이그림자정원',
+          );
+        },
+        icon: Icon(
+          Icons.ios_share_rounded,
+          size: 16,
+          color: AppColors.blobLavenderAccent,
+        ),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AppColors.blobLavenderAccent,
+          side: BorderSide(
+            color: AppColors.blobLavenderAccent.withValues(alpha: 0.5),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(999),
+          ),
+        ),
+        label: Text(
+          '이번 달 이야기 공유하기',
+          style: pathLabelFont(
+            fontSize: 13,
+            color: AppColors.blobLavenderAccent,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// "이번 달 무의식이 보여준 패턴" — 데일리 카드뽑기(완전 무작위) 히스토리를
+/// 바탕으로 반복되는 그림자를 알려주는 섹션.
+///
+/// ⚠️ MVP 정책(6개월 한정): 월간 회고는 전체 무료로 공개합니다(심층 분석은
+/// 주간 그림자 지도([WeeklyShadowMapScreen])에만 유료로 유지).
+class _UnconsciousPatternCard extends StatelessWidget {
+  const _UnconsciousPatternCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final draws = DailyCardService.getAllDraws();
+    final sentence = ReflectionService.repeatedShadowSentence(draws);
+    return GlassBlob(
+      accent: AppColors.blobPeriwinkleAccent,
+      background: AppColors.blobPeriwinkle,
+      floatSeed: 33,
+      padding: const EdgeInsets.fromLTRB(22, 24, 22, 24),
+      child: Column(
+        children: [
+          const Text('🌘', style: TextStyle(fontSize: 28)),
+          const SizedBox(height: 12),
+          Text(
+            '이번 달, 무의식이\n보여준 패턴',
+            textAlign: TextAlign.center,
+            style: titleFont(fontSize: 18, color: AppColors.ink, height: 1.5),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            sentence ??
+                '아직 데일리 카드뽑기 기록이 충분하지 않아요.\n매일 카드를 뽑으면 반복되는 그림자를 관찰할 수 있어요.',
+            textAlign: TextAlign.center,
+            style: bodyFont(fontSize: 13, color: AppColors.moon, height: 1.5),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 화면 4 — 월간 리플렉션 레터 유도. MVP 기간엔 전체 무료로 공개합니다.
+class _ReflectionLetterInviteCard extends StatelessWidget {
+  const _ReflectionLetterInviteCard();
 
   @override
   Widget build(BuildContext context) {
@@ -220,7 +304,7 @@ class _ReflectionLetterInviteCard extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            isPremium ? '리플렉션 레터 열기' : '프리미엄 · 리플렉션 레터 열기',
+            '리플렉션 레터 열기',
             textAlign: TextAlign.center,
             style: bodyFont(fontSize: 12, color: AppColors.blobLavenderAccent),
           ),
@@ -229,23 +313,13 @@ class _ReflectionLetterInviteCard extends StatelessWidget {
             width: double.infinity,
             height: 50,
             child: ElevatedButton(
-              onPressed: loading
-                  ? null
-                  : () {
-                      if (isPremium) {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => const ReflectionLetterScreen(),
-                          ),
-                        );
-                      } else {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => const PremiumScreen(),
-                          ),
-                        );
-                      }
-                    },
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const ReflectionLetterScreen(),
+                  ),
+                );
+              },
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.blobLavenderAccent,
                 foregroundColor: Colors.white,
@@ -254,19 +328,10 @@ class _ReflectionLetterInviteCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(999),
                 ),
               ),
-              child: loading
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : Text(
-                      isPremium ? '답장 쓰러 가기' : '프리미엄 알아보기',
-                      style: serifFont(fontSize: 14.5, color: Colors.white),
-                    ),
+              child: Text(
+                '답장 쓰러 가기',
+                style: serifFont(fontSize: 14.5, color: Colors.white),
+              ),
             ),
           ),
         ],

@@ -3,11 +3,13 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_state_provider.dart';
 import '../data/shadow_cats_data.dart';
+import '../services/analytics_service.dart';
 import '../services/reflection_service.dart';
 import '../theme.dart';
 import '../utils/cat_palette.dart';
 import '../widgets/garden_path_card.dart';
 import '../widgets/lively_cat_image.dart';
+import '../widgets/share_reflection_card.dart';
 import '../widgets/stars_background.dart';
 
 /// 주간 회고 — 화면1(가장 빈번한 고양이) + 화면2(요일별 흐름 바)를
@@ -30,6 +32,7 @@ class _WeeklyReflectionScreenState extends State<WeeklyReflectionScreen> {
     // 사용자가 직접 들어와 확인했으므로, 자동 노출 배너가 이번 주 안에
     // 다시 뜨지 않도록 '봤음' 표시만 남깁니다(강제 알림과는 무관).
     ReflectionService.markWeeklySeen();
+    AnalyticsService().logEvent(AnalyticsEvents.weeklyReflectionView);
   }
 
   @override
@@ -86,6 +89,12 @@ class _WeeklyReflectionScreenState extends State<WeeklyReflectionScreen> {
                                 ),
                                 const SizedBox(height: 22),
                                 _WeeklyFlowCard(days: days),
+                                const SizedBox(height: 22),
+                                _ShareWeeklyButton(
+                                  topCatId: topCatId,
+                                  recordedDays: recordedDays,
+                                  days: days,
+                                ),
                               ],
                             ),
                     ),
@@ -122,6 +131,63 @@ class _NoDataYet extends StatelessWidget {
             style: bodyFont(fontSize: 12.5, color: AppColors.inkSoft),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// 이번 주 그림자 지도를 캡처 가능한 카드로 공유하는 버튼.
+/// 별도 화면 진입 없이, 이미 화면에 있는 데이터를 그대로 카드에 옮겨
+/// 보여줍니다(무료 기능이라 부담 없이 노출할 수 있음).
+class _ShareWeeklyButton extends StatelessWidget {
+  final String? topCatId;
+  final int recordedDays;
+  final List<MapEntry<DateTime, String?>> days;
+  const _ShareWeeklyButton({
+    required this.topCatId,
+    required this.recordedDays,
+    required this.days,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: OutlinedButton.icon(
+        onPressed: () {
+          final catName = topCatId != null
+              ? ReflectionService.catNameFor(topCatId)
+              : null;
+          showShareReflectionCard(
+            context,
+            cardContent: ShareWeeklyCardContent(
+              topCatId: topCatId,
+              recordedDays: recordedDays,
+              days: days,
+            ),
+            shareText: catName != null
+                ? '이번 주 나의 그림자 고양이는 $catName였어요 🐾 #고양이그림자정원'
+                : '이번 주 그림자 지도를 살펴보고 있어요 🐾 #고양이그림자정원',
+          );
+        },
+        icon: Icon(
+          Icons.ios_share_rounded,
+          size: 16,
+          color: AppColors.blobMintAccent,
+        ),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AppColors.blobMintAccent,
+          side: BorderSide(
+            color: AppColors.blobMintAccent.withValues(alpha: 0.5),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(999),
+          ),
+        ),
+        label: Text(
+          '이번 주 지도 공유하기',
+          style: pathLabelFont(fontSize: 13, color: AppColors.blobMintAccent),
+        ),
       ),
     );
   }

@@ -7,15 +7,19 @@ import 'services/notification_service.dart';
 import 'services/cat_care_service.dart';
 import 'services/daily_card_service.dart';
 import 'services/promise_service.dart';
+import 'services/bubble_garden_service.dart';
+import 'services/buried_emotion_service.dart';
+import 'services/analytics_service.dart';
 import 'providers/app_state_provider.dart';
 import 'providers/cat_care_provider.dart';
 import 'providers/daily_card_provider.dart';
 import 'providers/promise_provider.dart';
+import 'providers/bubble_garden_provider.dart';
+import 'providers/buried_emotion_provider.dart';
 import 'theme.dart';
 import 'widgets/stars_background.dart';
 import 'screens/home_screen.dart';
 import 'screens/welcome_intro_screen.dart';
-import 'screens/video_intro_screen.dart';
 
 /// 로그인 없이 기기 하나당 하나의 로컬 사용자로 동작합니다.
 const String _localUserId = 'local_user';
@@ -24,6 +28,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await StorageService.init();
   await StorageService.recordInstallDateIfNeeded();
+  await AnalyticsService().logRetentionMilestoneIfNeeded();
   await SoundService().init();
   await NotificationService().init();
   await NotificationService().restoreIfEnabled();
@@ -41,6 +46,8 @@ class MysticCatApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => CatCareProvider()),
         ChangeNotifierProvider(create: (_) => DailyCardProvider()),
         ChangeNotifierProvider(create: (_) => PromiseProvider()),
+        ChangeNotifierProvider(create: (_) => BubbleGardenProvider()),
+        ChangeNotifierProvider(create: (_) => BuriedEmotionProvider()),
       ],
       child: MaterialApp(
         title: '고양이 그림자 정원',
@@ -61,13 +68,13 @@ class _AppRoot extends StatefulWidget {
 class _AppRootState extends State<_AppRoot> {
   bool _dataLoaded = false;
   // "회원가입"(온보딩 완료) 여부가 인트로 게이트입니다.
-  // 아직 가입하지 않았다면 앱을 실행할 때마다(재실행 포함) 영상 인트로 →
-  // 웰컴 투어를 매번 처음부터 다시 보여줍니다. 웰컴 투어를 마치면 곧바로
-  // "고양이선택" 탭으로 이동해, 사용자가 실제로 고양이를 고르고 편지를 쓰려는
-  // 순간에 자연스럽게 가입유도(온보딩) 화면이 뜨게 됩니다(별도 라우트).
-  // 이미 가입이 완료되어 있다면 인트로를 전부 건너뛰고 곧바로 홈으로 진입합니다.
+  // 아직 가입하지 않았다면 앱을 실행할 때마다(재실행 포함) 3단계 웰컴
+  // 투어(이름짓기 → 컨셉 소개 → 여정 시작)를 보여줍니다. 웰컴 투어를 마치면
+  // 곧바로 "고양이선택" 탭으로 이동해, 사용자가 실제로 고양이를 고르고
+  // 편지를 쓰려는 순간에 자연스럽게 가입유도(온보딩) 화면이 뜨게 됩니다
+  // (별도 라우트). 이미 가입이 완료되어 있다면 인트로를 전부 건너뛰고
+  // 곧바로 홈으로 진입합니다.
   bool _introChecked = false;
-  bool _needsVideoIntro = false;
   bool _needsWelcomeIntro = false;
 
   @override
@@ -76,14 +83,18 @@ class _AppRootState extends State<_AppRoot> {
     CatCareService.setCurrentUser(_localUserId);
     DailyCardService.setCurrentUser(_localUserId);
     PromiseService.setCurrentUser(_localUserId);
+    BubbleGardenService.setCurrentUser(_localUserId);
     _bootstrap();
   }
 
   Future<void> _bootstrap() async {
+    // BuriedEmotionService는 Hive Box를 열어야 해서(비동기) 다른 서비스처럼
+    // initState에서 바로 호출하지 않고, 다른 부트스트랩 작업과 함께 여기서
+    // await합니다.
+    await BuriedEmotionService.setCurrentUser(_localUserId);
     final signedUp = await StorageService.isOnboardingCompleted();
     if (!mounted) return;
     setState(() {
-      _needsVideoIntro = !signedUp;
       _needsWelcomeIntro = !signedUp;
       _introChecked = true;
     });
@@ -94,21 +105,17 @@ class _AppRootState extends State<_AppRoot> {
       final catCare = context.read<CatCareProvider>();
       final dailyCard = context.read<DailyCardProvider>();
       final promise = context.read<PromiseProvider>();
+      final buriedEmotion = context.read<BuriedEmotionProvider>();
       await appState.init(_localUserId);
       await catCare.load();
       await dailyCard.load();
       await promise.load();
+      await buriedEmotion.load();
       if (!mounted) return;
       setState(() {
         _dataLoaded = true;
       });
     });
-  }
-
-  void _onVideoIntroFinished() async {
-    await StorageService.setVideoIntroCompleted();
-    if (!mounted) return;
-    setState(() => _needsVideoIntro = false);
   }
 
   void _onWelcomeIntroFinished() async {
@@ -130,11 +137,6 @@ class _AppRootState extends State<_AppRoot> {
           FadeTransition(opacity: animation, child: child),
       child: !_introChecked
           ? const _LoadingSplash(key: ValueKey('loading'))
-          : _needsVideoIntro
-          ? VideoIntroScreen(
-              key: const ValueKey('videoIntro'),
-              onFinished: _onVideoIntroFinished,
-            )
           : !_dataLoaded
           ? const _LoadingSplash(key: ValueKey('loading'))
           : _needsWelcomeIntro
