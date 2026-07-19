@@ -3,6 +3,7 @@ import '../models/letter_context.dart';
 import '../models/letter_tags.dart';
 import '../models/cat_care_state.dart';
 import '../data/emotion_tag_mapping.dart';
+import '../data/shadow_cats_data.dart';
 import 'relationship_stage_service.dart';
 
 /// 기존 `AppStateProvider.history`/`CatCareProvider.state`/`StorageService`의
@@ -56,6 +57,22 @@ class LetterContextBuilder {
       ref,
     );
 
+    // 오늘 보낸 편지의 그림자 고양이(catId) 전용 위로/지침을 조회합니다.
+    // 편지를 보낼 때 고른 그림자 고양이는 항상 catId 그 자신이므로(사용자가
+    // "다친 고양이"에게 편지를 쓰면 catId == 'vulnerable'), 이 고양이가 가진
+    // comfortMessage를 그대로 답장에 실어야 "보낸 편지와 답장의 감정이
+    // 서로 맞지 않는" 문제가 생기지 않습니다.
+    String? catComfortMessage;
+    String? catGuidance;
+    try {
+      final companion = shadowCatById(catId);
+      catComfortMessage = companion.comfortMessage;
+      catGuidance = companion.guidance;
+    } catch (_) {
+      // 알 수 없는 catId인 경우(테스트 등) 범용 EmotionTag 문장 풀로
+      // 안전하게 폴백합니다.
+    }
+
     return LetterContext(
       catId: catId,
       todayEmotion: todayEmotion,
@@ -72,6 +89,8 @@ class LetterContextBuilder {
       growthStage: _mapGrowthStage(growthStage),
       intimacyStage: intimacyStage,
       now: ref,
+      catComfortMessage: catComfortMessage,
+      catGuidance: catGuidance,
     );
   }
 

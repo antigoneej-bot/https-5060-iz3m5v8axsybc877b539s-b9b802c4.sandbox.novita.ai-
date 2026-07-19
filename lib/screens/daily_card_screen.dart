@@ -62,6 +62,18 @@ class _DailyCardScreenState extends State<DailyCardScreen> {
           textAlign: TextAlign.center,
           style: bodyFont(fontSize: 12.5, color: AppColors.inkSoft),
         ),
+        if (provider.stage == DailyCardStage.spread) ...[
+          const SizedBox(height: 6),
+          Text(
+            '🌬️ 눈을 감고 호흡을 깊게 들이마시고 내쉬기를 3번 한 뒤,\n마음이 가는 카드를 골라주세요',
+            textAlign: TextAlign.center,
+            style: bodyFont(
+              fontSize: 11.5,
+              color: AppColors.blobLavenderAccent,
+              height: 1.5,
+            ),
+          ),
+        ],
         const SizedBox(height: 22),
         if (provider.stage == DailyCardStage.shuffling)
           _ShuffleAnimation(

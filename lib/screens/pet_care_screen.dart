@@ -875,6 +875,18 @@ class _CompanionCard extends StatelessWidget {
             moodEmoji: state.moodEmoji,
             equippedAccessories: equippedAccessories,
           ),
+          if (stage == CatGrowthStage.baby) ...[
+            const SizedBox(height: 8),
+            Text(
+              '🐾 아기고양이를 쓰다듬어 주세요. 골골송을 불러요',
+              textAlign: TextAlign.center,
+              style: bodyFont(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: AppColors.blobPeachAccent,
+              ),
+            ),
+          ],
           const SizedBox(height: 12),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),

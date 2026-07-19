@@ -31,6 +31,18 @@ class LetterContext {
   final IntimacyTag intimacyStage;
   final DateTime now;
 
+  /// 오늘 보낸 편지의 그림자 고양이(catId)가 갖고 있는 전용 위로 한 줄
+  /// ([ShadowCat.comfortMessage]). [EmotionTag]는 52종 그림자 고양이를
+  /// 11종으로 뭉뚱그리기 때문에("다친 고양이"→ sad로 매핑되어 "슬픔"류
+  /// 문장이 나가는 등) 세밀한 뉘앙스가 사라지는 문제가 있었습니다. 이
+  /// 필드가 있으면 ⑤ 위로 모듈에서 범용 문장 풀 대신 이 전용 문구를
+  /// 그대로 사용해, 보낸 편지의 감정과 답장이 정확히 매치되도록 합니다.
+  final String? catComfortMessage;
+
+  /// 같은 그림자 고양이의 전용 실천 지침([ShadowCat.guidance]). 지금은
+  /// 참고용으로만 남겨두고, 향후 ⑥ 행동제안 모듈 개선에 활용할 수 있습니다.
+  final String? catGuidance;
+
   const LetterContext({
     required this.catId,
     required this.todayEmotion,
@@ -47,6 +59,8 @@ class LetterContext {
     required this.growthStage,
     required this.intimacyStage,
     required this.now,
+    this.catComfortMessage,
+    this.catGuidance,
   });
 
   /// 최근 감정이 부정적 톤으로 3일 이상 이어졌는지 (⑦ 고양이 감정 모듈,

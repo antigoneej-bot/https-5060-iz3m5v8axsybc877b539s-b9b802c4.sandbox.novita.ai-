@@ -66,7 +66,18 @@ class LetterComposerEngine {
       lines.add(memoryLine);
     }
 
-    pickAndAdd(comfortPool, LetterModuleKey.comfort);
+    // ⑤ 위로 - 보낸 편지의 그림자 고양이(catId)가 전용으로 갖고 있는
+    // comfortMessage가 있으면 그것을 그대로 사용합니다. EmotionTag는 52종
+    // 그림자 고양이를 11종으로 뭉뚱그리기 때문에("다친 고양이" → sad로
+    // 매핑되어 "슬픔"류 범용 문장이 나가는 등) 보낸 편지와 답장의 감정이
+    // 어긋나 보일 수 있었습니다. 전용 문구를 우선 사용해 이 매치 문제를
+    // 근본적으로 해결합니다.
+    if (ctx.catComfortMessage != null && ctx.catComfortMessage!.isNotEmpty) {
+      selections[LetterModuleKey.comfort] = 'shadowcat_comfort_${ctx.catId}';
+      lines.add(ctx.catComfortMessage!);
+    } else {
+      pickAndAdd(comfortPool, LetterModuleKey.comfort);
+    }
 
     // ⑥ 행동제안 - 최근 5회 연속으로 명상 제안을 건너뛰었다면(설계서 8.2),
     // "제안형" 대신 "그냥 안부형"(actionGentlePool)으로 자동 전환합니다.
