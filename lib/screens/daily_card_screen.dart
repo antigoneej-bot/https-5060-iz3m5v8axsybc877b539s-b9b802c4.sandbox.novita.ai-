@@ -7,6 +7,7 @@ import '../providers/app_state_provider.dart';
 import '../models/shadow_cat.dart';
 import '../services/reflection_service.dart';
 import '../services/subscription_service.dart';
+import '../services/consciousness_insight_service.dart';
 import '../theme.dart';
 import '../widgets/animated_cat_art.dart';
 import '../widgets/garden_path_card.dart';
@@ -558,6 +559,7 @@ class _SynchronicitySection extends StatefulWidget {
 class _SynchronicitySectionState extends State<_SynchronicitySection> {
   bool _loading = true;
   bool _isPremium = false;
+  bool _expanded = false;
 
   @override
   void initState() {
@@ -617,6 +619,11 @@ class _SynchronicitySectionState extends State<_SynchronicitySection> {
         ),
       );
     }
+    final insight = ConsciousnessInsightService.build(
+      consciousCatId: consciousCatId,
+      unconsciousCatId: widget.unconsciousCatId,
+    );
+
     return GlassBlob(
       accent: AppColors.blobPeriwinkleAccent,
       background: AppColors.blobPeriwinkle,
@@ -642,6 +649,106 @@ class _SynchronicitySectionState extends State<_SynchronicitySection> {
           Text(
             sentence,
             style: bodyFont(fontSize: 13, color: AppColors.moon, height: 1.5),
+          ),
+          if (insight != null) ...[
+            const SizedBox(height: 12),
+            GestureDetector(
+              onTap: () => setState(() => _expanded = !_expanded),
+              child: Row(
+                children: [
+                  const Text('🔎', style: TextStyle(fontSize: 14)),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      '심리학 박사의 그림자 해석 더 보기',
+                      style: pathLabelFont(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.blobPeriwinkleAccent,
+                      ),
+                    ),
+                  ),
+                  Icon(
+                    _expanded ? Icons.expand_less : Icons.expand_more,
+                    size: 18,
+                    color: AppColors.blobPeriwinkleAccent,
+                  ),
+                ],
+              ),
+            ),
+            if (_expanded) ...[
+              const SizedBox(height: 10),
+              _ConsciousnessInsightRow(
+                icon: '🔍',
+                title: '지금은 이런 상태예요',
+                body: insight.stateDescription,
+              ),
+              const SizedBox(height: 10),
+              _ConsciousnessInsightRow(
+                icon: '🌿',
+                title: '이렇게 해보면 좋아요',
+                body: insight.solution,
+              ),
+              const SizedBox(height: 10),
+              _ConsciousnessInsightRow(
+                icon: '💛',
+                title: '위로와 응원의 말',
+                body: insight.comfort,
+              ),
+              const SizedBox(height: 10),
+              _ConsciousnessInsightRow(
+                icon: '🧘',
+                title: '지금 상태에 맞는 명상법',
+                body: insight.meditation,
+              ),
+            ],
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ConsciousnessInsightRow extends StatelessWidget {
+  final String icon;
+  final String title;
+  final String body;
+  const _ConsciousnessInsightRow({
+    required this.icon,
+    required this.title,
+    required this.body,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.bg1.withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.line),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(icon, style: const TextStyle(fontSize: 13)),
+              const SizedBox(width: 6),
+              Text(
+                title,
+                style: pathLabelFont(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.ink,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            body,
+            style: bodyFont(fontSize: 12, color: AppColors.moon, height: 1.6),
           ),
         ],
       ),

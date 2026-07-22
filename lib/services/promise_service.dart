@@ -2,13 +2,13 @@ import 'package:hive_flutter/hive_flutter.dart';
 import '../models/promise_entry.dart';
 
 /// "오늘의 약속" 데이터를 계정별로 관리하는 서비스.
-/// 하루 최대 3개까지 등록할 수 있고, 자정이 지나면 그날의 약속은
+/// 하루 최대 6개까지 등록할 수 있고, 자정이 지나면 그날의 약속은
 /// (지켰든 못 지켰든) 조용히 정리되어 새 하루를 부담 없이 시작할 수 있게 합니다.
 /// '실패' 개념이 없으므로 못 지킨 약속도 그냥 사라질 뿐, 별도 표시를 남기지 않습니다.
 class PromiseService {
   static String _uid = 'guest';
   static Box? _box;
-  static const int maxPerDay = 3;
+  static const int maxPerDay = 6;
 
   static Future<void> setCurrentUser(String userId) async {
     if (_uid == userId && _box != null && _box!.isOpen) return;

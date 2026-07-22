@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/promise_provider.dart';
 import '../providers/cat_care_provider.dart';
+import '../services/promise_service.dart';
 import '../models/promise_entry.dart';
 import '../theme.dart';
 import '../widgets/garden_path_card.dart';
+import '../widgets/promise_sparkle_overlay.dart';
 
 /// "오늘의 약속" - 오늘 나를 위해 지켜주고 싶은 일을 짧게 남기고,
 /// 지킨 만큼 조용히 체크해나가는 화면.
@@ -69,45 +71,102 @@ class _TodaysPromiseScreenState extends State<TodaysPromiseScreen> {
       );
     }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return Stack(
       children: [
-        Text(
-          '오늘, 나를 위해\n지켜주고 싶은 약속이 있다면?',
-          textAlign: TextAlign.center,
-          style: titleFont(fontSize: 22, color: AppColors.ink, height: 1.4),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              '오늘, 나를 위해\n지켜주고 싶은 약속이 있다면?',
+              textAlign: TextAlign.center,
+              style: titleFont(
+                fontSize: 22,
+                color: AppColors.ink,
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              '거창하지 않아도 괜찮아요. 작은 약속 하나면 충분해요',
+              textAlign: TextAlign.center,
+              style: bodyFont(fontSize: 12.5, color: AppColors.inkSoft),
+            ),
+            const SizedBox(height: 26),
+            if (promise.canAddMore)
+              _PromiseInputBlob(
+                controller: _controller,
+                submitting: _submitting,
+                onSubmit: _submit,
+                remaining: PromiseService.maxPerDay - promise.entries.length,
+              )
+            else
+              _LimitReachedBlob(),
+            const SizedBox(height: 22),
+            if (promise.entries.isEmpty)
+              _EmptyHintBlob()
+            else
+              ...promise.entries.map(
+                (e) => Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: _PromiseTile(entry: e, onToggle: () => _toggle(e.id)),
+                ),
+              ),
+            if (promise.lastReaction != null) ...[
+              const SizedBox(height: 14),
+              _ReactionBlob(text: promise.lastReaction!),
+            ],
+            if (promise.allKept) ...[
+              const SizedBox(height: 18),
+              _CompleteButton(
+                onPressed: () =>
+                    context.read<PromiseProvider>().celebrateAllKept(),
+              ),
+            ],
+          ],
         ),
-        const SizedBox(height: 10),
-        Text(
-          '거창하지 않아도 괜찮아요. 작은 약속 하나면 충분해요',
-          textAlign: TextAlign.center,
-          style: bodyFont(fontSize: 12.5, color: AppColors.inkSoft),
+        if (promise.allKeptCelebrationMessage != null)
+          PromiseSparkleOverlay(
+            message: promise.allKeptCelebrationMessage!,
+            onDismiss: () =>
+                context.read<PromiseProvider>().clearAllKeptCelebration(),
+          ),
+      ],
+    );
+  }
+}
+
+class _CompleteButton extends StatelessWidget {
+  final VoidCallback onPressed;
+  const _CompleteButton({required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    return ElevatedButton(
+      onPressed: onPressed,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: AppColors.blobButterAccent,
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(999),
         ),
-        const SizedBox(height: 26),
-        if (promise.canAddMore)
-          _PromiseInputBlob(
-            controller: _controller,
-            submitting: _submitting,
-            onSubmit: _submit,
-            remaining: 3 - promise.entries.length,
-          )
-        else
-          _LimitReachedBlob(),
-        const SizedBox(height: 22),
-        if (promise.entries.isEmpty)
-          _EmptyHintBlob()
-        else
-          ...promise.entries.map(
-            (e) => Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: _PromiseTile(entry: e, onToggle: () => _toggle(e.id)),
+        elevation: 0,
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Text('😽', style: TextStyle(fontSize: 18)),
+          const SizedBox(width: 8),
+          Text(
+            '완료',
+            style: pathLabelFont(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
             ),
           ),
-        if (promise.lastReaction != null) ...[
-          const SizedBox(height: 14),
-          _ReactionBlob(text: promise.lastReaction!),
         ],
-      ],
+      ),
     );
   }
 }
@@ -156,8 +215,8 @@ class _PromiseInputBlob extends StatelessWidget {
               Expanded(
                 child: Text(
                   remaining <= 1
-                      ? '오늘은 세 가지면 충분해요 · $remaining개 더 남았어요'
-                      : '오늘은 세 가지면 충분해요',
+                      ? '오늘은 여기까지만 · $remaining개 더 남았어요'
+                      : '오늘은 ${PromiseService.maxPerDay}가지까지 담을 수 있어요',
                   style: bodyFont(fontSize: 11, color: AppColors.inkSoft),
                 ),
               ),
@@ -204,7 +263,7 @@ class _LimitReachedBlob extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              '오늘은 세 가지면 충분해요. 내일 또 새로운 약속을 남겨보세요',
+              '오늘 약속은 다 채웠어요. 내일 또 새로운 약속을 남겨보세요',
               style: bodyFont(fontSize: 12.5, color: AppColors.inkSoft),
             ),
           ),

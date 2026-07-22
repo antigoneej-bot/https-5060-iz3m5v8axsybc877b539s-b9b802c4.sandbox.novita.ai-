@@ -51,19 +51,65 @@ class _ShareCatCardDialog extends StatefulWidget {
 class _ShareCatCardDialogState extends State<_ShareCatCardDialog> {
   final GlobalKey _boundaryKey = GlobalKey();
   bool _sharing = false;
+  bool _saving = false;
+
+  Future<Uint8List?> _captureBytes() async {
+    final boundary =
+        _boundaryKey.currentContext?.findRenderObject()
+            as RenderRepaintBoundary?;
+    if (boundary == null) return null;
+    final image = await boundary.toImage(pixelRatio: 3.0);
+    final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+    if (byteData == null) return null;
+    return Uint8List.view(byteData.buffer);
+  }
+
+  /// 공유 없이, 카드 이미지를 곧바로 휴대폰 사진첩에만 저장합니다.
+  Future<void> _saveOnly() async {
+    if (_saving || _sharing) return;
+    setState(() => _saving = true);
+    try {
+      final bytes = await _captureBytes();
+      if (bytes == null) return;
+
+      if (kIsWeb) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('카드 이미지가 만들어졌어요 (모바일 앱에서 저장 가능해요)')),
+        );
+        return;
+      }
+
+      await Gal.putImageBytes(
+        bytes,
+        name: 'shadow_cat_${widget.cat.id}_${DateTime.now().millisecondsSinceEpoch}',
+      );
+      await AnalyticsService().logEvent(AnalyticsEvents.saveCardToGallery, {
+        'card_type': 'cat_card',
+        'cat_id': widget.cat.id,
+      });
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('카드를 사진첩에 저장했어요 📷')),
+      );
+    } catch (e) {
+      if (kDebugMode) debugPrint('카드 저장 실패: $e');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('저장 권한을 확인해주세요')),
+      );
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
 
   Future<void> _share() async {
-    if (_sharing) return;
+    if (_sharing || _saving) return;
     setState(() => _sharing = true);
     try {
-      final boundary =
-          _boundaryKey.currentContext?.findRenderObject()
-              as RenderRepaintBoundary?;
-      if (boundary == null) return;
-      final image = await boundary.toImage(pixelRatio: 3.0);
-      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
-      if (byteData == null) return;
-      final bytes = Uint8List.view(byteData.buffer);
+      final bytes = await _captureBytes();
+      if (bytes == null) return;
 
       if (kIsWeb) {
         // 웹 프리뷰에서는 파일 시스템 공유가 지원되지 않으므로, 캡처
@@ -142,8 +188,10 @@ class _ShareCatCardDialogState extends State<_ShareCatCardDialog> {
             ),
           ),
           const SizedBox(height: 18),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 10,
+            runSpacing: 10,
             children: [
               _RoundButton(
                 icon: Icons.close_rounded,
@@ -151,12 +199,17 @@ class _ShareCatCardDialogState extends State<_ShareCatCardDialog> {
                 filled: false,
                 onTap: () => Navigator.pop(context),
               ),
-              const SizedBox(width: 12),
+              _RoundButton(
+                icon: Icons.download_rounded,
+                label: _saving ? '저장 중...' : '폰에 저장',
+                filled: false,
+                onTap: (_sharing || _saving) ? null : _saveOnly,
+              ),
               _RoundButton(
                 icon: Icons.ios_share_rounded,
                 label: _sharing ? '만드는 중...' : '공유하기',
                 filled: true,
-                onTap: _sharing ? null : _share,
+                onTap: (_sharing || _saving) ? null : _share,
               ),
             ],
           ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../services/cat_care_service.dart';
+import '../services/temperature_insight_service.dart';
 import '../theme.dart';
 import '../widgets/garden_path_card.dart';
 
@@ -126,9 +127,155 @@ class _MindTemperatureHistoryScreenState
             child: _TempHistoryChart(entries: filtered),
           ),
           const SizedBox(height: 18),
+          _TempInsightCard(
+            insight: TemperatureInsightService.analyze(filtered),
+            rangeLabel: _range == _TempHistoryRange.weekly ? '이번 주' : '이번 달',
+          ),
+          const SizedBox(height: 18),
           ...filtered.reversed.map((e) => _TempHistoryRow(entry: e)),
         ],
       ],
+    );
+  }
+}
+
+/// "마음 온도 심리 해석" 카드 - 칼 융의 그림자 심리학 관점에서 지금의
+/// 온도 흐름이 어떤 상태인지, 어떻게 하면 좋을지, 위로와 응원, 명상법을
+/// 함께 풀어서 보여줍니다. 숫자만 있던 화면에 "글로 풀어낸 마음"을
+/// 더하기 위한 섹션입니다.
+class _TempInsightCard extends StatefulWidget {
+  final TemperatureInsight? insight;
+  final String rangeLabel;
+  const _TempInsightCard({required this.insight, required this.rangeLabel});
+
+  @override
+  State<_TempInsightCard> createState() => _TempInsightCardState();
+}
+
+class _TempInsightCardState extends State<_TempInsightCard> {
+  bool _expanded = true;
+
+  @override
+  Widget build(BuildContext context) {
+    final insight = widget.insight;
+    if (insight == null) return const SizedBox.shrink();
+
+    return GlassBlob(
+      accent: AppColors.catNavy,
+      background: AppColors.catNavyBg,
+      padding: const EdgeInsets.all(20),
+      floatSeed: 7,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          GestureDetector(
+            onTap: () => setState(() => _expanded = !_expanded),
+            child: Row(
+              children: [
+                Text(insight.emoji, style: const TextStyle(fontSize: 26)),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${widget.rangeLabel}, ${insight.bandLabel}',
+                        style: pathLabelFont(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.ink,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        insight.trendLabel,
+                        style: bodyFont(fontSize: 11.5, color: AppColors.inkSoft),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  _expanded ? Icons.expand_less : Icons.expand_more,
+                  color: AppColors.inkSoft,
+                ),
+              ],
+            ),
+          ),
+          if (_expanded) ...[
+            const SizedBox(height: 14),
+            _InsightSection(
+              icon: '🔍',
+              title: '지금은 이런 상태예요',
+              body: insight.stateDescription,
+            ),
+            const SizedBox(height: 12),
+            _InsightSection(
+              icon: '🌿',
+              title: '이렇게 해보면 좋아요',
+              body: insight.solution,
+            ),
+            const SizedBox(height: 12),
+            _InsightSection(
+              icon: '💛',
+              title: '위로와 응원의 말',
+              body: insight.comfort,
+            ),
+            const SizedBox(height: 12),
+            _InsightSection(
+              icon: '🧘',
+              title: '지금 상태에 맞는 명상법',
+              body: insight.meditation,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _InsightSection extends StatelessWidget {
+  final String icon;
+  final String title;
+  final String body;
+  const _InsightSection({
+    required this.icon,
+    required this.title,
+    required this.body,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.bg1.withValues(alpha: 0.65),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.line),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(icon, style: const TextStyle(fontSize: 14)),
+              const SizedBox(width: 6),
+              Text(
+                title,
+                style: pathLabelFont(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.catNavy,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            body,
+            style: bodyFont(fontSize: 12.5, color: AppColors.ink, height: 1.65),
+          ),
+        ],
+      ),
     );
   }
 }

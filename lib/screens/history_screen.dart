@@ -6,6 +6,8 @@ import '../providers/cat_care_provider.dart';
 import '../models/letter_entry.dart';
 import '../data/shadow_cats_data.dart';
 import '../services/reply_text_builder.dart';
+import '../services/letter_reply_insight_service.dart';
+import '../data/emotion_tag_mapping.dart';
 import '../theme.dart';
 import '../widgets/lively_cat_image.dart';
 import '../widgets/garden_path_card.dart';
@@ -543,10 +545,123 @@ class _CatReplySectionState extends State<_CatReplySection> {
                     height: 1.7,
                   ),
                 ),
+              if (snapshot.connectionState != ConnectionState.waiting) ...[
+                const SizedBox(height: 14),
+                _ReplyInsightSection(catId: entry.catId),
+              ],
             ],
           ),
         );
       },
+    );
+  }
+}
+
+/// 답장 편지 아래에 덧붙는 "심리 해석" 섹션 - 마음온도기록과 같은 원칙으로,
+/// 오늘 고른 그림자 고양이의 감정을 바탕으로 상태 설명·해결책·위로와 응원·
+/// 명상법을 심리학 박사의 시선으로 풀어서 보여줍니다. 기본은 접혀 있고,
+/// 탭하면 펼쳐집니다.
+class _ReplyInsightSection extends StatefulWidget {
+  final String catId;
+  const _ReplyInsightSection({required this.catId});
+
+  @override
+  State<_ReplyInsightSection> createState() => _ReplyInsightSectionState();
+}
+
+class _ReplyInsightSectionState extends State<_ReplyInsightSection> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final emotion = emotionTagForCatId(widget.catId);
+    final insight = LetterReplyInsightService.build(emotion);
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.catNavyBg.withValues(alpha: 0.7),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.catNavy.withValues(alpha: 0.18)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          GestureDetector(
+            onTap: () => setState(() => _expanded = !_expanded),
+            child: Row(
+              children: [
+                const Text('🔎', style: TextStyle(fontSize: 15)),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '심리학 박사의 마음 해석 더 보기',
+                    style: pathLabelFont(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.catNavy,
+                    ),
+                  ),
+                ),
+                Icon(
+                  _expanded ? Icons.expand_less : Icons.expand_more,
+                  size: 20,
+                  color: AppColors.catNavy,
+                ),
+              ],
+            ),
+          ),
+          if (_expanded) ...[
+            const SizedBox(height: 12),
+            _ReplyInsightRow(icon: '🔍', title: '지금은 이런 상태예요', body: insight.stateDescription),
+            const SizedBox(height: 10),
+            _ReplyInsightRow(icon: '🌿', title: '이렇게 해보면 좋아요', body: insight.solution),
+            const SizedBox(height: 10),
+            _ReplyInsightRow(icon: '💛', title: '위로와 응원의 말', body: insight.comfort),
+            const SizedBox(height: 10),
+            _ReplyInsightRow(icon: '🧘', title: '지금 감정에 맞는 명상법', body: insight.meditation),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ReplyInsightRow extends StatelessWidget {
+  final String icon;
+  final String title;
+  final String body;
+  const _ReplyInsightRow({
+    required this.icon,
+    required this.title,
+    required this.body,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(icon, style: const TextStyle(fontSize: 13)),
+            const SizedBox(width: 6),
+            Text(
+              title,
+              style: pathLabelFont(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: AppColors.ink,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(
+          body,
+          style: bodyFont(fontSize: 12, color: AppColors.moon, height: 1.6),
+        ),
+      ],
     );
   }
 }
