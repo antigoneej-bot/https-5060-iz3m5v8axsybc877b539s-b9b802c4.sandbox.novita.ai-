@@ -12,6 +12,7 @@ import '../models/cat_accessory.dart';
 import '../utils/korean_particle.dart';
 import '../models/cat_achievement.dart';
 import '../widgets/achievement_unlocked_overlay.dart';
+import '../widgets/care_celebration_overlay.dart';
 import '../widgets/animated_adult_cat.dart';
 import '../widgets/animated_cat_art.dart';
 import '../widgets/animated_teen_cat.dart';
@@ -92,7 +93,32 @@ class _PetCareScreenState extends State<PetCareScreen> {
             ),
             onDismiss: () => context.read<CatCareProvider>().clearLevelUp(),
           ),
-        if (care.justReachedStage == null && care.newlyUnlockedQueue.isNotEmpty)
+        if (care.justReachedStage == null &&
+            care.allCareCelebrationMessage != null)
+          CareCelebrationOverlay(
+            key: ValueKey('all_care_${care.allCareCelebrationMessage}'),
+            emoji: '🌡️',
+            message: care.allCareCelebrationMessage!,
+            accent: AppColors.blobButterAccent,
+            background: AppColors.blobButter,
+            onDismiss: () =>
+                context.read<CatCareProvider>().clearAllCareCelebration(),
+          )
+        else if (care.justReachedStage == null &&
+            care.bodyCareCelebrationMessage != null)
+          CareCelebrationOverlay(
+            key: ValueKey('body_care_${care.bodyCareCelebrationMessage}'),
+            emoji: '🐾',
+            message: care.bodyCareCelebrationMessage!,
+            accent: AppColors.blobPeachAccent,
+            background: AppColors.blobPeach,
+            onDismiss: () =>
+                context.read<CatCareProvider>().clearBodyCareCelebration(),
+          ),
+        if (care.justReachedStage == null &&
+            care.allCareCelebrationMessage == null &&
+            care.bodyCareCelebrationMessage == null &&
+            care.newlyUnlockedQueue.isNotEmpty)
           AchievementUnlockedOverlay(
             key: ValueKey(care.newlyUnlockedQueue.first.id),
             achievement: care.newlyUnlockedQueue.first,
@@ -769,6 +795,7 @@ class _CompanionCard extends StatelessWidget {
   final String name;
   final List<CatAccessory> equippedAccessories;
   final VoidCallback? onGraduate;
+
   /// 🐛 디버그 전용 - 미리보기용 성장일수 오버라이드. null이면 실제
   /// [state.growthDays]를 사용합니다.
   final int? debugGrowthDays;

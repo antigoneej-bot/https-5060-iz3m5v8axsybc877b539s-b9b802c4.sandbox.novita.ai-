@@ -32,6 +32,24 @@ class CatCareProvider extends ChangeNotifier {
   /// 보여준 뒤 [clearLevelUp]으로 비워줍니다. 평소에는 null.
   CatGrowthStage? justReachedStage;
 
+  /// 몸 돌보기 4가지(밥/물/목욕/청소)를 방금 막 모두 마쳤을 때 보여줄
+  /// 축하 말풍선 문구. 화면에서 보여준 뒤 [clearBodyCareCelebration]으로
+  /// 비웁니다. 평소에는 null.
+  String? bodyCareCelebrationMessage;
+
+  /// 마음 돌보기까지 포함해 오늘의 돌봄 8가지를 방금 막 모두 마쳤을 때
+  /// 보여줄 축하 말풍선 문구(마음 온도 +1도 안내). 화면에서 보여준 뒤
+  /// [clearAllCareCelebration]으로 비웁니다. 평소에는 null.
+  String? allCareCelebrationMessage;
+
+  void clearBodyCareCelebration() {
+    bodyCareCelebrationMessage = null;
+  }
+
+  void clearAllCareCelebration() {
+    allCareCelebrationMessage = null;
+  }
+
   /// 🐛 디버그 전용 - 실제 출석일수 대신 이 값으로 성장 단계를 미리보기
   /// 위한 오버라이드. null이면 실제 [state.growthDays]를 사용합니다.
   /// 실제 저장 데이터([state.growthDays])는 건드리지 않고 화면 표시만
@@ -152,6 +170,8 @@ class CatCareProvider extends ChangeNotifier {
 
   Future<void> _complete(CareTask task) async {
     final prevStage = state.growthStage;
+    final wasBodyCareDone = state.bodyCareDoneToday;
+    final wasAllDone = state.allDoneToday;
     state = await CatCareService.completeTask(task, isPremium: isPremium);
     await SoundService().playMeow();
     final newStage = state.growthStage;
@@ -159,6 +179,21 @@ class CatCareProvider extends ChangeNotifier {
       // 성장 단계가 올라간 순간 - 화면에서 레벨업 애니메이션을 띄울 수 있도록 표시
       justReachedStage = newStage;
     }
+
+    // 몸을 돌보기 4가지(밥/물/목욕/청소)를 방금 막 모두 마친 순간 - 골골송과
+    // 함께 축하 말풍선을 띄워줍니다.
+    if (!wasBodyCareDone && state.bodyCareDoneToday) {
+      await SoundService().playPurr();
+      bodyCareCelebrationMessage = '골골골... 몸을 다 돌봐줘서 행복해요 😽💕';
+    }
+
+    // 마음 돌보기까지 포함해 오늘의 돌봄 8가지를 방금 막 모두 마친 순간 -
+    // 마음 온도가 1도 오른 것을 축하 말풍선 + 축하 사운드로 알려줍니다.
+    if (!wasAllDone && state.allDoneToday) {
+      await SoundService().playChime();
+      allCareCelebrationMessage = '오늘 돌봄을 모두 마쳤어요! 마음 온도가 1도 올랐어요 🌡️✨';
+    }
+
     await _refreshAchievements();
     notifyListeners();
   }

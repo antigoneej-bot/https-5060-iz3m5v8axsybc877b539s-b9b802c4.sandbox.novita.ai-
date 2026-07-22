@@ -292,106 +292,120 @@ class _HistoryItemState extends State<_HistoryItem>
       builder: (ctx) => Dialog(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        child: Container(
-          padding: const EdgeInsets.all(22),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(28),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                AppColors.bg0.withValues(alpha: 0.98),
-                AppColors.blobMint.withValues(alpha: 0.7),
-              ],
-            ),
-            border: Border.all(
-              color: AppColors.blobMintAccent.withValues(alpha: 0.25),
-              width: 1.2,
-            ),
+        // 편지 내용 + 답장 전문까지 모두 들어가면 다이얼로그 높이가 화면을
+        // 넘어설 수 있으므로, 화면 높이의 85%로 제한하고 그 안에서는
+        // 스크롤로 끝까지 읽을 수 있게 합니다(답장 글이 화면 밖으로
+        // 밀려 안 보이던 문제 수정).
+        insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(ctx).size.height * 0.85,
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
+          child: Container(
+            padding: const EdgeInsets.all(22),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(28),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  AppColors.bg0.withValues(alpha: 0.98),
+                  AppColors.blobMint.withValues(alpha: 0.7),
+                ],
+              ),
+              border: Border.all(
+                color: AppColors.blobMintAccent.withValues(alpha: 0.25),
+                width: 1.2,
+              ),
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Expanded(
-                    child: Text(
-                      name,
-                      style: titleFont(fontSize: 20, color: AppColors.ink),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          name,
+                          style: titleFont(fontSize: 20, color: AppColors.ink),
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () => Navigator.pop(ctx),
+                        child: const Icon(
+                          Icons.close,
+                          color: AppColors.inkSoft,
+                          size: 20,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    DateFormat('yyyy년 M월 d일 HH:mm', 'ko_KR').format(entry.date),
+                    style: bodyFont(fontSize: 11.5, color: AppColors.inkSoft),
+                  ),
+                  const SizedBox(height: 14),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: Image.asset(
+                      imageAsset,
+                      height: 140,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
                     ),
                   ),
-                  GestureDetector(
-                    onTap: () => Navigator.pop(ctx),
-                    child: const Icon(
-                      Icons.close,
-                      color: AppColors.inkSoft,
-                      size: 20,
+                  const SizedBox(height: 14),
+                  Text(
+                    entry.meditationKey != null
+                        ? '편지를 보내고 명상까지 실천해 마음 온도가 2도 올랐어요 🌱'
+                        : '편지를 보내 마음 온도가 1도 올랐어요 🌱',
+                    style: bodyFont(
+                      fontSize: 12.5,
+                      color: AppColors.blobPeachAccent,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.55),
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                    child: Text(
+                      entry.letterText.isEmpty
+                          ? '(기록된 내용이 없어요)'
+                          : entry.letterText,
+                      style: bodyFont(
+                        fontSize: 13.5,
+                        color: AppColors.moon,
+                        height: 1.6,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  _CatReplySection(entry: entry, catName: name),
+                  const SizedBox(height: 16),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: () {
+                        context.read<AppStateProvider>().deleteHistoryEntry(
+                          entry.id,
+                        );
+                        Navigator.pop(ctx);
+                      },
+                      child: Text(
+                        '삭제하기',
+                        style: bodyFont(fontSize: 12.5, color: AppColors.rose),
+                      ),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 4),
-              Text(
-                DateFormat('yyyy년 M월 d일 HH:mm', 'ko_KR').format(entry.date),
-                style: bodyFont(fontSize: 11.5, color: AppColors.inkSoft),
-              ),
-              const SizedBox(height: 14),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(20),
-                child: Image.asset(
-                  imageAsset,
-                  height: 140,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                ),
-              ),
-              const SizedBox(height: 14),
-              Text(
-                entry.meditationKey != null
-                    ? '편지를 보내고 명상까지 실천해 마음 온도가 2도 올랐어요 🌱'
-                    : '편지를 보내 마음 온도가 1도 올랐어요 🌱',
-                style: bodyFont(
-                  fontSize: 12.5,
-                  color: AppColors.blobPeachAccent,
-                ),
-              ),
-              const SizedBox(height: 10),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.55),
-                  borderRadius: BorderRadius.circular(18),
-                ),
-                child: Text(
-                  entry.letterText.isEmpty ? '(기록된 내용이 없어요)' : entry.letterText,
-                  style: bodyFont(
-                    fontSize: 13.5,
-                    color: AppColors.moon,
-                    height: 1.6,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 14),
-              _CatReplySection(entry: entry, catName: name),
-              const SizedBox(height: 16),
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: () {
-                    context.read<AppStateProvider>().deleteHistoryEntry(
-                      entry.id,
-                    );
-                    Navigator.pop(ctx);
-                  },
-                  child: Text(
-                    '삭제하기',
-                    style: bodyFont(fontSize: 12.5, color: AppColors.rose),
-                  ),
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),
