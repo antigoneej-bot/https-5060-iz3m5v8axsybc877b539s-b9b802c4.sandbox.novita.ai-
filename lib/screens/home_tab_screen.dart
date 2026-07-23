@@ -22,6 +22,7 @@ import 'bubble_garden_screen.dart';
 import 'weekly_shadow_map_screen.dart';
 import 'sprout_reflection_screen.dart';
 import 'cat_bond_screen.dart';
+import 'heart_letters_screen.dart';
 
 /// 홈페이지 탭 - '힐링 정원 산책로' 컨셉의 대시보드.
 /// 딱딱한 흰 사각 카드를 모두 걷어내고, 오솔길을 걷듯 좌우로 살짝씩 흔들리며
@@ -154,7 +155,20 @@ class HomeTabScreen extends StatelessWidget {
           onTap: () =>
               pushFullScreen(context, '오늘의 약속', const TodaysPromiseScreen()),
         ),
-        const GardenPathConnector(startX: -0.26, endX: 0.28, decorEmoji: '🐾'),
+        const GardenPathConnector(startX: -0.26, endX: 0.29, decorEmoji: '🐾'),
+        GardenPathCard(
+          emoji: '💌',
+          title: '마음편지',
+          subtitle: '감사·용서·미안함·사랑, 짧게 적으면 곧바로 답장이 와요',
+          accent: AppColors.blobButterAccent,
+          background: AppColors.blobButter,
+          alignX: 0.29,
+          widthFactor: 0.9,
+          floatSeed: 12,
+          onTap: () =>
+              pushFullScreen(context, '마음편지', const HeartLettersScreen()),
+        ),
+        const GardenPathConnector(startX: 0.29, endX: 0.28, decorEmoji: '🦋'),
         GardenPathCard(
           emoji: '🫧',
           title: '오늘의 그림자 방울 터뜨리기',

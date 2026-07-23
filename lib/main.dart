@@ -8,6 +8,7 @@ import 'services/cat_care_service.dart';
 import 'services/daily_card_service.dart';
 import 'services/promise_service.dart';
 import 'services/bubble_garden_service.dart';
+import 'services/special_letter_service.dart';
 import 'services/buried_emotion_service.dart';
 import 'services/analytics_service.dart';
 import 'services/cat_memory_service.dart';
@@ -86,6 +87,7 @@ class _AppRootState extends State<_AppRoot> {
     DailyCardService.setCurrentUser(_localUserId);
     PromiseService.setCurrentUser(_localUserId);
     BubbleGardenService.setCurrentUser(_localUserId);
+    SpecialLetterService.setCurrentUser(_localUserId);
     _bootstrap();
   }
 
