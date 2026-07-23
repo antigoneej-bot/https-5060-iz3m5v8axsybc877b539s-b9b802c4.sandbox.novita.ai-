@@ -13,6 +13,7 @@ import '../services/subscription_service.dart';
 import '../widgets/growth_header.dart';
 import '../widgets/garden_path_card.dart';
 import 'privacy_policy_screen.dart';
+import 'terms_of_service_screen.dart';
 import 'premium_screen.dart';
 import 'about_app_screen.dart';
 import 'app_tutorial_screen.dart';
@@ -103,6 +104,16 @@ class _MyScreenState extends State<MyScreen> {
           onTap: () {
             Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const PrivacyPolicyScreen()),
+            );
+          },
+        ),
+        const SizedBox(height: 4),
+        _InfoLinkRow(
+          icon: Icons.description_rounded,
+          label: '이용약관',
+          onTap: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const TermsOfServiceScreen()),
             );
           },
         ),
