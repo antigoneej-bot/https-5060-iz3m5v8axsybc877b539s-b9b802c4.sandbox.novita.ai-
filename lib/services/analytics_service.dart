@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'storage_service.dart';
 
@@ -6,20 +7,17 @@ import 'storage_service.dart';
 /// 한 곳에서 기록하는 계측 계층입니다.
 ///
 /// ⚠️ 개발자 인수인계 안내 ⚠️
-/// 지금은 Firebase Analytics가 프로젝트에 연결되어 있지 않아서, 모든
-/// 이벤트를 [_log]에서만 처리합니다(디버그 콘솔 출력 + 로컬 카운터 저장).
-/// 이 상태로는 "한 기기 안에서의 행동 합계"만 볼 수 있고, 실제 시장에서
-/// 여러 사용자에 걸친 D1/D7/D30 리텐션 같은 지표는 알 수 없습니다.
+/// Firebase Analytics(Web + Android)가 연결되어 있습니다. 모든 이벤트는
+/// [_log]에서 디버그 콘솔 출력 + 로컬 카운터 저장 + Firebase 전송을 함께
+/// 처리합니다.
 ///
-/// Firebase Analytics를 연결하려면:
-///   1. pubspec.yaml에 firebase_core, firebase_analytics를 추가
-///   2. firebase_options.dart 설정(Firebase 통합 가이드 참고)
-///   3. 아래 [_log] 메서드 안에 FirebaseAnalytics.instance.logEvent(...)
-///      호출을 추가 (이 한 곳만 바꾸면 앱 전체의 모든 이벤트가 그대로
-///      Firebase로도 전송됩니다 - 호출부는 손댈 필요 없음)
-///   4. [logRetentionMilestoneIfNeeded]도 Firebase의 user property로
-///      d1_retained, d7_retained 같은 값을 함께 남기면 콘솔에서 코호트
-///      분석이 가능해집니다.
+/// 단, [AnalyticsEvents.premiumPurchase] / [AnalyticsEvents.premiumCancel]
+/// 두 이벤트는 **의도적으로 Firebase 전송에서 제외**하고 있습니다. 지금
+/// 구독 기능은 실제 결제 연동 전 임시 구현(SubscriptionService 참고)이라,
+/// 이 이벤트를 그대로 Firebase에 흘리면 나중에 실제 결제가 붙었을 때
+/// 테스트/가짜 구매 데이터와 실 구매 데이터가 섞여 매출·전환율 지표가
+/// 왜곡됩니다. 실제 인앱결제 연동이 끝난 뒤 아래 [_excludedFromFirebase]
+/// 목록에서 해당 이벤트명을 제거하면 그대로 Firebase 전송이 시작됩니다.
 class AnalyticsService {
   AnalyticsService._();
   static final AnalyticsService _instance = AnalyticsService._();
@@ -27,6 +25,13 @@ class AnalyticsService {
 
   static const String _eventCountPrefix = 'analytics_count_';
   static const String _milestoneKeyPrefix = 'analytics_milestone_';
+
+  /// 실제 결제 연동 전까지 Firebase로 전송하지 않는 이벤트 목록.
+  /// (가짜 구매/취소 데이터가 실 매출 지표를 오염시키는 것을 방지)
+  static const Set<String> _excludedFromFirebase = {
+    AnalyticsEvents.premiumPurchase,
+    AnalyticsEvents.premiumCancel,
+  };
 
   /// 이벤트를 기록합니다. [name]은 스네이크케이스 권장(예: letter_sent).
   /// [params]는 선택적 부가 정보(예: {'cat_id': 'sad'}).
@@ -36,10 +41,24 @@ class AnalyticsService {
   }
 
   Future<void> _log(String name, Map<String, Object?>? params) async {
-    // TODO(developer): Firebase 연결 시 이 자리에 다음을 추가하세요.
-    // await FirebaseAnalytics.instance.logEvent(name: name, parameters: params);
     if (kDebugMode) {
       debugPrint('📊 [Analytics] $name ${params ?? ''}');
+    }
+    if (_excludedFromFirebase.contains(name)) {
+      if (kDebugMode) {
+        debugPrint('📊 [Analytics] $name → Firebase 전송 제외(가짜 결제 방지)');
+      }
+      return;
+    }
+    try {
+      await FirebaseAnalytics.instance.logEvent(
+        name: name,
+        parameters: params?.map((k, v) => MapEntry(k, v ?? '')),
+      );
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('📊 [Analytics] Firebase 전송 실패: $e');
+      }
     }
   }
 

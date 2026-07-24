@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "874265239553",
+    "project_id": "mycatapp-99bc8",
+    "storage_bucket": "mycatapp-99bc8.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:874265239553:android:c55a29d01bb558fc63a000",
+        "android_client_info": {
+          "package_name": "com.mysticcat.journal"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyACQyOCdLnfqe9q1VDuOKZvhlMIHjqjhks"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
