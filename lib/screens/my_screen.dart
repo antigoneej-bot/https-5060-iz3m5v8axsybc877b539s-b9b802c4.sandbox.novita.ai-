@@ -723,7 +723,7 @@ class _FeedbackCard extends StatefulWidget {
 }
 
 class _FeedbackCardState extends State<_FeedbackCard> {
-  static const _feedbackEmail = 'antigone.ej@gmail.com';
+  static const _feedbackEmail = 'hello@catshadowgarden.com';
 
   bool _sending = false;
 

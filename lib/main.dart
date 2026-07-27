@@ -31,7 +31,11 @@ const String _localUserId = 'local_user';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  try {
+    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  } catch (e) {
+    debugPrint('Firebase initialization failed: $e');
+  }
   await StorageService.init();
   await StorageService.recordInstallDateIfNeeded();
   await AnalyticsService().logRetentionMilestoneIfNeeded();

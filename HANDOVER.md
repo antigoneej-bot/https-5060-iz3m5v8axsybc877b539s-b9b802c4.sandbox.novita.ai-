@@ -25,7 +25,7 @@
   - 프리미엄('정원 플러스') 구독 화면 — **결제 미연동 (아래 3번 항목 참고)**
   - 마이페이지(피드백, 설정 등)
   - 묘연(猫緣) 나누기 — 두 사용자가 만난 고양이 조합으로 궁합 코드를 생성/교환하는 소셜 공유 기능
-  - 로컬 행동 계측(Analytics) — 편지작성/공유/구독조회 등 12개 이벤트 + D1/D3/D7/D14/D30 리텐션 마일스톤을 기기 로컬에 기록 (Firebase 미연결, 아래 3.6 참고)
+  - 행동 계측(Analytics) — 편지작성/공유/구독조회 등 12개 이벤트 + D1/D3/D7/D14/D30 리텐션 마일스톤을 기기 로컬 기록 + **Firebase Analytics(Web+Android) 전송**으로 함께 처리 (아래 3.6 참고)
 
 ---
 
@@ -36,7 +36,8 @@
 - **로컬 저장소**:
   - `hive` + `hive_flutter` — 편지(LetterEntry), 회고 편지(ReflectionLetterEntry) 등 문서형 데이터
   - `shared_preferences` — 스트릭(연속 방문일), 온보딩/가입 완료 여부, 알림 설정 등 키-값 데이터
-  - **⚠️ Firebase는 사용하지 않음** — 모든 데이터는 기기 로컬에만 저장됩니다. 클라우드 동기화나 여러 기기 간 데이터 공유가 필요하다면 Firebase 또는 다른 백엔드 연동이 추가로 필요합니다.
+  - **⚠️ 편지/회고 등 사용자 콘텐츠는 여전히 기기 로컬에만 저장됩니다.** 클라우드 동기화나 여러 기기 간 데이터 공유는 아직 지원하지 않으며, 필요하다면 Firestore 등 추가 백엔드 연동이 필요합니다.
+- **Firebase**: `firebase_core` + `firebase_analytics`가 연결되어 있습니다(Web + Android). 현재는 **행동 계측(Analytics) 용도로만** 사용 중이며, 로그인/데이터 저장 등에는 아직 사용하지 않습니다(아래 3.6 참고).
 - **주요 패키지**: `google_fonts`, `video_player`, `audioplayers`, `flutter_local_notifications`, `share_plus`, `url_launcher`, `package_info_plus`
 
 전체 의존성은 `pubspec.yaml` 참고.
@@ -86,11 +87,14 @@
 - 현재 `lib/services/storage_service.dart`에서 사용하는 Hive 박스(편지/회고/짧은메모 등)는 **암호화되어 있지 않습니다.** 민감한 개인 일기 내용이 기기에 평문으로 저장됩니다.
 - 계약 범위(B-1)에 "일기(Hive) 암호화, Android 백업 차단"이 포함되어 있으니, 암호화 박스(`Hive.openBox` + `HiveAesCipher`) 적용과 `AndroidManifest.xml`의 `android:allowBackup` 설정을 함께 확인해 주세요.
 
-### 3.6 Analytics (선택, `lib/services/analytics_service.dart`)
-- Firebase Analytics가 연결되어 있지 않아, 모든 이벤트는 로컬(SharedPreferences 카운터 + 디버그 콘솔 출력)에만 기록됩니다. 즉 "한 기기 안의 행동 합계"만 확인 가능하고, 여러 사용자에 걸친 실제 D1/D7/D30 리텐션은 알 수 없습니다.
-- 파일 상단 주석에 Firebase 연결 4단계가 안내되어 있습니다. 핵심은 `_log()` 메서드 한 곳만 `FirebaseAnalytics.instance.logEvent(...)` 호출로 교체하면, 호출부(편지작성/공유/구독 등 12개 이벤트) 전체는 수정 없이 그대로 Firebase로 전송됩니다.
+### 3.6 Analytics — ✅ 연동 완료 (`lib/services/analytics_service.dart`)
+- **Firebase Analytics(Web + Android)가 연결되어 있습니다.** 모든 이벤트는 `_log()`에서 디버그 콘솔 출력 + 로컬 카운터 저장(SharedPreferences) + `FirebaseAnalytics.instance.logEvent(...)` 전송을 함께 처리합니다.
+- **의도적으로 Firebase 전송에서 제외된 이벤트 2개**: `AnalyticsEvents.premiumPurchase`, `AnalyticsEvents.premiumCancel`
+  - 이유: 현재 구독/결제가 실제 연동 전 임시 구현(3.1 참고)이라, 이 이벤트를 그대로 Firebase에 보내면 나중에 실 결제 연동 후 테스트/가짜 구매 데이터와 실 구매 데이터가 섞여 매출·전환율 지표가 왜곡됩니다.
+  - **실제 인앱결제 연동이 끝난 뒤** `analytics_service.dart`의 `_excludedFromFirebase` 목록에서 이 두 이벤트명을 제거하면, 코드 수정 없이 그대로 Firebase 전송이 시작됩니다. (3.1 결제 연동 작업과 함께 처리해 주세요)
 - 디버그 빌드에서는 마이페이지 > "(개발자용) 로컬 지표 확인"에서 누적 이벤트/리텐션 마일스톤 도달 여부를 확인할 수 있습니다 (`lib/screens/analytics_debug_screen.dart`).
-- 이 항목은 계약 범위(B-1) 밖이며, 없어도 출시에는 지장이 없습니다.
+- Firebase 프로젝트: `mycatapp-99bc8` (Android 패키지명 `com.mysticcat.journal`과 일치 확인됨). Firebase 콘솔 접근 권한은 별도로 초대됩니다.
+- 이 항목 자체(Analytics 연동)는 계약 범위(B-1) 밖으로 이미 완료된 보너스 작업이며, 위에서 언급한 결제 이벤트 제외 목록 정리만 3.1 작업 시 함께 챙겨주시면 됩니다.
 
 ### 3.7 릴리즈 서명 키
 - `android/key.properties`와 `android/release-key.jks`가 이미 생성되어 있으며, `android/app/build.gradle.kts`에 release 서명 설정이 연결되어 있습니다.
@@ -139,7 +143,7 @@ assets/
 ### 계약 범위 밖 (선택, B-2 또는 별도 협의 필요)
 - [ ] 실제 소셜 로그인(Google/카카오/Apple) SDK 연동 (3.2 참고) — 계약은 "가짜 로그인 UI 정리"까지만 포함, 실 연동은 B-2 범위
 - [ ] 클라우드 동기화가 필요하면 Firebase 또는 자체 백엔드 도입 검토 — 현재는 완전히 로컬 전용 앱
-- [ ] Firebase Analytics 연결 (3.6 참고) — 없어도 출시 가능
+- [x] ~~Firebase Analytics 연결~~ — **이미 완료됨** (3.6 참고, Web+Android 연동 완료 / 결제 이벤트 2개만 3.1 작업 시 함께 정리 필요)
 - [ ] 알림 권한(`flutter_local_notifications`) 관련 Android 13+ 런타임 권한 재점검
 
 ---
@@ -147,7 +151,7 @@ assets/
 ## 6. 알려진 이슈 / 참고사항
 
 - Google 로그인 화면에서 로딩이 멈추는 현상이 이전에 보고된 적이 있으나, 실제 OAuth 연동이 없는 더미 구현이므로 3.2 항목(실 연동) 진행 시 함께 해결될 것으로 예상됩니다.
-- 피드백 수신 이메일: `antigone.ej@gmail.com` (`lib/screens/my_screen.dart`) — 실제 운영 주소로 설정되어 있으니 변경 시 주의하세요.
+- 피드백 수신 이메일: `hello@catshadowgarden.com` (`lib/screens/my_screen.dart`) — 개인정보처리방침(`privacy_policy_screen.dart`)의 문의 이메일과 동일한 주소로 통일되어 있습니다. 자체 도메인(Zoho Mail) 기반 운영 주소입니다.
 - iOS 관련 설정(`ios/Runner/Info.plist`)은 앱 이름만 동기화되어 있으며, 이 프로젝트는 Android/Web 중심으로 개발되었기 때문에 iOS 빌드는 별도로 검증되지 않았습니다. iOS 출시 시 추가 점검이 필요합니다.
 
 ---

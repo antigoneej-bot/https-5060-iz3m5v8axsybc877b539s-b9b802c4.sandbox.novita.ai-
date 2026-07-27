@@ -34,10 +34,9 @@ class SoundService {
 
   Future<void> startBgm() async {
     try {
-      await _bgmPlayer.play(
-        AssetSource('audio/bgm_mystic.mp3'),
-        volume: bgmVolume,
-      );
+      await _bgmPlayer
+          .play(AssetSource('audio/bgm_mystic.mp3'), volume: bgmVolume)
+          .timeout(const Duration(seconds: 2));
       _bgmStarted = true;
     } catch (e) {
       if (kDebugMode) debugPrint('BGM start error: $e');
@@ -73,28 +72,36 @@ class SoundService {
   Future<void> playShuffle() async {
     if (!sfxEnabled) return;
     try {
-      await _sfxPlayer.play(AssetSource('audio/sfx_shuffle.mp3'));
+      await _sfxPlayer
+          .play(AssetSource('audio/sfx_shuffle.mp3'))
+          .timeout(const Duration(seconds: 2));
     } catch (_) {}
   }
 
   Future<void> playFlip() async {
     if (!sfxEnabled) return;
     try {
-      await _sfxPlayer.play(AssetSource('audio/sfx_flip.mp3'));
+      await _sfxPlayer
+          .play(AssetSource('audio/sfx_flip.mp3'))
+          .timeout(const Duration(seconds: 2));
     } catch (_) {}
   }
 
   Future<void> playChime() async {
     if (!sfxEnabled) return;
     try {
-      await _sfxPlayer.play(AssetSource('audio/sfx_chime.mp3'));
+      await _sfxPlayer
+          .play(AssetSource('audio/sfx_chime.mp3'))
+          .timeout(const Duration(seconds: 2));
     } catch (_) {}
   }
 
   Future<void> playMeow() async {
     if (!sfxEnabled) return;
     try {
-      await _meowPlayer.play(AssetSource('audio/sfx_meow.mp3'));
+      await _meowPlayer
+          .play(AssetSource('audio/sfx_meow.mp3'))
+          .timeout(const Duration(seconds: 2));
     } catch (_) {}
   }
 
@@ -102,7 +109,9 @@ class SoundService {
   Future<void> playPurr() async {
     if (!sfxEnabled) return;
     try {
-      await _purrPlayer.play(AssetSource('audio/sfx_purr.mp3'));
+      await _purrPlayer
+          .play(AssetSource('audio/sfx_purr.mp3'))
+          .timeout(const Duration(seconds: 2));
     } catch (_) {}
   }
 
@@ -111,7 +120,9 @@ class SoundService {
   Future<void> playBubblePop() async {
     if (!sfxEnabled) return;
     try {
-      await _bubblePlayer.play(AssetSource('audio/sfx_bubble_pop.mp3'));
+      await _bubblePlayer
+          .play(AssetSource('audio/sfx_bubble_pop.mp3'))
+          .timeout(const Duration(seconds: 2));
     } catch (_) {}
   }
 
@@ -119,7 +130,9 @@ class SoundService {
   Future<void> playGardenComplete() async {
     if (!sfxEnabled) return;
     try {
-      await _sfxPlayer.play(AssetSource('audio/sfx_garden_complete.mp3'));
+      await _sfxPlayer
+          .play(AssetSource('audio/sfx_garden_complete.mp3'))
+          .timeout(const Duration(seconds: 2));
     } catch (_) {}
   }
 }

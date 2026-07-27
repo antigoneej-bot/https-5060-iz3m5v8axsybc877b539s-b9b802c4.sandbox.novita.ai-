@@ -60,10 +60,14 @@ class PrivacyPolicyScreen extends StatelessWidget {
                                 '· 오늘의 감정 카드 선택 기록, 마음 온도 기록\n'
                                 '· 고양이에게 쓴 편지(일기) 내용\n'
                                 '· 먹이주기 · 물주기 · 목욕 · 청소 등 돌보기 기록\n'
-                                '· 명상 · 내면소통 완료 기록, 연속 방문일, 성장 레벨\n'
-                                '· (로그인 기능 이용 시) 이메일 주소, 닉네임\n\n'
-                                '위 정보는 현재 이용자의 기기 안에만 저장되며, 별도의 서버로 '
-                                '전송되지 않습니다.',
+                                '· 명상 · 내면소통 완료 기록, 연속 방문일, 성장 레벨\n\n'
+                                '위 감정 기록과 편지 등 개인화된 콘텐츠는 이용자의 기기 안에만 '
+                                '저장되며, 그 내용 자체가 외부 서버로 전송되지는 않습니다.\n\n'
+                                '다만, 앱 개선을 위해 어떤 기능을 얼마나 사용했는지에 대한 익명 '
+                                '통계(예: 편지 작성 횟수, 명상 완료 횟수 등 이벤트 발생 여부)는 '
+                                'Google Firebase Analytics를 통해 집계됩니다. 이 통계에는 '
+                                '편지 · 감정 기록의 실제 내용이나 이용자를 특정할 수 있는 정보는 '
+                                '포함되지 않습니다.',
                           ),
                           const SizedBox(height: 14),
                           _PolicySection(
@@ -86,9 +90,12 @@ class PrivacyPolicyScreen extends StatelessWidget {
                             accent: AppColors.blobRoseAccent,
                             background: AppColors.blobRose,
                             body:
-                                '저희는 법령에 따라 요구되는 경우를 제외하고, 이용자의 개인정보와 '
-                                '기록을 제3자에게 제공하지 않습니다. 향후 클라우드 로그인/백업 '
-                                '기능이 추가될 경우, 관련 내용을 이 화면에서 다시 안내드리겠습니다.',
+                                '저희는 법령에 따라 요구되는 경우를 제외하고, 이용자의 감정 기록, '
+                                '편지 등 개인화된 콘텐츠를 제3자에게 제공하지 않습니다.\n\n'
+                                '단, 앱 사용 통계 수집을 위해 Google Firebase Analytics를 '
+                                '이용하고 있으며, 익명화된 이벤트 통계(기능 사용 여부 등)가 이 '
+                                '서비스로 전달됩니다. 향후 클라우드 로그인/백업 기능이 추가될 '
+                                '경우, 관련 내용을 이 화면에서 다시 안내드리겠습니다.',
                           ),
                           const SizedBox(height: 14),
                           _PolicySection(
@@ -98,7 +105,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
                             background: AppColors.blobButter,
                             body:
                                 '개인정보 처리와 관련해 궁금한 점이 있으시면 아래 이메일로 '
-                                '문의해 주세요.\n\nhello@mysticcatjournal.app',
+                                '문의해 주세요.\n\nhello@catshadowgarden.com',
                           ),
                           const SizedBox(height: 22),
                           Center(
