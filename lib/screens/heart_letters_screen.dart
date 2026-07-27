@@ -4,12 +4,11 @@ import '../services/special_letter_service.dart';
 import '../theme.dart';
 import 'heart_letter_history_screen.dart';
 
-/// "마음편지" — 감사·용서·미안함·사랑, 네 가지 짧은 마음편지를 쓰고
-/// 그 자리에서 곧바로 따뜻한 답장을 받아보는 화면.
+/// "마음편지" — 감사·용서·미안함·사랑, 네 가지 짧은 마음편지를 쓰는 화면.
 ///
-/// 그림자 고양이에게 쓰는 편지(다음날 답장)와는 별개로, 언제든 짧게
-/// 쓰고 바로 위로받을 수 있는 가벼운 기능입니다. 네 가지 편지 종류를
-/// 짧고 예쁜 카드 형태로 나열해 보여줍니다.
+/// 그림자 고양이에게 쓰는 편지와 동일한 컨셉으로, 답장은 그 자리에서
+/// 바로 오지 않고 다음날 아침에 도착합니다. 네 가지 편지 종류를 짧고
+/// 예쁜 카드 형태로 나열해 보여줍니다.
 class HeartLettersScreen extends StatelessWidget {
   const HeartLettersScreen({super.key});
 
@@ -25,7 +24,7 @@ class HeartLettersScreen extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         Text(
-          '짧게 적어도, 곧바로 따뜻한 답장이 도착해요',
+          '짧게 적어보세요. 답장은 내일 아침에 도착해요',
           textAlign: TextAlign.center,
           style: bodyFont(fontSize: 12.5, color: AppColors.inkSoft),
         ),
@@ -190,9 +189,10 @@ class _HeartLetterTileState extends State<_HeartLetterTile> {
   }
 }
 
-/// 편지 쓰기 → 즉시 답장을 하나의 짧은 바텀시트로 보여줍니다.
-/// 긴 화면 전환 없이, 가볍게 열고 닫을 수 있도록 바텀시트 형태를
-/// 사용했습니다.
+/// 편지 쓰기 → 전송 완료 안내를 하나의 짧은 바텀시트로 보여줍니다.
+/// 답장은 다음날 아침에 도착하므로, 전송 즉시 답장을 보여주지 않고
+/// "내일 아침에 도착해요"라는 안내만 표시합니다. 긴 화면 전환 없이,
+/// 가볍게 열고 닫을 수 있도록 바텀시트 형태를 사용했습니다.
 class _WriteHeartLetterSheet extends StatefulWidget {
   final SpecialLetterType type;
   final Color accent;
@@ -348,7 +348,7 @@ class _WriteHeartLetterSheetState extends State<_WriteHeartLetterSheet> {
                     ),
                   ),
                 ] else
-                  _ReplyResultView(
+                  _SentConfirmationView(
                     type: type,
                     accent: widget.accent,
                     entry: _result!,
@@ -371,15 +371,16 @@ class _WriteHeartLetterSheetState extends State<_WriteHeartLetterSheet> {
   }
 }
 
-/// 편지를 보낸 즉시 도착하는 답장 카드. 봉투가 열리는 듯한 느낌을 주기
-/// 위해 살짝 스케일 애니메이션을 넣었습니다.
-class _ReplyResultView extends StatefulWidget {
+/// 편지를 보낸 뒤, 답장은 내일 아침에 온다는 것을 알려주는 안내 카드.
+/// 편지가 접혀 봉투에 담기는 듯한 느낌을 주기 위해 살짝 스케일
+/// 애니메이션을 넣었습니다.
+class _SentConfirmationView extends StatefulWidget {
   final SpecialLetterType type;
   final Color accent;
   final SpecialLetterEntry entry;
   final VoidCallback onClose;
   final VoidCallback onHistory;
-  const _ReplyResultView({
+  const _SentConfirmationView({
     required this.type,
     required this.accent,
     required this.entry,
@@ -388,10 +389,10 @@ class _ReplyResultView extends StatefulWidget {
   });
 
   @override
-  State<_ReplyResultView> createState() => _ReplyResultViewState();
+  State<_SentConfirmationView> createState() => _SentConfirmationViewState();
 }
 
-class _ReplyResultViewState extends State<_ReplyResultView>
+class _SentConfirmationViewState extends State<_SentConfirmationView>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
 
@@ -431,10 +432,10 @@ class _ReplyResultViewState extends State<_ReplyResultView>
                 children: [
                   Row(
                     children: [
-                      Text('💌', style: const TextStyle(fontSize: 16)),
+                      const Text('🌙', style: TextStyle(fontSize: 16)),
                       const SizedBox(width: 6),
                       Text(
-                        '도착한 답장',
+                        '편지가 전해졌어요',
                         style: pathLabelFont(
                           fontSize: 12.5,
                           fontWeight: FontWeight.w700,
@@ -445,7 +446,7 @@ class _ReplyResultViewState extends State<_ReplyResultView>
                   ),
                   const SizedBox(height: 10),
                   Text(
-                    widget.entry.replyText,
+                    '답장은 내일 아침에 도착해요.\n"지난 편지 보기"에서 답장이 오면 열어볼 수 있어요.',
                     style: bodyFont(
                       fontSize: 13.5,
                       color: AppColors.moon,

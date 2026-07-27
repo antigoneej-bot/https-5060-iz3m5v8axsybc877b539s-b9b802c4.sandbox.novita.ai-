@@ -4,8 +4,10 @@ import 'special_letter_reply_service.dart';
 
 /// 감사·용서·미안함·사랑, 네 가지 마음편지의 저장을 담당하는 서비스.
 ///
-/// 그림자 고양이 편지(다음날 답장)와 다르게, 이 마음편지는 쓰는 즉시
-/// 답장까지 함께 저장됩니다. 계정별 Hive Box를 사용해, 다른 로컬 서비스
+/// 그림자 고양이 편지와 동일하게, 답장은 다음날 오전 6시가 지나야 열어볼
+/// 수 있습니다(내부적으로는 편지를 쓰는 시점에 답장을 미리 만들어 함께
+/// 저장하지만, [SpecialLetterEntry.isReplyReady]가 true가 되기 전까지는
+/// 화면에 보여주지 않습니다). 계정별 Hive Box를 사용해, 다른 로컬 서비스
 /// (PromiseService 등)와 동일한 패턴을 따릅니다.
 class SpecialLetterService {
   static String _uid = 'guest';
@@ -27,7 +29,8 @@ class SpecialLetterService {
     return _box!;
   }
 
-  /// 편지를 쓰는 즉시 답장을 함께 생성해 저장합니다.
+  /// 편지를 씁니다. 답장은 내부적으로 미리 만들어 함께 저장하지만,
+  /// 다음날 오전 6시가 지나기 전에는 화면에 보여주지 않습니다.
   static Future<SpecialLetterEntry> sendLetter({
     required SpecialLetterType type,
     required String letterText,
@@ -68,5 +71,24 @@ class SpecialLetterService {
 
   static Future<void> deleteLetter(String id) async {
     await _b.delete(id);
+  }
+
+  /// 답장을 열어봤음을 표시합니다(홈 화면 배너를 한 번만 보여주기 위함).
+  static Future<void> markReplySeen(String id) async {
+    final raw = _b.get(id);
+    if (raw == null) return;
+    final entry = SpecialLetterEntry.fromMap(Map<dynamic, dynamic>.from(raw as Map));
+    await _b.put(id, entry.withReplySeen().toMap());
+  }
+
+  /// 답장이 준비됐지만 아직 열어보지 않은 마음편지 중 가장 최근 것을
+  /// 반환합니다(없으면 null). 홈 화면의 "답장이 도착했어요" 배너에
+  /// 사용됩니다.
+  static SpecialLetterEntry? get unseenReadyReply {
+    if (_box == null || !_box!.isOpen) return null;
+    for (final e in getAllEntries()) {
+      if (e.isReplyReady && !e.replySeen) return e;
+    }
+    return null;
   }
 }

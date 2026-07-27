@@ -1,3 +1,5 @@
+import '../utils/feature_flags.dart';
+
 /// 네 가지 마음편지(감사·용서·미안함·사랑)의 종류.
 ///
 /// 그림자 고양이에게 쓰는 기존 편지(감정 기반, 다음날 답장)와는 별개로,
@@ -94,8 +96,10 @@ extension SpecialLetterTypeX on SpecialLetterType {
   }
 }
 
-/// 마음편지 한 통의 기록. 보내는 즉시 답장 텍스트가 함께 생성되어
-/// 저장되므로(다음날까지 기다리지 않음), [replyText]는 항상 값이 있습니다.
+/// 마음편지 한 통의 기록. 답장 텍스트는 편지를 쓰는 시점에 미리 만들어져
+/// 함께 저장되지만(항상 값이 있음), 그림자 고양이 편지와 동일한 컨셉으로
+/// 사용자에게는 [replyAvailableAt] 이전까지 보여주지 않습니다
+/// ([isReplyReady]로 열람 가능 여부를 확인하세요).
 class SpecialLetterEntry {
   final String id;
   final SpecialLetterType type;
@@ -103,13 +107,45 @@ class SpecialLetterEntry {
   final String replyText;
   final DateTime createdAt;
 
+  /// 답장을 열어봤는지 여부. 목록에서 "새 답장" 표시를 한 번만 보여주기
+  /// 위한 플래그입니다(그림자 고양이 편지의 replySeen과 동일한 역할).
+  final bool replySeen;
+
   SpecialLetterEntry({
     required this.id,
     required this.type,
     required this.letterText,
     required this.replyText,
     required this.createdAt,
+    this.replySeen = false,
   });
+
+  /// 답장을 열어볼 수 있게 되는 시각. 그림자 고양이 편지와 동일하게,
+  /// 편지를 쓴 날의 다음날 오전 6시로 고정합니다.
+  DateTime get replyAvailableAt {
+    final next = createdAt.add(const Duration(days: 1));
+    return DateTime(next.year, next.month, next.day, 6, 0);
+  }
+
+  /// 지금 시각 기준으로 답장을 열어볼 수 있는 상태인지 여부.
+  ///
+  /// ⚠️ [FeatureFlags.debugInstantReply]가 true인 동안에는 대기 없이 항상
+  /// true를 반환합니다(디버그 전용, 정식 배포 전 반드시 false로 되돌릴 것).
+  bool get isReplyReady =>
+      FeatureFlags.debugInstantReply ||
+      DateTime.now().isAfter(replyAvailableAt);
+
+  /// 답장을 열어봤음을 표시한 새 인스턴스를 반환합니다.
+  SpecialLetterEntry withReplySeen() {
+    return SpecialLetterEntry(
+      id: id,
+      type: type,
+      letterText: letterText,
+      replyText: replyText,
+      createdAt: createdAt,
+      replySeen: true,
+    );
+  }
 
   Map<String, dynamic> toMap() {
     return {
@@ -118,6 +154,7 @@ class SpecialLetterEntry {
       'letterText': letterText,
       'replyText': replyText,
       'createdAt': createdAt.toIso8601String(),
+      'replySeen': replySeen,
     };
   }
 
@@ -129,6 +166,7 @@ class SpecialLetterEntry {
       replyText: map['replyText'] as String? ?? '',
       createdAt: DateTime.tryParse(map['createdAt'] as String? ?? '') ??
           DateTime.now(),
+      replySeen: map['replySeen'] as bool? ?? false,
     );
   }
 }

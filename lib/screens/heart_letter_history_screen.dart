@@ -58,7 +58,7 @@ class HeartLetterHistoryScreen extends StatelessWidget {
           Text(
             entries.isEmpty
                 ? '아직 쓴 편지가 없어요'
-                : '지금까지 ${entries.length}통의 편지를 쓰고, 답장을 받았어요',
+                : '지금까지 ${entries.length}통의 편지를 썼어요',
             textAlign: TextAlign.center,
             style: bodyFont(fontSize: 12.5, color: AppColors.inkSoft),
           ),
@@ -97,7 +97,7 @@ class _EmptyHistoryHint extends StatelessWidget {
           Text('🌿', style: const TextStyle(fontSize: 26)),
           const SizedBox(height: 10),
           Text(
-            '언제든 짧게 한 통 적어보세요.\n쓰는 순간 곧바로 답장이 도착해요.',
+            '언제든 짧게 한 통 적어보세요.\n답장은 내일 아침에 도착해요.',
             textAlign: TextAlign.center,
             style: bodyFont(fontSize: 12.5, color: AppColors.inkSoft, height: 1.6),
           ),
@@ -129,6 +129,14 @@ class _HistoryLetterCard extends StatefulWidget {
 class _HistoryLetterCardState extends State<_HistoryLetterCard> {
   bool _expanded = false;
 
+  void _onExpandToggle() {
+    final entry = widget.entry;
+    if (entry.isReplyReady && !entry.replySeen) {
+      SpecialLetterService.markReplySeen(entry.id);
+    }
+    setState(() => _expanded = !_expanded);
+  }
+
   @override
   Widget build(BuildContext context) {
     final entry = widget.entry;
@@ -159,7 +167,7 @@ class _HistoryLetterCardState extends State<_HistoryLetterCard> {
           ),
           const SizedBox(height: 8),
           GestureDetector(
-            onTap: () => setState(() => _expanded = !_expanded),
+            onTap: _onExpandToggle,
             child: Text(
               entry.letterText,
               maxLines: _expanded ? null : 2,
@@ -168,38 +176,62 @@ class _HistoryLetterCardState extends State<_HistoryLetterCard> {
             ),
           ),
           const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              color: Colors.white.withValues(alpha: 0.7),
-              border: Border.all(color: widget.accent.withValues(alpha: 0.3)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const Text('💌', style: TextStyle(fontSize: 13)),
-                    const SizedBox(width: 5),
-                    Text(
-                      '받은 답장',
-                      style: pathLabelFont(
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w700,
-                        color: widget.accent,
-                      ),
+          if (!entry.isReplyReady)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                color: AppColors.blobLavender.withValues(alpha: 0.5),
+                border: Border.all(
+                  color: AppColors.blobLavenderAccent.withValues(alpha: 0.25),
+                ),
+              ),
+              child: Row(
+                children: [
+                  const Text('🌙', style: TextStyle(fontSize: 15)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      '답장은 내일 아침에 도착해요',
+                      style: bodyFont(fontSize: 12, color: AppColors.inkSoft),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  entry.replyText,
-                  style: bodyFont(fontSize: 12.5, color: AppColors.moon, height: 1.6),
-                ),
-              ],
+                  ),
+                ],
+              ),
+            )
+          else
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                color: Colors.white.withValues(alpha: 0.7),
+                border: Border.all(color: widget.accent.withValues(alpha: 0.3)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Text('💌', style: TextStyle(fontSize: 13)),
+                      const SizedBox(width: 5),
+                      Text(
+                        '받은 답장',
+                        style: pathLabelFont(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w700,
+                          color: widget.accent,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    entry.replyText,
+                    style: bodyFont(fontSize: 12.5, color: AppColors.moon, height: 1.6),
+                  ),
+                ],
+              ),
             ),
-          ),
         ],
       ),
     );

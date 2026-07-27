@@ -23,6 +23,9 @@ import 'weekly_shadow_map_screen.dart';
 import 'sprout_reflection_screen.dart';
 import 'cat_bond_screen.dart';
 import 'heart_letters_screen.dart';
+import 'heart_letter_history_screen.dart';
+import '../services/special_letter_service.dart';
+import '../models/special_letter_entry.dart';
 
 /// 홈페이지 탭 - '힐링 정원 산책로' 컨셉의 대시보드.
 /// 딱딱한 흰 사각 카드를 모두 걷어내고, 오솔길을 걷듯 좌우로 살짝씩 흔들리며
@@ -42,11 +45,25 @@ class HomeTabScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final app = context.watch<AppStateProvider>();
     final unseenReply = app.letterWithUnseenReadyReply;
+    final unseenHeartReply = SpecialLetterService.unseenReadyReply;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         if (unseenReply != null) ...[
           _CatReplyBanner(entry: unseenReply, onTap: onGoToRecords),
+          const SizedBox(height: 16),
+        ],
+        if (unseenHeartReply != null) ...[
+          _HeartLetterReplyBanner(
+            entry: unseenHeartReply,
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => HeartLetterHistoryScreen(
+                  type: unseenHeartReply.type,
+                ),
+              ),
+            ),
+          ),
           const SizedBox(height: 16),
         ],
         const _SproutBannerArea(),
@@ -159,7 +176,7 @@ class HomeTabScreen extends StatelessWidget {
         GardenPathCard(
           emoji: '💌',
           title: '마음편지',
-          subtitle: '감사·용서·미안함·사랑, 짧게 적으면 곧바로 답장이 와요',
+          subtitle: '감사·용서·미안함·사랑, 짧게 적으면 내일 답장이 와요',
           accent: AppColors.blobButterAccent,
           background: AppColors.blobButter,
           alignX: 0.29,
@@ -483,6 +500,92 @@ class _CatReplyBanner extends StatelessWidget {
               Icon(
                 Icons.chevron_right_rounded,
                 color: AppColors.blobButterAccent,
+                size: 20,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 마음편지(감사·용서·미안함·사랑)에 대한 답장이 도착했음을 알려주는
+/// 배너. [_CatReplyBanner]와 동일한 톤으로, 아직 열어보지 않은 답장이
+/// 있을 때만 나타납니다.
+class _HeartLetterReplyBanner extends StatelessWidget {
+  final SpecialLetterEntry entry;
+  final VoidCallback onTap;
+  const _HeartLetterReplyBanner({required this.entry, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(28),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(28),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(28),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                AppColors.blobRose.withValues(alpha: 0.92),
+                AppColors.blobRose.withValues(alpha: 0.62),
+              ],
+            ),
+            border: Border.all(
+              color: AppColors.blobRoseAccent.withValues(alpha: 0.32),
+              width: 1.2,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.blobRoseAccent.withValues(alpha: 0.18),
+                blurRadius: 18,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.6),
+                  shape: BoxShape.circle,
+                ),
+                child: Text(entry.type.emoji, style: const TextStyle(fontSize: 20)),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${entry.type.label} 답장이 도착했어요',
+                      style: pathLabelFont(
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.ink,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '어제 보낸 편지에 대한 답장을 열어보세요',
+                      style: bodyFont(fontSize: 11.5, color: AppColors.inkSoft),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: AppColors.blobRoseAccent,
                 size: 20,
               ),
             ],
