@@ -33,28 +33,32 @@ class SubscriptionService {
 
   /// 정원 플러스 월 구독 가격(표시용).
   ///
-  /// ⚠️ MVP 출시 기념 얼리버드 특가입니다(출시 후 약 6개월간 유지 예정).
-  /// 반응이 좋으면 이후 정가로 인상할 계획이며, 그때는 [earlybirdLabel] 노출을
-  /// 중단하고 이 상수들만 새 가격으로 교체하면 됩니다. 실제 가격은 스토어
-  /// 등록 후 스토어 상품 정보에서 가져오는 것으로 교체해야 합니다.
-  static const String displayPrice = '월 2,500원';
+  /// 📌 2024년 경쟁사 벤치마크(Finch $9.99/월, Calm 한국 15,000~19,000원/월,
+  /// 국내 명상앱 평균 4,600~6,083원/월, Habitica $4.99/월)를 조사한 뒤 확정한
+  /// 정식 가격입니다. 기존 2,500원(초기 얼리버드 테스트가)이 시장 최저가보다도
+  /// 낮았던 점을 반영해 인상했습니다. 실제 가격은 스토어 등록 후 스토어 상품
+  /// 정보에서 가져오는 것으로 교체해야 합니다.
+  ///
+  /// ⚠️ 그랜드파더링 원칙: 실제 결제 연동 이전(현재 상태)에는 적용 대상 구독자가
+  /// 없으므로 즉시 이 가격으로 확정합니다. 향후 이 가격을 다시 조정할 경우,
+  /// 이미 가입한 기존 구독자에게는 가입 당시 가격을 유지시켜주세요.
+  static const String displayPrice = '월 4,900원';
 
-  /// 정원 플러스 연 구독 가격(표시용, 월 요금 대비 50% 할인가).
-  /// 2,500원 × 12개월 = 30,000원 → 50% 할인 → 15,000원.
-  static const String displayYearlyPrice = '연 15,000원';
+  /// 정원 플러스 연 구독 가격(표시용, 월 요금 대비 약 51% 할인가).
+  /// 4,900원 × 12개월 = 58,800원 → 약 51% 할인 → 29,000원.
+  static const String displayYearlyPrice = '연 29,000원';
 
   /// 연 구독을 월 단위로 환산했을 때의 가격(안내용).
-  static const String displayYearlyMonthlyEquivalent = '월 1,250원 상당';
+  static const String displayYearlyMonthlyEquivalent = '월 2,417원 상당';
 
   /// 연 구독 할인율 안내 라벨.
-  static const String yearlyDiscountLabel = '50% 할인';
+  static const String yearlyDiscountLabel = '51% 할인';
 
-  /// 출시 기념 얼리버드 특가 안내 라벨. 6개월 한정 프로모션이 끝나면
-  /// 이 라벨과 [displayPrice]/[displayYearlyPrice]를 함께 정리하세요.
-  static const String earlybirdLabel = '출시 기념 얼리버드가';
+  /// 구독 히어로 카드에 노출되는 뱃지 라벨.
+  static const String earlybirdLabel = '정원 플러스 멤버십';
 
-  /// 얼리버드 특가에 대한 부연 설명(화면 하단 안내용).
-  static const String earlybirdCaption = '한정 특가 · 이후 정가로 조정될 수 있어요';
+  /// 뱃지 하단 부연 설명(화면 하단 안내용).
+  static const String earlybirdCaption = '구독은 언제든 해지할 수 있어요';
 
   /// 선택한 플랜에 맞는 표시용 가격 문자열을 반환합니다.
   String priceLabelFor(SubscriptionPlan plan) {
