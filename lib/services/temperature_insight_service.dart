@@ -20,6 +20,42 @@ enum TempBand { warm, calm, tired, recovering }
 /// 기간 내 온도가 어떤 흐름을 보였는지.
 enum TempTrend { rising, falling, stable, volatile }
 
+/// 하루 단위 마음 온도를 누구나 한눈에 이해할 수 있도록 나눈 3단계 구간.
+/// 0~100 척도를 3등분해 "긍정/보통/부정"으로 단순화합니다. 막대그래프의
+/// 높이만으로는 의미를 파악하기 어렵다는 피드백을 반영해, 색상 + 숫자
+/// 집계로 그날의 마음 상태를 더 직관적으로 전달하기 위한 분류입니다.
+enum TempTier { positive, neutral, negative }
+
+/// 기간 내 며칠이 긍정/보통/부정 구간에 속했는지를 집계한 결과.
+class TempTierBreakdown {
+  final int positiveDays;
+  final int neutralDays;
+  final int negativeDays;
+
+  const TempTierBreakdown({
+    required this.positiveDays,
+    required this.neutralDays,
+    required this.negativeDays,
+  });
+
+  int get totalDays => positiveDays + neutralDays + negativeDays;
+
+  double get positivePercent => totalDays == 0 ? 0 : positiveDays / totalDays * 100;
+  double get neutralPercent => totalDays == 0 ? 0 : neutralDays / totalDays * 100;
+  double get negativePercent => totalDays == 0 ? 0 : negativeDays / totalDays * 100;
+
+  /// 3단계 중 가장 많은 비중을 차지한 구간 (요약 문구에 사용).
+  TempTier get dominantTier {
+    if (positiveDays >= neutralDays && positiveDays >= negativeDays) {
+      return TempTier.positive;
+    }
+    if (negativeDays >= neutralDays && negativeDays >= positiveDays) {
+      return TempTier.negative;
+    }
+    return TempTier.neutral;
+  }
+}
+
 /// 화면에 그대로 노출할 심리 해석 결과 묶음.
 class TemperatureInsight {
   final TempBand band;
@@ -94,8 +130,67 @@ class TemperatureInsight {
   }
 }
 
+/// [TempTier]에 대한 한글 표기/설명을 모아둔 확장.
+extension TempTierLabel on TempTier {
+  String get label {
+    switch (this) {
+      case TempTier.positive:
+        return '긍정';
+      case TempTier.neutral:
+        return '보통';
+      case TempTier.negative:
+        return '부정';
+    }
+  }
+
+  String get emoji {
+    switch (this) {
+      case TempTier.positive:
+        return '😊';
+      case TempTier.neutral:
+        return '😐';
+      case TempTier.negative:
+        return '😔';
+    }
+  }
+}
+
 class TemperatureInsightService {
   TemperatureInsightService._();
+
+  /// 마음 온도 값(0~100)을 긍정(67~100) / 보통(34~66) / 부정(0~33)
+  /// 3단계로 단순화합니다. 100점 척도를 정확히 3등분한 임계값을 사용해
+  /// 누구나 직관적으로 이해할 수 있게 합니다.
+  static TempTier tierFor(int value) {
+    if (value >= 67) return TempTier.positive;
+    if (value >= 34) return TempTier.neutral;
+    return TempTier.negative;
+  }
+
+  /// 기간 내 (날짜, 온도) 목록을 받아 긍정/보통/부정 일수를 집계합니다.
+  static TempTierBreakdown tierBreakdown(List<MapEntry<DateTime, int>> entries) {
+    var positive = 0;
+    var neutral = 0;
+    var negative = 0;
+    for (final e in entries) {
+      switch (tierFor(e.value)) {
+        case TempTier.positive:
+          positive++;
+          break;
+        case TempTier.neutral:
+          neutral++;
+          break;
+        case TempTier.negative:
+          negative++;
+          break;
+      }
+    }
+    return TempTierBreakdown(
+      positiveDays: positive,
+      neutralDays: neutral,
+      negativeDays: negative,
+    );
+  }
 
   /// [entries]는 이미 원하는 기간(주간 7일 / 월간 30일)으로 필터링된
   /// (날짜, 온도) 목록이어야 하며, 날짜 오름차순으로 정렬되어 있어야

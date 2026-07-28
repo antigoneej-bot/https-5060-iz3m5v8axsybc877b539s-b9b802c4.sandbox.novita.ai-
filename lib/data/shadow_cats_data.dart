@@ -9,7 +9,7 @@ final List<ShadowCat> shadowCats = [
     id: 'dreamy',
     nameKr: '몽상 고양이',
     nameEn: 'The Dreaming Cat',
-    emoji: '💭',
+    emoji: '🌌',
     keyword: '몽상',
     imageAsset: 'assets/cards36/cat_01.png',
     story:
@@ -342,7 +342,7 @@ final List<ShadowCat> shadowCats = [
     id: 'sulky',
     nameKr: '삐친 고양이',
     nameEn: 'The Sulky Cat',
-    emoji: '😤',
+    emoji: '🙄',
     keyword: '삐짐',
     imageAsset: 'assets/cards36/cat_23.png',
     story:
@@ -660,7 +660,7 @@ final List<ShadowCat> shadowCats = [
     id: 'cynical',
     nameKr: '냉소적인 고양이',
     nameEn: 'The Cynical Cat',
-    emoji: '😏',
+    emoji: '😮‍💨',
     keyword: '냉소',
     imageAsset: 'assets/cards36/cat_43.png',
     story:
@@ -676,7 +676,7 @@ final List<ShadowCat> shadowCats = [
     id: 'envious',
     nameKr: '시기하는 고양이',
     nameEn: 'The Envious Cat',
-    emoji: '👀',
+    emoji: '😑',
     keyword: '시기',
     imageAsset: 'assets/cards36/cat_44.png',
     story:
@@ -692,7 +692,7 @@ final List<ShadowCat> shadowCats = [
     id: 'hurtFeelings',
     nameKr: '서운한 고양이',
     nameEn: 'The Hurt Cat',
-    emoji: '🥺',
+    emoji: '💧',
     keyword: '서운함',
     imageAsset: 'assets/cards36/cat_45.png',
     story:
@@ -724,7 +724,7 @@ final List<ShadowCat> shadowCats = [
     id: 'dread',
     nameKr: '두려운 고양이',
     nameEn: 'The Fearful Cat',
-    emoji: '😰',
+    emoji: '😱',
     keyword: '두려움',
     imageAsset: 'assets/cards36/cat_47.png',
     story:
@@ -740,7 +740,7 @@ final List<ShadowCat> shadowCats = [
     id: 'guilty',
     nameKr: '죄책감 느끼는 고양이',
     nameEn: 'The Guilty Cat',
-    emoji: '🙏',
+    emoji: '😓',
     keyword: '죄책감',
     imageAsset: 'assets/cards36/cat_48.png',
     story:

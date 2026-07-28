@@ -16,8 +16,20 @@ import 'weekly_reflection_screen.dart';
 import 'monthly_shadow_reflection_screen.dart';
 import 'mind_temperature_history_screen.dart';
 
-class HistoryScreen extends StatelessWidget {
+class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
+
+  @override
+  State<HistoryScreen> createState() => _HistoryScreenState();
+}
+
+/// 한 번에 펼쳐 보여줄 편지 카드 개수. 편지가 쌓일수록 목록이 한없이
+/// 길어지던 문제를 개선하기 위해, 처음에는 최근 기록만 보여주고
+/// "더보기"를 눌러야 그 이전 기록까지 펼쳐지도록 합니다.
+const int _kInitialVisibleCount = 8;
+
+class _HistoryScreenState extends State<HistoryScreen> {
+  bool _showAll = false;
 
   @override
   Widget build(BuildContext context) {
@@ -42,15 +54,188 @@ class HistoryScreen extends StatelessWidget {
         ),
       );
     }
+
+    final history = app.history; // 이미 최신순으로 정렬되어 있음
+    final visibleCount = _showAll
+        ? history.length
+        : (history.length < _kInitialVisibleCount
+              ? history.length
+              : _kInitialVisibleCount);
+    final hiddenCount = history.length - visibleCount;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const _ReflectionEntryRow(),
         const SizedBox(height: 20),
-        ...app.history.asMap().entries.map(
-          (e) => _HistoryItem(entry: e.value, seed: e.key),
+        _CatMeetingSummaryTable(history: history),
+        const SizedBox(height: 20),
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 8),
+          child: Text(
+            '편지 기록 (총 ${history.length}통)',
+            style: pathLabelFont(
+              fontSize: 13.5,
+              fontWeight: FontWeight.w700,
+              color: AppColors.ink,
+            ),
+          ),
         ),
+        ...history
+            .take(visibleCount)
+            .toList()
+            .asMap()
+            .entries
+            .map((e) => _HistoryItem(entry: e.value, seed: e.key)),
+        if (hiddenCount > 0)
+          Padding(
+            padding: const EdgeInsets.only(top: 4, bottom: 8),
+            child: Center(
+              child: TextButton(
+                onPressed: () => setState(() => _showAll = true),
+                child: Text(
+                  '이전 기록 $hiddenCount통 더보기',
+                  style: bodyFont(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.blobLavenderAccent,
+                  ),
+                ),
+              ),
+            ),
+          )
+        else if (_showAll && history.length > _kInitialVisibleCount)
+          Padding(
+            padding: const EdgeInsets.only(top: 4, bottom: 8),
+            child: Center(
+              child: TextButton(
+                onPressed: () => setState(() => _showAll = false),
+                child: Text(
+                  '접기',
+                  style: bodyFont(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.inkSoft,
+                  ),
+                ),
+              ),
+            ),
+          ),
       ],
+    );
+  }
+}
+
+/// 지금까지 만난 그림자 고양이별로 몇 번씩 편지를 썼는지 집계해 보여주는
+/// 요약표. 편지 카드가 쌓일수록 "누구를 몇 번 만났는지"를 한눈에 보기
+/// 어려워진다는 피드백을 반영해, 개별 카드 목록보다 먼저 이 표를
+/// 보여줍니다. 만남 횟수가 많은 고양이부터 순서대로 정렬합니다.
+class _CatMeetingSummaryTable extends StatelessWidget {
+  final List<LetterEntry> history;
+  const _CatMeetingSummaryTable({required this.history});
+
+  @override
+  Widget build(BuildContext context) {
+    final counts = <String, int>{};
+    for (final e in history) {
+      counts[e.catId] = (counts[e.catId] ?? 0) + 1;
+    }
+    final rows = counts.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    return GlassBlob(
+      accent: AppColors.blobLavenderAccent,
+      background: AppColors.blobLavender,
+      padding: const EdgeInsets.all(18),
+      floatSeed: 5,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Text('🐾', style: TextStyle(fontSize: 18)),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  '지금까지 만난 그림자 고양이',
+                  style: pathLabelFont(
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.ink,
+                  ),
+                ),
+              ),
+              Text(
+                '총 ${rows.length}종 · ${history.length}회',
+                style: bodyFont(fontSize: 11, color: AppColors.inkSoft),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '편지 카드 대신, 어떤 고양이를 몇 번 만났는지 숫자로 정리했어요',
+            style: bodyFont(fontSize: 11, color: AppColors.inkSoft),
+          ),
+          const SizedBox(height: 14),
+          ...rows.map((e) {
+            final cat = shadowCatById(e.key);
+            final ratio = history.isEmpty ? 0.0 : e.value / history.length;
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Row(
+                children: [
+                  Text(cat.emoji, style: const TextStyle(fontSize: 16)),
+                  const SizedBox(width: 8),
+                  SizedBox(
+                    width: 82,
+                    child: Text(
+                      cat.nameKr,
+                      style: bodyFont(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.ink,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  Expanded(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(999),
+                      child: SizedBox(
+                        height: 10,
+                        child: Stack(
+                          children: [
+                            Container(color: Colors.white.withValues(alpha: 0.5)),
+                            FractionallySizedBox(
+                              widthFactor: ratio.clamp(0.03, 1.0),
+                              child: Container(
+                                color: AppColors.blobLavenderAccent,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  SizedBox(
+                    width: 42,
+                    child: Text(
+                      '${e.value}마리',
+                      textAlign: TextAlign.right,
+                      style: numberFont(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.blobLavenderAccent,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
+        ],
+      ),
     );
   }
 }
