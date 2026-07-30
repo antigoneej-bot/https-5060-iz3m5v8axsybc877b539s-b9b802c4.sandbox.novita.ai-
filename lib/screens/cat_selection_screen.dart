@@ -38,21 +38,7 @@ class _CatSelectionScreenState extends State<CatSelectionScreen>
   // 속도/위상(phase)만 다르게 주어 여전히 '화단처럼 제각각 살아있는' 느낌은
   // 유지하면서 Ticker 개수를 52개 에서 1개로 줄입니다.
   late final AnimationController _sharedFloat;
-  final Map<int, BorderRadius> _radiusCache = {};
   final Map<int, _CardMotion> _motionCache = {};
-
-  BorderRadius _blobRadiusFor(int seed) {
-    return _radiusCache.putIfAbsent(seed, () {
-      final rng = Random(seed * 13 + 5);
-      double r(double base) => base + rng.nextDouble() * 10;
-      return BorderRadius.only(
-        topLeft: Radius.circular(r(20)),
-        topRight: Radius.circular(r(16)),
-        bottomLeft: Radius.circular(r(16)),
-        bottomRight: Radius.circular(r(24)),
-      );
-    });
-  }
 
   _CardMotion _motionFor(int seed) {
     return _motionCache.putIfAbsent(seed, () {
@@ -165,7 +151,6 @@ class _CatSelectionScreenState extends State<CatSelectionScreen>
               cat: cat,
               seed: index,
               locked: locked,
-              radius: _blobRadiusFor(index),
               motion: _motionFor(index),
               sharedAnimation: _sharedFloat,
               onTap: locked
@@ -455,7 +440,6 @@ class _CatCard extends StatefulWidget {
   final ShadowCat cat;
   final int seed;
   final bool locked;
-  final BorderRadius radius;
   final _CardMotion motion;
   final Animation<double> sharedAnimation;
   final VoidCallback onTap;
@@ -463,7 +447,6 @@ class _CatCard extends StatefulWidget {
     required this.cat,
     required this.seed,
     required this.onTap,
-    required this.radius,
     required this.motion,
     required this.sharedAnimation,
     this.locked = false,
@@ -475,6 +458,14 @@ class _CatCard extends StatefulWidget {
 
 class _CatCardState extends State<_CatCard> {
   bool _hovering = false;
+  bool _pressed = false;
+
+  // 디자인 리팩토링: 52장 전부 다른 랜덤 코너를 쓰던 '블롭' 프레임을 없애고,
+  // 카드 이미지 자체에 이미 그려진 프레임과 충돌하지 않도록 통일된 라운드
+  // 사각형 하나로 정리했습니다. 3열 그리드의 코너 라인이 모두 맞아 훨씬
+  // 정돈되어 보입니다.
+  static const _cardRadius = BorderRadius.all(Radius.circular(20));
+  static const _imageRadius = BorderRadius.all(Radius.circular(14));
 
   static const _accents = [
     AppColors.blobMintAccent,
@@ -484,20 +475,14 @@ class _CatCardState extends State<_CatCard> {
     AppColors.blobButterAccent,
     AppColors.blobPeriwinkleAccent,
   ];
-  static const _backgrounds = [
-    AppColors.blobMint,
-    AppColors.blobPeach,
-    AppColors.blobLavender,
-    AppColors.blobRose,
-    AppColors.blobButter,
-    AppColors.blobPeriwinkle,
-  ];
 
   @override
   Widget build(BuildContext context) {
     final accent = _accents[widget.seed % _accents.length];
-    final background = _backgrounds[widget.seed % _backgrounds.length];
-    final radius = widget.radius;
+    // 눌림(press)과 호버를 하나의 "활성" 상태로 합쳐, 터치 디바이스에서도
+    // 탭하는 순간 즉시 카드가 살짝 눌리는 피드백을 받도록 합니다.
+    final active = _hovering || _pressed;
+    final scale = _pressed ? 0.94 : (_hovering ? 1.04 : 1.0);
     // RepaintBoundary: 카드 하나가 애니메이션으로 다시 그려질 때 다른 51개
     // 카드나 배경까지 함께 리페인트되지 않도록 화면을 여기서 잘라줍니다.
     return RepaintBoundary(
@@ -508,6 +493,9 @@ class _CatCardState extends State<_CatCard> {
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTap: widget.onTap,
+          onTapDown: (_) => setState(() => _pressed = true),
+          onTapUp: (_) => setState(() => _pressed = false),
+          onTapCancel: () => setState(() => _pressed = false),
           child: AnimatedBuilder(
             animation: widget.sharedAnimation,
             builder: (context, child) {
@@ -515,41 +503,42 @@ class _CatCardState extends State<_CatCard> {
                   (widget.sharedAnimation.value * widget.motion.speedMul +
                       widget.motion.phase) %
                   1.0;
-              final dy = sin(t * 2 * pi) * 2.6;
-              final angle = sin(t * 2 * pi) * 0.018;
+              // 눌린 상태에서는 흔들림 애니메이션을 잠시 멈춰 "지금 눌렸다"는
+              // 느낌이 미세한 흔들림에 묻히지 않도록 합니다.
+              final dy = _pressed ? 0.0 : sin(t * 2 * pi) * 2.6;
+              final angle = _pressed ? 0.0 : sin(t * 2 * pi) * 0.018;
               return Transform.translate(
                 offset: Offset(0, dy),
                 child: Transform.rotate(angle: angle, child: child),
               );
             },
             child: AnimatedScale(
-              scale: _hovering ? 1.05 : 1.0,
-              duration: const Duration(milliseconds: 200),
+              scale: scale,
+              duration: const Duration(milliseconds: 140),
+              curve: Curves.easeOut,
+              // 카드 프레임: 52장 모두 같은 라운드 사각형으로 통일해 3열 그리드의
+              // 라인이 서로 맞도록 정리했습니다. 이미지 자체에 이미 크림색
+              // 액자 테두리가 그려져 있으므로, 카드 배경은 짙은 색 그라데이션
+              // 대신 차분한 아이보리 톤 하나로 단순화해 "액자 안의 액자"처럼
+              // 겹쳐 보이던 문제를 없앴습니다. 포인트 컬러는 대신 감정 키워드
+              // 태그에 담아 정보 전달 용도로 사용합니다.
               child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 10,
-                ),
+                duration: const Duration(milliseconds: 140),
+                padding: const EdgeInsets.all(7),
                 decoration: BoxDecoration(
-                  borderRadius: radius,
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      background.withValues(alpha: _hovering ? 0.9 : 0.72),
-                      background.withValues(alpha: _hovering ? 0.6 : 0.42),
-                    ],
-                  ),
+                  borderRadius: _cardRadius,
+                  color: AppColors.bg1,
                   border: Border.all(
-                    color: accent.withValues(alpha: _hovering ? 0.45 : 0.22),
-                    width: 1.1,
+                    color: accent.withValues(alpha: active ? 0.4 : 0.16),
+                    width: active ? 1.4 : 1,
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: accent.withValues(alpha: _hovering ? 0.22 : 0.1),
-                      blurRadius: _hovering ? 16 : 8,
-                      offset: const Offset(0, 6),
+                      color: AppColors.ink.withValues(
+                        alpha: _pressed ? 0.03 : (active ? 0.1 : 0.06),
+                      ),
+                      blurRadius: active ? 14 : 8,
+                      offset: Offset(0, _pressed ? 1 : 5),
                     ),
                   ],
                 ),
@@ -558,7 +547,7 @@ class _CatCardState extends State<_CatCard> {
                   children: [
                     Expanded(
                       child: ClipRRect(
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: _imageRadius,
                         child: Stack(
                           fit: StackFit.expand,
                           children: [
@@ -594,6 +583,34 @@ class _CatCardState extends State<_CatCard> {
                                     cacheWidth: 200,
                                     cacheHeight: 200,
                                   ),
+                            // 감정 키워드 태그: 색을 카드 전체에 칠하는 대신
+                            // 이미지 위 좌상단에 작은 알약 태그로만 얹어, 한눈에
+                            // 스캔이 빠르면서도 이미지 원본 프레임을 가리지 않게
+                            // 했습니다.
+                            if (!widget.locked)
+                              Positioned(
+                                left: 5,
+                                top: 5,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 7,
+                                    vertical: 3,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.82),
+                                    borderRadius: BorderRadius.circular(999),
+                                  ),
+                                  child: Text(
+                                    widget.cat.keyword,
+                                    style: bodyFont(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w600,
+                                      color: accent,
+                                      height: 1,
+                                    ),
+                                  ),
+                                ),
+                              ),
                             if (widget.locked)
                               Positioned.fill(
                                 child: DecoratedBox(
@@ -632,19 +649,16 @@ class _CatCardState extends State<_CatCard> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 7),
                     Text(
-                      widget.cat.emoji,
-                      style: const TextStyle(fontSize: 14),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      widget.locked ? '？？？' : widget.cat.nameKr,
+                      widget.locked
+                          ? '？？？'
+                          : '${widget.cat.emoji} ${widget.cat.nameKr}',
                       textAlign: TextAlign.center,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: pathLabelFont(
-                        fontSize: 12,
+                        fontSize: 12.5,
                         fontWeight: FontWeight.w700,
                         color: widget.locked
                             ? AppColors.inkSoft
