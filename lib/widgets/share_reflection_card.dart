@@ -26,8 +26,10 @@ Future<void> showShareReflectionCard(
   return showDialog(
     context: context,
     barrierColor: Colors.black.withValues(alpha: 0.55),
-    builder: (_) =>
-        _ShareReflectionCardDialog(cardContent: cardContent, shareText: shareText),
+    builder: (_) => _ShareReflectionCardDialog(
+      cardContent: cardContent,
+      shareText: shareText,
+    ),
   );
 }
 
@@ -86,15 +88,15 @@ class _ShareReflectionCardDialogState
       });
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('카드를 사진첩에 저장했어요 📷')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('카드를 사진첩에 저장했어요 📷')));
     } catch (e) {
       if (kDebugMode) debugPrint('카드 저장 실패: $e');
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('저장 권한을 확인해주세요')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('저장 권한을 확인해주세요')));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -147,9 +149,9 @@ class _ShareReflectionCardDialogState
       });
 
       if (savedToGallery && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('사진첩에도 저장했어요 📷')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('사진첩에도 저장했어요 📷')));
       }
     } catch (e) {
       if (kDebugMode) debugPrint('회고 공유 카드 생성 실패: $e');
@@ -283,7 +285,7 @@ class _ShareCardFrame extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            'CAT SHADOW GARDEN',
+            'MIND CAT GARDEN',
             textAlign: TextAlign.center,
             style: bodyFont(
               fontSize: 10,
@@ -296,9 +298,9 @@ class _ShareCardFrame extends StatelessWidget {
           child,
           const SizedBox(height: 18),
           Text(
-            '🐈‍⬛  고양이 그림자 정원',
+            '🐈‍⬛  마음냥 정원',
             textAlign: TextAlign.center,
-            style: bodyFont(fontSize: 10.5, color: AppColors.inkSoft),
+            style: brandFont(fontSize: 15, color: AppColors.inkSoft),
           ),
         ],
       ),
@@ -373,10 +375,7 @@ class ShareWeeklyCardContent extends StatelessWidget {
         ? CatPalette.backgroundFor(topCatId!)
         : AppColors.blobMint;
     return _ShareCardFrame(
-      gradientColors: [
-        Colors.white,
-        background.withValues(alpha: 0.9),
-      ],
+      gradientColors: [Colors.white, background.withValues(alpha: 0.9)],
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,

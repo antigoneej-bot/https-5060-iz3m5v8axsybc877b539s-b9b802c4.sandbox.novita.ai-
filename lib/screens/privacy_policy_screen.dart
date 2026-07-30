@@ -56,7 +56,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
                             accent: AppColors.blobMintAccent,
                             background: AppColors.blobMint,
                             body:
-                                '고양이 그림자 정원은 다음과 같은 정보를 앱 안에서 만들고 저장합니다.\n\n'
+                                '마음냥 정원은 다음과 같은 정보를 앱 안에서 만들고 저장합니다.\n\n'
                                 '· 오늘의 감정 카드 선택 기록, 마음 온도 기록\n'
                                 '· 고양이에게 쓴 편지(일기) 내용\n'
                                 '· 먹이주기 · 물주기 · 목욕 · 청소 등 돌보기 기록\n'
@@ -162,7 +162,7 @@ class _DisclaimerCard extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           Text(
-            '고양이 그림자 정원은 감정을 돌아보고 작은 실천으로 마음을 돌보는 것을 '
+            '마음냥 정원은 감정을 돌아보고 작은 실천으로 마음을 돌보는 것을 '
             '돕는 자기돌봄(self-care) 및 마음챙김 보조 앱입니다.\n\n'
             '이 앱은 의료 서비스가 아니며, 전문적인 진단·치료·상담을 대체할 수 없습니다. '
             '앱에서 제공하는 감정 기록, 명상, 조언은 정서적 참고 자료일 뿐 의학적 '

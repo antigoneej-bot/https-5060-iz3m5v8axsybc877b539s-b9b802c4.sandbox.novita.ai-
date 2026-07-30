@@ -90,7 +90,7 @@ class _MyScreenState extends State<MyScreen> {
         const SizedBox(height: 4),
         _InfoLinkRow(
           icon: Icons.menu_book_rounded,
-          label: '고양이 그림자 정원 소개',
+          label: '마음냥 정원 소개',
           onTap: () {
             Navigator.of(
               context,
@@ -138,7 +138,7 @@ class _MyScreenState extends State<MyScreen> {
         const SizedBox(height: 20),
         Center(
           child: Text(
-            '고양이 그림자 정원 v1.0',
+            '마음냥 정원 v1.0',
             style: bodyFont(fontSize: 11, color: AppColors.inkSoft),
           ),
         ),
@@ -759,7 +759,7 @@ class _FeedbackCardState extends State<_FeedbackCard> {
       final uri = Uri(
         scheme: 'mailto',
         path: _feedbackEmail,
-        query: _encodeQuery({'subject': '[고양이 그림자 정원] 의견 보내기', 'body': body}),
+        query: _encodeQuery({'subject': '[마음냥 정원] 의견 보내기', 'body': body}),
       );
 
       final launched = await launchUrl(uri);

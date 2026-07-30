@@ -55,7 +55,7 @@ class TermsOfServiceScreen extends StatelessWidget {
                             accent: AppColors.blobMintAccent,
                             background: AppColors.blobMint,
                             body:
-                                '이 약관은 고양이 그림자 정원(이하 "앱")을 이용함에 있어 이용자와 '
+                                '이 약관은 마음냥 정원(이하 "앱")을 이용함에 있어 이용자와 '
                                 '앱 운영자 사이의 권리, 의무 및 책임사항, 이용 조건 및 절차 등 '
                                 '기본적인 사항을 규정하는 것을 목적으로 합니다.',
                           ),

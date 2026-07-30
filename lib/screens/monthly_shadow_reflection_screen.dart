@@ -213,7 +213,7 @@ class _ShareMonthlyButton extends StatelessWidget {
               sentence: sentence,
               accentCatId: accentCatId,
             ),
-            shareText: '이번 달 나의 그림자 정원 이야기 🌙 #고양이그림자정원',
+            shareText: '이번 달 나의 그림자 정원 이야기 🌙 #마음냥정원',
           );
         },
         icon: Icon(

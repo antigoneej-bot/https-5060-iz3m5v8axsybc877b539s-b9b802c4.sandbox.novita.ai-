@@ -74,7 +74,7 @@ class _WelcomeIntroScreenState extends State<WelcomeIntroScreen> {
     _IntroPageData(
       imageAsset: 'assets/onboarding_intro/intro_3_growth.png',
       title: '오늘의 마음을 닮은 고양이를 만나\n그림자를 인정하고 받아들이세요.',
-      subtitle: '그러면 당신의 마음고양이와 함께 성장합니다.\n내면소통 \'고양이 그림자 정원\'',
+      subtitle: '그러면 당신의 마음고양이와 함께 성장합니다.\n내면소통 \'마음냥 정원\'',
     ),
     _IntroPageData(
       imageAsset: 'assets/onboarding_intro/intro_5_garden_grown.png',

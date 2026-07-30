@@ -6,7 +6,7 @@ import 'premium_screen.dart';
 
 /// 앱 사용법 튜토리얼 화면.
 ///
-/// [AboutAppScreen](마이 > 고양이 그림자 정원 소개)이 "이 앱이 어떤 생각에서
+/// [AboutAppScreen](마이 > 마음냥 정원 소개)이 "이 앱이 어떤 생각에서
 /// 시작됐는지"를 다루는 철학적 소개라면, 이 화면은 "실제로 무엇을 할 수 있고
 /// 어떻게 쓰면 되는지"를 다루는 기능 지도(사용 설명서)입니다.
 ///
@@ -344,7 +344,7 @@ class _TutorialIntroCard extends StatelessWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  '고양이 그림자 정원, 이렇게 써보세요',
+                  '마음냥 정원, 이렇게 써보세요',
                   style: pathLabelFont(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
@@ -672,7 +672,7 @@ class _BasisCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '고양이 그림자 정원은 심리학자 칼 융(Carl Jung)의 "그림자(Shadow)" '
+            '마음냥 정원은 심리학자 칼 융(Carl Jung)의 "그림자(Shadow)" '
             '개념에서 출발했어요. 슬픔, 질투, 분노처럼 밀어내고 싶은 감정도 '
             '없애야 할 것이 아니라 있는 그대로 바라볼 때 나를 더 온전하게 '
             '만들어준다는 생각이에요.\n\n'

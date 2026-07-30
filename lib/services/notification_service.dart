@@ -282,7 +282,7 @@ class NotificationService {
       final scheduled = _nextInstanceOf(hour, minute);
       await _plugin.zonedSchedule(
         _morningId,
-        '고양이 그림자 정원 🌤️',
+        '마음냥 정원 🌤️',
         body,
         scheduled,
         const NotificationDetails(
@@ -317,7 +317,7 @@ class NotificationService {
       final scheduled = _nextInstanceOf(hour, minute);
       await _plugin.zonedSchedule(
         _eveningId,
-        '고양이 그림자 정원 🌙',
+        '마음냥 정원 🌙',
         body,
         scheduled,
         const NotificationDetails(
@@ -371,7 +371,7 @@ class NotificationService {
 
       await _plugin.zonedSchedule(
         _crisisId,
-        '고양이 그림자 정원 🐈‍⬛',
+        '마음냥 정원 🐈‍⬛',
         body,
         scheduled,
         const NotificationDetails(
@@ -431,7 +431,7 @@ class NotificationService {
 
       await _plugin.zonedSchedule(
         _streakId,
-        '고양이 그림자 정원 🔥',
+        '마음냥 정원 🔥',
         body,
         todayTarget,
         const NotificationDetails(
@@ -470,7 +470,7 @@ class NotificationService {
       final scheduled = tz.TZDateTime.from(scheduledAt, tz.local);
       await _plugin.zonedSchedule(
         _catReplyId,
-        '고양이 그림자 정원 💌',
+        '마음냥 정원 💌',
         '$catName에게서 답장이 도착했어요',
         scheduled,
         const NotificationDetails(

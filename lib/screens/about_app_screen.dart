@@ -34,7 +34,7 @@ class AboutAppScreen extends StatelessWidget {
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          '고양이 그림자 정원 소개',
+                          '마음냥 정원 소개',
                           style: titleFont(
                             fontSize: 20,
                             color: AppColors.titlePastelGreen,
@@ -57,7 +57,7 @@ class AboutAppScreen extends StatelessWidget {
                             accent: AppColors.blobLavenderAccent,
                             background: AppColors.blobLavender,
                             body:
-                                '고양이 그림자 정원은 심리학자 칼 융(Carl Jung)의 '
+                                '마음냥 정원은 심리학자 칼 융(Carl Jung)의 '
                                 '"그림자(Shadow)" 개념에서 출발했어요.\n\n'
                                 '융은 우리 마음속에는 스스로 인정하고 싶지 않아 밀어내 버린 '
                                 '감정이나 모습들이 있다고 말했어요. 슬픔, 질투, 무기력, 분노 같은 '
@@ -120,7 +120,7 @@ class AboutAppScreen extends StatelessWidget {
                           const SizedBox(height: 22),
                           Center(
                             child: Text(
-                              '고양이 그림자 정원과 함께, 오늘의 마음을 천천히 들여다보세요 🌙',
+                              '마음냥 정원과 함께, 오늘의 마음을 천천히 들여다보세요 🌙',
                               textAlign: TextAlign.center,
                               style: bodyFont(
                                 fontSize: 12,
@@ -162,7 +162,7 @@ class _IntroHeaderCard extends StatelessWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  '고양이 그림자 정원에 오신 걸 환영해요',
+                  '마음냥 정원에 오신 걸 환영해요',
                   style: pathLabelFont(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,

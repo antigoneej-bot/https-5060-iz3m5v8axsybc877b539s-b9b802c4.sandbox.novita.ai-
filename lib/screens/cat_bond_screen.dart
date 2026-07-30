@@ -188,8 +188,8 @@ class _MyCodeCard extends StatelessWidget {
         text:
             '내 그림자 고양이는 \'${cat.nameKr}\'예요 🐾\n'
             '내 묘연 코드: $code\n\n'
-            '"고양이 그림자 정원" 앱에서 이 코드를 입력하고\n'
-            '네 그림자와 나란히 놓아볼래? #고양이그림자정원',
+            '"마음냥 정원" 앱에서 이 코드를 입력하고\n'
+            '네 그림자와 나란히 놓아볼래? #마음냥정원',
       ),
     );
     AnalyticsService().logEvent(AnalyticsEvents.bondCodeGenerated, {
@@ -233,10 +233,7 @@ class _MyCodeCard extends StatelessWidget {
           GestureDetector(
             onTap: () => _copyCode(context),
             child: Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 22,
-                vertical: 12,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
               decoration: BoxDecoration(
                 color: Colors.white.withValues(alpha: 0.75),
                 borderRadius: BorderRadius.circular(999),
@@ -494,7 +491,8 @@ class _BondResultCardState extends State<_BondResultCard> {
                   friendCatId: widget.friendCatId,
                   sentence: _sentence,
                 ),
-                shareText: '오늘의 묘연: ${myCat.nameKr} × ${friendCat.nameKr} 🐾 #고양이그림자정원',
+                shareText:
+                    '오늘의 묘연: ${myCat.nameKr} × ${friendCat.nameKr} 🐾 #마음냥정원',
               );
             },
             icon: Icon(
@@ -514,7 +512,10 @@ class _BondResultCardState extends State<_BondResultCard> {
             ),
             label: Text(
               '묘연 카드 공유하기',
-              style: pathLabelFont(fontSize: 12.5, color: AppColors.blobPeachAccent),
+              style: pathLabelFont(
+                fontSize: 12.5,
+                color: AppColors.blobPeachAccent,
+              ),
             ),
           ),
         ],
@@ -580,7 +581,7 @@ class _BondShareCardContent extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            'CAT SHADOW GARDEN',
+            'MIND CAT GARDEN',
             textAlign: TextAlign.center,
             style: bodyFont(
               fontSize: 10,
@@ -615,9 +616,9 @@ class _BondShareCardContent extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           Text(
-            '🐈‍⬛  고양이 그림자 정원',
+            '🐈‍⬛  마음냥 정원',
             textAlign: TextAlign.center,
-            style: bodyFont(fontSize: 10.5, color: AppColors.inkSoft),
+            style: brandFont(fontSize: 15, color: AppColors.inkSoft),
           ),
         ],
       ),

@@ -165,8 +165,8 @@ class _ShareWeeklyButton extends StatelessWidget {
               days: days,
             ),
             shareText: catName != null
-                ? '이번 주 나의 그림자 고양이는 $catName였어요 🐾 #고양이그림자정원'
-                : '이번 주 그림자 지도를 살펴보고 있어요 🐾 #고양이그림자정원',
+                ? '이번 주 나의 그림자 고양이는 $catName였어요 🐾 #마음냥정원'
+                : '이번 주 그림자 지도를 살펴보고 있어요 🐾 #마음냥정원',
           );
         },
         icon: Icon(

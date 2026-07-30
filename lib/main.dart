@@ -32,7 +32,9 @@ const String _localUserId = 'local_user';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   try {
-    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
   } catch (e) {
     debugPrint('Firebase initialization failed: $e');
   }
@@ -60,7 +62,7 @@ class MysticCatApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => BuriedEmotionProvider()),
       ],
       child: MaterialApp(
-        title: '고양이 그림자 정원',
+        title: '마음냥 정원',
         debugShowCheckedModeBanner: false,
         theme: appTheme,
         home: const _AppRoot(),
@@ -204,9 +206,9 @@ class _LoadingSplash extends StatelessWidget {
                 ),
                 const SizedBox(height: 18),
                 Text(
-                  '고양이 그림자 정원',
-                  style: titleFont(
-                    fontSize: 20,
+                  '마음냥 정원',
+                  style: brandFont(
+                    fontSize: 26,
                     color: AppColors.titlePastelGreen,
                   ),
                 ),

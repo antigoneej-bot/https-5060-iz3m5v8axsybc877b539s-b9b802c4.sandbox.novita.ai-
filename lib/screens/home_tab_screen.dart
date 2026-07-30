@@ -59,9 +59,8 @@ class HomeTabScreen extends StatelessWidget {
             entry: unseenHeartReply,
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(
-                builder: (_) => HeartLetterHistoryScreen(
-                  type: unseenHeartReply.type,
-                ),
+                builder: (_) =>
+                    HeartLetterHistoryScreen(type: unseenHeartReply.type),
               ),
             ),
           ),
@@ -70,7 +69,7 @@ class HomeTabScreen extends StatelessWidget {
         const _SproutBannerArea(),
         const _ReflectionBannerArea(),
         Text(
-          'CAT SHADOW GARDEN',
+          'MIND CAT GARDEN',
           textAlign: TextAlign.center,
           style: bodyFont(
             fontSize: 12,
@@ -81,9 +80,9 @@ class HomeTabScreen extends StatelessWidget {
         ),
         const SizedBox(height: 10),
         Text(
-          '고양이 그림자 정원',
+          '마음냥 정원',
           textAlign: TextAlign.center,
-          style: titleFont(fontSize: 34, color: AppColors.titlePastelGreen),
+          style: brandFont(fontSize: 44, color: AppColors.titlePastelGreen),
         ),
         const SizedBox(height: 10),
         Text(
@@ -287,8 +286,7 @@ class HomeTabScreen extends StatelessWidget {
           alignX: -0.24,
           widthFactor: 0.9,
           floatSeed: 11,
-          onTap: () =>
-              pushFullScreen(context, '묘연 나누기', const CatBondScreen()),
+          onTap: () => pushFullScreen(context, '묘연 나누기', const CatBondScreen()),
         ),
         const SizedBox(height: 40),
         _GardenHintCaption(),
@@ -608,7 +606,10 @@ class _HeartLetterReplyBanner extends StatelessWidget {
                   color: Colors.white.withValues(alpha: 0.6),
                   shape: BoxShape.circle,
                 ),
-                child: Text(entry.type.emoji, style: const TextStyle(fontSize: 20)),
+                child: Text(
+                  entry.type.emoji,
+                  style: const TextStyle(fontSize: 20),
+                ),
               ),
               const SizedBox(width: 16),
               Expanded(

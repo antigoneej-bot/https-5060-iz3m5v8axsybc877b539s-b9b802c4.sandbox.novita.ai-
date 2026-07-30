@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-/// 고양이 그림자 정원 - 미니멀하고 세련된 모던 파스텔 테마
+/// 마음냥 정원 - 미니멀하고 세련된 모던 파스텔 테마
 /// 따뜻한 크림/아이보리 베이스 위에, 카테고리마다 서로 다른 포인트 컬러를 사용해
 /// 구분감을 주되 전체적으로는 톤을 맞춘 하나의 팔레트로 통일합니다.
 class AppColors {
@@ -126,6 +126,26 @@ TextStyle titleFont({
     color: color,
     letterSpacing: letterSpacing ?? 0.6,
     height: height ?? 1.3,
+  );
+}
+
+/// '마음냥 정원' 브랜드 워드마크 전용 폰트 (Nanum Pen Script) - 앱 안의 다른
+/// 섹션 제목들(Gamja Flower)과는 결이 다른, 붓펜으로 슥 흘려 쓴 듯한 유려한
+/// 필기체입니다. 스플래시 화면·홈 대표 타이틀처럼 "브랜드가 도장처럼 찍히는"
+/// 자리에만 아껴서 사용해 브랜드명이 다른 제목들 사이에 묻히지 않게 합니다.
+TextStyle brandFont({
+  double fontSize = 32,
+  FontWeight? fontWeight,
+  Color? color,
+  double? letterSpacing,
+  double? height,
+}) {
+  return GoogleFonts.nanumPenScript(
+    fontSize: fontSize,
+    fontWeight: fontWeight ?? FontWeight.w400,
+    color: color,
+    letterSpacing: letterSpacing ?? 0.8,
+    height: height ?? 1.2,
   );
 }
 

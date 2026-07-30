@@ -82,7 +82,8 @@ class _ShareCatCardDialogState extends State<_ShareCatCardDialog> {
 
       await Gal.putImageBytes(
         bytes,
-        name: 'shadow_cat_${widget.cat.id}_${DateTime.now().millisecondsSinceEpoch}',
+        name:
+            'shadow_cat_${widget.cat.id}_${DateTime.now().millisecondsSinceEpoch}',
       );
       await AnalyticsService().logEvent(AnalyticsEvents.saveCardToGallery, {
         'card_type': 'cat_card',
@@ -90,15 +91,15 @@ class _ShareCatCardDialogState extends State<_ShareCatCardDialog> {
       });
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('카드를 사진첩에 저장했어요 📷')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('카드를 사진첩에 저장했어요 📷')));
     } catch (e) {
       if (kDebugMode) debugPrint('카드 저장 실패: $e');
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('저장 권한을 확인해주세요')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('저장 권한을 확인해주세요')));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -133,7 +134,8 @@ class _ShareCatCardDialogState extends State<_ShareCatCardDialog> {
       try {
         await Gal.putImageBytes(
           bytes,
-          name: 'shadow_cat_${widget.cat.id}_${DateTime.now().millisecondsSinceEpoch}',
+          name:
+              'shadow_cat_${widget.cat.id}_${DateTime.now().millisecondsSinceEpoch}',
         );
         savedToGallery = true;
         await AnalyticsService().logEvent(AnalyticsEvents.saveCardToGallery, {
@@ -146,7 +148,7 @@ class _ShareCatCardDialogState extends State<_ShareCatCardDialog> {
 
       await SharePlus.instance.share(
         ShareParams(
-          text: '오늘은 ${widget.cat.nameKr} 고양이를 만났어요 🐾 #고양이그림자정원',
+          text: '오늘은 ${widget.cat.nameKr} 고양이를 만났어요 🐾 #마음냥정원',
           files: [XFile(file.path)],
         ),
       );
@@ -156,9 +158,9 @@ class _ShareCatCardDialogState extends State<_ShareCatCardDialog> {
       });
 
       if (savedToGallery && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('사진첩에도 저장했어요 📷')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('사진첩에도 저장했어요 📷')));
       }
     } catch (e) {
       if (kDebugMode) debugPrint('공유 카드 생성 실패: $e');
@@ -309,7 +311,7 @@ class ShareCatCardContent extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            'CAT SHADOW GARDEN',
+            'MIND CAT GARDEN',
             textAlign: TextAlign.center,
             style: bodyFont(
               fontSize: 10,
@@ -382,9 +384,9 @@ class ShareCatCardContent extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           Text(
-            '🐈‍⬛  고양이 그림자 정원',
+            '🐈‍⬛  마음냥 정원',
             textAlign: TextAlign.center,
-            style: bodyFont(fontSize: 10.5, color: AppColors.inkSoft),
+            style: brandFont(fontSize: 15, color: AppColors.inkSoft),
           ),
           Text(
             '$metCount / $total',
