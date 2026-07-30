@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/cat_care_provider.dart';
+import '../providers/app_state_provider.dart';
 import '../data/shadow_cats_data.dart';
 import '../models/shadow_cat.dart';
 import '../services/storage_service.dart';
 import '../theme.dart';
 import '../widgets/garden_path_card.dart';
 import '../widgets/graduation_celebration_overlay.dart';
+import 'premium_screen.dart';
 
 /// 졸업 앨범 - 성체까지 다 키워 졸업시킨 그림자 고양이들을 졸업일과 함께
 /// 모아보는 화면. 42마리를 모두 졸업시키는 것이 궁극적인 목표입니다.
@@ -16,7 +18,12 @@ class GraduationAlbumScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final care = context.watch<CatCareProvider>();
+    final appState = context.watch<AppStateProvider>();
     final graduated = care.graduatedCats;
+    // 무료 42마리를 모두 졸업시킨, 앱에 가장 깊이 몰입한 사용자입니다.
+    // 아직 구독하지 않았다면 이 시점이 가장 자연스러운 업셀 타이밍입니다.
+    final allFreeGraduated = graduated.length >= freeShadowCats.length;
+    final showGraduationUpsell = allFreeGraduated && !appState.isPremiumUser;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -54,6 +61,10 @@ class GraduationAlbumScreen extends StatelessWidget {
             ],
           ),
         ),
+        if (showGraduationUpsell) ...[
+          const SizedBox(height: 14),
+          const _GraduationCompleteUpsellCard(),
+        ],
         const SizedBox(height: 18),
         if (graduated.isEmpty)
           GlassBlob(
@@ -96,6 +107,80 @@ class GraduationAlbumScreen extends StatelessWidget {
             );
           }),
       ],
+    );
+  }
+}
+
+/// 무료 42마리를 모두 졸업시킨 사용자에게 보여주는 축하 + 구독 유도 카드.
+/// 가장 몰입도 높은 순간(완주 시점)에 자연스럽게 업셀을 제안합니다.
+class _GraduationCompleteUpsellCard extends StatelessWidget {
+  const _GraduationCompleteUpsellCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const PremiumScreen()),
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(22),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              AppColors.blobButterAccent.withValues(alpha: 0.85),
+              AppColors.gold.withValues(alpha: 0.85),
+            ],
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.gold.withValues(alpha: 0.25),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            const Text('🎉', style: TextStyle(fontSize: 26)),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '42마리 완주를 축하해요!',
+                    style: pathLabelFont(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '이제 냉소·시기·두려움 같은\n더 섬세한 10가지 감정을 만나볼 준비가 됐어요',
+                    style: bodyFont(
+                      fontSize: 11.5,
+                      color: Colors.white.withValues(alpha: 0.92),
+                      height: 1.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            const Icon(
+              Icons.arrow_forward_ios_rounded,
+              color: Colors.white,
+              size: 16,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

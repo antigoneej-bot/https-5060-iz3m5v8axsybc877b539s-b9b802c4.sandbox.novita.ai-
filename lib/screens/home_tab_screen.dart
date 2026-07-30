@@ -27,6 +27,7 @@ import 'heart_letter_history_screen.dart';
 import '../services/special_letter_service.dart';
 import '../models/special_letter_entry.dart';
 import '../widgets/category_list_screen.dart';
+import 'premium_screen.dart';
 
 /// 홈페이지 탭 - '힐링 정원 산책로' 컨셉의 대시보드.
 /// 딱딱한 흰 사각 카드를 모두 걷어내고, 오솔길을 걷듯 좌우로 살짝씩 흔들리며
@@ -798,7 +799,64 @@ class _StreakBlob extends StatelessWidget {
               style: bodyFont(fontSize: 11, color: AppColors.blobButterAccent),
             ),
           ],
+          _StreakMilestoneUpsell(streak: streak),
         ],
+      ),
+    );
+  }
+}
+
+/// 스트릭이 의미 있는 마일스톤(7/14/30일)에 도달한, 가장 몰입도 높은
+/// 순간에만 아주 짧게 구독을 제안하는 카드. 매번 노출되면 잔소리가 되므로
+/// 딱 그날 하루(스트릭 값이 정확히 마일스톤과 같을 때)에만 보여줍니다.
+class _StreakMilestoneUpsell extends StatelessWidget {
+  final int streak;
+  const _StreakMilestoneUpsell({required this.streak});
+
+  static const _milestones = {
+    7: '일주일째 마음을 돌보고 있어요',
+    14: '2주째 꾸준히 이어오고 있어요',
+    30: '한 달째 함께하고 있어요',
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final app = context.watch<AppStateProvider>();
+    final label = _milestones[streak];
+    if (label == null || app.isPremiumUser) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: GestureDetector(
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const PremiumScreen()),
+          );
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: AppColors.gold.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.gold.withValues(alpha: 0.3)),
+          ),
+          child: Row(
+            children: [
+              const Text('🌟', style: TextStyle(fontSize: 16)),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  '$label. 더 깊이 들여다볼 준비가 됐어요',
+                  style: bodyFont(fontSize: 11.5, color: AppColors.ink),
+                ),
+              ),
+              Icon(
+                Icons.arrow_forward_ios_rounded,
+                size: 12,
+                color: AppColors.gold,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

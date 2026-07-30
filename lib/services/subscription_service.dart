@@ -54,6 +54,14 @@ class SubscriptionService {
   /// 연 구독 할인율 안내 라벨.
   static const String yearlyDiscountLabel = '51% 할인';
 
+  /// 연 구독을 월간가로 12개월 결제했을 때의 정가(취소선 앵커링용).
+  /// 4,900원 × 12개월 = 58,800원.
+  static const String displayYearlyOriginalPrice = '58,800원';
+
+  /// 연 구독으로 절약되는 금액(원화, 앵커링 효과를 위해 % 대신 금액으로 강조).
+  /// 58,800원 - 29,000원 = 29,800원.
+  static const String yearlySavingsLabel = '29,800원 절약';
+
   /// 구독 히어로 카드에 노출되는 뱃지 라벨.
   static const String earlybirdLabel = '정원 플러스 멤버십';
 

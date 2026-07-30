@@ -297,8 +297,9 @@ class _PlanSelector extends StatelessWidget {
             plan: SubscriptionPlan.yearly,
             title: '연간',
             price: SubscriptionService.displayYearlyPrice,
+            originalPrice: SubscriptionService.displayYearlyOriginalPrice,
             caption: SubscriptionService.displayYearlyMonthlyEquivalent,
-            badge: SubscriptionService.yearlyDiscountLabel,
+            badge: SubscriptionService.yearlySavingsLabel,
             selected: selected == SubscriptionPlan.yearly,
             onTap: () => onChanged(SubscriptionPlan.yearly),
           ),
@@ -314,6 +315,7 @@ class _PlanCard extends StatelessWidget {
   final String price;
   final String caption;
   final String? badge;
+  final String? originalPrice;
   final bool selected;
   final VoidCallback onTap;
   const _PlanCard({
@@ -324,6 +326,7 @@ class _PlanCard extends StatelessWidget {
     required this.selected,
     required this.onTap,
     this.badge,
+    this.originalPrice,
   });
 
   @override
@@ -392,6 +395,19 @@ class _PlanCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 8),
+            if (originalPrice != null) ...[
+              Text(
+                originalPrice!,
+                style: bodyFont(
+                  fontSize: 11,
+                  color: AppColors.inkSoft.withValues(alpha: 0.6),
+                ).copyWith(
+                  decoration: TextDecoration.lineThrough,
+                  decorationColor: AppColors.inkSoft.withValues(alpha: 0.6),
+                ),
+              ),
+              const SizedBox(height: 1),
+            ],
             Text(
               price,
               style: numberFont(fontSize: 16, color: AppColors.ink),
