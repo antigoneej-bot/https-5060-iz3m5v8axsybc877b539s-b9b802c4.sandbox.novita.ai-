@@ -27,16 +27,59 @@ class CatSelectionScreen extends StatefulWidget {
   State<CatSelectionScreen> createState() => _CatSelectionScreenState();
 }
 
-class _CatSelectionScreenState extends State<CatSelectionScreen> {
+class _CatSelectionScreenState extends State<CatSelectionScreen>
+    with TickerProviderStateMixin {
   bool _showReassurance = false;
   bool _checkedReassurance = false;
+
+  // 성능 최적화: 카드마다 독립된 AnimationController(Ticker)를 두면 52개의
+  // 타이머가 동시에 매 프레임 재계산되어 화면이 느려지고 터치 반응이
+  // 늦어집니다. 대신 화면 전체가 공유하는 단 하나의 Ticker만 두고, 카드별로
+  // 속도/위상(phase)만 다르게 주어 여전히 '화단처럼 제각각 살아있는' 느낌은
+  // 유지하면서 Ticker 개수를 52개 에서 1개로 줄입니다.
+  late final AnimationController _sharedFloat;
+  final Map<int, BorderRadius> _radiusCache = {};
+  final Map<int, _CardMotion> _motionCache = {};
+
+  BorderRadius _blobRadiusFor(int seed) {
+    return _radiusCache.putIfAbsent(seed, () {
+      final rng = Random(seed * 13 + 5);
+      double r(double base) => base + rng.nextDouble() * 10;
+      return BorderRadius.only(
+        topLeft: Radius.circular(r(20)),
+        topRight: Radius.circular(r(16)),
+        bottomLeft: Radius.circular(r(16)),
+        bottomRight: Radius.circular(r(24)),
+      );
+    });
+  }
+
+  _CardMotion _motionFor(int seed) {
+    return _motionCache.putIfAbsent(seed, () {
+      final rng = Random(seed * 41 + 9);
+      return _CardMotion(
+        speedMul: 0.75 + rng.nextDouble() * 0.6,
+        phase: rng.nextDouble(),
+      );
+    });
+  }
 
   @override
   void initState() {
     super.initState();
+    _sharedFloat = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 5),
+    )..repeat();
     WidgetsBinding.instance.addPostFrameCallback(
       (_) => _maybeShowReassurance(),
     );
+  }
+
+  @override
+  void dispose() {
+    _sharedFloat.dispose();
+    super.dispose();
   }
 
   Future<void> _maybeShowReassurance() async {
@@ -122,6 +165,9 @@ class _CatSelectionScreenState extends State<CatSelectionScreen> {
               cat: cat,
               seed: index,
               locked: locked,
+              radius: _blobRadiusFor(index),
+              motion: _motionFor(index),
+              sharedAnimation: _sharedFloat,
               onTap: locked
                   ? () => _onTapPremiumCat(cat)
                   : () => context.read<AppStateProvider>().selectCat(cat),
@@ -230,6 +276,8 @@ class _PremiumCatIntroSheet extends StatelessWidget {
                         width: 64,
                         height: 64,
                         fit: BoxFit.cover,
+                        cacheWidth: 160,
+                        cacheHeight: 160,
                       ),
                     ),
                   ),
@@ -397,15 +445,27 @@ class _PremiumCatIntroSheet extends StatelessWidget {
   }
 }
 
+class _CardMotion {
+  final double speedMul;
+  final double phase;
+  const _CardMotion({required this.speedMul, required this.phase});
+}
+
 class _CatCard extends StatefulWidget {
   final ShadowCat cat;
   final int seed;
   final bool locked;
+  final BorderRadius radius;
+  final _CardMotion motion;
+  final Animation<double> sharedAnimation;
   final VoidCallback onTap;
   const _CatCard({
     required this.cat,
     required this.seed,
     required this.onTap,
+    required this.radius,
+    required this.motion,
+    required this.sharedAnimation,
     this.locked = false,
   });
 
@@ -413,10 +473,8 @@ class _CatCard extends StatefulWidget {
   State<_CatCard> createState() => _CatCardState();
 }
 
-class _CatCardState extends State<_CatCard>
-    with SingleTickerProviderStateMixin {
+class _CatCardState extends State<_CatCard> {
   bool _hovering = false;
-  late final AnimationController _floatController;
 
   static const _accents = [
     AppColors.blobMintAccent,
@@ -436,174 +494,165 @@ class _CatCardState extends State<_CatCard>
   ];
 
   @override
-  void initState() {
-    super.initState();
-    // 카드마다 조금씩 다른 리듬으로 저절로 살짝 떠다니게 합니다(터치 기기에서도
-    // 정원의 화단처럼 계속 살아있는 느낌을 주기 위함).
-    final rng = Random(widget.seed * 41 + 9);
-    _floatController = AnimationController(
-      vsync: this,
-      duration: Duration(milliseconds: 3400 + rng.nextInt(2200)),
-    )..repeat(reverse: true, min: rng.nextDouble() * 0.6, max: 1);
-  }
-
-  @override
-  void dispose() {
-    _floatController.dispose();
-    super.dispose();
-  }
-
-  BorderRadius _blobRadius() {
-    final rng = Random(widget.seed * 13 + 5);
-    double r(double base) => base + rng.nextDouble() * 10;
-    return BorderRadius.only(
-      topLeft: Radius.circular(r(20)),
-      topRight: Radius.circular(r(16)),
-      bottomLeft: Radius.circular(r(16)),
-      bottomRight: Radius.circular(r(24)),
-    );
-  }
-
-  @override
   Widget build(BuildContext context) {
     final accent = _accents[widget.seed % _accents.length];
     final background = _backgrounds[widget.seed % _backgrounds.length];
-    final radius = _blobRadius();
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hovering = true),
-      onExit: (_) => setState(() => _hovering = false),
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        onTap: widget.onTap,
-        child: AnimatedBuilder(
-          animation: _floatController,
-          builder: (context, child) {
-            final t = _floatController.value;
-            final dy = sin(t * pi) * 2.6;
-            final angle = sin(t * pi) * 0.018;
-            return Transform.translate(
-              offset: Offset(0, dy),
-              child: Transform.rotate(angle: angle, child: child),
-            );
-          },
-          child: AnimatedScale(
-            scale: _hovering ? 1.05 : 1.0,
-            duration: const Duration(milliseconds: 200),
-            child: AnimatedContainer(
+    final radius = widget.radius;
+    // RepaintBoundary: 카드 하나가 애니메이션으로 다시 그려질 때 다른 51개
+    // 카드나 배경까지 함께 리페인트되지 않도록 화면을 여기서 잘라줍니다.
+    return RepaintBoundary(
+      child: MouseRegion(
+        onEnter: (_) => setState(() => _hovering = true),
+        onExit: (_) => setState(() => _hovering = false),
+        cursor: SystemMouseCursors.click,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: widget.onTap,
+          child: AnimatedBuilder(
+            animation: widget.sharedAnimation,
+            builder: (context, child) {
+              final t =
+                  (widget.sharedAnimation.value * widget.motion.speedMul +
+                      widget.motion.phase) %
+                  1.0;
+              final dy = sin(t * 2 * pi) * 2.6;
+              final angle = sin(t * 2 * pi) * 0.018;
+              return Transform.translate(
+                offset: Offset(0, dy),
+                child: Transform.rotate(angle: angle, child: child),
+              );
+            },
+            child: AnimatedScale(
+              scale: _hovering ? 1.05 : 1.0,
               duration: const Duration(milliseconds: 200),
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-              decoration: BoxDecoration(
-                borderRadius: radius,
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    background.withValues(alpha: _hovering ? 0.9 : 0.72),
-                    background.withValues(alpha: _hovering ? 0.6 : 0.42),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  borderRadius: radius,
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      background.withValues(alpha: _hovering ? 0.9 : 0.72),
+                      background.withValues(alpha: _hovering ? 0.6 : 0.42),
+                    ],
+                  ),
+                  border: Border.all(
+                    color: accent.withValues(alpha: _hovering ? 0.45 : 0.22),
+                    width: 1.1,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: accent.withValues(alpha: _hovering ? 0.22 : 0.1),
+                      blurRadius: _hovering ? 16 : 8,
+                      offset: const Offset(0, 6),
+                    ),
                   ],
                 ),
-                border: Border.all(
-                  color: accent.withValues(alpha: _hovering ? 0.45 : 0.22),
-                  width: 1.1,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: accent.withValues(alpha: _hovering ? 0.22 : 0.1),
-                    blurRadius: _hovering ? 16 : 8,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Expanded(
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(14),
-                      child: Stack(
-                        fit: StackFit.expand,
-                        children: [
-                          widget.locked
-                              ? ColorFiltered(
-                                  colorFilter: const ColorFilter.matrix([
-                                    0.35, 0.35, 0.35, 0, 0, //
-                                    0.35, 0.35, 0.35, 0, 0, //
-                                    0.35, 0.35, 0.35, 0, 0, //
-                                    0, 0, 0, 1, 0, //
-                                  ]),
-                                  child: ImageFiltered(
-                                    imageFilter: ImageFilter.blur(
-                                      sigmaX: 3.2,
-                                      sigmaY: 3.2,
-                                    ),
-                                    child: Opacity(
-                                      opacity: 0.55,
-                                      child: Image.asset(
-                                        widget.cat.imageAsset,
-                                        fit: BoxFit.cover,
-                                        width: double.infinity,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Expanded(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(14),
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            widget.locked
+                                ? ColorFiltered(
+                                    colorFilter: const ColorFilter.matrix([
+                                      0.35, 0.35, 0.35, 0, 0, //
+                                      0.35, 0.35, 0.35, 0, 0, //
+                                      0.35, 0.35, 0.35, 0, 0, //
+                                      0, 0, 0, 1, 0, //
+                                    ]),
+                                    child: ImageFiltered(
+                                      imageFilter: ImageFilter.blur(
+                                        sigmaX: 3.2,
+                                        sigmaY: 3.2,
+                                      ),
+                                      child: Opacity(
+                                        opacity: 0.55,
+                                        child: Image.asset(
+                                          widget.cat.imageAsset,
+                                          fit: BoxFit.cover,
+                                          width: double.infinity,
+                                          cacheWidth: 200,
+                                          cacheHeight: 200,
+                                        ),
                                       ),
                                     ),
+                                  )
+                                : Image.asset(
+                                    widget.cat.imageAsset,
+                                    fit: BoxFit.cover,
+                                    width: double.infinity,
+                                    cacheWidth: 200,
+                                    cacheHeight: 200,
                                   ),
-                                )
-                              : Image.asset(
-                                  widget.cat.imageAsset,
-                                  fit: BoxFit.cover,
-                                  width: double.infinity,
-                                ),
-                          if (widget.locked)
-                            Positioned.fill(
-                              child: DecoratedBox(
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    begin: Alignment.topCenter,
-                                    end: Alignment.bottomCenter,
-                                    colors: [
-                                      Colors.white.withValues(alpha: 0.05),
-                                      Colors.white.withValues(alpha: 0.32),
-                                    ],
+                            if (widget.locked)
+                              Positioned.fill(
+                                child: DecoratedBox(
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      begin: Alignment.topCenter,
+                                      end: Alignment.bottomCenter,
+                                      colors: [
+                                        Colors.white.withValues(alpha: 0.05),
+                                        Colors.white.withValues(alpha: 0.32),
+                                      ],
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
-                          if (widget.locked)
-                            Positioned(
-                              bottom: 4,
-                              right: 4,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 6,
-                                  vertical: 2,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: 0.75),
-                                  borderRadius: BorderRadius.circular(999),
-                                ),
-                                child: Text(
-                                  '✨',
-                                  style: const TextStyle(fontSize: 10),
+                            if (widget.locked)
+                              Positioned(
+                                bottom: 4,
+                                right: 4,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.75),
+                                    borderRadius: BorderRadius.circular(999),
+                                  ),
+                                  child: Text(
+                                    '✨',
+                                    style: const TextStyle(fontSize: 10),
+                                  ),
                                 ),
                               ),
-                            ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(widget.cat.emoji, style: const TextStyle(fontSize: 14)),
-                  const SizedBox(height: 2),
-                  Text(
-                    widget.locked ? '？？？' : widget.cat.nameKr,
-                    textAlign: TextAlign.center,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: pathLabelFont(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: widget.locked ? AppColors.inkSoft : AppColors.ink,
+                    const SizedBox(height: 8),
+                    Text(
+                      widget.cat.emoji,
+                      style: const TextStyle(fontSize: 14),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 2),
+                    Text(
+                      widget.locked ? '？？？' : widget.cat.nameKr,
+                      textAlign: TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: pathLabelFont(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: widget.locked
+                            ? AppColors.inkSoft
+                            : AppColors.ink,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

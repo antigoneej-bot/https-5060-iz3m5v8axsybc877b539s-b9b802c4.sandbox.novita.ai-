@@ -35,9 +35,16 @@ class SpecialLetterService {
     required SpecialLetterType type,
     required String letterText,
   }) async {
+    // 같은 종류의 최근 답장 5개를 함께 넘겨, 답장 생성기가 최근에 이미
+    // 나온 문장을 되도록 피하고 매번 더 다채로운 답장을 만들게 합니다.
+    final recentReplies = getEntriesOfType(type)
+        .take(5)
+        .map((e) => e.replyText)
+        .toList();
     final reply = SpecialLetterReplyService.buildReply(
       type: type,
       letterText: letterText,
+      recentReplies: recentReplies,
     );
     final entry = SpecialLetterEntry(
       id: '${DateTime.now().millisecondsSinceEpoch}_${type.storageKey}',

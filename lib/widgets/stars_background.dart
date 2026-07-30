@@ -17,7 +17,9 @@ class StarsBackground extends StatefulWidget {
 class _StarsBackgroundState extends State<StarsBackground>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
-  final List<_Petal> _petals = List.generate(18, (i) {
+  // 성능 최적화: 18개→10개로 줄여도 시각적으로 큰 차이가 없으면서
+  // 매 프레임 그려야 하는 도형 수를 줄여 CPU 부담을 낮춥니다.
+  final List<_Petal> _petals = List.generate(10, (i) {
     final rng = Random(i * 23);
     return _Petal(
       x: rng.nextDouble(),
@@ -47,15 +49,20 @@ class _StarsBackgroundState extends State<StarsBackground>
 
   @override
   Widget build(BuildContext context) {
-    return IgnorePointer(
-      child: AnimatedBuilder(
-        animation: _controller,
-        builder: (context, _) {
-          return CustomPaint(
-            size: Size.infinite,
-            painter: _PetalsPainter(_petals, _controller.value),
-          );
-        },
+    // RepaintBoundary: 이 배경 파티클 레이어가 매 프레임 다시 그려지더라도,
+    // 그 위에 겹쳐진 실제 콘텐츠(텍스트/버튼/카드)까지 함께 리페인트되지
+    // 않도록 별도의 레이어로 격리합니다.
+    return RepaintBoundary(
+      child: IgnorePointer(
+        child: AnimatedBuilder(
+          animation: _controller,
+          builder: (context, _) {
+            return CustomPaint(
+              size: Size.infinite,
+              painter: _PetalsPainter(_petals, _controller.value),
+            );
+          },
+        ),
       ),
     );
   }
@@ -147,43 +154,45 @@ class _SwayingLeavesLayerState extends State<_SwayingLeavesLayer>
 
   @override
   Widget build(BuildContext context) {
-    return IgnorePointer(
-      child: AnimatedBuilder(
-        animation: _controller,
-        builder: (context, _) {
-          final t = _controller.value * 2 * pi;
-          return Stack(
-            children: [
-              Positioned(
-                top: -6,
-                left: -8,
-                child: Transform.rotate(
-                  angle: 0.55 + sin(t) * 0.06,
-                  alignment: Alignment.topLeft,
-                  child: const _LeafCluster(size: 46, mirrored: false),
+    return RepaintBoundary(
+      child: IgnorePointer(
+        child: AnimatedBuilder(
+          animation: _controller,
+          builder: (context, _) {
+            final t = _controller.value * 2 * pi;
+            return Stack(
+              children: [
+                Positioned(
+                  top: -6,
+                  left: -8,
+                  child: Transform.rotate(
+                    angle: 0.55 + sin(t) * 0.06,
+                    alignment: Alignment.topLeft,
+                    child: const _LeafCluster(size: 46, mirrored: false),
+                  ),
                 ),
-              ),
-              Positioned(
-                top: -4,
-                right: -10,
-                child: Transform.rotate(
-                  angle: -0.5 + sin(t + pi * 0.6) * 0.07,
-                  alignment: Alignment.topRight,
-                  child: const _LeafCluster(size: 40, mirrored: true),
+                Positioned(
+                  top: -4,
+                  right: -10,
+                  child: Transform.rotate(
+                    angle: -0.5 + sin(t + pi * 0.6) * 0.07,
+                    alignment: Alignment.topRight,
+                    child: const _LeafCluster(size: 40, mirrored: true),
+                  ),
                 ),
-              ),
-              Positioned(
-                bottom: 78,
-                left: -6,
-                child: Transform.rotate(
-                  angle: -0.3 + sin(t + pi * 1.2) * 0.05,
-                  alignment: Alignment.bottomLeft,
-                  child: const _LeafCluster(size: 30, mirrored: false),
+                Positioned(
+                  bottom: 78,
+                  left: -6,
+                  child: Transform.rotate(
+                    angle: -0.3 + sin(t + pi * 1.2) * 0.05,
+                    alignment: Alignment.bottomLeft,
+                    child: const _LeafCluster(size: 30, mirrored: false),
+                  ),
                 ),
-              ),
-            ],
-          );
-        },
+              ],
+            );
+          },
+        ),
       ),
     );
   }

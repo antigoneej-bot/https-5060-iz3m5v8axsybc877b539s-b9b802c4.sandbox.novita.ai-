@@ -1,64 +1,71 @@
 import 'dart:math';
 import '../models/special_letter_entry.dart';
+import '../data/heart_letter_reply_pools.dart';
 
 /// 감사·용서·미안함·사랑, 네 가지 마음편지에 대한 답장을 즉석에서
 /// 만들어주는 서비스.
 ///
 /// 그림자 고양이에게 보내는 기존 편지(다음날 답장)와 달리, 이 마음편지는
-/// 쓰는 즉시 짧고 따뜻한 답장을 받습니다. 편지 내용을 분석하는 AI 없이도,
-/// 칼 융의 그림자 심리학 관점에서 다듬은 문장 풀을 감정 유형별로 여러 개
-/// 준비해두고, 편지 내용(길이·해시)에 따라 그중 하나를 골라 답장 톤에
-/// 자연스러운 변화를 줍니다.
+/// 쓰는 즉시 짧고 따뜰한 답장을 받습니다. 답장은 인사→통찰→실천제안→마무리,
+/// 4개 모듈을 각각 넉넉한 문장 풀에서 진짜 랜덤으로 골라 조합하기 때문에
+/// (이전 버전처럼 "편지 글자 수" 기반 결정적 시드가 아니라, 매번 새로운
+/// 무작위 값을 사용) 같은 종류의 편지를 여러 번 써도 매번 다른 답장을
+/// 받게 됩니다. 또한 편지 내용이 "나 자신"을 향한 것으로 보이면, 그에
+/// 맞는 전용 인사 문장으로 자연스럽게 갈라집니다.
 class SpecialLetterReplyService {
   SpecialLetterReplyService._();
 
-  static const Map<SpecialLetterType, List<String>> _replies = {
-    SpecialLetterType.gratitude: [
-      '고마운 마음을 이렇게 꺼내놓는 순간, 마음속 그림자도 잠시 환해져요. '
-          '감사는 억지로 짜내는 감정이 아니라, 이미 내 안에 있던 빛을 알아차리는 일이에요. '
-          '오늘 느낀 이 온기, 잊지 말고 마음 한켠에 잘 담아두세요.',
-      '누군가에게, 또는 자신에게 고맙다고 말할 수 있는 마음은 생각보다 귀해요. '
-          '그림자 심리학에서는 감사가 "결핍"이 아니라 "충분함"을 바라보는 시선의 전환이라고 봐요. '
-          '지금 이 순간의 당신, 참 건강한 마음의 힘을 쓰고 있어요.',
-      '작은 고마움 하나를 알아차리고 적어보는 것만으로도, 오늘 하루의 색이 조금 달라졌을 거예요. '
-          '감사는 매일 조금씩 연습할수록 더 잘 보이는 마음의 근육이에요. 오늘도 그 근육을 잘 써주셨네요.',
-    ],
-    SpecialLetterType.forgiveness: [
-      '용서하고 싶다는 그 마음을 꺼내놓는 것 자체가 이미 큰 용기예요. '
-          '용서는 그 사람(또는 나)의 잘못을 없었던 일로 만드는 게 아니라, 더 이상 그 무게를 혼자 짊어지지 않기로 하는 선택이에요. '
-          '천천히, 마음이 준비된 만큼만 내려놓아도 충분해요.',
-      '그림자 심리학에서는 용서를 "그림자를 없애는 일"이 아니라 "그림자와 함께 걸어가는 법을 배우는 일"이라고 말해요. '
-          '지금 당장 완전히 놓아지지 않아도 괜찮아요. 오늘 이렇게 적어본 것만으로도 그 무게가 조금은 가벼워졌을 거예요.',
-      '누군가를(또는 나 자신을) 용서한다는 건 시간이 걸리는 일이에요. 서두르지 않아도 돼요. '
-          '오늘 이 마음을 글로 옮긴 순간, 이미 그 마음을 향해 한 걸음 다가선 거예요. 그 걸음을 스스로 알아주세요.',
-    ],
-    SpecialLetterType.apology: [
-      '미안한 마음이 든다는 건, 그 관계와 그 사람을 여전히 소중히 여기고 있다는 뜻이에요. '
-          '스스로를 너무 몰아세우지 마세요. 지금 이렇게 그 마음을 마주한 것만으로도, 이미 다정한 사람이라는 증거예요.',
-      '그때는 그때의 내가 알던 것만으로 최선을 다한 거예요. 지금의 기준으로 그때의 나를 심판하지 않아도 돼요. '
-          '미안한 마음을 이렇게 적어본 오늘, 그 마음이 조금이라도 편해지길 바라요.',
-      '누구에게도 보내지 않아도, 이렇게 마음속의 미안함을 꺼내 보는 것만으로 충분한 의미가 있어요. '
-          '그림자 심리학에서는 죄책감을 억누르기보다 있는 그대로 바라볼 때, 오히려 그 무게가 가벼워진다고 해요. 오늘 잘 마주하셨어요.',
-    ],
-    SpecialLetterType.love: [
-      '사랑하는 마음을 이렇게 글로 옮기는 순간, 그 마음이 조금 더 선명해졌을 거예요. '
-          '누군가를 향한 사랑이든, 나 자신을 향한 사랑이든, 이렇게 표현해보는 연습이 마음을 더 단단하고 따뜻하게 만들어줘요.',
-      '사랑은 그림자까지 함께 끌어안을 수 있을 때 가장 깊어져요. 오늘 이 편지에 담긴 마음, 참 따뜻하네요. '
-          '이 온기를 오늘 하루, 그리고 나 자신에게도 조금 나눠주세요.',
-      '누군가에게(또는 나 자신에게) 사랑한다고 말할 수 있는 마음은 언제나 용기가 필요한 일이에요. '
-          '오늘 그 용기를 냈다는 것만으로도, 당신은 이미 충분히 다정한 사람이에요.',
-    ],
-  };
+  static final RegExp _selfDirectedPattern = RegExp(
+    r'나\s*자신|스스로|내\s*자신|나에게|내게|자기\s*자신',
+  );
 
+  /// 편지 내용이 "나 자신"을 향한 것으로 보이는지 판단합니다.
+  static bool _isSelfDirected(String letterText) =>
+      _selfDirectedPattern.hasMatch(letterText);
+
+  /// [type]에 대한 답장을 조합합니다.
+  ///
+  /// [recentReplies]는 같은 종류의 편지에 대해 최근에 이미 보냈던 답장
+  /// 전체 텍스트 목록입니다(있다면). 각 모듈에서 고른 문장이 최근
+  /// 답장들에 이미 포함되어 있었다면 되도록 피해서, 연속으로 겹치는
+  /// 문장이 나오는 걸 최소화합니다(9.3 Fallback과 동일한 철학으로,
+  /// 회피 후 후보가 하나도 남지 않으면 전체 풀로 안전하게 되돌립니다).
   static String buildReply({
     required SpecialLetterType type,
     required String letterText,
+    List<String> recentReplies = const [],
+    Random? random,
   }) {
-    final pool = _replies[type] ?? _replies[SpecialLetterType.gratitude]!;
-    final seed = letterText.isEmpty
-        ? DateTime.now().millisecondsSinceEpoch
-        : letterText.length + letterText.codeUnits.fold<int>(0, (a, b) => a + b);
-    final rng = Random(seed);
-    return pool[rng.nextInt(pool.length)];
+    final pool = heartLetterReplyPools[type];
+    if (pool == null) return '오늘 이 마음을 전해줘서 고마워요.';
+
+    final rng = random ?? Random();
+    final selfDirected = _isSelfDirected(letterText);
+
+    final openingPool = (selfDirected && pool.selfOpening.isNotEmpty)
+        ? pool.selfOpening
+        : pool.opening;
+
+    final opening = _pickAvoiding(openingPool, recentReplies, rng);
+    final insight = _pickAvoiding(pool.insight, recentReplies, rng);
+    final practice = _pickAvoiding(pool.practice, recentReplies, rng);
+    final closing = _pickAvoiding(pool.closing, recentReplies, rng);
+
+    return [opening, insight, practice, closing]
+        .where((s) => s.isNotEmpty)
+        .join(' ');
+  }
+
+  static String _pickAvoiding(
+    List<String> candidates,
+    List<String> recentReplies,
+    Random rng,
+  ) {
+    if (candidates.isEmpty) return '';
+    var filtered = candidates
+        .where((s) => !recentReplies.any((r) => r.contains(s)))
+        .toList();
+    if (filtered.isEmpty) filtered = candidates;
+    return filtered[rng.nextInt(filtered.length)];
   }
 }

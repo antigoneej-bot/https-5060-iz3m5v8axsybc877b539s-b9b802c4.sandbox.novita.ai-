@@ -52,28 +52,36 @@ class _LivelyCatImageState extends State<LivelyCatImage>
   @override
   Widget build(BuildContext context) {
     final radius = widget.borderRadius ?? BorderRadius.circular(12);
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, child) {
-        final t = _controller.value * 2 * pi + _phase;
-        final floatDy = -3.2 * sin(t);
-        final tilt = 0.045 * sin(t * 0.8);
-        final scale = 1.0 + 0.015 * sin(t * 1.4);
-        return Transform.translate(
-          offset: Offset(0, floatDy),
-          child: Transform.rotate(
-            angle: tilt,
-            child: Transform.scale(scale: scale, child: child),
+    // RepaintBoundary로 이 고양이 하나의 애니메이션 리페인트가 그리드의
+    // 다른 고양이들까지 함께 다시 그리지 않도록 격리합니다.
+    return RepaintBoundary(
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, child) {
+          final t = _controller.value * 2 * pi + _phase;
+          final floatDy = -3.2 * sin(t);
+          final tilt = 0.045 * sin(t * 0.8);
+          final scale = 1.0 + 0.015 * sin(t * 1.4);
+          return Transform.translate(
+            offset: Offset(0, floatDy),
+            child: Transform.rotate(
+              angle: tilt,
+              child: Transform.scale(scale: scale, child: child),
+            ),
+          );
+        },
+        child: ClipRRect(
+          borderRadius: radius,
+          child: Image.asset(
+            widget.imageAsset,
+            width: widget.width,
+            height: widget.height,
+            fit: widget.fit,
+            // 원본(1024x1024)을 실제 표시 크기에 맞춰 디코딩해 메모리 사용량을
+            // 크게 낮춥니다(디바이스 배율 감안해 2배 정도 여유를 둡니다).
+            cacheWidth: (widget.width * 2).round(),
+            cacheHeight: (widget.height * 2).round(),
           ),
-        );
-      },
-      child: ClipRRect(
-        borderRadius: radius,
-        child: Image.asset(
-          widget.imageAsset,
-          width: widget.width,
-          height: widget.height,
-          fit: widget.fit,
         ),
       ),
     );

@@ -67,125 +67,133 @@ class _AnimatedCatArtState extends State<AnimatedCatArt>
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: widget.size,
-      height: widget.size + 10,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          AnimatedBuilder(
-            animation: Listenable.merge([
-              _floatController,
-              _hopController,
-              _earController,
-            ]),
-            builder: (context, child) {
-              final t = _floatController.value;
-              // 부유 (위아래 둥실둥실)
-              final floatDy = -5 * sin(t * 2 * pi) - 2 * sin(t * 2 * pi + 1.4);
-              // 가끔 통통 튀는 동작 (hop)
-              final hopT = _hopController.value;
-              final hopDy = -14 * sin(hopT * pi);
-              final hopScaleY = 1.0 - 0.06 * sin(hopT * pi);
-              final hopScaleX = 1.0 + 0.05 * sin(hopT * pi);
-              // 좌우로 살짝 갸웃거리는 느낌
-              final angle =
-                  0.03 * sin(t * 2 * pi * 0.7) +
-                  0.02 * sin(_earController.value * 2 * pi);
-              // 숨쉬기 스케일 펄스
-              final breathScale = 1.0 + 0.018 * sin(t * 2 * pi * 1.3);
+    return RepaintBoundary(
+      child: SizedBox(
+        width: widget.size,
+        height: widget.size + 10,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            AnimatedBuilder(
+              animation: Listenable.merge([
+                _floatController,
+                _hopController,
+                _earController,
+              ]),
+              builder: (context, child) {
+                final t = _floatController.value;
+                // 부유 (위아래 둥실둥실)
+                final floatDy =
+                    -5 * sin(t * 2 * pi) - 2 * sin(t * 2 * pi + 1.4);
+                // 가끔 통통 튀는 동작 (hop)
+                final hopT = _hopController.value;
+                final hopDy = -14 * sin(hopT * pi);
+                final hopScaleY = 1.0 - 0.06 * sin(hopT * pi);
+                final hopScaleX = 1.0 + 0.05 * sin(hopT * pi);
+                // 좌우로 살짝 갸웃거리는 느낌
+                final angle =
+                    0.03 * sin(t * 2 * pi * 0.7) +
+                    0.02 * sin(_earController.value * 2 * pi);
+                // 숨쉬기 스케일 펄스
+                final breathScale = 1.0 + 0.018 * sin(t * 2 * pi * 1.3);
 
-              return Transform.translate(
-                offset: Offset(0, floatDy + hopDy),
-                child: Transform.rotate(
-                  angle: angle,
-                  child: Transform.scale(
-                    scaleX: breathScale * hopScaleX,
-                    scaleY: breathScale * hopScaleY,
-                    child: child,
+                return Transform.translate(
+                  offset: Offset(0, floatDy + hopDy),
+                  child: Transform.rotate(
+                    angle: angle,
+                    child: Transform.scale(
+                      scaleX: breathScale * hopScaleX,
+                      scaleY: breathScale * hopScaleY,
+                      child: child,
+                    ),
+                  ),
+                );
+              },
+              child: Container(
+                width: widget.size,
+                height: widget.size,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.15),
+                      blurRadius: 22,
+                      offset: const Offset(0, 10),
+                    ),
+                  ],
+                  border: Border.all(color: Colors.white, width: 3),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(13),
+                  child: Image.asset(
+                    widget.imageAsset,
+                    fit: BoxFit.cover,
+                    cacheWidth: (widget.size * 2).round(),
+                    cacheHeight: (widget.size * 2).round(),
                   ),
                 ),
-              );
-            },
-            child: Container(
-              width: widget.size,
-              height: widget.size,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.15),
-                    blurRadius: 22,
-                    offset: const Offset(0, 10),
-                  ),
-                ],
-                border: Border.all(color: Colors.white, width: 3),
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(13),
-                child: Image.asset(widget.imageAsset, fit: BoxFit.cover),
               ),
             ),
-          ),
-          // 그림자 (통통 뛸 때 바닥에서 눌리는 느낌)
-          AnimatedBuilder(
-            animation: _hopController,
-            builder: (context, child) {
-              final hopT = _hopController.value;
-              final shrink = sin(hopT * pi);
-              return Positioned(
-                bottom: -2,
-                left: widget.size * 0.18,
-                right: widget.size * 0.18,
-                child: Opacity(
-                  opacity: (0.22 - 0.13 * shrink).clamp(0.05, 0.35),
-                  child: Container(
-                    height: 10,
-                    decoration: BoxDecoration(
-                      color: Colors.black,
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
-          // sparkles
-          AnimatedBuilder(
-            animation: _sparkleController,
-            builder: (context, child) {
-              final t1 = _sparkleController.value;
-              final t2 = (_sparkleController.value + 0.5) % 1.0;
-              return Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  Positioned(
-                    top: -6 - 4 * sin(t1 * 2 * pi),
-                    right: -4,
-                    child: Opacity(
-                      opacity: (0.3 + 0.5 * sin(t1 * 2 * pi).abs()).clamp(
-                        0.0,
-                        1.0,
+            // 그림자 (통통 뛸 때 바닥에서 눌리는 느낌)
+            AnimatedBuilder(
+              animation: _hopController,
+              builder: (context, child) {
+                final hopT = _hopController.value;
+                final shrink = sin(hopT * pi);
+                return Positioned(
+                  bottom: -2,
+                  left: widget.size * 0.18,
+                  right: widget.size * 0.18,
+                  child: Opacity(
+                    opacity: (0.22 - 0.13 * shrink).clamp(0.05, 0.35),
+                    child: Container(
+                      height: 10,
+                      decoration: BoxDecoration(
+                        color: Colors.black,
+                        borderRadius: BorderRadius.circular(999),
                       ),
-                      child: _sparkleDot(),
                     ),
                   ),
-                  Positioned(
-                    bottom: -4 - 4 * sin(t2 * 2 * pi),
-                    left: -6,
-                    child: Opacity(
-                      opacity: (0.3 + 0.5 * sin(t2 * 2 * pi).abs()).clamp(
-                        0.0,
-                        1.0,
+                );
+              },
+            ),
+            // sparkles
+            AnimatedBuilder(
+              animation: _sparkleController,
+              builder: (context, child) {
+                final t1 = _sparkleController.value;
+                final t2 = (_sparkleController.value + 0.5) % 1.0;
+                return Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Positioned(
+                      top: -6 - 4 * sin(t1 * 2 * pi),
+                      right: -4,
+                      child: Opacity(
+                        opacity: (0.3 + 0.5 * sin(t1 * 2 * pi).abs()).clamp(
+                          0.0,
+                          1.0,
+                        ),
+                        child: _sparkleDot(),
                       ),
-                      child: _sparkleDot(),
                     ),
-                  ),
-                ],
-              );
-            },
-          ),
-        ],
+                    Positioned(
+                      bottom: -4 - 4 * sin(t2 * 2 * pi),
+                      left: -6,
+                      child: Opacity(
+                        opacity: (0.3 + 0.5 * sin(t2 * 2 * pi).abs()).clamp(
+                          0.0,
+                          1.0,
+                        ),
+                        child: _sparkleDot(),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ],
+        ),
       ),
     );
   }

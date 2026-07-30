@@ -66,7 +66,10 @@ class AmbientCatGardenLayer extends StatelessWidget {
   Widget build(BuildContext context) {
     return IgnorePointer(
       child: Stack(
-        children: [for (final spec in _specs) _AmbientCat(spec: spec)],
+        children: [
+          for (final spec in _specs)
+            RepaintBoundary(child: _AmbientCat(spec: spec)),
+        ],
       ),
     );
   }
@@ -182,6 +185,10 @@ class _AmbientCatState extends State<_AmbientCat>
                                 child: Image.asset(
                                   cat.imageAsset,
                                   fit: BoxFit.cover,
+                                  // 원본 1024x1024를 배경 소품 크기(30~40px)로만
+                                  // 쓰므로 디코딩 해상도를 크게 낮춥니다.
+                                  cacheWidth: 96,
+                                  cacheHeight: 96,
                                 ),
                               ),
                             ),

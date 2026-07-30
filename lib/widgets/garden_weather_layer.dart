@@ -20,7 +20,9 @@ class _GardenWeatherLayerState extends State<GardenWeatherLayer>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
 
-  final List<_FogPuff> _fogPuffs = List.generate(6, (i) {
+  // 성능 최적화: 파티클 수를 살짝 줄여(6→4, 16→10, 5→3) 매 프레임 CustomPaint
+  // 연산량을 낮춥니다. 은은한 배경 효과라 시각적 차이는 거의 없습니다.
+  final List<_FogPuff> _fogPuffs = List.generate(4, (i) {
     final rng = Random(i * 17 + 3);
     return _FogPuff(
       x: rng.nextDouble(),
@@ -31,7 +33,7 @@ class _GardenWeatherLayerState extends State<GardenWeatherLayer>
     );
   });
 
-  final List<_RainDrop> _drops = List.generate(16, (i) {
+  final List<_RainDrop> _drops = List.generate(10, (i) {
     final rng = Random(i * 29 + 7);
     return _RainDrop(
       x: rng.nextDouble(),
@@ -41,7 +43,7 @@ class _GardenWeatherLayerState extends State<GardenWeatherLayer>
     );
   });
 
-  final List<_SunBeam> _beams = List.generate(5, (i) {
+  final List<_SunBeam> _beams = List.generate(3, (i) {
     final rng = Random(i * 41 + 11);
     return _SunBeam(
       dx: rng.nextDouble(),
@@ -67,21 +69,23 @@ class _GardenWeatherLayerState extends State<GardenWeatherLayer>
 
   @override
   Widget build(BuildContext context) {
-    return IgnorePointer(
-      child: AnimatedBuilder(
-        animation: _controller,
-        builder: (context, _) {
-          return CustomPaint(
-            size: Size.infinite,
-            painter: _WeatherPainter(
-              kind: widget.kind,
-              t: _controller.value,
-              fogPuffs: _fogPuffs,
-              drops: _drops,
-              beams: _beams,
-            ),
-          );
-        },
+    return RepaintBoundary(
+      child: IgnorePointer(
+        child: AnimatedBuilder(
+          animation: _controller,
+          builder: (context, _) {
+            return CustomPaint(
+              size: Size.infinite,
+              painter: _WeatherPainter(
+                kind: widget.kind,
+                t: _controller.value,
+                fogPuffs: _fogPuffs,
+                drops: _drops,
+                beams: _beams,
+              ),
+            );
+          },
+        ),
       ),
     );
   }
@@ -237,5 +241,6 @@ class _WeatherPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _WeatherPainter oldDelegate) => true;
+  bool shouldRepaint(covariant _WeatherPainter oldDelegate) =>
+      oldDelegate.t != t || oldDelegate.kind != kind;
 }

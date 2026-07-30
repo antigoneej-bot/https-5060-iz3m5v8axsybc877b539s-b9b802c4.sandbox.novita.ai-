@@ -37,6 +37,8 @@ class MochiCat extends StatelessWidget {
       fit: BoxFit.contain,
       semanticLabel: semanticLabel ?? emotion.label,
       gaplessPlayback: true,
+      cacheWidth: (size * 2).round(),
+      cacheHeight: (size * 2).round(),
     );
   }
 }
