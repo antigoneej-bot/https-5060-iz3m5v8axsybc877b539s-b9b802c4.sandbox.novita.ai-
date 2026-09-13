@@ -13,18 +13,13 @@ import '../utils/korean_particle.dart';
 import '../models/cat_achievement.dart';
 import '../widgets/achievement_unlocked_overlay.dart';
 import '../widgets/care_celebration_overlay.dart';
-import '../widgets/animated_adult_cat.dart';
-import '../widgets/animated_cat_art.dart';
-import '../widgets/animated_teen_cat.dart';
 import '../widgets/feature_scaffold.dart';
 import '../widgets/garden_path_card.dart';
-import '../widgets/level_up_overlay.dart';
 import '../widgets/mochi_cat.dart';
 import '../widgets/weather_reactive_cat.dart';
 import '../providers/app_state_provider.dart';
 import '../services/sound_service.dart';
 import 'cat_achievements_screen.dart';
-import 'cat_graduation_screens.dart';
 import 'cat_shop_screen.dart';
 
 /// 🐛 모찌 결석 감정 디버그 패널을 노출할지 여부.
@@ -83,18 +78,7 @@ class _PetCareScreenState extends State<PetCareScreen> {
       clipBehavior: Clip.none,
       children: [
         _buildBody(care, companion, name),
-        if (care.justReachedStage != null)
-          LevelUpOverlay(
-            stage: care.justReachedStage!,
-            companionName: name,
-            imageAsset: _CompanionCard.imageAssetFor(
-              care.justReachedStage!,
-              companion,
-            ),
-            onDismiss: () => context.read<CatCareProvider>().clearLevelUp(),
-          ),
-        if (care.justReachedStage == null &&
-            care.allCareCelebrationMessage != null)
+        if (care.allCareCelebrationMessage != null)
           CareCelebrationOverlay(
             key: ValueKey('all_care_${care.allCareCelebrationMessage}'),
             emoji: '🌡️',
@@ -104,8 +88,7 @@ class _PetCareScreenState extends State<PetCareScreen> {
             onDismiss: () =>
                 context.read<CatCareProvider>().clearAllCareCelebration(),
           )
-        else if (care.justReachedStage == null &&
-            care.bodyCareCelebrationMessage != null)
+        else if (care.bodyCareCelebrationMessage != null)
           CareCelebrationOverlay(
             key: ValueKey('body_care_${care.bodyCareCelebrationMessage}'),
             emoji: '🐾',
@@ -115,8 +98,7 @@ class _PetCareScreenState extends State<PetCareScreen> {
             onDismiss: () =>
                 context.read<CatCareProvider>().clearBodyCareCelebration(),
           ),
-        if (care.justReachedStage == null &&
-            care.allCareCelebrationMessage == null &&
+        if (care.allCareCelebrationMessage == null &&
             care.bodyCareCelebrationMessage == null &&
             care.newlyUnlockedQueue.isNotEmpty)
           AchievementUnlockedOverlay(
@@ -135,45 +117,6 @@ class _PetCareScreenState extends State<PetCareScreen> {
 
   void _openAchievements(BuildContext context) {
     pushFullScreen(context, '뱃지 컬렉션', const CatAchievementsScreen());
-  }
-
-  void _openGraduationAlbum(BuildContext context) {
-    pushFullScreen(context, '졸업 앨범', const GraduationAlbumScreen());
-  }
-
-  Future<void> _startGraduation(BuildContext context, String name) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(
-          '$name${topicParticle(name)} 졸업시킬까요?',
-          style: pathLabelFont(fontSize: 15, fontWeight: FontWeight.w700),
-        ),
-        content: Text(
-          '다 자란 $name는 졸업 앨범에 기록되고,\n새 아기고양이와 처음부터 다시 키우게 돼요.\n(포인트는 그대로 유지돼요)',
-          style: bodyFont(
-            fontSize: 12.5,
-            color: AppColors.inkSoft,
-            height: 1.6,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('다음에'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('졸업시키기'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed == true && context.mounted) {
-      pushFullScreen(context, '새 아기고양이', const NewBabyPickerScreen());
-    }
   }
 
   Widget _buildBody(CatCareProvider care, ShadowCat companion, String name) {
@@ -198,65 +141,16 @@ class _PetCareScreenState extends State<PetCareScreen> {
           cat: companion,
           state: care.state,
           name: name,
-          debugGrowthDays: care.debugGrowthDaysOverride,
           equippedAccessories: care.equippedBySlot.values
               .map(catAccessoryById)
               .whereType<CatAccessory>()
               .toList(),
-          onGraduate: care.effectiveGrowthStage == CatGrowthStage.adult
-              ? () => _startGraduation(context, name)
-              : null,
         ),
         const SizedBox(height: 14),
         _PointsBadge(
           points: care.points,
           isPremium: care.isPremium,
           onOpenShop: () => _openShop(context),
-        ),
-        const SizedBox(height: 14),
-        GestureDetector(
-          onTap: () => _openGraduationAlbum(context),
-          child: GlassBlob(
-            accent: AppColors.gold,
-            background: const Color(0xFFFCEFD2),
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-            child: Row(
-              children: [
-                const Text('🎓', style: TextStyle(fontSize: 20)),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '졸업 앨범',
-                        style: pathLabelFont(
-                          fontSize: 13.5,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.ink,
-                        ),
-                      ),
-                      Text(
-                        // ⚠️ 유료(Basic 구독) 10마리는 육성 대상에서 제외되어
-                        // 있어 shadowCats.length(52)를 분모로 쓰면 영원히
-                        // 채울 수 없는 목표가 됩니다. 무료 42마리 기준으로 표시합니다.
-                        '${care.graduatedCats.length} / ${freeShadowCats.length}마리를 졸업시켰어요',
-                        style: bodyFont(
-                          fontSize: 10.5,
-                          color: AppColors.inkSoft,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Icon(
-                  Icons.chevron_right_rounded,
-                  color: AppColors.goldSoft,
-                  size: 20,
-                ),
-              ],
-            ),
-          ),
         ),
         const SizedBox(height: 14),
         GestureDetector(
@@ -460,92 +354,7 @@ class _PetCareScreenState extends State<PetCareScreen> {
           ),
         if (kShowMochiDebugPanel) const SizedBox(height: 14),
         if (kShowMochiDebugPanel) const _MochiEmotionDebugPanel(),
-        if (kShowMochiDebugPanel) const SizedBox(height: 14),
-        if (kShowMochiDebugPanel) const _GrowthStageDebugPanel(),
       ],
-    );
-  }
-}
-
-/// 🐛 디버그 전용 - 실제로 30일씩 출석해야 볼 수 있는 고양이 성장 단계
-/// (아기→소년→청년→성체)를 기다리지 않고 바로 미리보기 위한 패널.
-/// [kShowMochiDebugPanel]을 false로 바꾸면(또는 이 위젯을 지우면) 사라집니다.
-class _GrowthStageDebugPanel extends StatelessWidget {
-  const _GrowthStageDebugPanel();
-
-  static const List<(String, int?)> _options = [
-    ('실제 값', null),
-    ('0일 (아기)', 0),
-    ('35일 (소년)', 35),
-    ('65일 (청년)', 65),
-    ('95일 (성체)', 95),
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    final care = context.watch<CatCareProvider>();
-    final override = care.debugGrowthDaysOverride;
-    final effective = care.effectiveGrowthDays;
-    final stage = CatCareState.stageForGrowthDays(effective);
-
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.04),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.black.withValues(alpha: 0.08)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(
-                Icons.bug_report_outlined,
-                size: 16,
-                color: Colors.deepPurple,
-              ),
-              const SizedBox(width: 6),
-              Text(
-                '디버그: 고양이 성장 단계 미리보기',
-                style: pathLabelFont(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.deepPurple,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Text(
-            '실제 성장일수: ${care.state.growthDays}일'
-            '${override != null ? " · 미리보기 중: $override일" : ""}'
-            ' → 현재 단계: ${stage.name}',
-            style: bodyFont(fontSize: 11, color: AppColors.inkSoft),
-          ),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: _options.map((opt) {
-              final label = opt.$1;
-              final value = opt.$2;
-              final selected = value == null
-                  ? override == null
-                  : override == value;
-              return ChoiceChip(
-                label: Text(label, style: const TextStyle(fontSize: 11.5)),
-                selected: selected,
-                onSelected: (_) {
-                  context.read<CatCareProvider>().setDebugGrowthDays(value);
-                },
-                selectedColor: Colors.deepPurple.withValues(alpha: 0.18),
-                backgroundColor: Colors.white,
-              );
-            }).toList(),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -794,54 +603,22 @@ class _CompanionCard extends StatelessWidget {
   final CatCareState state;
   final String name;
   final List<CatAccessory> equippedAccessories;
-  final VoidCallback? onGraduate;
 
-  /// 🐛 디버그 전용 - 미리보기용 성장일수 오버라이드. null이면 실제
-  /// [state.growthDays]를 사용합니다.
-  final int? debugGrowthDays;
   const _CompanionCard({
     required this.cat,
     required this.state,
     required this.name,
     this.equippedAccessories = const [],
-    this.onGraduate,
-    this.debugGrowthDays,
   });
 
-  /// 디버그 오버라이드가 있으면 그 값을, 없으면 실제 성장일수를 사용합니다.
-  int get _effectiveGrowthDays => debugGrowthDays ?? state.growthDays;
+  /// 화면 표시에 사용할 성장 단계. 항상 아기 고양이 단계입니다.
+  CatGrowthStage get _effectiveStage => CatGrowthStage.baby;
 
-  /// 화면 표시에 사용할 성장 단계(디버그 오버라이드 반영).
-  CatGrowthStage get _effectiveStage =>
-      CatCareState.stageForGrowthDays(_effectiveGrowthDays);
+  /// 다음 단계까지 남은 출석일수. 더 이상 성장하지 않으므로 항상 null입니다.
+  int? get _effectiveDaysLeft => null;
 
-  /// 다음 단계까지 남은 출석일수(디버그 오버라이드 반영, 성체면 null).
-  int? get _effectiveDaysLeft {
-    switch (_effectiveStage) {
-      case CatGrowthStage.baby:
-        return kDaysPerGrowthStage - _effectiveGrowthDays;
-      case CatGrowthStage.teen:
-        return kDaysPerGrowthStage * 2 - _effectiveGrowthDays;
-      case CatGrowthStage.young:
-        return kDaysPerGrowthStage * 3 - _effectiveGrowthDays;
-      case CatGrowthStage.adult:
-        return null;
-    }
-  }
-
-  /// 화면 표시용 성장 단계 라벨(디버그 오버라이드 반영).
-  String get _effectiveStageLabel {
-    switch (_effectiveStage) {
-      case CatGrowthStage.baby:
-        return '0단계 · 아기 고양이';
-      case CatGrowthStage.teen:
-        return '1단계 · 소년 고양이';
-      case CatGrowthStage.young:
-        return '2단계 · 청년 고양이';
-      case CatGrowthStage.adult:
-        return '3단계 · 다 자란 고양이';
-    }
-  }
+  /// 화면 표시용 성장 단계 라벨.
+  String get _effectiveStageLabel => '아기 고양이';
 
   Color get _tempColor {
     switch (state.moodState) {
@@ -1013,31 +790,6 @@ class _CompanionCard extends StatelessWidget {
               height: 1.5,
             ).copyWith(fontStyle: FontStyle.italic),
           ),
-          if (onGraduate != null) ...[
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: onGraduate,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.gold,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  elevation: 0,
-                ),
-                child: Text(
-                  '🎓  졸업시키고 새 아기고양이 만나기',
-                  style: pathLabelFont(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ),
-          ],
         ],
       ),
     );
@@ -1139,24 +891,18 @@ class _PattableCatStageState extends State<_PattableCatStage>
         alignment: Alignment.bottomRight,
         clipBehavior: Clip.none,
         children: [
-          widget.stage == CatGrowthStage.baby
-              ? GardenWeatherCatMood(
-                  activity: context
-                      .watch<AppStateProvider>()
-                      .gardenWeather
-                      .catActivity,
-                  child: MochiCat(
-                    size: 140,
-                    emotion: CatEmotion.forDaysAway(
-                      context.watch<AppStateProvider>().effectiveDaysAway,
-                    ),
-                  ),
-                )
-              : widget.stage == CatGrowthStage.teen
-              ? AnimatedTeenCat(size: 140, reactionToken: _tapSeed)
-              : widget.stage == CatGrowthStage.adult
-              ? AnimatedAdultCat(size: 140, reactionToken: _tapSeed)
-              : AnimatedCatArt(imageAsset: widget.imageAsset, size: 140),
+          GardenWeatherCatMood(
+            activity: context
+                .watch<AppStateProvider>()
+                .gardenWeather
+                .catActivity,
+            child: MochiCat(
+              size: 140,
+              emotion: CatEmotion.forDaysAway(
+                context.watch<AppStateProvider>().effectiveDaysAway,
+              ),
+            ),
+          ),
           Positioned(
             right: -4,
             bottom: 4,

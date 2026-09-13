@@ -1,10 +1,9 @@
 /// 다마고치식 '마음 돌보기'에서 반려 고양이의 성장 단계.
-/// 이제는 돌봄 완료일수가 아니라 '출석일수'(앱을 연 날짜의 누적, 30일 단위)를
-/// 기준으로 성장합니다.
-/// - baby(0단계): 출석 0~29일
-/// - teen(1단계): 출석 30~59일
-/// - young(2단계): 출석 60~89일
-/// - adult(3단계): 출석 90일 이상 - 선택한 그림자 고양이의 모습으로 완성
+/// ⚠️ 정책 변경: 이제 반려 고양이는 항상 '아기 고양이(baby)' 단계로만
+/// 남습니다. teen/young/adult로 자라나는 성장 및 졸업(졸업 앨범, 새
+/// 아기고양이로 넘어가기) 기능은 완전히 제거되었습니다. 다른 enum 값은
+/// 과거 데이터/열거형 호환을 위해 남겨두었을 뿐, [CatCareState.stageForGrowthDays]가
+/// 항상 [baby]만 반환하므로 실제로는 도달하지 않습니다.
 enum CatGrowthStage { baby, teen, young, adult }
 
 /// 마음 온도에 따른 상태(감정) 표현.
@@ -76,58 +75,24 @@ class CatCareState {
     gratitudeDoneToday,
   ].where((v) => v).length;
 
-  /// 성장 단계 계산 (누적 출석일수 기준, 30일당 1단계)
+  /// 성장 단계 계산. ⚠️ 정책 변경: 항상 [CatGrowthStage.baby]를 반환합니다.
+  /// (청년/성체로 자라나는 성장 및 졸업 기능은 제거되었습니다.)
   CatGrowthStage get growthStage => stageForGrowthDays(growthDays);
 
-  /// 누적 출석일수로부터 성장 단계를 계산합니다. (변화 감지용)
+  /// 누적 출석일수로부터 성장 단계를 계산합니다. 항상 아기 고양이 단계를
+  /// 반환합니다(성장 단계 상승/졸업 기능 제거).
   static CatGrowthStage stageForGrowthDays(int days) {
-    if (days >= kDaysPerGrowthStage * 3) return CatGrowthStage.adult;
-    if (days >= kDaysPerGrowthStage * 2) return CatGrowthStage.young;
-    if (days >= kDaysPerGrowthStage) return CatGrowthStage.teen;
     return CatGrowthStage.baby;
   }
 
-  /// 성장 단계 번호 (0~3)
-  int get growthLevelNumber {
-    switch (growthStage) {
-      case CatGrowthStage.baby:
-        return 0;
-      case CatGrowthStage.teen:
-        return 1;
-      case CatGrowthStage.young:
-        return 2;
-      case CatGrowthStage.adult:
-        return 3;
-    }
-  }
+  /// 성장 단계 번호. 항상 0(아기 고양이)입니다.
+  int get growthLevelNumber => 0;
 
-  /// 다음 단계까지 남은 출석일수 (성체면 null)
-  int? get daysUntilNextStage {
-    switch (growthStage) {
-      case CatGrowthStage.baby:
-        return kDaysPerGrowthStage - growthDays;
-      case CatGrowthStage.teen:
-        return kDaysPerGrowthStage * 2 - growthDays;
-      case CatGrowthStage.young:
-        return kDaysPerGrowthStage * 3 - growthDays;
-      case CatGrowthStage.adult:
-        return null;
-    }
-  }
+  /// 다음 단계까지 남은 출석일수. 더 이상 성장하지 않으므로 항상 null입니다.
+  int? get daysUntilNextStage => null;
 
-  /// 성장 단계 이름 (단계 번호 + 애칭)
-  String get growthStageLabel {
-    switch (growthStage) {
-      case CatGrowthStage.baby:
-        return '0단계 · 아기 고양이';
-      case CatGrowthStage.teen:
-        return '1단계 · 소년 고양이';
-      case CatGrowthStage.young:
-        return '2단계 · 청년 고양이';
-      case CatGrowthStage.adult:
-        return '3단계 · 다 자란 고양이';
-    }
-  }
+  /// 성장 단계 이름. 항상 '아기 고양이' 라벨을 반환합니다.
+  String get growthStageLabel => '아기 고양이';
 
   /// 마음 온도에 따른 상태(4단계)
   CatMoodState get moodState {
@@ -167,18 +132,7 @@ class CatCareState {
 }
 
 /// 성장 단계별 공용 성장 아트 이미지 경로.
-/// 3단계(adult)는 사용자가 실제로 키우고 있는 그림자 고양이 모습을 보여줘야
-/// 하므로, 이 함수는 빈 문자열을 반환합니다 - 호출하는 쪽에서 해당 ShadowCat의
-/// imageAsset을 대신 사용해야 합니다.
+/// ⚠️ 정책 변경: 이제 항상 아기 고양이 이미지를 반환합니다.
 String growthStageArtAsset(CatGrowthStage stage) {
-  switch (stage) {
-    case CatGrowthStage.baby:
-      return 'assets/growth/baby_cat.png';
-    case CatGrowthStage.teen:
-      return 'assets/growth/teen_cat.png';
-    case CatGrowthStage.young:
-      return 'assets/growth/young_cat.png';
-    case CatGrowthStage.adult:
-      return '';
-  }
+  return 'assets/growth/baby_cat.png';
 }

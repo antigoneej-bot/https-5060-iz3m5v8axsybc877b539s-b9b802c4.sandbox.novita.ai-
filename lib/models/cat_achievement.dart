@@ -9,9 +9,6 @@ class CatAchievementStats {
   /// 누적 출석일수.
   final int growthDays;
 
-  /// 지금까지 졸업시킨 고양이 수.
-  final int graduatedCount;
-
   /// 보유 중인 옷·악세서리(착용형) 종류 수.
   final int ownedWearableCount;
 
@@ -33,7 +30,6 @@ class CatAchievementStats {
 
   const CatAchievementStats({
     this.growthDays = 0,
-    this.graduatedCount = 0,
     this.ownedWearableCount = 0,
     this.ownedFurnitureCount = 0,
     this.totalConsumablesUsed = 0,
@@ -95,8 +91,8 @@ final List<CatAchievement> catAchievements = [
   CatAchievement(
     id: 'attend_30',
     emoji: '🌿',
-    title: '첫 성장',
-    description: '30일 출석으로 소년 고양이가 되었어요',
+    title: '꾸준한 한 달',
+    description: '30일 동안 아기고양이와 함께했어요',
     isUnlocked: (s) => s.growthDays >= 30,
     progressLabel: (s) => _clampedProgress(s.growthDays, 30),
   ),
@@ -107,22 +103,6 @@ final List<CatAchievement> catAchievements = [
     description: '하루 한 가지 이상 나를 돌본 날이 7번 쌓였어요',
     isUnlocked: (s) => s.totalFullCareDays >= 7,
     progressLabel: (s) => _clampedProgress(s.totalFullCareDays, 7),
-  ),
-  CatAchievement(
-    id: 'graduate_1',
-    emoji: '🎓',
-    title: '첫 졸업',
-    description: '첫 고양이를 졸업시켰어요',
-    isUnlocked: (s) => s.graduatedCount >= 1,
-    progressLabel: (s) => _clampedProgress(s.graduatedCount, 1),
-  ),
-  CatAchievement(
-    id: 'graduate_5',
-    emoji: '🏆',
-    title: '졸업 명인',
-    description: '5마리를 졸업시켰어요',
-    isUnlocked: (s) => s.graduatedCount >= 5,
-    progressLabel: (s) => _clampedProgress(s.graduatedCount, 5),
   ),
   CatAchievement(
     id: 'wardrobe_5',

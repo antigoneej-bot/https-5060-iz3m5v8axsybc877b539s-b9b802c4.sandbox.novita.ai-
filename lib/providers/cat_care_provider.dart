@@ -78,13 +78,6 @@ class CatCareProvider extends ChangeNotifier {
   /// 소모품(사료/츄루/빗질 등)별로 보관함에 남아있는 개수.
   Map<String, int> consumableInventory = {};
 
-  /// 지금까지 졸업(성체까지 다 키움)한 고양이들의 (catId, 졸업일) 목록.
-  List<(String, DateTime)> graduatedCats = [];
-
-  /// 방금 졸업을 완료했는지 여부 - 졸업 축하 오버레이를 보여준 뒤
-  /// [clearJustGraduated]로 비워줍니다.
-  bool justGraduated = false;
-
   /// 업적(뱃지) 판단용 누적 통계 스냅샷.
   CatAchievementStats achievementStats = const CatAchievementStats();
 
@@ -97,10 +90,6 @@ class CatCareProvider extends ChangeNotifier {
 
   void clearLevelUp() {
     justReachedStage = null;
-  }
-
-  void clearJustGraduated() {
-    justGraduated = false;
   }
 
   /// 축하 팝업을 보여준 뱃지를 대기열에서 제거하고, "이미 봤음"으로
@@ -118,7 +107,6 @@ class CatCareProvider extends ChangeNotifier {
   Future<void> _refreshAchievements() async {
     achievementStats = await CatCareService.getAchievementStats(
       growthDays: state.growthDays,
-      graduatedCount: graduatedCats.length,
     );
     final seen = await CatCareService.getSeenUnlockedAchievementIds();
     final unlockedNow = catAchievements
@@ -153,7 +141,6 @@ class CatCareProvider extends ChangeNotifier {
     ownedAccessoryIds = await CatCareService.getOwnedAccessoryIds();
     equippedBySlot = await CatCareService.getEquippedBySlot();
     consumableInventory = await CatCareService.getConsumableInventory();
-    graduatedCats = await CatCareService.getGraduatedCats();
     await _refreshAchievements();
     isLoading = false;
     notifyListeners();
@@ -437,21 +424,5 @@ class CatCareProvider extends ChangeNotifier {
       notifyListeners();
     }
     return success;
-  }
-
-  // ── 졸업 앨범 (성체가 된 고양이를 졸업시키고 새 아기고양이로 넘어가기) ──
-
-  /// 현재 반려 고양이를 졸업 명단에 올리고, 새 아기고양이([newCompanionCatId])로
-  /// 다시 키우기를 시작합니다. 포인트는 유지되고, 온도/성장일수/오늘의 돌봄
-  /// 체크리스트만 초기화됩니다.
-  Future<void> graduateAndStartNewBaby(String newCompanionCatId) async {
-    state = await CatCareService.graduateAndStartNewBaby(
-      newCompanionCatId: newCompanionCatId,
-    );
-    equippedBySlot = {};
-    graduatedCats = await CatCareService.getGraduatedCats();
-    justGraduated = true;
-    await _refreshAchievements();
-    notifyListeners();
   }
 }

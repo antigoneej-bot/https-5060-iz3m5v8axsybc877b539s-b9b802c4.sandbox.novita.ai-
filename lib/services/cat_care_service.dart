@@ -73,7 +73,6 @@ class CatCareService {
   // 소모품(사료/츄루/빗질 등) 보관함 개수를 "itemId|개수" 형태로 저장합니다.
   static String get _consumableInventoryKey =>
       '${_uid}_care_consumable_inventory';
-  static String get _graduatedCatsKey => '${_uid}_care_graduated_cats';
   // ── 업적(뱃지) 판단을 위한 누적 통계 ──
   // 포인트는 상점에서 쓰이면 줄어들지만, 뱃지는 "평생 모은 포인트"를 기준으로
   // 판단하기 위해 별도로 누적치만 증가하는 카운터를 둡니다.
@@ -730,7 +729,6 @@ class CatCareService {
   /// 업적(뱃지) 판단에 필요한 모든 누적 통계를 한 번에 모아 반환합니다.
   static Future<CatAchievementStats> getAchievementStats({
     required int growthDays,
-    required int graduatedCount,
   }) async {
     final prefs = await SharedPreferences.getInstance();
     final ownedIds = await getOwnedAccessoryIds();
@@ -746,77 +744,12 @@ class CatCareService {
         .length;
     return CatAchievementStats(
       growthDays: growthDays,
-      graduatedCount: graduatedCount,
       ownedWearableCount: ownedWearableCount,
       ownedFurnitureCount: ownedFurnitureCount,
       totalConsumablesUsed: prefs.getInt(_totalConsumablesUsedKey) ?? 0,
       totalPointsEarned: prefs.getInt(_totalPointsEarnedKey) ?? 0,
       totalFullCareDays: prefs.getInt(_totalFullCareDaysKey) ?? 0,
       totalPats: prefs.getInt(_totalPatsKey) ?? 0,
-    );
-  }
-
-  // ── 졸업 앨범 (성체가 된 고양이를 기록하고, 새 아기고양이로 넘어가기) ──
-
-  /// 지금까지 졸업(성체까지 다 키움)한 고양이들의 목록을
-  /// "catId|졸업일ISO8601" 문자열로 반환합니다.
-  static Future<List<String>> _rawGraduatedEntries() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getStringList(_graduatedCatsKey) ?? [];
-  }
-
-  /// 졸업한 고양이 (catId, 졸업일) 목록을 졸업일 오름차순으로 반환합니다.
-  static Future<List<(String, DateTime)>> getGraduatedCats() async {
-    final raw = await _rawGraduatedEntries();
-    final result = <(String, DateTime)>[];
-    for (final line in raw) {
-      final parts = line.split('|');
-      if (parts.length == 2) {
-        final d = DateTime.tryParse(parts[1]);
-        if (d != null) result.add((parts[0], d));
-      }
-    }
-    result.sort((a, b) => a.$2.compareTo(b.$2));
-    return result;
-  }
-
-  /// 현재 반려 고양이(companionCatId)를 졸업 명단에 추가하고, 성장 상태를
-  /// 초기화해 새 아기고양이를 키울 수 있게 합니다. 포인트와 보유
-  /// 액세서리는 그대로 유지됩니다(장착 상태만 해제).
-  static Future<CatCareState> graduateAndStartNewBaby({
-    required String newCompanionCatId,
-  }) async {
-    final prefs = await SharedPreferences.getInstance();
-    final graduatingId = prefs.getString(_companionKey);
-    if (graduatingId != null) {
-      final raw = prefs.getStringList(_graduatedCatsKey) ?? [];
-      raw.add('$graduatingId|${DateTime.now().toIso8601String()}');
-      await prefs.setStringList(_graduatedCatsKey, raw);
-    }
-    // 새 아기고양이로 다시 시작 - 온도/성장일수만 초기화하고, 포인트는 유지합니다.
-    await prefs.setInt(_tempKey, startTemperature);
-    await prefs.setInt(_growthDaysKey, 0);
-    await prefs.setString(_companionKey, newCompanionCatId);
-    await prefs.remove(_equippedSlotsKey);
-    await prefs.setBool(_fedKey, false);
-    await prefs.setBool(_wateredKey, false);
-    await prefs.setBool(_bathedKey, false);
-    await prefs.setBool(_cleanedKey, false);
-    await prefs.setBool(_breathingKey, false);
-    await prefs.setBool(_walkingKey, false);
-    await prefs.setBool(_journalingKey, false);
-    await prefs.setBool(_gratitudeKey, false);
-    final points = prefs.getInt(_pointsKey) ?? 0;
-
-    return CatCareState(
-      temperature: startTemperature,
-      fedToday: false,
-      wateredToday: false,
-      bathedToday: false,
-      cleanedToday: false,
-      companionCatId: newCompanionCatId,
-      growthDays: 0,
-      points: points,
     );
   }
 }
