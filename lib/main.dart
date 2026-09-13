@@ -54,7 +54,9 @@ Future<void> main() async {
     await BackupService.resumePending();
     resuming = false;
     await _launchGarden();
-  } catch (_) {
+  } catch (e, st) {
+    debugPrint('main() failed: $e');
+    debugPrint('$st');
     runApp(StartupRecoveryApp(retry: main, canDefer: storageReady && resuming));
   }
 }
