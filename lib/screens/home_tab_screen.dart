@@ -28,6 +28,7 @@ import '../services/special_letter_service.dart';
 import '../models/special_letter_entry.dart';
 import '../widgets/category_list_screen.dart';
 import 'premium_screen.dart';
+import 'my_garden_screen.dart';
 
 /// 홈페이지 탭 - '힐링 정원 산책로' 컨셉의 대시보드.
 /// 딱딱한 흰 사각 카드를 모두 걷어내고, 오솔길을 걷듯 좌우로 살짝씩 흔들리며
@@ -109,6 +110,11 @@ class HomeTabScreen extends StatelessWidget {
           // 되므로 무료 42마리 기준으로 표시합니다.
           total: freeShadowCats.length,
           onMeetCat: onGoToCatSelect,
+          onOpenGarden: () => pushFullScreen(
+            context,
+            '나의 정원',
+            MyGardenScreen(onGoMeetCat: onGoToCatSelect),
+          ),
         ),
         const SizedBox(height: 26),
         Builder(
@@ -324,10 +330,12 @@ class _JourneyHero extends StatelessWidget {
   final int metCount;
   final int total;
   final VoidCallback onMeetCat;
+  final VoidCallback onOpenGarden;
   const _JourneyHero({
     required this.metCount,
     required this.total,
     required this.onMeetCat,
+    required this.onOpenGarden,
   });
 
   @override
@@ -401,11 +409,26 @@ class _JourneyHero extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          _JourneyHeroButton(
-            label: metCount == 0 ? '고양이 만나기' : '오늘의 고양이 만나기',
-            emoji: '🐈',
-            filled: true,
-            onTap: onMeetCat,
+          Row(
+            children: [
+              Expanded(
+                child: _JourneyHeroButton(
+                  label: metCount == 0 ? '고양이 만나기' : '오늘의 고양이 만나기',
+                  emoji: '🐈',
+                  filled: true,
+                  onTap: onMeetCat,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _JourneyHeroButton(
+                  label: '정원 들어가기',
+                  emoji: '🌷',
+                  filled: false,
+                  onTap: onOpenGarden,
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -450,6 +473,8 @@ class _JourneyHeroButton extends StatelessWidget {
           ),
           child: Text(
             '$emoji  $label',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: pathLabelFont(
               fontSize: 12.5,
               fontWeight: FontWeight.w700,
