@@ -37,6 +37,17 @@ class _CatSelectionScreenState extends State<CatSelectionScreen>
   bool _favoritesOnly = false;
   final Set<String> _favorites = {};
   final TextEditingController _search = TextEditingController();
+
+  // 감정 필터 알약 태그마다 순환 배정되는 파스텔 색상 쌍 (정원 산책로와 같은 팔레트)
+  static const _pillColors = [
+    (bg: AppColors.blobMint, accent: AppColors.blobMintAccent),
+    (bg: AppColors.blobPeach, accent: AppColors.blobPeachAccent),
+    (bg: AppColors.blobLavender, accent: AppColors.blobLavenderAccent),
+    (bg: AppColors.blobRose, accent: AppColors.blobRoseAccent),
+    (bg: AppColors.blobButter, accent: AppColors.blobButterAccent),
+    (bg: AppColors.blobPeriwinkle, accent: AppColors.blobPeriwinkleAccent),
+  ];
+
   Future<void> _loadFavorites() async {
     final prefs = await SharedPreferences.getInstance();
     if (!mounted) return;
@@ -153,45 +164,58 @@ class _CatSelectionScreenState extends State<CatSelectionScreen>
             height: 1.5,
           ),
         ),
-        const SizedBox(height: 14),
-        TextField(
+        const SizedBox(height: 16),
+        _EmotionSearchField(
           controller: _search,
-          decoration: const InputDecoration(
-            labelText: '감정 찾기', hintText: '예: 서운함, 감사',
-            prefixIcon: Icon(Icons.search), border: OutlineInputBorder(),
-          ),
           onChanged: (value) => setState(() => _query = value.trim()),
         ),
-        const SizedBox(height: 12),
-        Wrap(spacing: 8, runSpacing: 8, children: [
-          for (final name in catBrowseGroups.keys)
-            ChoiceChip(label: Text(name), selected: _group == name,
-              onSelected: (_) => setState(() {
-                _group = _group == name ? null : name;
+        const SizedBox(height: 14),
+        Wrap(spacing: 8, runSpacing: 10, children: [
+          for (final entry in catBrowseGroups.keys.toList().asMap().entries)
+            _EmotionFilterPill(
+              label: entry.value,
+              selected: _group == entry.value,
+              colorSet: _pillColors[entry.key % _pillColors.length],
+              onTap: () => setState(() {
+                _group = _group == entry.value ? null : entry.value;
                 _showAll = false; _favoritesOnly = false;
                 _search.clear(); _query = '';
-              })),
-          ChoiceChip(label: const Text('전체 고양이'), selected: _showAll && _group == null,
-            onSelected: (_) => setState(() {
+              }),
+            ),
+          _EmotionFilterPill(
+            label: '전체 고양이',
+            selected: _showAll && _group == null,
+            colorSet: _pillColors[catBrowseGroups.length % _pillColors.length],
+            onTap: () => setState(() {
               _group = null; _showAll = true; _favoritesOnly = false;
               _search.clear(); _query = '';
-            })),
-          FilterChip(label: const Text('즐겨찾기'), selected: _favoritesOnly,
-            onSelected: (value) => setState(() {
-              _favoritesOnly = value; _group = null; _showAll = false;
+            }),
+          ),
+          _EmotionFilterPill(
+            label: '즐겨찾기',
+            icon: Icons.star_rounded,
+            selected: _favoritesOnly,
+            colorSet: _pillColors[(catBrowseGroups.length + 1) % _pillColors.length],
+            onTap: () => setState(() {
+              _favoritesOnly = !_favoritesOnly; _group = null; _showAll = false;
               _search.clear(); _query = '';
-            })),
+            }),
+          ),
         ]),
         if (!browsing && recent.isNotEmpty) ...[
-          const SizedBox(height: 14),
-          const Text('최근에 고른 마음'),
-          Wrap(spacing: 8, children: [for (final id in recent)
-            ActionChip(label: Text(shadowCatById(id).keyword), onPressed: () {
-              final cat = shadowCatById(id);
-              if (cat.isPremium && !isPremiumUser) {
-                _onTapPremiumCat(cat);
-              } else { app.selectCat(cat); }
-            }),
+          const SizedBox(height: 18),
+          Text('최근에 고른 마음', style: bodyFont(fontSize: 12.5, fontWeight: FontWeight.w600, color: AppColors.inkSoft)),
+          const SizedBox(height: 8),
+          Wrap(spacing: 8, runSpacing: 8, children: [for (final id in recent)
+            _RecentEmotionChip(
+              label: shadowCatById(id).keyword,
+              onTap: () {
+                final cat = shadowCatById(id);
+                if (cat.isPremium && !isPremiumUser) {
+                  _onTapPremiumCat(cat);
+                } else { app.selectCat(cat); }
+              },
+            ),
           ]),
         ],
         if (browsing && allCats.isEmpty)
@@ -751,6 +775,186 @@ class _CatCardState extends State<_CatCard> {
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 감정 검색창 - 앱 전체의 유리질감 파스텔 톤(GlassBlob)과 어울리도록,
+/// 딱딱한 흰 사각 인풋 대신 은은한 라벤더 톤 알약형 검색창으로 디자인했습니다.
+class _EmotionSearchField extends StatefulWidget {
+  final TextEditingController controller;
+  final ValueChanged<String> onChanged;
+  const _EmotionSearchField({required this.controller, required this.onChanged});
+
+  @override
+  State<_EmotionSearchField> createState() => _EmotionSearchFieldState();
+}
+
+class _EmotionSearchFieldState extends State<_EmotionSearchField> {
+  bool _focused = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final active = _focused || widget.controller.text.isNotEmpty;
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeOut,
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 4),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(999),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppColors.blobLavender.withValues(alpha: active ? 0.9 : 0.7),
+            AppColors.blobPeriwinkle.withValues(alpha: active ? 0.75 : 0.5),
+          ],
+        ),
+        border: Border.all(
+          color: AppColors.blobLavenderAccent.withValues(alpha: active ? 0.45 : 0.22),
+          width: active ? 1.4 : 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.blobLavenderAccent.withValues(alpha: active ? 0.16 : 0.08),
+            blurRadius: active ? 18 : 10,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Focus(
+        onFocusChange: (v) => setState(() => _focused = v),
+        child: TextField(
+          controller: widget.controller,
+          onChanged: widget.onChanged,
+          style: bodyFont(fontSize: 14, color: AppColors.ink),
+          cursorColor: AppColors.blobLavenderAccent,
+          decoration: InputDecoration(
+            isDense: true,
+            border: InputBorder.none,
+            hintText: '감정 찾기 · 예: 서운함, 감사',
+            hintStyle: bodyFont(fontSize: 13, color: AppColors.inkSoft.withValues(alpha: 0.75)),
+            prefixIcon: Icon(Icons.search_rounded, color: AppColors.blobLavenderAccent, size: 22),
+            suffixIcon: widget.controller.text.isEmpty
+                ? null
+                : IconButton(
+                    icon: Icon(Icons.close_rounded, size: 18, color: AppColors.blobLavenderAccent),
+                    onPressed: () {
+                      widget.controller.clear();
+                      widget.onChanged('');
+                    },
+                  ),
+            contentPadding: const EdgeInsets.symmetric(vertical: 14),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 감정 카테고리 필터 알약 - ChoiceChip 대신, 카테고리마다 다른 파스텔
+/// 색상(정원 산책로 팔레트)을 순환 배정해 화단처럼 알록달록하지만 톤은
+/// 통일된 필 버튼으로 디자인했습니다.
+class _EmotionFilterPill extends StatelessWidget {
+  final String label;
+  final IconData? icon;
+  final bool selected;
+  final ({Color bg, Color accent}) colorSet;
+  final VoidCallback onTap;
+  const _EmotionFilterPill({
+    required this.label,
+    required this.selected,
+    required this.colorSet,
+    required this.onTap,
+    this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOut,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(999),
+          gradient: selected
+              ? LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    colorSet.accent.withValues(alpha: 0.92),
+                    colorSet.accent.withValues(alpha: 0.72),
+                  ],
+                )
+              : LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    colorSet.bg.withValues(alpha: 0.75),
+                    colorSet.bg.withValues(alpha: 0.45),
+                  ],
+                ),
+          border: Border.all(
+            color: colorSet.accent.withValues(alpha: selected ? 0.55 : 0.24),
+            width: selected ? 1.4 : 1,
+          ),
+          boxShadow: selected
+              ? [
+                  BoxShadow(
+                    color: colorSet.accent.withValues(alpha: 0.22),
+                    blurRadius: 14,
+                    offset: const Offset(0, 5),
+                  ),
+                ]
+              : null,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (icon != null) ...[
+              Icon(icon, size: 14, color: selected ? Colors.white : colorSet.accent),
+              const SizedBox(width: 5),
+            ],
+            Text(
+              label,
+              style: bodyFont(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600,
+                color: selected ? Colors.white : AppColors.ink,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 최근 고른 마음 - 작은 골드 톤 알약 칩 (메인 CTA 톤과 통일해 '빠른 선택'
+/// 임을 은근히 드러내면서도 과하지 않게 처리)
+class _RecentEmotionChip extends StatelessWidget {
+  final String label;
+  final VoidCallback onTap;
+  const _RecentEmotionChip({required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(999),
+          color: AppColors.gold.withValues(alpha: 0.12),
+          border: Border.all(color: AppColors.gold.withValues(alpha: 0.35), width: 1),
+        ),
+        child: Text(
+          label,
+          style: bodyFont(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.goldSoft),
         ),
       ),
     );
