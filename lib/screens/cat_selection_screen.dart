@@ -1,3 +1,5 @@
+import 'package:shared_preferences/shared_preferences.dart';
+import '../data/cat_browse_groups.dart';
 import 'dart:math';
 import 'dart:ui';
 import 'package:flutter/material.dart';
@@ -29,6 +31,22 @@ class CatSelectionScreen extends StatefulWidget {
 
 class _CatSelectionScreenState extends State<CatSelectionScreen>
     with TickerProviderStateMixin {
+  String? _group;
+  String _query = '';
+  bool _showAll = false;
+  bool _favoritesOnly = false;
+  final Set<String> _favorites = {};
+  final TextEditingController _search = TextEditingController();
+  Future<void> _loadFavorites() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() => _favorites.addAll(prefs.getStringList('cat_browse_favorites_v1') ?? []));
+  }
+  Future<void> _toggleFavorite(String id) async {
+    setState(() { if (!_favorites.add(id)) _favorites.remove(id); });
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList('cat_browse_favorites_v1', _favorites.toList());
+  }
   bool _showReassurance = false;
   bool _checkedReassurance = false;
 
@@ -53,10 +71,11 @@ class _CatSelectionScreenState extends State<CatSelectionScreen>
   @override
   void initState() {
     super.initState();
+    _loadFavorites();
     _sharedFloat = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 5),
-    )..repeat();
+    );
     WidgetsBinding.instance.addPostFrameCallback(
       (_) => _maybeShowReassurance(),
     );
@@ -64,6 +83,7 @@ class _CatSelectionScreenState extends State<CatSelectionScreen>
 
   @override
   void dispose() {
+    _search.dispose();
     _sharedFloat.dispose();
     super.dispose();
   }
@@ -99,7 +119,17 @@ class _CatSelectionScreenState extends State<CatSelectionScreen>
 
   @override
   Widget build(BuildContext context) {
-    final allCats = shadowCats.where((c) => c.selectable).toList();
+    final app = context.watch<AppStateProvider>();
+    final catalog = shadowCats.where((c) => c.selectable).toList();
+    final recent = app.history.map((e) => e.catId).toSet().take(3).toList();
+    final filtered = catalog.where((cat) {
+      if (_favoritesOnly && !_favorites.contains(cat.id)) return false;
+      if (_query.isNotEmpty) return '${cat.keyword} ${cat.nameKr}'.contains(_query);
+      return _group == null || catBrowseGroups[_group]!.contains(cat.id);
+    }).toList();
+    final browsing = _group != null || _query.isNotEmpty || _showAll || _favoritesOnly;
+    final allCats = browsing ? (_showAll || _query.isNotEmpty || _favoritesOnly
+        ? filtered : filtered.take(6).toList()) : <ShadowCat>[];
     final isPremiumUser = context.watch<AppStateProvider>().isPremiumUser;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -115,7 +145,7 @@ class _CatSelectionScreenState extends State<CatSelectionScreen>
         ),
         const SizedBox(height: 6),
         Text(
-          '${allCats.length}마리의 그림자 감정 고양이 카드 중\n마음에 닿는 카드를 골라보세요',
+          '먼저 가까운 마음을 골라주세요.\n오늘 고른 감정이 함께 키우는 고양이를 바꾸지는 않아요.',
           textAlign: TextAlign.center,
           style: bodyFont(
             fontSize: 12.5,
@@ -123,6 +153,49 @@ class _CatSelectionScreenState extends State<CatSelectionScreen>
             height: 1.5,
           ),
         ),
+        const SizedBox(height: 14),
+        TextField(
+          controller: _search,
+          decoration: const InputDecoration(
+            labelText: '감정 찾기', hintText: '예: 서운함, 감사',
+            prefixIcon: Icon(Icons.search), border: OutlineInputBorder(),
+          ),
+          onChanged: (value) => setState(() => _query = value.trim()),
+        ),
+        const SizedBox(height: 12),
+        Wrap(spacing: 8, runSpacing: 8, children: [
+          for (final name in catBrowseGroups.keys)
+            ChoiceChip(label: Text(name), selected: _group == name,
+              onSelected: (_) => setState(() {
+                _group = _group == name ? null : name;
+                _showAll = false; _favoritesOnly = false;
+                _search.clear(); _query = '';
+              })),
+          ChoiceChip(label: const Text('전체 고양이'), selected: _showAll && _group == null,
+            onSelected: (_) => setState(() {
+              _group = null; _showAll = true; _favoritesOnly = false;
+              _search.clear(); _query = '';
+            })),
+          FilterChip(label: const Text('즐겨찾기'), selected: _favoritesOnly,
+            onSelected: (value) => setState(() {
+              _favoritesOnly = value; _group = null; _showAll = false;
+              _search.clear(); _query = '';
+            })),
+        ]),
+        if (!browsing && recent.isNotEmpty) ...[
+          const SizedBox(height: 14),
+          const Text('최근에 고른 마음'),
+          Wrap(spacing: 8, children: [for (final id in recent)
+            ActionChip(label: Text(shadowCatById(id).keyword), onPressed: () {
+              final cat = shadowCatById(id);
+              if (cat.isPremium && !isPremiumUser) {
+                _onTapPremiumCat(cat);
+              } else { app.selectCat(cat); }
+            }),
+          ]),
+        ],
+        if (browsing && allCats.isEmpty)
+          const Padding(padding: EdgeInsets.all(16), child: Text('찾는 고양이가 없어요. 다른 감정이나 전체 고양이를 골라보세요.')),
         if (_checkedReassurance)
           AnimatedSize(
             duration: const Duration(milliseconds: 300),
@@ -139,7 +212,7 @@ class _CatSelectionScreenState extends State<CatSelectionScreen>
           physics: const NeverScrollableScrollPhysics(),
           itemCount: allCats.length,
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 3,
+            crossAxisCount: 2,
             crossAxisSpacing: 12,
             mainAxisSpacing: 12,
             childAspectRatio: 0.78,
@@ -147,7 +220,7 @@ class _CatSelectionScreenState extends State<CatSelectionScreen>
           itemBuilder: (context, index) {
             final cat = allCats[index];
             final locked = cat.isPremium && !isPremiumUser;
-            return _CatCard(
+            return Stack(children: [ _CatCard(
               cat: cat,
               seed: index,
               locked: locked,
@@ -156,9 +229,17 @@ class _CatSelectionScreenState extends State<CatSelectionScreen>
               onTap: locked
                   ? () => _onTapPremiumCat(cat)
                   : () => context.read<AppStateProvider>().selectCat(cat),
-            );
+            ), Positioned(top: 0, right: 0, child: IconButton(
+              tooltip: _favorites.contains(cat.id) ? '즐겨찾기 해제' : '즐겨찾기 추가',
+              onPressed: () => _toggleFavorite(cat.id),
+              icon: Icon(_favorites.contains(cat.id) ? Icons.star : Icons.star_border,
+                color: AppColors.ink),
+            )) ]);
           },
         ),
+        if (browsing && !_showAll && _query.isEmpty && !_favoritesOnly && filtered.length > 6)
+          TextButton(onPressed: () => setState(() => _showAll = true),
+            child: Text('이 마음의 고양이 더 보기 (${filtered.length - 6})')),
       ],
     );
   }
@@ -653,7 +734,7 @@ class _CatCardState extends State<_CatCard> {
                     Text(
                       widget.locked
                           ? '？？？'
-                          : '${widget.cat.emoji} ${widget.cat.nameKr}',
+                          : '${widget.cat.emoji} ${widget.cat.keyword}',
                       textAlign: TextAlign.center,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,

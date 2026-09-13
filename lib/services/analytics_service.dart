@@ -11,13 +11,7 @@ import 'storage_service.dart';
 /// [_log]에서 디버그 콘솔 출력 + 로컬 카운터 저장 + Firebase 전송을 함께
 /// 처리합니다.
 ///
-/// 단, [AnalyticsEvents.premiumPurchase] / [AnalyticsEvents.premiumCancel]
-/// 두 이벤트는 **의도적으로 Firebase 전송에서 제외**하고 있습니다. 지금
-/// 구독 기능은 실제 결제 연동 전 임시 구현(SubscriptionService 참고)이라,
-/// 이 이벤트를 그대로 Firebase에 흘리면 나중에 실제 결제가 붙었을 때
-/// 테스트/가짜 구매 데이터와 실 구매 데이터가 섞여 매출·전환율 지표가
-/// 왜곡됩니다. 실제 인앱결제 연동이 끝난 뒤 아래 [_excludedFromFirebase]
-/// 목록에서 해당 이벤트명을 제거하면 그대로 Firebase 전송이 시작됩니다.
+/// 결제 이벤트도 실연동 이후 Firebase로 전송합니다.
 class AnalyticsService {
   AnalyticsService._();
   static final AnalyticsService _instance = AnalyticsService._();
@@ -26,12 +20,28 @@ class AnalyticsService {
   static const String _eventCountPrefix = 'analytics_count_';
   static const String _milestoneKeyPrefix = 'analytics_milestone_';
 
-  /// 실제 결제 연동 전까지 Firebase로 전송하지 않는 이벤트 목록.
-  /// (가짜 구매/취소 데이터가 실 매출 지표를 오염시키는 것을 방지)
-  static const Set<String> _excludedFromFirebase = {
-    AnalyticsEvents.premiumPurchase,
-    AnalyticsEvents.premiumCancel,
-  };
+  /// (과거 가짜 결제 오염 방지용 — 실 IAP 연동 후 비움)
+  static const Set<String> _excludedFromFirebase = <String>{};
+
+  static final sharingEnabled = ValueNotifier<bool>(false);
+  Future<void> loadConsent() async {
+    final prefs = await SharedPreferences.getInstance();
+    final enabled = prefs.getBool('analytics_sharing_v1') ?? false;
+    try {
+      await FirebaseAnalytics.instance.setAnalyticsCollectionEnabled(enabled);
+      sharingEnabled.value = enabled;
+    } catch (_) { sharingEnabled.value = false; }
+  }
+  Future<void> setSharing(bool enabled) async {
+    await FirebaseAnalytics.instance.setAnalyticsCollectionEnabled(enabled);
+    final prefs = await SharedPreferences.getInstance();
+    if (!await prefs.setBool('analytics_sharing_v1', enabled)) {
+      await FirebaseAnalytics.instance.setAnalyticsCollectionEnabled(false);
+      sharingEnabled.value = false;
+      throw StateError('통계 설정을 저장하지 못했어요.');
+    }
+    sharingEnabled.value = enabled;
+  }
 
   /// 이벤트를 기록합니다. [name]은 스네이크케이스 권장(예: letter_sent).
   /// [params]는 선택적 부가 정보(예: {'cat_id': 'sad'}).
@@ -42,9 +52,9 @@ class AnalyticsService {
 
   Future<void> _log(String name, Map<String, Object?>? params) async {
     if (kDebugMode) {
-      debugPrint('📊 [Analytics] $name ${params ?? ''}');
+      debugPrint('Analytics event: $name');
     }
-    if (_excludedFromFirebase.contains(name)) {
+    if (!sharingEnabled.value || _excludedFromFirebase.contains(name)) {
       if (kDebugMode) {
         debugPrint('📊 [Analytics] $name → Firebase 전송 제외(가짜 결제 방지)');
       }
@@ -53,7 +63,11 @@ class AnalyticsService {
     try {
       await FirebaseAnalytics.instance.logEvent(
         name: name,
-        parameters: params?.map((k, v) => MapEntry(k, v ?? '')),
+        // Only bounded operational fields; omit emotion/cat IDs and written text.
+        parameters: params == null ? null : <String, Object>{
+          for (final key in ['day', 'plan', 'has_text'])
+            if (params[key] is num || params[key] is String) key: params[key]!,
+        },
       );
     } catch (e) {
       if (kDebugMode) {

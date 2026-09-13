@@ -450,12 +450,16 @@ class _BubbleMemoSheetState extends State<_BubbleMemoSheet> {
     final text = _controller.text.trim();
     if (text.isEmpty || _saving) return;
     setState(() => _saving = true);
-    await context.read<BubbleGardenProvider>().leaveBubbleMemo(
-      catId: widget.cat.id,
-      message: text,
-    );
-    if (!mounted) return;
-    Navigator.of(context).pop();
+    try {
+      await context.read<BubbleGardenProvider>().leaveBubbleMemo(
+        catId: widget.cat.id,
+        message: text,
+      );
+      if (!mounted) return;
+      Navigator.of(context).pop();
+    } catch (_) {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
   @override

@@ -1,0 +1,6 @@
+{
+  "name": "maeumnyang-backend", "private": true, "type": "module",
+  "main": "index.js", "engines": {"node": "22"},
+  "scripts": {"test": "node --test", "check": "node --check index.js"},
+  "dependencies": {"firebase-admin": "^13.0.0", "firebase-functions": "^6.0.0", "google-auth-library": "^9.15.0"}
+}

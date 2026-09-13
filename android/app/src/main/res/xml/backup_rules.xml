@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- API 30 이하 fullBackupContent용 — 전체 백업 비활성과 동일하게 유지 -->
+<full-backup-content>
+    <exclude domain="root" path="." />
+</full-backup-content>

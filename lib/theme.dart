@@ -16,7 +16,7 @@ class AppColors {
 
   // 텍스트: 밝은 배경 위에 놓일 진한 차콜/잉크 톤 (기존보다 살짝 더 차분하고 모던하게)
   static const ink = Color(0xFF383032); // 카드 위 진한 텍스트
-  static const inkSoft = Color(0xFF9A8F86); // 연한 보조 텍스트
+  static const inkSoft = Color(0xFF6F625B); // 연한 보조 텍스트
 
   // 메인 포인트 컬러 (기존 골드 유지 - 데일리 내면소통/성장 등 핵심 액션에 사용)
   static const gold = Color(0xFFDDA24C);
@@ -48,7 +48,7 @@ class AppColors {
   static const catPeachBg = Color(0xFFFCEEE5);
 
   // 홈 대표 타이틀용 파스텔 그린 (귀엽고 동글동글한 폰트와 함께 사용)
-  static const titlePastelGreen = Color(0xFF8FBFA0);
+  static const titlePastelGreen = Color(0xFF44775B);
   static const titlePastelGreenSoft = Color(0xFFB7D9C2);
 
   // ── 힐링 정원 산책로 메뉴용 파스텔 블롭 컬러 (반투명 유기적 알약 카드) ──

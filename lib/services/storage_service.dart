@@ -1,9 +1,11 @@
+import 'personal_reply_service.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/letter_entry.dart';
 import '../models/reflection_letter_entry.dart';
 import '../models/daily_draw_entry.dart';
 import '../models/bubble_memo_entry.dart';
+import 'hive_encryption.dart';
 
 /// 계정별로 편지 기록 · 연속 방문일 · 성장 단계를 저장합니다.
 /// (사운드 설정처럼 기기 전체에 공통인 값은 계정과 무관하게 유지됩니다)
@@ -18,6 +20,114 @@ class StorageService {
 
   static Future<void> init() async {
     await Hive.initFlutter();
+  }
+
+  /// 예전 기본 UID(`guest`)에 쌓인 prefs/Hive를 [userId](`local_user`)로
+  /// 한 번만 복사합니다. B-1에서 계정 없이 로컬 UID로 바꾼 뒤, 기존
+  /// 누적 데이터가 "사라진 것처럼" 보이던 문제를 막습니다.
+  static Future<void> migrateGuestScopeIfNeeded(String userId) async {
+    if (userId.isEmpty || userId == _defaultScope) return;
+    final prefs = await SharedPreferences.getInstance();
+    final flag = 'guest_scope_migrated_v1_to_$userId';
+    if (prefs.getBool(flag) == true) return;
+
+    // SharedPreferences: guest_* → {userId}_* (대상 키가 비어 있을 때만)
+    for (final key in prefs.getKeys().toList()) {
+      if (!key.startsWith('${_defaultScope}_')) continue;
+      final newKey = '$userId${key.substring(_defaultScope.length)}';
+      if (prefs.containsKey(newKey)) continue;
+      final value = prefs.get(key);
+      if (value is bool) {
+        await prefs.setBool(newKey, value);
+      } else if (value is int) {
+        await prefs.setInt(newKey, value);
+      } else if (value is double) {
+        await prefs.setDouble(newKey, value);
+      } else if (value is String) {
+        await prefs.setString(newKey, value);
+      } else if (value is List<String>) {
+        await prefs.setStringList(newKey, value);
+      }
+    }
+
+    // Hive 박스 — 하나라도 실패하면 플래그를 남기지 않아 다음 실행에 재시도
+    final hiveOk = <bool>[
+      await _copyHiveBoxIfTargetEmpty(
+        'letter_entries_$_defaultScope',
+        'letter_entries_$userId',
+      ),
+      await _copyHiveBoxIfTargetEmpty(
+        'reflection_letters_$_defaultScope',
+        'reflection_letters_$userId',
+      ),
+      await _copyHiveBoxIfTargetEmpty(
+        'daily_draw_entries_$_defaultScope',
+        'daily_draw_entries_$userId',
+      ),
+      await _copyHiveBoxIfTargetEmpty(
+        'bubble_memo_entries_$_defaultScope',
+        'bubble_memo_entries_$userId',
+      ),
+      await _copyHiveBoxIfTargetEmpty(
+        'buried_emotions_$_defaultScope',
+        'buried_emotions_$userId',
+      ),
+      await _copyHiveBoxIfTargetEmpty(
+        'cat_memories_$_defaultScope',
+        'cat_memories_$userId',
+      ),
+      await _copyHiveBoxIfTargetEmpty(
+        'usage_history_$_defaultScope',
+        'usage_history_$userId',
+      ),
+      await _copyHiveBoxIfTargetEmpty(
+        'promise_entries_$_defaultScope',
+        'promise_entries_$userId',
+      ),
+      await _copyHiveBoxIfTargetEmpty(
+        'special_letters_$_defaultScope',
+        'special_letters_$userId',
+      ),
+    ];
+
+    if (hiveOk.every((ok) => ok)) {
+      await prefs.setBool(flag, true);
+    }
+  }
+
+  /// 성공(또는 복사할 것 없음)이면 true, 예외/실패면 false.
+  static Future<bool> _copyHiveBoxIfTargetEmpty(
+    String fromName,
+    String toName,
+  ) async {
+    try {
+      final fromExists =
+          await Hive.boxExists(fromName) ||
+          await Hive.boxExists('${fromName}__enc');
+      if (!fromExists) return true;
+
+      final from = await HiveEncryption.openBox(fromName);
+      if (from.isEmpty) {
+        await from.close();
+        return true;
+      }
+
+      final to = await HiveEncryption.openBox(toName);
+      if (to.isNotEmpty) {
+        await to.close();
+        await from.close();
+        return true;
+      }
+      for (final key in from.keys) {
+        await to.put(key, from.get(key));
+      }
+      final ok = to.length >= from.length;
+      await to.close();
+      await from.close();
+      return ok;
+    } catch (_) {
+      return false;
+    }
   }
 
   /// 로그인/자동 로그인 성공 시 호출해서 해당 계정 전용 저장 공간으로 전환합니다.
@@ -36,10 +146,12 @@ class StorageService {
     if (_bubbleMemoBox != null && _bubbleMemoBox!.isOpen) {
       await _bubbleMemoBox!.close();
     }
-    _letterBox = await Hive.openBox('letter_entries_$_uid');
-    _reflectionLetterBox = await Hive.openBox('reflection_letters_$_uid');
-    _dailyDrawBox = await Hive.openBox('daily_draw_entries_$_uid');
-    _bubbleMemoBox = await Hive.openBox('bubble_memo_entries_$_uid');
+    _letterBox = await HiveEncryption.openBox('letter_entries_$_uid');
+    _reflectionLetterBox =
+        await HiveEncryption.openBox('reflection_letters_$_uid');
+    _dailyDrawBox = await HiveEncryption.openBox('daily_draw_entries_$_uid');
+    _bubbleMemoBox =
+        await HiveEncryption.openBox('bubble_memo_entries_$_uid');
   }
 
   /// 로그아웃 시 호출해서 계정 전용 데이터 접근을 닫습니다.
@@ -71,7 +183,9 @@ class StorageService {
   }
 
   static Future<void> saveLetter(LetterEntry entry) async {
-    await letterBox.put(entry.id, entry.toMap());
+    // A retry after an uncertain write uses the same immutable ID.
+    if (!letterBox.containsKey(entry.id)) await letterBox.put(entry.id, entry.toMap());
+    await letterBox.flush();
   }
 
   /// 이미 저장된 편지에 명상 실천 여부(meditationKey)만 덧붙여 갱신합니다.
@@ -97,7 +211,12 @@ class StorageService {
   }
 
   static Future<void> deleteLetter(String id) async {
+    await PersonalReplyService.remove('letter:$id');
+    final cache = await HiveEncryption.openBox('reply_cache_local_user');
+    await cache.delete(id);
+    await cache.flush();
     await letterBox.delete(id);
+    await letterBox.flush();
   }
 
   /// 가장 최근에 쓴 편지의 고양이 id를 반환합니다(없으면 null).
@@ -122,10 +241,37 @@ class StorageService {
   static String get _lastVisitKey => '${_uid}_last_visit_date';
   static String get _streakKey => '${_uid}_streak_count';
 
+  /// 달력 날짜만 `yyyy-MM-dd`로 통일합니다. (구버전 ISO 값은 [_parseDateOnly]로 읽음)
+  static String _dateOnlyString(DateTime d) {
+    final y = d.year.toString().padLeft(4, '0');
+    final m = d.month.toString().padLeft(2, '0');
+    final day = d.day.toString().padLeft(2, '0');
+    return '$y-$m-$day';
+  }
+
+  static DateTime? _parseDateOnly(String raw) {
+    final m = RegExp(r'^(\d{4})-(\d{2})-(\d{2})').firstMatch(raw.trim());
+    if (m != null) {
+      return DateTime(
+        int.parse(m.group(1)!),
+        int.parse(m.group(2)!),
+        int.parse(m.group(3)!),
+      );
+    }
+    final d = DateTime.tryParse(raw);
+    if (d == null) return null;
+    return DateTime(d.year, d.month, d.day);
+  }
+
   static Future<int> updateStreakOnOpen() async {
     final prefs = await SharedPreferences.getInstance();
     final todayStr = _dateOnlyString(DateTime.now());
-    final lastVisit = prefs.getString(_lastVisitKey);
+    final lastVisitRaw = prefs.getString(_lastVisitKey);
+    final lastVisitDay = lastVisitRaw != null
+        ? _parseDateOnly(lastVisitRaw)
+        : null;
+    final lastVisit =
+        lastVisitDay != null ? _dateOnlyString(lastVisitDay) : null;
     int streak = prefs.getInt(_streakKey) ?? 0;
 
     if (lastVisit == null) {
@@ -133,7 +279,7 @@ class StorageService {
     } else if (lastVisit == todayStr) {
       return streak == 0 ? 1 : streak;
     } else {
-      final lastDate = DateTime.parse(lastVisit);
+      final lastDate = lastVisitDay!;
       final diff = DateTime.now()
           .difference(DateTime(lastDate.year, lastDate.month, lastDate.day))
           .inDays;
@@ -148,14 +294,21 @@ class StorageService {
     return streak;
   }
 
-  static String _dateOnlyString(DateTime d) {
-    return DateTime(d.year, d.month, d.day).toIso8601String();
-  }
-
   /// 현재 저장된 연속 방문일(스트릭) 수를 그대로 반환합니다(알림 문구용).
   static Future<int> getCurrentStreakCount() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getInt(_streakKey) ?? 0;
+    final streak = prefs.getInt(_streakKey) ?? 0;
+    return streak == 0 ? 0 : streak;
+  }
+
+  /// 설치일 기준 "N일째 함께하는 중" 숫자.
+  /// 설치한 날 = 1일째, 그다음 날 = 2일째 … (3일 전 설치면 보통 4일째).
+  /// 설치일이 없으면 0.
+  static Future<int> daysTogetherSinceInstall({DateTime? now}) async {
+    final since = await daysSinceInstall(now: now);
+    final installDate = await getInstallDate();
+    if (installDate == null) return 0;
+    return since + 1;
   }
 
   /// [updateStreakOnOpen]을 호출하기 *전에* 먼저 확인해야 합니다 - 그 값이
@@ -169,7 +322,8 @@ class StorageService {
     final prefs = await SharedPreferences.getInstance();
     final lastVisit = prefs.getString(_lastVisitKey);
     if (lastVisit == null) return 0;
-    final lastDate = DateTime.parse(lastVisit);
+    final lastDate = _parseDateOnly(lastVisit);
+    if (lastDate == null) return 0;
     final diff = DateTime.now()
         .difference(DateTime(lastDate.year, lastDate.month, lastDate.day))
         .inDays;
@@ -181,7 +335,7 @@ class StorageService {
   static Future<bool> hasCompletedGrowthToday() async {
     final prefs = await SharedPreferences.getInstance();
     final todayStr = _dateOnlyString(DateTime.now());
-    final days = prefs.getStringList(_growthDaysKey) ?? [];
+    final days = await _normalizedGrowthDays(prefs);
     return days.contains(todayStr);
   }
 
@@ -203,15 +357,36 @@ class StorageService {
   static Future<(int, int)> getGrowthProgress() async {
     final prefs = await SharedPreferences.getInstance();
     final startStr = prefs.getString(_growthStartKey);
-    final days = prefs.getStringList(_growthDaysKey) ?? [];
+    final days = await _normalizedGrowthDays(prefs);
     if (startStr == null) return (0, 0);
 
-    final startDate = DateTime.parse(startStr);
-    final elapsed = DateTime.now().difference(startDate).inDays;
+    final startDate = _parseDateOnly(startStr);
+    if (startDate == null) return (0, 0);
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final elapsed = today.difference(startDate).inDays;
     if (elapsed >= growthWindowDays) {
       return (0, 0);
     }
     return (days.length, elapsed + 1);
+  }
+
+  /// 성장 완료일 목록을 yyyy-MM-dd 로 정규화해 저장합니다.
+  static Future<List<String>> _normalizedGrowthDays(
+    SharedPreferences prefs,
+  ) async {
+    final raw = prefs.getStringList(_growthDaysKey) ?? [];
+    final normalized = <String>{};
+    for (final item in raw) {
+      final d = _parseDateOnly(item);
+      if (d != null) normalized.add(_dateOnlyString(d));
+    }
+    final list = normalized.toList()..sort();
+    if (list.length != raw.length ||
+        list.any((e) => !raw.contains(e))) {
+      await prefs.setStringList(_growthDaysKey, list);
+    }
+    return list;
   }
 
   /// 오늘 미션(편지+명상)을 완수했을 때 호출합니다. 하루에 한 번만 온도가 오릅니다.
@@ -219,20 +394,33 @@ class StorageService {
     final prefs = await SharedPreferences.getInstance();
     final todayStr = _dateOnlyString(DateTime.now());
     String? startStr = prefs.getString(_growthStartKey);
-    List<String> days = prefs.getStringList(_growthDaysKey) ?? [];
+    List<String> days = await _normalizedGrowthDays(prefs);
     int level = prefs.getInt(_growthLevelKey) ?? 1;
 
     bool expired = false;
     if (startStr != null) {
-      final startDate = DateTime.parse(startStr);
-      final elapsed = DateTime.now().difference(startDate).inDays;
-      if (elapsed >= growthWindowDays) expired = true;
+      final startDate = _parseDateOnly(startStr);
+      if (startDate != null) {
+        final now = DateTime.now();
+        final today = DateTime(now.year, now.month, now.day);
+        final elapsed = today.difference(startDate).inDays;
+        if (elapsed >= growthWindowDays) expired = true;
+      } else {
+        expired = true;
+      }
     }
 
     if (startStr == null || expired) {
       startStr = todayStr;
       days = [];
       await prefs.setString(_growthStartKey, startStr);
+    } else {
+      // 구 ISO start 값도 yyyy-MM-dd 로 정규화
+      final parsed = _parseDateOnly(startStr);
+      if (parsed != null) {
+        startStr = _dateOnlyString(parsed);
+        await prefs.setString(_growthStartKey, startStr);
+      }
     }
 
     if (!days.contains(todayStr)) {
@@ -250,10 +438,13 @@ class StorageService {
     }
     await prefs.setInt(_growthLevelKey, level);
 
-    final startDate = DateTime.parse(startStr);
+    final startDate = _parseDateOnly(startStr) ?? DateTime.now();
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
     final elapsedNow = leveledUp
         ? 0
-        : DateTime.now().difference(startDate).inDays + 1;
+        : today.difference(DateTime(startDate.year, startDate.month, startDate.day)).inDays +
+              1;
     return (leveledUp, level, days.length, elapsedNow);
   }
 

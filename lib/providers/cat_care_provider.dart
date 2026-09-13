@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import '../models/cat_care_state.dart';
@@ -37,7 +38,7 @@ class CatCareProvider extends ChangeNotifier {
   /// 비웁니다. 평소에는 null.
   String? bodyCareCelebrationMessage;
 
-  /// 마음 돌보기까지 포함해 오늘의 돌봄 8가지를 방금 막 모두 마쳤을 때
+  /// 마음 돌보기까지 포함해 오늘 첫 돌봄을 실천했을 때
   /// 보여줄 축하 말풍선 문구(마음 온도 +1도 안내). 화면에서 보여준 뒤
   /// [clearAllCareCelebration]으로 비웁니다. 평소에는 null.
   String? allCareCelebrationMessage;
@@ -173,29 +174,33 @@ class CatCareProvider extends ChangeNotifier {
     final wasBodyCareDone = state.bodyCareDoneToday;
     final wasAllDone = state.allDoneToday;
     state = await CatCareService.completeTask(task, isPremium: isPremium);
-    await SoundService().playMeow();
     final newStage = state.growthStage;
     if (newStage != prevStage) {
-      // 성장 단계가 올라간 순간 - 화면에서 레벨업 애니메이션을 띄울 수 있도록 표시
       justReachedStage = newStage;
     }
 
-    // 몸을 돌보기 4가지(밥/물/목욕/청소)를 방금 막 모두 마친 순간 - 골골송과
-    // 함께 축하 말풍선을 띄워줍니다.
     if (!wasBodyCareDone && state.bodyCareDoneToday) {
-      await SoundService().playPurr();
       bodyCareCelebrationMessage = '골골골... 몸을 다 돌봐줘서 행복해요 😽💕';
     }
 
-    // 마음 돌보기까지 포함해 오늘의 돌봄 8가지를 방금 막 모두 마친 순간 -
-    // 마음 온도가 1도 오른 것을 축하 말풍선 + 축하 사운드로 알려줍니다.
     if (!wasAllDone && state.allDoneToday) {
-      await SoundService().playChime();
-      allCareCelebrationMessage = '오늘 돌봄을 모두 마쳤어요! 마음 온도가 1도 올랐어요 🌡️✨';
+      allCareCelebrationMessage = '오늘의 작은 돌봄을 마쳤어요! 마음 온도가 1도 올랐어요 🌡️✨';
     }
 
     await _refreshAchievements();
     notifyListeners();
+
+    unawaited(() async {
+      try {
+        await SoundService().playMeow();
+        if (!wasBodyCareDone && state.bodyCareDoneToday) {
+          await SoundService().playPurr();
+        }
+        if (!wasAllDone && state.allDoneToday) {
+          await SoundService().playChime();
+        }
+      } catch (_) {}
+    }());
   }
 
   /// 랜덤으로 고를 애정 표현 대사 후보 (착용 아이템이 없을 때 사용).
@@ -292,10 +297,14 @@ class CatCareProvider extends ChangeNotifier {
   /// 않고, 온도만 살짝 올려 '한 뼘 자란' 느낌을 줍니다). 프리미엄 여부와
   /// 무관하게 누구나 약속을 지키면 온도가 오릅니다. 약속 체크를 취소하면
   /// [delta]에 음수를 넘겨 되돌립니다.
-  Future<void> applyPromiseBonus({int delta = 1}) async {
+  Future<void> applyPromiseBonus({
+    int delta = 1,
+    bool countAsActivityBonus = false,
+  }) async {
     final (newTemp, newPoints) = await CatCareService.adjustBonusTemperature(
       delta,
       isPremium: isPremium,
+      countAsActivityBonus: countAsActivityBonus,
     );
     state = CatCareState(
       temperature: newTemp,
@@ -317,13 +326,15 @@ class CatCareProvider extends ChangeNotifier {
   /// 편지를 써서 보낸 것 자체로 마음 온도에 +1도를 더합니다. 사용자가 직접
   /// 온도 값을 입력하는 절차 없이, "편지를 보냈다"는 사실만으로 자동
   /// 적용되는 보너스입니다. 명상 실천 여부와는 완전히 독립적입니다.
-  Future<void> applyLetterSentBonus() => applyPromiseBonus(delta: 1);
+  Future<void> applyLetterSentBonus() =>
+      applyPromiseBonus(delta: 1, countAsActivityBonus: true);
 
   /// 편지를 보낸 뒤 (완전히 선택사항인) 명상/움직임까지 실천했을 때, 추가로
   /// +1도를 더 올립니다. 편지 전송 보너스와는 별개의 독립적인 트리거이며,
   /// 명상을 하지 않고 건너뛰어도 이미 적용된 편지 보너스에는 영향이
   /// 없습니다.
-  Future<void> applyMeditationBonus() => applyPromiseBonus(delta: 1);
+  Future<void> applyMeditationBonus() =>
+      applyPromiseBonus(delta: 1, countAsActivityBonus: true);
 
   void reset() {
     state = CatCareState(

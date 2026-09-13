@@ -1,3 +1,4 @@
+import '../services/draft_service.dart';
 import 'package:flutter/material.dart';
 import '../theme.dart';
 import 'garden_path_card.dart';
@@ -38,6 +39,11 @@ class JournalBox extends StatelessWidget {
             hint,
             style: bodyFont(fontSize: 12, color: AppColors.blobLavenderAccent),
           ),
+          if (controller is DraftTextController)
+            ValueListenableBuilder<String>(
+              valueListenable: (controller as DraftTextController).saveStatus,
+              builder: (_, status, __) => Text(status, style: bodyFont(fontSize: 12, color: AppColors.inkSoft)),
+            ),
           const SizedBox(height: 12),
           Container(
             decoration: BoxDecoration(

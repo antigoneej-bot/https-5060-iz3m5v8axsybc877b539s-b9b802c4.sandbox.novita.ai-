@@ -1,3 +1,7 @@
+import '../services/cloud_service.dart';
+import 'data_safety_screen.dart';
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../theme.dart';
@@ -6,12 +10,14 @@ import '../widgets/garden_path_card.dart';
 import '../services/subscription_service.dart';
 import '../services/analytics_service.dart';
 import '../providers/app_state_provider.dart';
+import '../providers/cat_care_provider.dart';
+import '../providers/promise_provider.dart';
 
 /// '정원 플러스' 구독 안내 및 구매 화면 (페이월).
 ///
-/// ⚠️ 실제 결제(Google Play 인앱결제)는 아직 연결되어 있지 않습니다.
-/// [SubscriptionService.purchasePremium]의 주석을 참고해 개발자가 실제
-/// 결제를 연동하면, 이 화면의 "구독 시작하기" 버튼이 바로 실결제로 이어집니다.
+/// [SubscriptionService.storeBillingEnabled]가 false인 동안에는 혜택·가격은
+/// 보여 주되, 구매 버튼은 비활성(준비 중)으로 두어 무료 잠금 해제를 막습니다.
+/// 실결제 연동 후 플래그를 true로 바꾸면 이 화면 CTA가 구매 플로우로 이어집니다.
 class PremiumScreen extends StatefulWidget {
   const PremiumScreen({super.key});
 
@@ -27,6 +33,8 @@ class _PremiumScreenState extends State<PremiumScreen> {
   SubscriptionPlan _selectedPlan = SubscriptionPlan.yearly;
   SubscriptionPlan _activePlan = SubscriptionPlan.monthly;
 
+  bool get _billingReady => SubscriptionService.storeBillingEnabled && CloudService.enabled;
+
   @override
   void initState() {
     super.initState();
@@ -35,6 +43,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
   }
 
   Future<void> _load() async {
+    await _sub.refreshProducts();
     final premium = await _sub.isPremium();
     final plan = await _sub.currentPlan();
     if (!mounted) return;
@@ -46,22 +55,54 @@ class _PremiumScreenState extends State<PremiumScreen> {
   }
 
   Future<void> _purchase() async {
+    if (_purchasing) return;
+    if (!_billingReady) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(SubscriptionService.billingComingSoonCaption),
+        ),
+      );
+      return;
+    }
     setState(() => _purchasing = true);
-    final ok = await _sub.purchasePremium(plan: _selectedPlan);
+    var ok = false;
+    try {
+      ok = await _sub.purchasePremium(plan: _selectedPlan);
+    } catch (_) {
+      ok = false;
+    } finally {
+      if (mounted) {
+        setState(() {
+          _purchasing = false;
+          _isPremium = ok;
+          if (ok) _activePlan = _selectedPlan;
+        });
+      }
+    }
     if (!mounted) return;
-    setState(() {
-      _purchasing = false;
-      _isPremium = ok;
-      if (ok) _activePlan = _selectedPlan;
-    });
+    if (!ok) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('구매가 완료되지 않았어요. 잠시 후 다시 확인해 주세요.')),
+      );
+    }
     if (ok) {
-      await AnalyticsService().logEvent(AnalyticsEvents.premiumPurchase, {
-        'plan': _selectedPlan == SubscriptionPlan.yearly ? 'yearly' : 'monthly',
-      });
-      if (!mounted) return;
-      // 구독 상태를 앱 전역에 즉시 반영 → 재로그인/재시작 없이 바로 잠금 해제
-      await context.read<AppStateProvider>().refreshPremiumStatus();
-      if (!mounted) return;
+      final app = context.read<AppStateProvider>();
+      final care = context.read<CatCareProvider>();
+      final promise = context.read<PromiseProvider>();
+      final planLabel =
+          _selectedPlan == SubscriptionPlan.yearly ? 'yearly' : 'monthly';
+      unawaited(() async {
+        try {
+          await AnalyticsService().logEvent(AnalyticsEvents.premiumPurchase, {
+            'plan': planLabel,
+          });
+          await app.refreshPremiumStatus();
+          // 케어/약속 provider의 isPremium도 즉시 맞춤
+          await care.load();
+          await promise.load();
+        } catch (_) {}
+      }());
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('정원 플러스 멤버십이 시작되었어요 🌷')));
@@ -69,17 +110,50 @@ class _PremiumScreenState extends State<PremiumScreen> {
   }
 
   Future<void> _cancel() async {
+    if (!SubscriptionService.storeBillingEnabled) return;
     await _sub.cancelPremium();
     if (!mounted) return;
-    setState(() => _isPremium = false);
-    await AnalyticsService().logEvent(AnalyticsEvents.premiumCancel);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Play 구독 관리 화면으로 이동합니다')),
+    );
+  }
+
+  Future<void> _restore() async {
+    if (_purchasing) return;
+    if (!SubscriptionService.storeBillingEnabled) return;
+    setState(() => _purchasing = true);
+    var ok = await _sub.isPremium();
+    try {
+      ok = await _sub.restorePurchases();
+      _activePlan = await _sub.currentPlan();
+    } finally {
+      if (mounted) {
+        setState(() {
+          _purchasing = false;
+          _isPremium = ok;
+        });
+      }
+    }
     if (!mounted) return;
-    // 해지도 즉시 전역 상태에 반영
-    await context.read<AppStateProvider>().refreshPremiumStatus();
-    if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('정원 플러스 멤버십이 해지되었어요')));
+    {
+      final app = context.read<AppStateProvider>();
+      final care = context.read<CatCareProvider>();
+      final promise = context.read<PromiseProvider>();
+      unawaited(() async {
+        try {
+          await app.refreshPremiumStatus();
+          await care.load();
+          await promise.load();
+        } catch (_) {}
+      }());
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(_sub.restoreUnavailable
+            ? '스토어에 연결하지 못했어요. 기존 이용 상태를 유지했으니 잠시 후 다시 시도해 주세요.'
+            : ok ? '구매 내역을 복원했어요' : '복원할 구독이 없어요'),
+      ),
+    );
   }
 
   @override
@@ -128,6 +202,11 @@ class _PremiumScreenState extends State<PremiumScreen> {
                                   activePlan: _activePlan,
                                 ),
                                 const SizedBox(height: 18),
+                                if (CloudService.enabled)
+                                  TextButton(onPressed: () async {
+                                    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const DataSafetyScreen()));
+                                    await _load();
+                                  }, child: const Text('구매 계정 로그인·인증')),
                                 if (!_isPremium) ...[
                                   _PlanSelector(
                                     selected: _selectedPlan,
@@ -157,12 +236,24 @@ class _PremiumScreenState extends State<PremiumScreen> {
                                 ] else ...[
                                   _PrimaryPurchaseButton(
                                     loading: _purchasing,
+                                    enabled: _billingReady,
                                     onTap: _purchase,
                                   ),
+                                  if (SubscriptionService.storeBillingEnabled) ...[
+                                    const SizedBox(height: 10),
+                                    _SecondaryButton(
+                                      label: '구매 복원',
+                                      onTap: _purchasing ? () {} : _restore,
+                                    ),
+                                  ],
                                   const SizedBox(height: 10),
                                   Center(
                                     child: Text(
-                                      '언제든 해지할 수 있어요 · 구독은 자동 갱신됩니다',
+                                      _billingReady
+                                          ? '언제든 해지할 수 있어요 · 구독은 자동 갱신됩니다'
+                                          : SubscriptionService
+                                              .billingComingSoonCaption,
+                                      textAlign: TextAlign.center,
                                       style: bodyFont(
                                         fontSize: 11,
                                         color: AppColors.inkSoft,
@@ -285,7 +376,7 @@ class _PlanSelector extends StatelessWidget {
           child: _PlanCard(
             plan: SubscriptionPlan.monthly,
             title: '월간',
-            price: SubscriptionService.displayPrice,
+            price: SubscriptionService().priceLabelFor(SubscriptionPlan.monthly),
             caption: '언제든 부담 없이',
             selected: selected == SubscriptionPlan.monthly,
             onTap: () => onChanged(SubscriptionPlan.monthly),
@@ -296,10 +387,8 @@ class _PlanSelector extends StatelessWidget {
           child: _PlanCard(
             plan: SubscriptionPlan.yearly,
             title: '연간',
-            price: SubscriptionService.displayYearlyPrice,
-            originalPrice: SubscriptionService.displayYearlyOriginalPrice,
-            caption: SubscriptionService.displayYearlyMonthlyEquivalent,
-            badge: SubscriptionService.yearlySavingsLabel,
+            price: SubscriptionService().priceLabelFor(SubscriptionPlan.yearly),
+            caption: '매년 결제',
             selected: selected == SubscriptionPlan.yearly,
             onTap: () => onChanged(SubscriptionPlan.yearly),
           ),
@@ -428,13 +517,13 @@ class _FeatureList extends StatelessWidget {
   const _FeatureList();
 
   static const _features = [
-    ('🔓', '10마리 고양이 캐릭터 잠금 해제', '냉소·시기·서운함·두려움 등 더 섬세한 감정의 고양이를 만나보세요'),
-    ('📊', '주간 그림자 지도 심층 분석', '지난달/분기 비교, 요일·시간대 패턴, 다시 떠오른 감정까지 살펴보기'),
-    ('✨', '동시성(싱크로니시티) 인사이트', '내가 고른 고양이와 무의식이 고른 고양이를 비교해보는 특별한 통찰'),
-    ('🧠', '심리학 박사의 그림자 해석', '오늘의 감정을 더 깊이 들여다보는 전문가 수준의 확장 해석 보기'),
+    ('🔓', '모든 감정 고양이 만나기', '자주 찾는 고양이를 즐겨찾고 필요한 감정을 골라 기록해요'),
+    ('📊', '기록 패턴 살펴보기', '지난달/분기 비교, 요일·시간대 패턴, 다시 떠오른 감정까지 살펴보기'),
+    ('✨', '오늘의 카드와 내 마음', '내가 고른 감정과 무작위 카드를 나란히 보는 재미용 이야기'),
+    ('🧠', '감정을 돌아보는 질문', '오늘의 감정을 더 깊이 들여다보는 이야기와 질문으로 내 경험 돌아보기'),
     ('🌡️', '마음 온도 포인트 적립', '마음 온도가 100도를 넘을 때마다 포인트로 차곡차곡 쌓여요'),
-    ('💌', '월간 리플렉션 레터', '한 달간 만난 그림자 고양이에게 답장을 남기는 특별한 마무리 의식'),
-    ('🌱', '더 섬세한 감정 여정', '52마리 고양이를 모두 만나며 놓치기 쉬운 감정까지 세심하게 돌보기'),
+    ('📊', '지난달과 감정 기록 비교', '같은 기간의 기록 횟수와 자주 고른 감정을 나란히 살펴봐요'),
+    ('🌱', '주제별 실천 여정', '준비된 작은 실천을 내 속도로 이어가요'),
   ];
 
   @override
@@ -488,19 +577,27 @@ class _FeatureList extends StatelessWidget {
 
 class _PrimaryPurchaseButton extends StatelessWidget {
   final bool loading;
+  final bool enabled;
   final VoidCallback onTap;
-  const _PrimaryPurchaseButton({required this.loading, required this.onTap});
+  const _PrimaryPurchaseButton({
+    required this.loading,
+    required this.onTap,
+    this.enabled = true,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final canTap = enabled && !loading;
     return SizedBox(
       width: double.infinity,
       height: 54,
       child: ElevatedButton(
-        onPressed: loading ? null : onTap,
+        onPressed: canTap ? onTap : null,
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.gold,
+          backgroundColor: enabled ? AppColors.gold : AppColors.line,
           foregroundColor: Colors.white,
+          disabledBackgroundColor: AppColors.line,
+          disabledForegroundColor: AppColors.inkSoft,
           elevation: 0,
           shadowColor: AppColors.gold.withValues(alpha: 0.35),
           shape: RoundedRectangleBorder(
@@ -517,8 +614,13 @@ class _PrimaryPurchaseButton extends StatelessWidget {
                 ),
               )
             : Text(
-                '정원 플러스 시작하기',
-                style: serifFont(fontSize: 15.5, color: Colors.white),
+                enabled
+                    ? '정원 플러스 시작하기'
+                    : SubscriptionService.billingComingSoonLabel,
+                style: serifFont(
+                  fontSize: 15.5,
+                  color: enabled ? Colors.white : AppColors.inkSoft,
+                ),
               ),
       ),
     );

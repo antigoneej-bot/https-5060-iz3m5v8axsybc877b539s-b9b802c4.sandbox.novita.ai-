@@ -15,10 +15,10 @@ enum CatMoodState { warm, calm, tired, recovering }
 const int kDaysPerGrowthStage = 30;
 
 /// 다마고치식 '마음 돌보기'의 현재 상태
-/// - temperature: 마음 온도 (0~100). 하루 임무(8가지 돌봄)를 모두 완수하면 +1도,
+/// - temperature: 마음 온도 (0~100). 하루 한 가지 돌봄을 실천하면 +1도,
 ///   출석(앱을 연 날)마다 +1도, 약속을 지킬 때마다 +1도가 오르고, 100도에 도달하면
 ///   (구독자에 한해) 포인트로 적립되며 온도는 다시 0도로 시작합니다.
-///   하루라도 돌보지 않으면 그만큼 온도가 내려갑니다.
+///   쉬었던 날에는 온도가 내려가지 않습니다. 심리 상태 측정값이 아닙니다.
 /// - growthDays: 누적 출석일수. 이 값에 따라 0→1→2→3단계로 자라납니다.
 /// - points: 마음 온도가 100도에 도달할 때마다(구독자 한정) 적립되는 포인트.
 class CatCareState {
@@ -61,8 +61,8 @@ class CatCareState {
       journalingDoneToday &&
       gratitudeDoneToday;
 
-  /// 오늘의 돌봄 미션 8가지를 모두 마쳤는지
-  bool get allDoneToday => bodyCareDoneToday && mindCareDoneToday;
+  /// 오늘 한 가지 이상의 돌봄을 실천했는지
+  bool get allDoneToday => completedCountToday >= 1;
 
   /// 오늘 완료한 미션 수 (0~8)
   int get completedCountToday => [

@@ -1,3 +1,5 @@
+import 'subscriber_journeys_screen.dart';
+import 'data_safety_screen.dart';
 import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -52,6 +54,8 @@ class _MyScreenState extends State<MyScreen> {
         _ProfileCard(streak: app.streak, totalLetters: app.history.length),
         const SizedBox(height: 14),
         const _PremiumCard(),
+        _InfoLinkRow(icon: Icons.auto_stories_outlined, label: '고양이와 함께하는 여정',
+          onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SubscriberJourneysScreen()))),
         const SizedBox(height: 16),
         GrowthHeader(state: context.watch<CatCareProvider>().state),
         const SizedBox(height: 20),
@@ -68,6 +72,12 @@ class _MyScreenState extends State<MyScreen> {
         ),
         const SizedBox(height: 12),
         _SettingsCard(sound: sound, onChanged: () => setState(() {})),
+        const SizedBox(height: 14),
+        _InfoLinkRow(
+          icon: Icons.lock_outline,
+          label: '기록 보관·백업·잠금',
+          onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const DataSafetyScreen())),
+        ),
         const SizedBox(height: 14),
         const _ReminderCard(),
         const SizedBox(height: 14),

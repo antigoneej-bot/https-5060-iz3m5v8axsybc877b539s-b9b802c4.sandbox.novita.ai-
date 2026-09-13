@@ -1,3 +1,4 @@
+import '../services/cloud_service.dart';
 import 'package:flutter/material.dart';
 import '../theme.dart';
 import '../widgets/stars_background.dart';
@@ -61,13 +62,9 @@ class PrivacyPolicyScreen extends StatelessWidget {
                                 '· 고양이에게 쓴 편지(일기) 내용\n'
                                 '· 먹이주기 · 물주기 · 목욕 · 청소 등 돌보기 기록\n'
                                 '· 명상 · 내면소통 완료 기록, 연속 방문일, 성장 레벨\n\n'
-                                '위 감정 기록과 편지 등 개인화된 콘텐츠는 이용자의 기기 안에만 '
-                                '저장되며, 그 내용 자체가 외부 서버로 전송되지는 않습니다.\n\n'
-                                '다만, 앱 개선을 위해 어떤 기능을 얼마나 사용했는지에 대한 익명 '
-                                '통계(예: 편지 작성 횟수, 명상 완료 횟수 등 이벤트 발생 여부)는 '
-                                'Google Firebase Analytics를 통해 집계됩니다. 이 통계에는 '
-                                '편지 · 감정 기록의 실제 내용이나 이용자를 특정할 수 있는 정보는 '
-                                '포함되지 않습니다.',
+                                '기록과 초안은 기기에 저장하며 암호화를 적용합니다. 파일 백업을 선택하면 사용자가 지정한 위치에 암호화 파일을 저장합니다.\n\n'
+                                '${CloudService.enabled ? '서버 백업을 직접 켜면 정원 기록·초안·답장이 백업 암호로 암호화되어 서버로 전송됩니다. 로그인 이메일과 계정 식별자, 구매 토큰과 구독 상태도 계정·결제 기능에 사용됩니다.' : '이 버전에서는 계정 로그인과 서버 백업을 제공하지 않습니다.'}\n\n'
+                                '사용 통계 공유는 기본으로 꺼져 있으며 기록 보관과 백업에서 선택할 수 있습니다. 켜면 기능 이용 이벤트와 제한된 항목을 Firebase Analytics에 보냅니다. 일기 본문·선택한 감정은 보내지 않습니다. Firebase SDK는 앱 인스턴스 식별자·기기 및 앱 정보를 처리할 수 있으므로 완전히 익명인 통계라고 보장하지 않습니다.',
                           ),
                           const SizedBox(height: 14),
                           _PolicySection(
@@ -79,9 +76,9 @@ class PrivacyPolicyScreen extends StatelessWidget {
                                 '수집된 정보는 오직 이용자 본인의 마음챙김 기록을 보여주고, '
                                 '고양이 성장 · 마음 리포트 등 앱의 핵심 기능을 제공하기 위한 '
                                 '목적으로만 사용됩니다.\n\n'
-                                '이용자가 앱을 삭제하거나 기록을 직접 삭제하면 해당 정보도 함께 '
-                                '삭제됩니다. 저희는 이용자의 감정 기록이나 편지 내용을 광고, '
-                                '마케팅 등 다른 목적으로 이용하거나 제3자에게 제공하지 않습니다.',
+                                '앱 삭제는 기기 기록에 영향을 줍니다. 별도로 내보낸 파일이나 서버 백업까지 삭제되지는 않습니다. 기록 하나를 지워도 이전 백업에는 남을 수 있습니다.\n\n'
+                                '${CloudService.enabled ? '서버는 최근 10개 백업을 보관하며 구독 종료 후에도 기존 백업 복원을 허용합니다. 서버 계정과 백업 삭제는 기록 보관과 백업에서 요청할 수 있습니다. 중복 구매 연결을 막기 위한 구매 토큰의 해시 표식은 원문 토큰·계정 식별자 없이 남습니다.' : '내보낸 백업 파일은 저장한 위치에서 직접 관리·삭제해 주세요.'}\n\n'
+                                '백업 암호는 서버로 보내지 않으며, 자동 백업을 켠 경우 기기 보안 저장소에 보관합니다. 암호를 잊으면 새 기기에서 복원할 수 없습니다. 한 기기에는 하나의 정원이 저장되며 로그아웃으로 기기 기록이 지워지지 않습니다.',
                           ),
                           const SizedBox(height: 14),
                           _PolicySection(
@@ -90,12 +87,8 @@ class PrivacyPolicyScreen extends StatelessWidget {
                             accent: AppColors.blobRoseAccent,
                             background: AppColors.blobRose,
                             body:
-                                '저희는 법령에 따라 요구되는 경우를 제외하고, 이용자의 감정 기록, '
-                                '편지 등 개인화된 콘텐츠를 제3자에게 제공하지 않습니다.\n\n'
-                                '단, 앱 사용 통계 수집을 위해 Google Firebase Analytics를 '
-                                '이용하고 있으며, 익명화된 이벤트 통계(기능 사용 여부 등)가 이 '
-                                '서비스로 전달됩니다. 향후 클라우드 로그인/백업 기능이 추가될 '
-                                '경우, 관련 내용을 이 화면에서 다시 안내드리겠습니다.',
+                                '일기 내용을 광고 목적으로 전송하는 기능은 없습니다. 사용자가 공유·백업 파일 저장을 선택하면 해당 대상에 기록이 전달될 수 있습니다.\n\n'
+                                '선택적 통계에는 Firebase Analytics를 사용합니다. ${CloudService.enabled ? '계정 인증·암호화 백업·서버 결제 확인에는 Google Firebase와 Google Play를 사용합니다.' : '스토어 결제에는 Google Play를 사용합니다.'} 고양이 답장은 기기 안의 문장 조합 방식이며 외부 생성형 AI에 일기를 보내지 않습니다.',
                           ),
                           const SizedBox(height: 14),
                           _PolicySection(
@@ -110,7 +103,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
                           const SizedBox(height: 22),
                           Center(
                             child: Text(
-                              '시행일: 2025년 1월 1일',
+                              '데이터 처리 안내 · v7',
                               style: bodyFont(
                                 fontSize: 11,
                                 color: AppColors.inkSoft,
@@ -170,7 +163,7 @@ class _DisclaimerCard extends StatelessWidget {
             '만약 지속적으로 힘든 감정이 계속되거나, 스스로 또는 타인을 해치고 싶은 '
             '생각이 든다면 반드시 정신건강 전문가, 의료기관 또는 아래의 상담 기관에 '
             '도움을 요청해 주세요.\n\n'
-            '· 자살예방상담전화 1393 (24시간)\n'
+            '· 자살예방상담전화 109 (24시간)\n'
             '· 정신건강상담전화 1577-0199 (24시간)\n'
             '· 청소년상담전화 1388',
             style: bodyFont(fontSize: 13, color: AppColors.moon, height: 1.7),

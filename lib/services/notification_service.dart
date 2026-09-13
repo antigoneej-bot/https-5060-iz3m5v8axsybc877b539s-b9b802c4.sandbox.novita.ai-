@@ -85,6 +85,7 @@ class NotificationService {
       return;
     }
     tz_data.initializeTimeZones();
+    await _configureLocalTimezone();
 
     const androidSettings = AndroidInitializationSettings(
       '@mipmap/ic_launcher',
@@ -111,6 +112,22 @@ class NotificationService {
       if (kDebugMode) debugPrint('NotificationService init 실패: $e');
     }
     _initialized = true;
+  }
+
+  /// 기기 로컬 타임존을 timezone 패키지에 연결합니다.
+  /// 설정하지 않으면 tz.local이 UTC라 아침/저녁 알림 시각이 어긋납니다.
+  /// (한국 앱 기준으로 Asia/Seoul을 사용. UTC+9 외 기기에서도 KST 스케줄.)
+  Future<void> _configureLocalTimezone() async {
+    try {
+      tz.setLocalLocation(tz.getLocation('Asia/Seoul'));
+      if (kDebugMode) {
+        debugPrint('NotificationService timezone: Asia/Seoul');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('NotificationService timezone set failed: $e');
+      }
+    }
   }
 
   void _onNotificationTap(NotificationResponse response) {
@@ -193,6 +210,20 @@ class NotificationService {
   Future<void> setStreakEnabled(bool v) async {
     await StorageService.setStreakEnabled(v);
     if (!v && !kIsWeb) await _plugin.cancel(_streakId);
+  }
+
+  /// 온보딩 「알림 받기」 선택 결과를 실제 스케줄에 반영합니다.
+  /// 동의하면 아침(9:00)·저녁(20:00) 리마인더를 켜고 권한을 요청하며,
+  /// 거절이면 둘 다 끕니다. (플래그만 남기고 스케줄하지 않던 구멍 해소)
+  Future<void> applyOnboardingOptIn(bool optIn) async {
+    await StorageService.setNotificationOptIn(optIn);
+    if (optIn) {
+      await enableMorning(hour: 9, minute: 0);
+      await enableEvening(hour: 20, minute: 0);
+    } else {
+      await disableMorning();
+      await disableEvening();
+    }
   }
 
   /// 앱 시작 시, 이미 켜져 있는 설정이 있다면 모든 종류의 알림을 다시

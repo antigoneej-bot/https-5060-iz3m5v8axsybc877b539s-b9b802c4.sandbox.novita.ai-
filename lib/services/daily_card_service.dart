@@ -27,13 +27,28 @@ class DailyCardService {
   static String get _lastDrawDateKey => '${_uid}_daily_card_last_date';
   static String get _lastDrawCatIdKey => '${_uid}_daily_card_last_cat_id';
 
-  static String _dateOnlyString(DateTime d) =>
-      DateTime(d.year, d.month, d.day).toIso8601String();
+  static String _dateOnlyString(DateTime d) {
+    final y = d.year.toString().padLeft(4, '0');
+    final m = d.month.toString().padLeft(2, '0');
+    final day = d.day.toString().padLeft(2, '0');
+    return '$y-$m-$day';
+  }
+
+  static String? _normalizeStoredDay(String? raw) {
+    if (raw == null || raw.isEmpty) return null;
+    final m = RegExp(r'^(\d{4})-(\d{2})-(\d{2})').firstMatch(raw.trim());
+    if (m != null) {
+      return '${m.group(1)}-${m.group(2)}-${m.group(3)}';
+    }
+    final d = DateTime.tryParse(raw);
+    if (d == null) return null;
+    return _dateOnlyString(d);
+  }
 
   /// 오늘 이미 카드를 뽑았는지 확인합니다.
   static Future<bool> hasDrawnToday() async {
     final prefs = await SharedPreferences.getInstance();
-    final lastDate = prefs.getString(_lastDrawDateKey);
+    final lastDate = _normalizeStoredDay(prefs.getString(_lastDrawDateKey));
     return lastDate == _dateOnlyString(DateTime.now());
   }
 

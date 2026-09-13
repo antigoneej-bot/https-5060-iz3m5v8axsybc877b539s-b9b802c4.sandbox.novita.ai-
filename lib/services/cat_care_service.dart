@@ -1,16 +1,19 @@
+import 'dart:async';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/cat_care_state.dart';
 import '../models/cat_accessory.dart';
 import '../models/cat_achievement.dart';
+import 'storage_service.dart';
+import 'subscription_service.dart';
 
 /// 다마고치식 '마음 돌보기' 데이터를 계정별로 관리하는 서비스.
 ///
 /// 마음 온도 규칙(전면 개편):
 /// - 온도는 0도에서 시작해 100도까지 오를 수 있습니다.
-/// - 오늘의 돌봄 임무(몸 4가지 + 마음 4가지) 8개를 모두 완수하면 그날 +1도.
+/// - 오늘 한 가지 이상 돌봄을 실천하면 그날 한 번 +1도.
 /// - 앱에 출석(방문)한 날마다 +1도, 누적 출석일수(growthDays)도 +1.
 /// - "오늘의 약속"을 하나 지킬 때마다 +1도.
-/// - 하루라도 돌보지 않고 지나가면(자정 기준) 그만큼 온도가 내려갑니다.
+/// - 돌보지 않고 쉬었던 날에도 온도는 유지됩니다.
 /// - 100도에 도달하면(구독자 한정) 포인트가 1점 적립되고 온도는 다시 0도부터 시작합니다.
 ///   (구독자가 아니면 100도에서 더 오르지 않고 유지됩니다.)
 /// - growthDays(누적 출석일수) 30일마다 성장 단계가 하나씩 올라갑니다.
@@ -26,6 +29,27 @@ class CatCareService {
 
   static void clearCurrentUser() {
     _uid = 'guest';
+  }
+
+  /// 온도·히스토리 prefs 쓰기를 직렬화합니다.
+  /// [loadAndApplyDailyDecay]가 await 도중 끝난 값을 다시 쓰면서
+  /// 편지 보너스(+1)를 0으로 덮어쓰는 레이스를 막습니다.
+  static Future<void>? _tempOpTail;
+
+  static Future<T> _serializedTempOp<T>(Future<T> Function() op) async {
+    final previous = _tempOpTail;
+    final gate = Completer<void>();
+    _tempOpTail = gate.future;
+    try {
+      if (previous != null) {
+        try {
+          await previous;
+        } catch (_) {}
+      }
+      return await op();
+    } finally {
+      gate.complete();
+    }
   }
 
   static String get _tempKey => '${_uid}_care_temperature';
@@ -67,8 +91,29 @@ class CatCareService {
   static String get _attendanceCountedDateKey =>
       '${_uid}_care_attendance_counted_date';
 
-  static String _dateOnlyString(DateTime d) =>
-      DateTime(d.year, d.month, d.day).toIso8601String();
+  /// 달력 날짜만 `yyyy-MM-dd`로 저장합니다.
+  /// (예전 toIso8601String 값은 읽을 때 [_parseDateOnly]로 정규화합니다.)
+  static String _dateOnlyString(DateTime d) {
+    final y = d.year.toString().padLeft(4, '0');
+    final m = d.month.toString().padLeft(2, '0');
+    final day = d.day.toString().padLeft(2, '0');
+    return '$y-$m-$day';
+  }
+
+  /// 히스토리/lastCare 키를 로컬 달력 날짜로 파싱합니다.
+  static DateTime? _parseDateOnly(String raw) {
+    final m = RegExp(r'^(\d{4})-(\d{2})-(\d{2})').firstMatch(raw.trim());
+    if (m != null) {
+      return DateTime(
+        int.parse(m.group(1)!),
+        int.parse(m.group(2)!),
+        int.parse(m.group(3)!),
+      );
+    }
+    final d = DateTime.tryParse(raw);
+    if (d == null) return null;
+    return DateTime(d.year, d.month, d.day);
+  }
 
   /// 포인트가 늘어난 만큼 "평생 누적 포인트" 카운터에도 더합니다. 뱃지는
   /// 상점에서 다 써버려도 사라지지 않도록, 현재 보유 포인트가 아니라 이
@@ -107,24 +152,24 @@ class CatCareService {
     return (temp, points);
   }
 
-  /// 오늘 날짜를 기록해서, 마음온도 기록(주간/월간)에서 지난 온도 변화를
-  /// 그래프로 보여줄 수 있게 합니다. 하루에 여러 번 호출되어도 그날의
-  /// 마지막 온도만 남습니다. 최근 120일치만 보관합니다.
-  static Future<void> _recordTempHistory(
-    SharedPreferences prefs,
-    int temperature,
-  ) async {
-    final todayStr = _dateOnlyString(DateTime.now());
+  static Map<String, int> _readTempHistoryMap(SharedPreferences prefs) {
     final raw = prefs.getStringList(_tempHistoryKey) ?? [];
     final map = <String, int>{};
     for (final line in raw) {
       final parts = line.split('|');
-      if (parts.length == 2) {
-        final t = int.tryParse(parts[1]);
-        if (t != null) map[parts[0]] = t;
-      }
+      if (parts.length != 2) continue;
+      final day = _parseDateOnly(parts[0]);
+      final t = int.tryParse(parts[1]);
+      if (day == null || t == null) continue;
+      map[_dateOnlyString(day)] = t;
     }
-    map[todayStr] = temperature;
+    return map;
+  }
+
+  static Future<void> _writeTempHistoryMap(
+    SharedPreferences prefs,
+    Map<String, int> map,
+  ) async {
     final entries = map.entries.toList()
       ..sort((a, b) => a.key.compareTo(b.key));
     final trimmed = entries.length > 120
@@ -136,25 +181,113 @@ class CatCareService {
     );
   }
 
-  /// (날짜, 온도) 기록을 오래된 날짜 → 최신 날짜 순으로 반환합니다.
-  static Future<List<MapEntry<DateTime, int>>> getTempHistory() async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getStringList(_tempHistoryKey) ?? [];
-    final result = <MapEntry<DateTime, int>>[];
-    for (final line in raw) {
-      final parts = line.split('|');
-      if (parts.length == 2) {
-        final d = DateTime.tryParse(parts[0]);
-        final t = int.tryParse(parts[1]);
-        if (d != null && t != null) result.add(MapEntry(d, t));
+  /// 오늘(또는 [forDate])의 마음 온도를 기록합니다. 하루에 여러 번 호출되어도
+  /// 그날의 마지막 온도만 남습니다. 최근 120일치만 보관합니다.
+  static Future<void> _recordTempHistory(
+    SharedPreferences prefs,
+    int temperature, {
+    DateTime? forDate,
+  }) async {
+    final map = _readTempHistoryMap(prefs);
+    map[_dateOnlyString(forDate ?? DateTime.now())] = temperature;
+    await _writeTempHistoryMap(prefs, map);
+  }
+
+  /// 오늘 보낸 편지/명상 보너스가 온도에 누락됐는지 맞춥니다.
+  /// claimed 카운터와 실제 편지 수 차이만 적용합니다.
+  /// (출석으로 온도만 오른 경우를 "편지 보너스 완료"로 오판하지 않습니다.)
+  static Future<(int, int)> _reconcileActivityBonuses(
+    SharedPreferences prefs, {
+    required int temperature,
+    required int points,
+    required bool isPremium,
+  }) async {
+    try {
+      final today = _dateOnlyString(DateTime.now());
+      final claimedKey = '${_uid}_care_activity_bonus_claimed_$today';
+      int expected = 0;
+      for (final e in StorageService.getAllLetters()) {
+        if (_dateOnlyString(e.date) != today) continue;
+        expected += 1;
+        if (e.meditationKey != null && e.meditationKey!.isNotEmpty) {
+          expected += 1;
+        }
       }
+      final claimed = prefs.getInt(claimedKey) ?? 0;
+      if (expected <= claimed) return (temperature, points);
+
+      final delta = expected - claimed;
+      final (newTemp, newPoints) = _gainTemperature(
+        current: temperature,
+        delta: delta,
+        currentPoints: points,
+        isPremium: isPremium,
+      );
+      await _trackPointsEarned(prefs, points, newPoints);
+      await prefs.setInt(claimedKey, expected);
+      return (newTemp, newPoints);
+    } catch (_) {
+      return (temperature, points);
     }
-    result.sort((a, b) => a.key.compareTo(b.key));
-    return result;
+  }
+
+  /// (날짜, 온도) 기록을 오래된 날짜 → 최신 날짜 순으로 반환합니다.
+  /// 오늘 현재 온도를 동기화하고, 편지가 있는 날은 최소 온도 하한을 보정합니다.
+  static Future<List<MapEntry<DateTime, int>>> getTempHistory() async {
+    return _serializedTempOp(() async {
+      final prefs = await SharedPreferences.getInstance();
+      int currentTemp = prefs.getInt(_tempKey) ?? startTemperature;
+      int points = prefs.getInt(_pointsKey) ?? 0;
+
+      // 오늘 편지 보너스가 온도에 안 들어간 경우(앱 기동 레이스 등) 보정합니다.
+      final premium = await SubscriptionService().isPremium();
+      final reconciled = await _reconcileActivityBonuses(
+        prefs,
+        temperature: currentTemp,
+        points: points,
+        isPremium: premium,
+      );
+      if (reconciled.$1 != currentTemp || reconciled.$2 != points) {
+        currentTemp = reconciled.$1;
+        points = reconciled.$2;
+        await prefs.setInt(_tempKey, currentTemp);
+        await prefs.setInt(_pointsKey, points);
+      }
+      await _recordTempHistory(prefs, currentTemp);
+
+      final map = _readTempHistoryMap(prefs);
+      try {
+        final floors = <String, int>{};
+        for (final e in StorageService.getAllLetters()) {
+          final key = _dateOnlyString(e.date);
+          floors[key] = (floors[key] ?? 0) + 1;
+          if (e.meditationKey != null && e.meditationKey!.isNotEmpty) {
+            floors[key] = floors[key]! + 1;
+          }
+        }
+        var changed = false;
+        floors.forEach((key, floor) {
+          final existing = map[key];
+          if (existing == null || existing < floor) {
+            map[key] = floor;
+            changed = true;
+          }
+        });
+        if (changed) await _writeTempHistoryMap(prefs, map);
+      } catch (_) {}
+
+      final result = <MapEntry<DateTime, int>>[];
+      for (final e in map.entries) {
+        final d = _parseDateOnly(e.key);
+        if (d != null) result.add(MapEntry(d, e.value));
+      }
+      result.sort((a, b) => a.key.compareTo(b.key));
+      return result;
+    });
   }
 
   /// 화면 진입 시 항상 먼저 호출해서, 날짜가 바뀌었는지 확인하고
-  /// 어제 돌보지 못한 만큼 온도를 내린 뒤 오늘 체크리스트를 초기화합니다.
+  /// 쉬었던 날의 온도를 유지하고 오늘 체크리스트를 초기화합니다.
   /// [countAttendance]가 true이고 오늘 출석 보너스를 아직 받지 않았다면
   /// 출석 보너스(+1도, 누적 출석일수 +1)를 적용합니다. 회원가입(온보딩)을
   /// 아직 마치지 않은 사용자는 [countAttendance]를 false로 넘겨, 가입을
@@ -164,66 +297,164 @@ class CatCareService {
     required bool isPremium,
     required bool countAttendance,
   }) async {
-    final prefs = await SharedPreferences.getInstance();
-    final todayStr = _dateOnlyString(DateTime.now());
-    final lastDateStr = prefs.getString(_lastCareDateKey);
+    return _serializedTempOp(() async {
+      final prefs = await SharedPreferences.getInstance();
+      final todayStr = _dateOnlyString(DateTime.now());
+      final lastDateRaw = prefs.getString(_lastCareDateKey);
+      final lastDate = lastDateRaw != null ? _parseDateOnly(lastDateRaw) : null;
+      final lastDateStr = lastDate != null ? _dateOnlyString(lastDate) : null;
 
-    int temperature = prefs.getInt(_tempKey) ?? startTemperature;
-    int points = prefs.getInt(_pointsKey) ?? 0;
-    int growthDays = prefs.getInt(_growthDaysKey) ?? 0;
-    String companionId =
-        prefs.getString(_companionKey) ?? defaultCompanionCatId;
-    if (prefs.getString(_companionKey) == null) {
-      await prefs.setString(_companionKey, companionId);
-    }
-
-    if (lastDateStr == null) {
-      // 첫 방문: 오늘부터 출석 시작
-      await prefs.setString(_lastCareDateKey, todayStr);
-    } else if (lastDateStr != todayStr) {
-      final lastDate = DateTime.parse(lastDateStr);
-      final missedDays = DateTime.now()
-          .difference(DateTime(lastDate.year, lastDate.month, lastDate.day))
-          .inDays;
-      // 어제 하루를 다 못 돌봤다면(8가지 미션 중 하나라도 안 했으면) 그만큼 온도 하락
-      final wasFullyCaredYesterday =
-          (prefs.getBool(_fedKey) ?? false) &&
-          (prefs.getBool(_wateredKey) ?? false) &&
-          (prefs.getBool(_bathedKey) ?? false) &&
-          (prefs.getBool(_cleanedKey) ?? false) &&
-          (prefs.getBool(_breathingKey) ?? false) &&
-          (prefs.getBool(_walkingKey) ?? false) &&
-          (prefs.getBool(_journalingKey) ?? false) &&
-          (prefs.getBool(_gratitudeKey) ?? false);
-
-      int daysMissed = missedDays;
-      if (wasFullyCaredYesterday && missedDays > 0) {
-        daysMissed = missedDays - 1; // 마지막으로 기록된 날은 이미 다 돌봤으므로 하락 대상에서 제외
-      }
-      if (daysMissed > 0) {
-        temperature = (temperature - daysMissed).clamp(
-          minTemperature,
-          maxTemperature,
-        );
+      int temperature = prefs.getInt(_tempKey) ?? startTemperature;
+      int points = prefs.getInt(_pointsKey) ?? 0;
+      int growthDays = prefs.getInt(_growthDaysKey) ?? 0;
+      String companionId =
+          prefs.getString(_companionKey) ?? defaultCompanionCatId;
+      if (prefs.getString(_companionKey) == null) {
+        await prefs.setString(_companionKey, companionId);
       }
 
-      // 오늘 체크리스트 초기화
-      await prefs.setBool(_fedKey, false);
-      await prefs.setBool(_wateredKey, false);
-      await prefs.setBool(_bathedKey, false);
-      await prefs.setBool(_cleanedKey, false);
-      await prefs.setBool(_breathingKey, false);
-      await prefs.setBool(_walkingKey, false);
-      await prefs.setBool(_journalingKey, false);
-      await prefs.setBool(_gratitudeKey, false);
-      await prefs.setString(_lastCareDateKey, todayStr);
-    }
+      if (lastDateStr == null) {
+        // 첫 방문: 오늘부터 출석 시작
+        await prefs.setString(_lastCareDateKey, todayStr);
+      } else if (lastDateStr != todayStr && lastDate != null) {
+        // 자정이 바뀌기 전 마지막 온도를 어제 칸에 확정해 둡니다.
+        await _recordTempHistory(prefs, temperature, forDate: lastDate);
 
-    if (countAttendance) {
-      final attendanceCountedToday =
-          prefs.getString(_attendanceCountedDateKey) == todayStr;
-      if (!attendanceCountedToday) {
-        growthDays += 1;
+        // 쉬었던 날에도 온도를 깎지 않습니다. 오늘은 다시 시작하면 됩니다.
+
+        // 오늘 체크리스트 초기화
+        await prefs.setBool(_fedKey, false);
+        await prefs.setBool(_wateredKey, false);
+        await prefs.setBool(_bathedKey, false);
+        await prefs.setBool(_cleanedKey, false);
+        await prefs.setBool(_breathingKey, false);
+        await prefs.setBool(_walkingKey, false);
+        await prefs.setBool(_journalingKey, false);
+        await prefs.setBool(_gratitudeKey, false);
+        await prefs.setString(_lastCareDateKey, todayStr);
+      } else if (lastDateStr != todayStr) {
+        // 파싱 실패 시에도 오늘로 키를 갱신해 반복 decay를 막습니다.
+        await prefs.setString(_lastCareDateKey, todayStr);
+      }
+
+      if (countAttendance) {
+        final attendanceRaw = prefs.getString(_attendanceCountedDateKey);
+        final attendanceDay = attendanceRaw != null
+            ? _parseDateOnly(attendanceRaw)
+            : null;
+        final attendanceCountedToday =
+            attendanceDay != null &&
+            _dateOnlyString(attendanceDay) == todayStr;
+        if (!attendanceCountedToday) {
+          growthDays += 1;
+          final (newTemp, newPoints) = _gainTemperature(
+            current: temperature,
+            delta: 1,
+            currentPoints: points,
+            isPremium: isPremium,
+          );
+          await _trackPointsEarned(prefs, points, newPoints);
+          temperature = newTemp;
+          points = newPoints;
+          await prefs.setInt(_growthDaysKey, growthDays);
+          await prefs.setString(_attendanceCountedDateKey, todayStr);
+        }
+
+        // 「N일째 함께하는 중」(설치일)과 출석일수가 어긋난 경우 소급 맞춤.
+        // 온보딩 전에는 출석이 안 쌓여 1~2일 벌어지는 경우가 흔함.
+        // 긴 공백 결석 치팅을 막기 위해 최대 3일 차이만 보정한다.
+        final together = await StorageService.daysTogetherSinceInstall();
+        if (together > growthDays && together - growthDays <= 3) {
+          growthDays = together;
+          await prefs.setInt(_growthDaysKey, growthDays);
+        }
+      }
+
+      final reconciled = await _reconcileActivityBonuses(
+        prefs,
+        temperature: temperature,
+        points: points,
+        isPremium: isPremium,
+      );
+      temperature = reconciled.$1;
+      points = reconciled.$2;
+
+      await prefs.setInt(_tempKey, temperature);
+      await prefs.setInt(_pointsKey, points);
+      await _recordTempHistory(prefs, temperature);
+
+      return CatCareState(
+        temperature: temperature,
+        fedToday: prefs.getBool(_fedKey) ?? false,
+        wateredToday: prefs.getBool(_wateredKey) ?? false,
+        bathedToday: prefs.getBool(_bathedKey) ?? false,
+        cleanedToday: prefs.getBool(_cleanedKey) ?? false,
+        breathingDoneToday: prefs.getBool(_breathingKey) ?? false,
+        walkingDoneToday: prefs.getBool(_walkingKey) ?? false,
+        journalingDoneToday: prefs.getBool(_journalingKey) ?? false,
+        gratitudeDoneToday: prefs.getBool(_gratitudeKey) ?? false,
+        companionCatId: prefs.getString(_companionKey) ?? defaultCompanionCatId,
+        growthDays: growthDays,
+        points: points,
+      );
+    });
+  }
+
+  /// 8가지 돌봄 미션(몸 4가지 + 마음 4가지) 중 하나를 완료 처리합니다.
+  /// 여덜 가지를 모두 마친 "이번" 순간에만 온도가 1도 오릅니다(중복 방지).
+  static Future<CatCareState> completeTask(
+    CareTask task, {
+    required bool isPremium,
+  }) async {
+    return _serializedTempOp(() async {
+      final prefs = await SharedPreferences.getInstance();
+      switch (task) {
+        case CareTask.feed:
+          await prefs.setBool(_fedKey, true);
+          break;
+        case CareTask.water:
+          await prefs.setBool(_wateredKey, true);
+          break;
+        case CareTask.bath:
+          await prefs.setBool(_bathedKey, true);
+          break;
+        case CareTask.clean:
+          await prefs.setBool(_cleanedKey, true);
+          break;
+        case CareTask.breathing:
+          await prefs.setBool(_breathingKey, true);
+          break;
+        case CareTask.walking:
+          await prefs.setBool(_walkingKey, true);
+          break;
+        case CareTask.journaling:
+          await prefs.setBool(_journalingKey, true);
+          break;
+        case CareTask.gratitude:
+          await prefs.setBool(_gratitudeKey, true);
+          break;
+      }
+
+      final fed = prefs.getBool(_fedKey) ?? false;
+      final watered = prefs.getBool(_wateredKey) ?? false;
+      final bathed = prefs.getBool(_bathedKey) ?? false;
+      final cleaned = prefs.getBool(_cleanedKey) ?? false;
+      final breathing = prefs.getBool(_breathingKey) ?? false;
+      final walking = prefs.getBool(_walkingKey) ?? false;
+      final journaling = prefs.getBool(_journalingKey) ?? false;
+      final gratitude = prefs.getBool(_gratitudeKey) ?? false;
+      int temperature = prefs.getInt(_tempKey) ?? startTemperature;
+      int points = prefs.getInt(_pointsKey) ?? 0;
+      final growthDays = prefs.getInt(_growthDaysKey) ?? 0;
+
+      // 여덜 가지를 모두 완료한 "이번" 순간에만 보너스 온도 상승(+1도, 중복 방지)
+      final justCompletedAll =
+          fed || watered || bathed || cleaned ||
+          breathing || walking || journaling || gratitude;
+      final bonusGivenKey =
+          '${_uid}_care_bonus_given_${_dateOnlyString(DateTime.now())}';
+      final bonusAlreadyGiven = prefs.getBool(bonusGivenKey) ?? false;
+      if (justCompletedAll && !bonusAlreadyGiven) {
         final (newTemp, newPoints) = _gainTemperature(
           current: temperature,
           delta: 1,
@@ -233,123 +464,30 @@ class CatCareService {
         await _trackPointsEarned(prefs, points, newPoints);
         temperature = newTemp;
         points = newPoints;
-        await prefs.setInt(_growthDaysKey, growthDays);
-        await prefs.setString(_attendanceCountedDateKey, todayStr);
+        await prefs.setInt(_tempKey, temperature);
+        await prefs.setInt(_pointsKey, points);
+        await prefs.setBool(bonusGivenKey, true);
+        await _recordTempHistory(prefs, temperature);
+        // 돌봄을 실천한 하루 누적 카운트(뱃지 판단용)
+        final fullDays = prefs.getInt(_totalFullCareDaysKey) ?? 0;
+        await prefs.setInt(_totalFullCareDaysKey, fullDays + 1);
       }
-    }
 
-    await prefs.setInt(_tempKey, temperature);
-    await prefs.setInt(_pointsKey, points);
-    await _recordTempHistory(prefs, temperature);
-
-    return CatCareState(
-      temperature: temperature,
-      fedToday: prefs.getBool(_fedKey) ?? false,
-      wateredToday: prefs.getBool(_wateredKey) ?? false,
-      bathedToday: prefs.getBool(_bathedKey) ?? false,
-      cleanedToday: prefs.getBool(_cleanedKey) ?? false,
-      breathingDoneToday: prefs.getBool(_breathingKey) ?? false,
-      walkingDoneToday: prefs.getBool(_walkingKey) ?? false,
-      journalingDoneToday: prefs.getBool(_journalingKey) ?? false,
-      gratitudeDoneToday: prefs.getBool(_gratitudeKey) ?? false,
-      companionCatId: prefs.getString(_companionKey) ?? defaultCompanionCatId,
-      growthDays: growthDays,
-      points: points,
-    );
-  }
-
-  /// 8가지 돌봄 미션(몸 4가지 + 마음 4가지) 중 하나를 완료 처리합니다.
-  /// 여덜 가지를 모두 마친 "이번" 순간에만 온도가 1도 오릅니다(중복 방지).
-  static Future<CatCareState> completeTask(
-    CareTask task, {
-    required bool isPremium,
-  }) async {
-    final prefs = await SharedPreferences.getInstance();
-    switch (task) {
-      case CareTask.feed:
-        await prefs.setBool(_fedKey, true);
-        break;
-      case CareTask.water:
-        await prefs.setBool(_wateredKey, true);
-        break;
-      case CareTask.bath:
-        await prefs.setBool(_bathedKey, true);
-        break;
-      case CareTask.clean:
-        await prefs.setBool(_cleanedKey, true);
-        break;
-      case CareTask.breathing:
-        await prefs.setBool(_breathingKey, true);
-        break;
-      case CareTask.walking:
-        await prefs.setBool(_walkingKey, true);
-        break;
-      case CareTask.journaling:
-        await prefs.setBool(_journalingKey, true);
-        break;
-      case CareTask.gratitude:
-        await prefs.setBool(_gratitudeKey, true);
-        break;
-    }
-
-    final fed = prefs.getBool(_fedKey) ?? false;
-    final watered = prefs.getBool(_wateredKey) ?? false;
-    final bathed = prefs.getBool(_bathedKey) ?? false;
-    final cleaned = prefs.getBool(_cleanedKey) ?? false;
-    final breathing = prefs.getBool(_breathingKey) ?? false;
-    final walking = prefs.getBool(_walkingKey) ?? false;
-    final journaling = prefs.getBool(_journalingKey) ?? false;
-    final gratitude = prefs.getBool(_gratitudeKey) ?? false;
-    int temperature = prefs.getInt(_tempKey) ?? startTemperature;
-    int points = prefs.getInt(_pointsKey) ?? 0;
-    final growthDays = prefs.getInt(_growthDaysKey) ?? 0;
-
-    // 여덜 가지를 모두 완료한 "이번" 순간에만 보너스 온도 상승(+1도, 중복 방지)
-    final justCompletedAll =
-        fed &&
-        watered &&
-        bathed &&
-        cleaned &&
-        breathing &&
-        walking &&
-        journaling &&
-        gratitude;
-    final bonusGivenKey =
-        '${_uid}_care_bonus_given_${_dateOnlyString(DateTime.now())}';
-    final bonusAlreadyGiven = prefs.getBool(bonusGivenKey) ?? false;
-    if (justCompletedAll && !bonusAlreadyGiven) {
-      final (newTemp, newPoints) = _gainTemperature(
-        current: temperature,
-        delta: 1,
-        currentPoints: points,
-        isPremium: isPremium,
+      return CatCareState(
+        temperature: temperature,
+        fedToday: fed,
+        wateredToday: watered,
+        bathedToday: bathed,
+        cleanedToday: cleaned,
+        breathingDoneToday: breathing,
+        walkingDoneToday: walking,
+        journalingDoneToday: journaling,
+        gratitudeDoneToday: gratitude,
+        companionCatId: prefs.getString(_companionKey) ?? '',
+        growthDays: growthDays,
+        points: points,
       );
-      await _trackPointsEarned(prefs, points, newPoints);
-      temperature = newTemp;
-      points = newPoints;
-      await prefs.setInt(_tempKey, temperature);
-      await prefs.setInt(_pointsKey, points);
-      await prefs.setBool(bonusGivenKey, true);
-      await _recordTempHistory(prefs, temperature);
-      // 완벽한 돌봄 하루 누적 카운트(뱃지 판단용)
-      final fullDays = prefs.getInt(_totalFullCareDaysKey) ?? 0;
-      await prefs.setInt(_totalFullCareDaysKey, fullDays + 1);
-    }
-
-    return CatCareState(
-      temperature: temperature,
-      fedToday: fed,
-      wateredToday: watered,
-      bathedToday: bathed,
-      cleanedToday: cleaned,
-      breathingDoneToday: breathing,
-      walkingDoneToday: walking,
-      journalingDoneToday: journaling,
-      gratitudeDoneToday: gratitude,
-      companionCatId: prefs.getString(_companionKey) ?? '',
-      growthDays: growthDays,
-      points: points,
-    );
+    });
   }
 
   /// 함께할 고양이(케어 대상)를 변경합니다.
@@ -361,25 +499,36 @@ class CatCareService {
   /// "오늘의 약속"을 지켰을 때 마음 온도에 +1도를 더합니다(성장일수는 늘리지
   /// 않고, 온도만 살짝 올려 '한 뼘 자란' 느낌을 줍니다). 약속 체크를 취소하면
   /// [delta]에 음수를 넘겨 되돌립니다.
+  /// [countAsActivityBonus]가 true면 편지/명상 보너스 청구 카운터도 같이
+  /// 올려, 앱 재시작 시 동일 보너스를 다시 주지 않게 합니다.
   /// 반환값은 (갱신된 온도, 갱신된 포인트)입니다.
   static Future<(int, int)> adjustBonusTemperature(
     int delta, {
     required bool isPremium,
+    bool countAsActivityBonus = false,
   }) async {
-    final prefs = await SharedPreferences.getInstance();
-    int temperature = prefs.getInt(_tempKey) ?? startTemperature;
-    int points = prefs.getInt(_pointsKey) ?? 0;
-    final (newTemp, newPoints) = _gainTemperature(
-      current: temperature,
-      delta: delta,
-      currentPoints: points,
-      isPremium: isPremium,
-    );
-    await _trackPointsEarned(prefs, points, newPoints);
-    await prefs.setInt(_tempKey, newTemp);
-    await prefs.setInt(_pointsKey, newPoints);
-    await _recordTempHistory(prefs, newTemp);
-    return (newTemp, newPoints);
+    return _serializedTempOp(() async {
+      final prefs = await SharedPreferences.getInstance();
+      int temperature = prefs.getInt(_tempKey) ?? startTemperature;
+      int points = prefs.getInt(_pointsKey) ?? 0;
+      final (newTemp, newPoints) = _gainTemperature(
+        current: temperature,
+        delta: delta,
+        currentPoints: points,
+        isPremium: isPremium,
+      );
+      await _trackPointsEarned(prefs, points, newPoints);
+      await prefs.setInt(_tempKey, newTemp);
+      await prefs.setInt(_pointsKey, newPoints);
+      if (countAsActivityBonus && delta > 0) {
+        final claimedKey =
+            '${_uid}_care_activity_bonus_claimed_${_dateOnlyString(DateTime.now())}';
+        final claimed = prefs.getInt(claimedKey) ?? 0;
+        await prefs.setInt(claimedKey, claimed + delta);
+      }
+      await _recordTempHistory(prefs, newTemp);
+      return (newTemp, newPoints);
+    });
   }
 
   /// 현재까지 적립된 포인트(구독자 전용 보상)를 반환합니다.

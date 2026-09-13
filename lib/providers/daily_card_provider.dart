@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import '../models/shadow_cat.dart';
 import '../services/daily_card_service.dart';
@@ -27,8 +29,8 @@ class DailyCardProvider extends ChangeNotifier {
       drawnCard = null;
       alreadyDrawnToday = false;
       stage = DailyCardStage.shuffling;
-      // 셔플 연출이 시작되는 순간 섞는 소리를 함께 재생합니다.
-      await SoundService().playShuffle();
+      // UI 먼저, 셔플 사운드는 뒤에
+      unawaited(SoundService().playShuffle());
     }
     isLoading = false;
     notifyListeners();
@@ -47,8 +49,8 @@ class DailyCardProvider extends ChangeNotifier {
     drawnCard = cat;
     alreadyDrawnToday = true;
     stage = DailyCardStage.revealed;
-    await SoundService().playMeow();
     notifyListeners();
+    unawaited(SoundService().playMeow());
   }
 
   void reset() {

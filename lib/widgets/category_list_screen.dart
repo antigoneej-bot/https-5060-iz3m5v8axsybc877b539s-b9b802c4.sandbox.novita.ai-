@@ -4,13 +4,18 @@ import 'garden_path_card.dart';
 import 'feature_scaffold.dart';
 
 /// 카테고리 화면에 나열되는 하위 기능 하나를 표현합니다.
+///
+/// [onTap]에는 카테고리 목록 화면의 [BuildContext]가 넘어옵니다.
+/// 탭 전환(하단 네비)처럼 목록 아래에 있는 셸을 바꾸려면, 먼저
+/// `Navigator.pop(context)`로 이 목록을 닫은 뒤 탭을 바꿔야 합니다.
+/// (목록을 닫지 않으면 화면이 그대로 보여 "안 들어간 것처럼" 보입니다.)
 class CategoryItem {
   final String emoji;
   final String title;
   final String subtitle;
   final Color accent;
   final Color background;
-  final VoidCallback onTap;
+  final void Function(BuildContext context) onTap;
   const CategoryItem({
     required this.emoji,
     required this.title,
@@ -77,7 +82,7 @@ class CategoryListScreen extends StatelessWidget {
               alignX: i.isEven ? -0.06 : 0.06,
               widthFactor: 0.94,
               floatSeed: 60 + i,
-              onTap: items[i].onTap,
+              onTap: () => items[i].onTap(context),
             ),
             if (i != items.length - 1)
               GardenPathConnector(

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
+import '../providers/cat_care_provider.dart';
 import '../services/cat_care_service.dart';
 import '../services/temperature_insight_service.dart';
 import '../theme.dart';
@@ -47,6 +49,11 @@ class _MindTemperatureHistoryScreenState
   Future<void> _load() async {
     final history = await CatCareService.getTempHistory();
     if (!mounted) return;
+    // 히스토리 보정으로 온도 prefs가 바뀌었을 수 있어 홈 온도도 다시 맞춥니다.
+    try {
+      await context.read<CatCareProvider>().load();
+    } catch (_) {}
+    if (!mounted) return;
     setState(() {
       _history = history;
       _loading = false;
@@ -90,7 +97,7 @@ class _MindTemperatureHistoryScreenState
         ),
         const SizedBox(height: 6),
         Text(
-          '마음돌보기 임무를 완수하거나, 앱에 출석하거나,\n오늘의 약속을 지킬 때마다 온도가 기록돼요',
+          '편지 보내기 · 출석 · 마음돌보기 완료 · 오늘의 약속마다\n온도가 오르고, 날짜별로 기록돼요',
           textAlign: TextAlign.center,
           style: bodyFont(
             fontSize: 11,
@@ -531,6 +538,10 @@ class _TempHistoryChart extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: shown.map((e) {
+              // Column은 non-flex 자식에게 maxHeight=무한을 넘긴다.
+              // 그 안에서 FractionallySizedBox(heightFactor:)를 쓰면
+              // ∞ × factor → 자식 Container 높이가 0이 되어 막대가 안 보인다.
+              // Expanded로 유한 높이를 준 뒤, 그 비율만큼 실제 height를 계산한다.
               final heightFactor = (e.value / 100).clamp(0.04, 1.0);
               final tierColor = colorForTempTier(
                 TemperatureInsightService.tierFor(e.value),
@@ -539,20 +550,30 @@ class _TempHistoryChart extends StatelessWidget {
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 2),
                   child: Column(
-                    mainAxisAlignment: MainAxisAlignment.end,
                     children: [
                       Text(
                         '${e.value}',
                         style: bodyFont(fontSize: 8.5, color: tierColor),
                       ),
                       const SizedBox(height: 3),
-                      FractionallySizedBox(
-                        heightFactor: heightFactor,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: tierColor,
-                            borderRadius: BorderRadius.circular(6),
-                          ),
+                      Expanded(
+                        child: LayoutBuilder(
+                          builder: (context, constraints) {
+                            final barHeight =
+                                (constraints.maxHeight * heightFactor)
+                                    .clamp(2.0, constraints.maxHeight);
+                            return Align(
+                              alignment: Alignment.bottomCenter,
+                              child: Container(
+                                height: barHeight,
+                                width: double.infinity,
+                                decoration: BoxDecoration(
+                                  color: tierColor,
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                              ),
+                            );
+                          },
                         ),
                       ),
                     ],

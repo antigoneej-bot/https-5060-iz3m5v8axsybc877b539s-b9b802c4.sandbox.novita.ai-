@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/shadow_cat.dart';
 import '../providers/app_state_provider.dart';
 import '../providers/cat_care_provider.dart';
+import '../services/notification_service.dart';
 import '../services/storage_service.dart';
 import '../theme.dart';
 import '../widgets/animated_cat_art.dart';
@@ -11,10 +13,11 @@ import '../widgets/mood_picker.dart';
 import '../widgets/stars_background.dart';
 
 /// 고양이를 처음 만난 순간 이어지는 최초 1회 온보딩 플로우.
-/// 편지쓰기(비회원) → 전송 연출 → 가입 유도(소셜 로그인) → 알림 동의 → 홈으로.
+/// 편지쓰기(비회원) → 전송 연출 → 이 기기에서 계속하기 → 알림 동의 → 홈으로.
 ///
 /// 회원가입을 앞세우지 않고, 사용자가 이미 감정적으로 몰입한 순간(편지를 보낸 직후)에만
-/// 자연스럽게 가입을 요청합니다. 사전 설문/목표선택/다단계 퀴즈는 두지 않습니다.
+/// 자연스럽게 기록 유지를 요청합니다. B-1 범위에서는 로컬 전용 플로우만 제공하며
+/// 가짜 소셜 로그인 UI는 사용하지 않습니다.
 class OnboardingFlowScreen extends StatefulWidget {
   final ShadowCat cat;
 
@@ -53,32 +56,54 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
       _busy = true;
       _step = _OnboardingStep.sending;
     });
-    // 편지를 실제로 저장 (비회원 상태에서도 로컬에 기록됨). 글쓰기가 힘들거나
-    // 귀찮을 때는 이모티콘만 골라도 그날의 기록으로 남을 수 있습니다.
-    await context.read<AppStateProvider>().saveOnboardingLetter(
-      _letterController.text.trim(),
-      widget.cat,
-      moodEmoji: _moodEmoji,
-    );
-    // 온보딩 편지쓰기도 '마음기록' 임무를 실제로 실천한 행동이므로,
-    // 마음 돌보기와 자동으로 연동합니다.
-    if (mounted) {
-      await context.read<CatCareProvider>().journaling();
+
+    final minShow = Future<void>.delayed(const Duration(milliseconds: 1400));
+    var saved = false;
+    try {
+      await context.read<AppStateProvider>().saveOnboardingLetter(
+        _letterController.text.trim(),
+        widget.cat,
+        moodEmoji: _moodEmoji,
+      );
+      saved = true;
+    } catch (_) {
+      saved = false;
     }
-    await Future.delayed(const Duration(milliseconds: 1400));
+
+    await minShow;
     if (!mounted) return;
+
+    if (!saved) {
+      setState(() {
+        _busy = false;
+        _step = _OnboardingStep.letter;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('편지를 저장하지 못했어요. 다시 보내 주세요')),
+      );
+      return;
+    }
+
+    // journaling은 다음 단계를 막지 않음
+    final care = context.read<CatCareProvider>();
+    unawaited(() async {
+      try {
+        await care.journaling();
+      } catch (_) {}
+    }());
+
     setState(() {
       _busy = false;
       _step = _OnboardingStep.signup;
     });
   }
 
-  Future<void> _onChooseProvider(String provider) async {
+  /// B-1: 로컬 전용 계속. provider는 표시/분석용 문자열이며 OAuth는 수행하지 않습니다.
+  Future<void> _onContinueLocal() async {
     if (_busy) return;
     setState(() => _busy = true);
-    // 실제 OAuth 연동 전까지는, 로컬 전용 구조에 맞춰 클릭 한 번으로 가입을 완료 처리합니다.
-    await Future.delayed(const Duration(milliseconds: 550));
-    await StorageService.setLoginProvider(provider);
+    await Future.delayed(const Duration(milliseconds: 350));
+    await StorageService.setLoginProvider('local');
     if (!mounted) return;
     setState(() {
       _busy = false;
@@ -87,23 +112,26 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
   }
 
   Future<void> _onNotificationChoice(bool optIn) async {
-    await StorageService.setNotificationOptIn(optIn);
     await StorageService.setOnboardingCompleted();
     if (!mounted) return;
     final app = context.read<AppStateProvider>();
+    final care = context.read<CatCareProvider>();
     app.finishOnboarding();
-    // 회원가입(온보딩)이 지금 막 완료됐으므로, 여기서부터 출석 날짜 카운팅과
-    // "N일째 함께하는 중" 스트릭을 시작합니다. load()/refreshStreak()가
-    // 내부적으로 StorageService.isOnboardingCompleted()를 다시 확인해
-    // 오늘을 '1일차'로 기록합니다.
-    await context.read<CatCareProvider>().load();
-    await app.refreshStreak();
-    if (!mounted) return;
+
+    // 홈으로 먼저 이동 — 알림 권한/스케줄·로드는 뒤에서
     if (widget.onFinished != null) {
       widget.onFinished!();
     } else {
       Navigator.of(context).popUntil((route) => route.isFirst);
     }
+
+    unawaited(() async {
+      try {
+        await NotificationService().applyOnboardingOptIn(optIn);
+        await care.load();
+        await app.refreshStreak();
+      } catch (_) {}
+    }());
   }
 
   Widget _buildStep() {
@@ -127,7 +155,7 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
         return _SignupPromptStep(
           key: const ValueKey('signup'),
           busy: _busy,
-          onChooseProvider: _onChooseProvider,
+          onContinueLocal: _onContinueLocal,
         );
       case _OnboardingStep.notification:
         return _NotificationPromptStep(
@@ -339,14 +367,14 @@ class _SendingAnimationStepState extends State<_SendingAnimationStep>
   }
 }
 
-/// 2단계 후반부: 가입 유도 (소셜 로그인 3개 크게, 이메일은 하단 작은 텍스트 링크)
+/// 2단계 후반부: 로컬 기록 유지 안내 (B-1 — 가짜 소셜 로그인 제거)
 class _SignupPromptStep extends StatelessWidget {
   final bool busy;
-  final Future<void> Function(String provider) onChooseProvider;
+  final Future<void> Function() onContinueLocal;
   const _SignupPromptStep({
     super.key,
     required this.busy,
-    required this.onChooseProvider,
+    required this.onContinueLocal,
   });
 
   @override
@@ -367,7 +395,7 @@ class _SignupPromptStep extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           Text(
-            '당신과 이 아이의 이야기는 여기서 계속돼요.\n당신이 쓴 편지를 기억하고,\n마음의 온도가 자라나는 걸 함께 지켜볼게요.',
+            '당신과 이 아이의 이야기는 이 기기에 안전하게 남아요.\n쓴 편지와 마음의 온도를 기억해 두고,\n다음에 와도 이어서 지켜볼게요.',
             textAlign: TextAlign.center,
             style: bodyFont(
               fontSize: 13.5,
@@ -376,120 +404,50 @@ class _SignupPromptStep extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 32),
-          _SocialButton(
-            label: '카카오로 계속하기',
-            background: const Color(0xFFFEE500),
-            foreground: const Color(0xFF391B1B),
-            icon: const Text('💬', style: TextStyle(fontSize: 17)),
-            onTap: busy ? null : () => onChooseProvider('kakao'),
-          ),
-          const SizedBox(height: 12),
-          _SocialButton(
-            label: 'Apple로 계속하기',
-            background: const Color(0xFF1B1B1B),
-            foreground: Colors.white,
-            icon: const Icon(Icons.apple, size: 19, color: Colors.white),
-            onTap: busy ? null : () => onChooseProvider('apple'),
-          ),
-          const SizedBox(height: 12),
-          _SocialButton(
-            label: 'Google로 계속하기',
-            background: Colors.white,
-            foreground: const Color(0xFF383032),
-            border: AppColors.line,
-            icon: const Text(
-              'G',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF4285F4),
-              ),
-            ),
-            onTap: busy ? null : () => onChooseProvider('google'),
-          ),
-          const SizedBox(height: 18),
-          if (busy)
-            const Center(
-              child: SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2.2,
-                  color: AppColors.goldSoft,
+          SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: ElevatedButton(
+              onPressed: busy ? null : onContinueLocal,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.gold,
+                foregroundColor: Colors.white,
+                disabledBackgroundColor: AppColors.goldSoft,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
                 ),
               ),
-            )
-          else
-            Center(
-              child: TextButton(
-                onPressed: () => onChooseProvider('email'),
-                child: Text(
-                  '이메일로 계속할게요',
-                  style:
-                      bodyFont(
-                        fontSize: 12.5,
-                        color: AppColors.inkSoft,
-                        height: 1.4,
-                      ).copyWith(
-                        decoration: TextDecoration.underline,
-                        decorationColor: AppColors.inkSoft,
+              child: busy
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.2,
+                        color: Colors.white,
                       ),
-                ),
-              ),
+                    )
+                  : Text(
+                      '이 기기에서 계속하기',
+                      style: bodyFont(
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
             ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SocialButton extends StatelessWidget {
-  final String label;
-  final Color background;
-  final Color foreground;
-  final Color? border;
-  final Widget icon;
-  final VoidCallback? onTap;
-  const _SocialButton({
-    required this.label,
-    required this.background,
-    required this.foreground,
-    required this.icon,
-    required this.onTap,
-    this.border,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      height: 50,
-      child: ElevatedButton(
-        onPressed: onTap,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: background,
-          foregroundColor: foreground,
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
-            side: border != null ? BorderSide(color: border!) : BorderSide.none,
           ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            icon,
-            const SizedBox(width: 8),
-            Text(
-              label,
-              style: bodyFont(
-                fontSize: 14.5,
-                fontWeight: FontWeight.w700,
-                color: foreground,
-              ),
+          const SizedBox(height: 14),
+          Text(
+            '계정 로그인 없이 이 기기에만 저장돼요.\n앱을 삭제하면 기록도 함께 사라질 수 있어요.',
+            textAlign: TextAlign.center,
+            style: bodyFont(
+              fontSize: 12,
+              color: AppColors.inkSoft,
+              height: 1.5,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

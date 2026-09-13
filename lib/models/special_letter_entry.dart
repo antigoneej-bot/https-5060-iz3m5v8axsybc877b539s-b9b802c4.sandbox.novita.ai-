@@ -1,3 +1,4 @@
+import 'reply_style.dart';
 import '../utils/feature_flags.dart';
 
 /// 네 가지 마음편지(감사·용서·미안함·사랑)의 종류.
@@ -54,7 +55,7 @@ extension SpecialLetterTypeX on SpecialLetterType {
       case SpecialLetterType.gratitude:
         return '짧아도 괜찮아요. 떠오르는 그대로 적어보세요';
       case SpecialLetterType.forgiveness:
-        return '용서는 그 사람을 위한 것이 아니라, 나를 위한 것이에요';
+        return '용서할 준비가 되지 않았어도 괜찮아요. 지금의 마음을 적어보세요';
       case SpecialLetterType.apology:
         return '누구에게도 보내지 않아도 돼요. 마음을 위한 기록이에요';
       case SpecialLetterType.love:
@@ -97,7 +98,7 @@ extension SpecialLetterTypeX on SpecialLetterType {
 }
 
 /// 마음편지 한 통의 기록. 답장 텍스트는 편지를 쓰는 시점에 미리 만들어져
-/// 함께 저장되지만(항상 값이 있음), 그림자 고양이 편지와 동일한 컨셉으로
+/// 저장 후 생성되며(준비 전에는 빈 문자열), 그림자 고양이 편지와 동일한 컨셉으로
 /// 사용자에게는 [replyAvailableAt] 이전까지 보여주지 않습니다
 /// ([isReplyReady]로 열람 가능 여부를 확인하세요).
 class SpecialLetterEntry {
@@ -110,6 +111,7 @@ class SpecialLetterEntry {
   /// 답장을 열어봤는지 여부. 목록에서 "새 답장" 표시를 한 번만 보여주기
   /// 위한 플래그입니다(그림자 고양이 편지의 replySeen과 동일한 역할).
   final bool replySeen;
+  final ReplyStyle replyStyle;
 
   SpecialLetterEntry({
     required this.id,
@@ -118,6 +120,7 @@ class SpecialLetterEntry {
     required this.replyText,
     required this.createdAt,
     this.replySeen = false,
+    this.replyStyle = ReplyStyle.listen,
   });
 
   /// 답장을 열어볼 수 있게 되는 시각. 그림자 고양이 편지와 동일하게,
@@ -144,8 +147,14 @@ class SpecialLetterEntry {
       replyText: replyText,
       createdAt: createdAt,
       replySeen: true,
+      replyStyle: replyStyle,
     );
   }
+
+  SpecialLetterEntry withReplyText(String reply) => SpecialLetterEntry(
+    id: id, type: type, letterText: letterText, replyText: reply,
+    createdAt: createdAt, replySeen: replySeen, replyStyle: replyStyle,
+  );
 
   Map<String, dynamic> toMap() {
     return {
@@ -155,6 +164,7 @@ class SpecialLetterEntry {
       'replyText': replyText,
       'createdAt': createdAt.toIso8601String(),
       'replySeen': replySeen,
+      'replyStyle': replyStyle.name,
     };
   }
 
@@ -167,6 +177,7 @@ class SpecialLetterEntry {
       createdAt: DateTime.tryParse(map['createdAt'] as String? ?? '') ??
           DateTime.now(),
       replySeen: map['replySeen'] as bool? ?? false,
+      replyStyle: parseReplyStyle(map['replyStyle']),
     );
   }
 }

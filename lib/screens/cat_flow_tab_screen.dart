@@ -37,7 +37,7 @@ class CatFlowTabScreen extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 12),
-        const MeditationFlowScreen(),
+        MeditationFlowScreen(key: ValueKey(app.selectedCat!.id)),
       ],
     );
   }

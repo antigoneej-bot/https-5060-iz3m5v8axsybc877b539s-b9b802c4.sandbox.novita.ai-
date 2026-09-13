@@ -1,3 +1,8 @@
+import '../models/reply_style.dart';
+import '../widgets/reply_style_picker.dart';
+import '../services/draft_service.dart';
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/shadow_cat.dart';
@@ -27,8 +32,14 @@ class MeditationFlowScreen extends StatefulWidget {
 }
 
 class _MeditationFlowScreenState extends State<MeditationFlowScreen> {
-  final TextEditingController _letterController = TextEditingController();
+  late final DraftTextController _letterController;
+  @override
+  void initState() {
+    super.initState();
+    _letterController = DraftTextController('letter_${context.read<AppStateProvider>().selectedCat!.id}');
+  }
   String? _moodEmoji;
+  FlowStage? _lastStage;
 
   @override
   void dispose() {
@@ -36,10 +47,32 @@ class _MeditationFlowScreenState extends State<MeditationFlowScreen> {
     super.dispose();
   }
 
+  /// 홈 셸이 SingleChildScrollView로 감싸져 있어, 긴 편지 화면 하단에서
+  /// 보내기를 누르면 스크롤 위치가 남아 다음 단계가 "안 보이는" 것처럼
+  /// 느껴질 수 있습니다. 단계가 바뀔 때 맨 위로 올립니다.
+  void _scrollToTopIfNeeded(FlowStage stage) {
+    if (_lastStage == stage) return;
+    final shouldReset =
+        stage == FlowStage.meditation ||
+        stage == FlowStage.done ||
+        stage == FlowStage.letter ||
+        stage == FlowStage.story;
+    _lastStage = stage;
+    if (!shouldReset) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final controller = PrimaryScrollController.maybeOf(context);
+      if (controller != null && controller.hasClients) {
+        controller.jumpTo(0);
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final app = context.watch<AppStateProvider>();
     final cat = app.selectedCat!;
+    _scrollToTopIfNeeded(app.flowStage);
 
     switch (app.flowStage) {
       case FlowStage.selecting:
@@ -66,14 +99,15 @@ class _StoryStage extends StatelessWidget {
   const _StoryStage({required this.cat});
 
   Future<void> _onWriteLetterPressed(BuildContext context) async {
-    // 이 기기에서 아직 온보딩(편지쓰기→가입유도→알림동의)을 마치지 않았다면,
-    // 회원가입을 앞세우지 않고 감정적으로 몰입한 이 순간에 온보딩 플로우로 이어갑니다.
+    // 이 기기에서 아직 온보딩을 마치지 않았다면, 감정 몰입 순간에
+    // 온보딩(편지→기기 계속→알림)으로 이어갑니다. 온보딩 완료 시
+    // 의도적으로 홈으로 보내므로, 여기서 goToLetter()로 이어가지 않습니다.
     final onboardingDone = await StorageService.isOnboardingCompleted();
     if (!context.mounted) return;
     if (!onboardingDone) {
-      await Navigator.of(
-        context,
-      ).push(MaterialPageRoute(builder: (_) => OnboardingFlowScreen(cat: cat)));
+      await Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => OnboardingFlowScreen(cat: cat)),
+      );
       return;
     }
     context.read<AppStateProvider>().goToLetter();
@@ -172,6 +206,7 @@ class _LetterStage extends StatefulWidget {
 }
 
 class _LetterStageState extends State<_LetterStage> {
+  ReplyStyle _replyStyle = ReplyStyle.listen;
   bool _sending = false;
 
   Future<void> _onSend(BuildContext context) async {
@@ -179,17 +214,35 @@ class _LetterStageState extends State<_LetterStage> {
     setState(() => _sending = true);
     final appState = context.read<AppStateProvider>();
     final care = context.read<CatCareProvider>();
-    // 편지를 보내는 즉시 저장되고, 그 자체로 마음 온도가 +1도 오릅니다.
-    // 사용자가 온도 값을 따로 입력하는 절차는 없습니다.
-    await appState.sendLetter(
-      widget.controller.text.trim(),
-      moodEmoji: widget.moodEmoji,
-      onTemperatureBonus: care.applyLetterSentBonus,
-    );
-    // 편지를 쓴 행위 자체를 마음 돌보기의 '마음기록' 임무와 자동으로
-    // 연동합니다(중복 완료는 서비스 내부에서 안전하게 무시됩니다).
-    if (mounted) await care.journaling();
-    if (mounted) setState(() => _sending = false);
+    try {
+      // 편지 저장이 완료되면 전송 성공. 보상 처리는 따로 진행합니다.
+      // 사용자가 온도 값을 따로 입력하는 절차는 없습니다.
+      await appState.sendLetter(
+        widget.controller.text.trim(),
+        moodEmoji: widget.moodEmoji,
+        replyStyle: _replyStyle,
+        onTemperatureBonus: () async {
+          try {
+            await care.applyLetterSentBonus();
+          } finally {
+            // 화면이 다음 단계로 넘어가도 기록 임무 처리는 이어갑니다.
+            await care.journaling();
+          }
+        },
+      );
+      if (widget.controller is DraftTextController) {
+        try { await (widget.controller as DraftTextController).discard(); }
+        catch (_) {
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content:Text('편지는 저장됐어요. 초안을 정리하지 못했지만 다시 보낼 필요는 없어요.')));
+        }
+      }
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content:Text('저장 완료를 확인하지 못했어요. 내용은 유지돼요. 다시 눌러 저장을 확인해 주세요.')));
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
   }
 
   @override
@@ -239,6 +292,8 @@ class _LetterStageState extends State<_LetterStage> {
             controller: widget.controller,
           ),
           const SizedBox(height: 14),
+          ReplyStylePicker(value:_replyStyle, enabled:!_sending, onChanged:(value)=>setState(()=>_replyStyle=value)),
+          const SizedBox(height:14),
           MoodPicker(
             selectedEmoji: widget.moodEmoji,
             onChanged: widget.onMoodChanged,
@@ -300,19 +355,28 @@ class _MeditationStageState extends State<_MeditationStage> {
     setState(() => _busy = true);
     final appState = context.read<AppStateProvider>();
     final care = context.read<CatCareProvider>();
-    await appState.completeMeditation(
-      _selectedKey,
-      onTemperatureBonus: care.applyMeditationBonus,
-    );
-    // 실제로 실천한 명상 종류에 맞춰, 마음 돌보기의 호흡/걷기 명상 임무를
-    // 자동으로 연동합니다(중복 완료는 서비스 내부에서 안전하게 무시됩니다).
-    final careTask = careTaskForMeditationKey(_selectedKey);
-    if (careTask == CareTask.breathing) {
-      await care.breathing();
-    } else if (careTask == CareTask.walking) {
-      await care.walking();
+    try {
+      await appState.completeMeditation(
+        _selectedKey,
+        onTemperatureBonus: care.applyMeditationBonus,
+      );
+      final careTask = careTaskForMeditationKey(_selectedKey);
+      if (careTask == CareTask.breathing) {
+        unawaited(() async {
+          try {
+            await care.breathing();
+          } catch (_) {}
+        }());
+      } else if (careTask == CareTask.walking) {
+        unawaited(() async {
+          try {
+            await care.walking();
+          } catch (_) {}
+        }());
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
-    if (mounted) setState(() => _busy = false);
   }
 
   void _onSkip(BuildContext context) {

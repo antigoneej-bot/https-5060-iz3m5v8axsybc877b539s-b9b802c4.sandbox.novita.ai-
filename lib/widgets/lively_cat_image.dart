@@ -74,13 +74,19 @@ class _LivelyCatImageState extends State<LivelyCatImage>
           borderRadius: radius,
           child: Image.asset(
             widget.imageAsset,
-            width: widget.width,
-            height: widget.height,
+            width: widget.width.isFinite ? widget.width : null,
+            height: widget.height.isFinite ? widget.height : null,
             fit: widget.fit,
             // 원본(1024x1024)을 실제 표시 크기에 맞춰 디코딩해 메모리 사용량을
             // 크게 낮춥니다(디바이스 배율 감안해 2배 정도 여유를 둡니다).
-            cacheWidth: (widget.width * 2).round(),
-            cacheHeight: (widget.height * 2).round(),
+            // width/height가 infinity면 round()가 예외를 내서 공유 카드 전체가
+            // 빈 칸으로 보이므로, 유한할 때만 cache 크기를 지정합니다.
+            cacheWidth: widget.width.isFinite
+                ? (widget.width * 2).round()
+                : null,
+            cacheHeight: widget.height.isFinite
+                ? (widget.height * 2).round()
+                : null,
           ),
         ),
       ),

@@ -292,20 +292,23 @@ class _NewBabyPickerScreenState extends State<NewBabyPickerScreen> {
     }
     final oldName = care.displayName;
     final newCat = _selected!;
-    await care.graduateAndStartNewBaby(newCat.id);
-    final newName = _nameController.text.trim();
-    if (newName.isNotEmpty) {
-      await StorageService.setCompanionName(newName);
-      await care.load();
+    try {
+      await care.graduateAndStartNewBaby(newCat.id);
+      final newName = _nameController.text.trim();
+      if (newName.isNotEmpty) {
+        await StorageService.setCompanionName(newName);
+        await care.load();
+      }
+      if (!mounted) return;
+      setState(() {
+        _graduatedName = oldName;
+        _graduatedImageAsset = oldCat?.imageAsset ?? newCat.imageAsset;
+        _newBabyImageAsset = 'assets/growth/baby_cat.png';
+        _celebrating = true;
+      });
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
-    if (!mounted) return;
-    setState(() {
-      _graduatedName = oldName;
-      _graduatedImageAsset = oldCat?.imageAsset ?? newCat.imageAsset;
-      _newBabyImageAsset = 'assets/growth/baby_cat.png';
-      _celebrating = true;
-      _busy = false;
-    });
   }
 
   @override

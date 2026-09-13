@@ -1,6 +1,9 @@
+import 'dart:async';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../models/special_letter_entry.dart';
-import 'special_letter_reply_service.dart';
+import 'personal_reply_service.dart';
+import '../models/reply_style.dart';
+import 'hive_encryption.dart';
 
 /// 감사·용서·미안함·사랑, 네 가지 마음편지의 저장을 담당하는 서비스.
 ///
@@ -19,7 +22,7 @@ class SpecialLetterService {
     if (_box != null && _box!.isOpen) {
       await _box!.close();
     }
-    _box = await Hive.openBox('special_letters_$_uid');
+    _box = await HiveEncryption.openBox('special_letters_$_uid');
   }
 
   static Box get _b {
@@ -34,27 +37,43 @@ class SpecialLetterService {
   static Future<SpecialLetterEntry> sendLetter({
     required SpecialLetterType type,
     required String letterText,
+    ReplyStyle replyStyle = ReplyStyle.listen,
+    String? submissionId,
   }) async {
-    // 같은 종류의 최근 답장 5개를 함께 넘겨, 답장 생성기가 최근에 이미
-    // 나온 문장을 되도록 피하고 매번 더 다채로운 답장을 만들게 합니다.
-    final recentReplies = getEntriesOfType(type)
-        .take(5)
-        .map((e) => e.replyText)
-        .toList();
-    final reply = SpecialLetterReplyService.buildReply(
-      type: type,
-      letterText: letterText,
-      recentReplies: recentReplies,
-    );
+    final now = DateTime.now();
+    final id = submissionId ?? '${now.microsecondsSinceEpoch}_${type.storageKey}';
+    final existing = _b.get(id);
+    if (existing != null) {
+      final saved = SpecialLetterEntry.fromMap(Map<dynamic, dynamic>.from(existing as Map));
+      if (saved.letterText != letterText || saved.type != type || saved.replyStyle != replyStyle) throw StateError('편지 ID가 겹쳤어요.');
+      await _b.flush();
+      unawaited(ensureReply(saved).then<void>((_) {}, onError: (Object _, StackTrace __) {}));
+      return saved;
+    }
     final entry = SpecialLetterEntry(
-      id: '${DateTime.now().millisecondsSinceEpoch}_${type.storageKey}',
-      type: type,
-      letterText: letterText,
-      replyText: reply,
-      createdAt: DateTime.now(),
+      id: id, type: type, letterText: letterText, replyText: '',
+      createdAt: now, replyStyle: replyStyle,
     );
     await _b.put(entry.id, entry.toMap());
+    await _b.flush();
+    unawaited(ensureReply(entry).then<void>((_) {}, onError: (Object _, StackTrace __) {}));
     return entry;
+  }
+
+  static Future<String> ensureReply(SpecialLetterEntry entry) async {
+    if (entry.replyText.isNotEmpty) return entry.replyText;
+    final reply = await PersonalReplyService.create(
+      id: 'heart:${entry.id}', letterText: entry.letterText, style: entry.replyStyle,
+      catName: '마음편지 고양이',
+      legacyReplies: getAllEntries().take(20).map((e) => e.replyText).toList(),
+    );
+    final raw = _b.get(entry.id);
+    if (raw == null) throw StateError('삭제된 편지예요.');
+    final current = SpecialLetterEntry.fromMap(Map<dynamic, dynamic>.from(raw as Map));
+    if (current.replyText.isNotEmpty) return current.replyText;
+    await _b.put(entry.id, current.withReplyText(reply).toMap());
+    await _b.flush();
+    return reply;
   }
 
   /// 특정 종류의 마음편지를 최신순으로 모두 가져옵니다.
@@ -77,7 +96,9 @@ class SpecialLetterService {
   }
 
   static Future<void> deleteLetter(String id) async {
+    await PersonalReplyService.remove('heart:$id');
     await _b.delete(id);
+    await _b.flush();
   }
 
   /// 답장을 열어봤음을 표시합니다(홈 화면 배너를 한 번만 보여주기 위함).

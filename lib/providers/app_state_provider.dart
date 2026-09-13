@@ -1,3 +1,8 @@
+import 'dart:math';
+import '../services/persisted_submission.dart';
+import '../models/reply_style.dart';
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import '../models/shadow_cat.dart';
 import '../models/letter_entry.dart';
@@ -10,7 +15,7 @@ import '../services/weekly_shadow_map_service.dart';
 import '../services/buried_emotion_service.dart';
 import '../services/subscription_service.dart';
 import '../services/analytics_service.dart';
-import '../services/cat_memory_service.dart';
+import '../services/cat_care_service.dart';
 
 /// 명상 저널 플로우 단계
 /// selecting: 7마리 중 지금 내 기분과 닮은 고양이 선택
@@ -107,8 +112,9 @@ class AppStateProvider extends ChangeNotifier {
   /// 로그인된 사용자(userId)의 데이터 영역으로 전환한 뒤 불러옵니다.
   Future<void> init(String userId) async {
     await StorageService.setCurrentUser(userId);
-    await _refreshStreakInternal();
+    // 스트릭/온보딩 복구가 편지를 참조하므로 history를 먼저 올립니다.
     history = StorageService.getAllLetters();
+    await _refreshStreakInternal();
     growthLevel = await StorageService.getGrowthLevel();
     final (points, elapsed) = await StorageService.getGrowthProgress();
     growthPoints = points;
@@ -117,20 +123,51 @@ class AppStateProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// 회원가입(온보딩)을 아직 마치지 않았다면 "N일째 함께하는 중" 날짜
-  /// 카운팅을 시작하지 않고 0으로 고정합니다. 회원가입 + 아기고양이
-  /// 이름짓기 + 로그인을 모두 마친 시점부터 출석 스트릭이 기록됩니다.
+  /// "N일째 함께하는 중" 숫자를 갱신합니다.
+  ///
+  /// 메인 하단 점(금~오늘 색)은 **편지 기록일**이고, 예전에는 온보딩을
+  /// 안 끝낸 경우 스트릭을 0으로 고정해 둘 이 숫자가 어긋났습니다.
+  /// 지금은 설치일(없으면 첫 편지일) 기준으로 "함께한 일수"를 보여 주고,
+  /// 연속 방문 카운트는 알림용으로만 따로 갱신합니다.
   Future<void> _refreshStreakInternal() async {
-    final signedUp = await StorageService.isOnboardingCompleted();
+    var signedUp = await StorageService.isOnboardingCompleted();
+    if (!signedUp) {
+      // 이미 편지를 쓴 사용자는 온보딩을 사실상 마친 것으로 복구합니다.
+      try {
+        if (history.isNotEmpty || StorageService.getAllLetters().isNotEmpty) {
+          await StorageService.setOnboardingCompleted();
+          signedUp = true;
+        }
+      } catch (_) {}
+    }
     if (!signedUp) {
       streak = 0;
       daysAwayOnOpen = 0;
       return;
     }
-    // ⚠️ 순서 중요: daysSinceLastVisit()는 updateStreakOnOpen()이 마지막
-    // 방문일을 오늘 날짜로 덮어쓰기 전에 먼저 읽어야 정확합니다.
+
     daysAwayOnOpen = await StorageService.daysSinceLastVisit();
-    streak = await StorageService.updateStreakOnOpen();
+    // 연속 방문(알림·내부용)은 계속 기록
+    await StorageService.updateStreakOnOpen();
+
+    final sinceInstall = await StorageService.daysTogetherSinceInstall();
+    final sinceFirstLetter = _daysTogetherSinceFirstLetter();
+    // 설치 기준을 우선하고, 설치일이 없거나 편지가 더 오래면 편지 기준으로.
+    streak = sinceInstall > 0 ? sinceInstall : sinceFirstLetter;
+    if (streak < 1) streak = 1;
+  }
+
+  /// 가장 저장된 편지 중 가장 오래된 날로부터 오늘까지 "N일째".
+  int _daysTogetherSinceFirstLetter() {
+    if (history.isEmpty) return 0;
+    DateTime oldest = history.first.date;
+    for (final e in history) {
+      if (e.date.isBefore(oldest)) oldest = e.date;
+    }
+    final start = DateTime(oldest.year, oldest.month, oldest.day);
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    return today.difference(start).inDays + 1;
   }
 
   /// 온보딩(회원가입)이 막 완료된 시점에 호출해, 그 즉시 오늘을 스트릭
@@ -165,6 +202,7 @@ class AppStateProvider extends ChangeNotifier {
   /// 가로채므로 이 메서드까지 도달하지 않습니다.
   void selectCat(ShadowCat cat) {
     if (cat.isPremium && !isPremiumUser) return;
+    _letterSubmission = null;
     selectedCat = cat;
     flowStage = FlowStage.story;
     currentLetterId = null;
@@ -185,6 +223,12 @@ class AppStateProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  PersistedSubmission<LetterEntry>? _letterSubmission;
+  PersistedSubmission<LetterEntry>? _onboardingSubmission;
+  String _newLetterId() => '${DateTime.now().microsecondsSinceEpoch}_${Random.secure().nextInt(1 << 32)}';
+  bool _sameLetter(LetterEntry entry,String text,String catId,String? mood,ReplyStyle style) =>
+      entry.letterText == text && entry.catId == catId && entry.moodEmoji == mood && entry.replyStyle == style;
+
   /// 편지를 쓰고 "보내기"를 누른 즉시(=명상/온도체크와 완전히 독립적으로)
   /// 편지를 저장하고, 마음 온도를 자동으로 +1도 올립니다. 사용자가 직접
   /// 온도 값을 입력하는 절차는 없습니다 - 편지를 보냈다는 사실 자체가
@@ -200,53 +244,59 @@ class AppStateProvider extends ChangeNotifier {
   Future<void> sendLetter(
     String letterText, {
     String? moodEmoji,
+    ReplyStyle replyStyle = ReplyStyle.listen,
     required Future<void> Function() onTemperatureBonus,
   }) async {
-    if (selectedCat == null) return;
-    final entry = LetterEntry(
-      id: '${DateTime.now().millisecondsSinceEpoch}',
-      catId: selectedCat!.id,
-      date: DateTime.now(),
-      letterText: letterText,
-      moodEmoji: moodEmoji,
+    final cat = selectedCat;
+    if (cat == null) throw StateError('감정 고양이를 먼저 골라 주세요.');
+    final old = _letterSubmission;
+    if (old != null && _sameLetter(old.payload,letterText,cat.id,moodEmoji,replyStyle)) {
+      await old.submit();
+      return;
+    }
+    final entry = LetterEntry(id:_newLetterId(),catId:cat.id,date:DateTime.now(),
+      letterText:letterText,moodEmoji:moodEmoji,replyStyle:replyStyle);
+    final submission = PersistedSubmission<LetterEntry>(
+      payload:entry, persist:StorageService.saveLetter,
+      onSaved:(saved) {
+        history = [saved,...history.where((item)=>item.id!=saved.id)];
+        currentLetterId = saved.id;
+        flowStage = FlowStage.meditation;
+        notifyListeners();
+      },
+      afterSaved:(_) => _afterLetterSaved(entry,cat.nameKr,onTemperatureBonus),
     );
-    await StorageService.saveLetter(entry);
-    history = StorageService.getAllLetters();
-    currentLetterId = entry.id;
+    _letterSubmission = submission;
+    await submission.submit();
+  }
 
-    // 편지 시스템 6장(고양이 기억) - 키워드가 감지되면 회상용으로 저장.
-    await CatMemoryService.captureIfKeywordFound(
-      catId: entry.catId,
-      letterText: letterText,
-      now: entry.date,
-    );
-
-    final (leveledUp, level, points, elapsed) =
-        await StorageService.recordGrowthDay();
-    growthLevel = level;
-    growthPoints = points;
-    growthElapsedDays = elapsed;
-    justLeveledUp = leveledUp;
-
-    await AnalyticsService().logEvent(AnalyticsEvents.letterSent, {
-      'cat_id': entry.catId,
-      'has_text': letterText.trim().isNotEmpty,
-    });
-
-    // 편지를 보냈다는 사실 자체로 마음 온도 +1도 (사용자가 값을 입력하는
-    // 것이 아니라 시스템이 자동으로 처리합니다). 명상 여부와는 완전히
-    // 독립적인 별개의 트리거입니다.
-    await onTemperatureBonus();
-
-    await NotificationService().notifyMissionCompletedToday();
-    await NotificationService().scheduleCatReplyNotification(
-      catName: selectedCat!.nameKr,
-      scheduledAt: entry.replyAvailableAt,
-    );
-
-    await SoundService().playChime();
-    flowStage = FlowStage.meditation;
-    notifyListeners();
+  Future<void> _afterLetterSaved(LetterEntry entry,String catName,
+      Future<void> Function() onTemperatureBonus) async {
+    // Each post-save step is independent; do not retry non-idempotent bonuses here.
+    try {
+      final (leveledUp, level, points, elapsed) = await StorageService.recordGrowthDay();
+      growthLevel=level; growthPoints=points; growthElapsedDays=elapsed; justLeveledUp=leveledUp;
+      notifyListeners();
+    } catch (_) {}
+    try { await onTemperatureBonus(); } catch (_) {}
+    unawaited(() async {
+      try {
+        await AnalyticsService().logEvent(AnalyticsEvents.letterSent, {
+          'cat_id': entry.catId,
+          'has_text': entry.letterText.trim().isNotEmpty ? 1 : 0,
+        });
+      } catch (_) {}
+      try {
+        await NotificationService().notifyMissionCompletedToday();
+        await NotificationService().scheduleCatReplyNotification(
+          catName: catName,
+          scheduledAt: entry.replyAvailableAt,
+        );
+      } catch (_) {}
+      try {
+        await SoundService().playChime();
+      } catch (_) {}
+    }());
   }
 
   /// 명상 단계에서 "실천했어요"를 눌렀을 때 호출합니다. 이미 저장된 편지에
@@ -259,18 +309,29 @@ class AppStateProvider extends ChangeNotifier {
   }) async {
     selectedMeditationKey = meditationKey;
     if (currentLetterId != null && meditationKey != null) {
-      await StorageService.updateLetterMeditation(
-        currentLetterId!,
-        meditationKey,
-      );
-      history = StorageService.getAllLetters();
-      await onTemperatureBonus();
-      await AnalyticsService().logEvent(AnalyticsEvents.meditationCompleted, {
-        'meditation_key': meditationKey,
-      });
+      try {
+        await StorageService.updateLetterMeditation(
+          currentLetterId!,
+          meditationKey,
+        );
+        history = StorageService.getAllLetters();
+        await onTemperatureBonus();
+      } catch (_) {}
     }
+
+    // Analytics보다 먼저 완료 화면으로
     flowStage = FlowStage.done;
     notifyListeners();
+
+    if (meditationKey != null) {
+      unawaited(() async {
+        try {
+          await AnalyticsService().logEvent(AnalyticsEvents.meditationCompleted, {
+            'meditation_key': meditationKey,
+          });
+        } catch (_) {}
+      }());
+    }
   }
 
   /// 명상 단계를 건너뜁니다. "명상은 선택이지 의무가 아니다"라는 원칙에
@@ -291,40 +352,26 @@ class AppStateProvider extends ChangeNotifier {
     ShadowCat cat, {
     String? moodEmoji,
   }) async {
-    final entry = LetterEntry(
-      id: '${DateTime.now().millisecondsSinceEpoch}',
-      catId: cat.id,
-      date: DateTime.now(),
-      letterText: letterText,
-      moodEmoji: moodEmoji,
+    final old = _onboardingSubmission;
+    if (old != null && _sameLetter(old.payload,letterText,cat.id,moodEmoji,ReplyStyle.listen)) {
+      await old.submit(); return;
+    }
+    final entry=LetterEntry(id:_newLetterId(),catId:cat.id,date:DateTime.now(),letterText:letterText,moodEmoji:moodEmoji);
+    final submission=PersistedSubmission<LetterEntry>(payload:entry,persist:StorageService.saveLetter,
+      onSaved:(saved) {
+        history=[saved,...history.where((item)=>item.id!=saved.id)];
+        notifyListeners();
+      },
+      afterSaved:(_) => _afterLetterSaved(entry,cat.nameKr,() async {
+        await CatCareService.adjustBonusTemperature(1,isPremium:isPremiumUser,countAsActivityBonus:true);
+      }),
     );
-    await StorageService.saveLetter(entry);
-    history = StorageService.getAllLetters();
-
-    // 편지 시스템 6장(고양이 기억) - 키워드가 감지되면 회상용으로 저장.
-    await CatMemoryService.captureIfKeywordFound(
-      catId: entry.catId,
-      letterText: letterText,
-      now: entry.date,
-    );
-
-    final (leveledUp, level, points, elapsed) =
-        await StorageService.recordGrowthDay();
-    growthLevel = level;
-    growthPoints = points;
-    growthElapsedDays = elapsed;
-    justLeveledUp = leveledUp;
-    await NotificationService().notifyMissionCompletedToday();
-    await NotificationService().scheduleCatReplyNotification(
-      catName: cat.nameKr,
-      scheduledAt: entry.replyAvailableAt,
-    );
-
-    await SoundService().playChime();
-    notifyListeners();
+    _onboardingSubmission=submission;
+    await submission.submit();
   }
 
   void restartFlow() {
+    _letterSubmission = null;
     selectedCat = null;
     flowStage = FlowStage.selecting;
     currentLetterId = null;
@@ -572,16 +619,16 @@ class AppStateProvider extends ChangeNotifier {
     return topId;
   }
 
-  /// 이번 달(최근 28일)을 전반부(1~2주)/후반부(3~4주)로 나눠 각각 최빈 고양이 id를
+  /// 이번 달을 전반부(1~15일)/후반부(16일~오늘)로 나눠 각각 최빈 고양이 id를
   /// 반환합니다. 월간 회고 화면3의 서술형 요약(변화 있음/없음 비교)에 사용합니다.
   (String?, String?) monthlyHalvesDominantCatIds({DateTime? now}) {
     final ref = now ?? DateTime.now();
     final todayStart = DateTime(ref.year, ref.month, ref.day);
     final periodEnd = todayStart;
-    final periodStart = todayStart.subtract(const Duration(days: 27));
-    final firstHalfEnd = periodStart.add(const Duration(days: 13));
-    final secondHalfStart = periodStart.add(const Duration(days: 14));
-    final firstHalf = _dominantCatIdInRange(periodStart, firstHalfEnd);
+    final periodStart = DateTime(ref.year, ref.month, 1);
+    final firstHalfEnd = DateTime(ref.year, ref.month, 15);
+    final secondHalfStart = DateTime(ref.year, ref.month, 16);
+    final firstHalf = _dominantCatIdInRange(periodStart, firstHalfEnd.isAfter(periodEnd) ? periodEnd : firstHalfEnd);
     final secondHalf = _dominantCatIdInRange(secondHalfStart, periodEnd);
     return (firstHalf, secondHalf);
   }

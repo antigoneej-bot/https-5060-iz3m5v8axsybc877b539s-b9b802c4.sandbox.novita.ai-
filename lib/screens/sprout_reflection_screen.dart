@@ -35,20 +35,28 @@ class _SproutReflectionScreenState extends State<SproutReflectionScreen> {
     final text = _controller.text.trim();
     if (text.isEmpty || _saving) return;
     setState(() => _saving = true);
-    await context.read<BuriedEmotionProvider>().saveReRecording(
-      widget.entry.id,
-      text,
-    );
-    if (!mounted) return;
-    Navigator.of(context).pop();
+    try {
+      await context.read<BuriedEmotionProvider>().saveReRecording(
+        widget.entry.id,
+        text,
+      );
+      if (!mounted) return;
+      Navigator.of(context).pop();
+    } catch (_) {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
   Future<void> _skip() async {
     if (_saving) return;
     setState(() => _saving = true);
-    await context.read<BuriedEmotionProvider>().skip(widget.entry.id);
-    if (!mounted) return;
-    Navigator.of(context).pop();
+    try {
+      await context.read<BuriedEmotionProvider>().skip(widget.entry.id);
+      if (!mounted) return;
+      Navigator.of(context).pop();
+    } catch (_) {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
   @override

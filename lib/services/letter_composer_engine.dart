@@ -1,3 +1,4 @@
+import 'relationship_story_service.dart';
 import 'dart:math';
 import '../models/letter_context.dart';
 import '../models/letter_tags.dart';
@@ -53,6 +54,7 @@ class LetterComposerEngine {
       LetterModuleKey.greeting,
       emoji: LetterEmojiDecorator.forGreeting(ctx.growthStage),
     );
+    lines.add(RelationshipStoryService.lineFor(ctx.intimacyStage, now));
     pickAndAdd(moodPool, LetterModuleKey.mood);
     pickAndAdd(empathyPool, LetterModuleKey.empathy);
 

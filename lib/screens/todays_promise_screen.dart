@@ -44,17 +44,20 @@ class _TodaysPromiseScreenState extends State<TodaysPromiseScreen> {
     final text = _controller.text.trim();
     if (text.isEmpty || _submitting) return;
     setState(() => _submitting = true);
-    final ok = await context.read<PromiseProvider>().addPromise(text);
-    if (ok) {
-      _controller.clear();
+    try {
+      final ok = await context.read<PromiseProvider>().addPromise(text);
+      if (ok) {
+        _controller.clear();
+      }
+    } finally {
+      if (mounted) setState(() => _submitting = false);
     }
-    if (mounted) setState(() => _submitting = false);
   }
 
   Future<void> _toggle(String id) async {
-    final grantsBonus = await context.read<PromiseProvider>().toggleKept(id);
-    if (grantsBonus && mounted) {
-      await context.read<CatCareProvider>().applyPromiseBonus();
+    final delta = await context.read<PromiseProvider>().toggleKept(id);
+    if (delta != 0 && mounted) {
+      await context.read<CatCareProvider>().applyPromiseBonus(delta: delta);
     }
   }
 

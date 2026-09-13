@@ -1,25 +1,16 @@
+import 'cloud_service.dart';
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
+import 'package:in_app_purchase/in_app_purchase.dart';
+import 'package:in_app_purchase_android/in_app_purchase_android.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 /// '정원 플러스' 구독(프리미엄) 상태를 관리하는 서비스.
 ///
-/// ⚠️ 개발자 인수인계 안내 ⚠️
-/// 현재는 실제 결제(Google Play 인앱결제)가 연결되어 있지 않습니다.
-/// 이 파일은 구독 상태를 로컬(SharedPreferences)에만 저장하는 임시 구현이며,
-/// [purchasePremium]이 바로 그 자리입니다. 실제 결제를 붙일 때는:
-///   1. pubspec.yaml에 `in_app_purchase` 패키지를 추가합니다.
-///   2. Google Play Console에 앱을 등록하고, 구독 상품(예: garden_plus_monthly)을
-///      만듭니다.
-///   3. [purchasePremium]의 내부 구현을 in_app_purchase의 실제 구매 플로우로
-///      교체하고, 구매 성공 콜백에서 [setPremium](true)를 호출합니다.
-///   4. 앱 시작 시 in_app_purchase의 `queryPastPurchases`(또는 restore)로
-///      기존 구독 여부를 서버가 아닌 로컬이 아닌 스토어에서 재확인하도록
-///      [restorePurchases]를 교체합니다.
-/// 그 외의 앱 코드(PremiumScreen, MonthlyShadowReflectionScreen 등)는 이 서비스의
-/// 퍼블릭 API(isPremium/purchasePremium/cancelPremium)만 사용하므로,
-/// 내부 구현만 교체하면 나머지 화면은 수정할 필요가 없습니다.
-
-/// 정원 플러스 구독 플랜 종류.
+/// Google Play 인앱결제(`in_app_purchase`) 연동.
+/// 상품 ID는 Play Console 구독과 반드시 일치해야 합니다.
 enum SubscriptionPlan { monthly, yearly }
 
 class SubscriptionService {
@@ -27,58 +18,196 @@ class SubscriptionService {
   static final SubscriptionService _instance = SubscriptionService._();
   factory SubscriptionService() => _instance;
 
+  /// Play 구독 상품·내부테스트 AAB가 준비되면 true.
+  /// 콘솔 상품 생성 전이면 false로 두세요.
+  static const bool storeBillingEnabled = true;
+
+  /// Play Console 구독 상품 ID (합의안).
+  static const String monthlyProductId = 'garden_plus_monthly';
+  static const String yearlyProductId = 'garden_plus_yearly';
+
   static const String _premiumKey = 'is_premium_subscriber';
   static const String _premiumSinceKey = 'premium_since';
   static const String _planKey = 'premium_plan_type';
 
-  /// 정원 플러스 월 구독 가격(표시용).
-  ///
-  /// 📌 2024년 경쟁사 벤치마크(Finch $9.99/월, Calm 한국 15,000~19,000원/월,
-  /// 국내 명상앱 평균 4,600~6,083원/월, Habitica $4.99/월)를 조사한 뒤 확정한
-  /// 정식 가격입니다. 기존 2,500원(초기 얼리버드 테스트가)이 시장 최저가보다도
-  /// 낮았던 점을 반영해 인상했습니다. 실제 가격은 스토어 등록 후 스토어 상품
-  /// 정보에서 가져오는 것으로 교체해야 합니다.
-  ///
-  /// ⚠️ 그랜드파더링 원칙: 실제 결제 연동 이전(현재 상태)에는 적용 대상 구독자가
-  /// 없으므로 즉시 이 가격으로 확정합니다. 향후 이 가격을 다시 조정할 경우,
-  /// 이미 가입한 기존 구독자에게는 가입 당시 가격을 유지시켜주세요.
-  static const String displayPrice = '월 4,900원';
-
-  /// 정원 플러스 연 구독 가격(표시용, 월 요금 대비 약 51% 할인가).
-  /// 4,900원 × 12개월 = 58,800원 → 약 51% 할인 → 29,000원.
+  static const String displayPrice = '월 3,900원';
   static const String displayYearlyPrice = '연 29,000원';
-
-  /// 연 구독을 월 단위로 환산했을 때의 가격(안내용).
   static const String displayYearlyMonthlyEquivalent = '월 2,417원 상당';
-
-  /// 연 구독 할인율 안내 라벨.
-  static const String yearlyDiscountLabel = '51% 할인';
-
-  /// 연 구독을 월간가로 12개월 결제했을 때의 정가(취소선 앵커링용).
-  /// 4,900원 × 12개월 = 58,800원.
-  static const String displayYearlyOriginalPrice = '58,800원';
-
-  /// 연 구독으로 절약되는 금액(원화, 앵커링 효과를 위해 % 대신 금액으로 강조).
-  /// 58,800원 - 29,000원 = 29,800원.
-  static const String yearlySavingsLabel = '29,800원 절약';
-
-  /// 구독 히어로 카드에 노출되는 뱃지 라벨.
+  static const String yearlyDiscountLabel = '38% 할인';
+  static const String displayYearlyOriginalPrice = '46,800원';
+  static const String yearlySavingsLabel = '17,800원 절약';
   static const String earlybirdLabel = '정원 플러스 멤버십';
-
-  /// 뱃지 하단 부연 설명(화면 하단 안내용).
   static const String earlybirdCaption = '구독은 언제든 해지할 수 있어요';
+  static const String billingComingSoonLabel = '곧 스토어에서 만나요';
+  static const String billingComingSoonCaption =
+      '결제와 서버 확인 준비 중이에요 · 혜택은 미리 둘러볼 수 있어요';
 
-  /// 선택한 플랜에 맞는 표시용 가격 문자열을 반환합니다.
+  final InAppPurchase _iap = InAppPurchase.instance;
+  StreamSubscription<List<PurchaseDetails>>? _purchaseSub;
+  final Map<String, ProductDetails> _products = {};
+  Completer<bool>? _purchaseCompleter;
+  bool _initialized = false;
+
+  /// restorePurchases 동안 활성 구독을 한 건이라도 봤는지.
+  /// 오류 없는 Android 조회가 비어 있을 때만 로컬 프리미엄을 끕니다.
+  bool _sawActiveEntitlement = false;
+  bool restoreUnavailable = false;
+  Future<bool>? _restoreInFlight;
+
+  bool hasProduct(SubscriptionPlan plan) =>
+      _products.containsKey(productIdFor(plan));
+
+  Future<void> refreshProducts() async {
+    try {
+      await init();
+      await _queryProducts();
+    } catch (e) {
+      if (kDebugMode) debugPrint('SubscriptionService products unavailable: $e');
+    }
+  }
+
+  String productIdFor(SubscriptionPlan plan) =>
+      plan == SubscriptionPlan.yearly ? yearlyProductId : monthlyProductId;
+
   String priceLabelFor(SubscriptionPlan plan) {
-    return plan == SubscriptionPlan.yearly ? displayYearlyPrice : displayPrice;
+    final id = productIdFor(plan);
+    final store = _products[id];
+    if (store != null && store.price.isNotEmpty) {
+      return '${plan == SubscriptionPlan.yearly ? '연' : '월'} ${store.price}';
+    }
+    return '가격 확인 중';
+  }
+
+  /// 앱 시작 시 한 번 호출: 스토어 연결 + 미완료 구매 처리 + 상품 조회.
+  Future<void> init() async {
+    if (_initialized) return;
+    _initialized = true;
+
+    if (!storeBillingEnabled) {
+      await _clearLocalPremiumFlag();
+      return;
+    }
+
+    try {
+      final available = await _iap.isAvailable();
+      if (!available) {
+        _initialized = false;
+        if (kDebugMode) debugPrint('SubscriptionService: 스토어 사용 불가');
+        return;
+      }
+
+      _purchaseSub ??= _iap.purchaseStream.listen(
+        _onPurchaseUpdates,
+        onError: (Object e) {
+          if (kDebugMode) debugPrint('SubscriptionService purchaseStream: $e');
+        },
+      );
+
+      await _queryProducts();
+      await restorePurchases();
+    } catch (e) {
+      _initialized = false;
+      if (kDebugMode) debugPrint('SubscriptionService init: $e');
+    }
+  }
+
+  Future<void> _queryProducts() async {
+    final ids = <String>{monthlyProductId, yearlyProductId};
+    final resp = await _iap.queryProductDetails(ids);
+    if (resp.error != null && kDebugMode) {
+      debugPrint('SubscriptionService query error: ${resp.error}');
+    }
+    _products.clear();
+    for (final p in resp.productDetails) {
+      _products[p.id] = p;
+    }
+    if (kDebugMode) {
+      debugPrint(
+        'SubscriptionService products: ${_products.keys.toList()} '
+        'notFound=${resp.notFoundIDs}',
+      );
+    }
+  }
+
+  Future<void> _purchaseUpdates = Future.value();
+  void _onPurchaseUpdates(List<PurchaseDetails> purchases) {
+    _purchaseUpdates = _purchaseUpdates.catchError((Object _) {}).then((_) => _processPurchaseUpdates(purchases));
+  }
+  Future<void> _processPurchaseUpdates(List<PurchaseDetails> purchases) async {
+    for (final purchase in purchases) {
+      if (purchase.productID != monthlyProductId &&
+          purchase.productID != yearlyProductId) continue;
+      try {
+      switch (purchase.status) {
+        case PurchaseStatus.pending:
+          break;
+        case PurchaseStatus.purchased:
+        case PurchaseStatus.restored:
+          final ok = CloudService.enabled
+              ? (await CloudService.verify(purchase.verificationData.serverVerificationData))['active'] == true
+              : _isActiveSubscription(purchase);
+          if (ok) {
+            _sawActiveEntitlement = true;
+            final plan = purchase.productID == yearlyProductId
+                ? SubscriptionPlan.yearly
+                : SubscriptionPlan.monthly;
+            await setPremium(true);
+            await setPlan(plan);
+          }
+          if (purchase.pendingCompletePurchase) {
+            await _iap.completePurchase(purchase);
+          }
+          _completePurchaseWait(ok);
+          break;
+        case PurchaseStatus.error:
+          if (kDebugMode) {
+            debugPrint('SubscriptionService error: ${purchase.error}');
+          }
+          if (purchase.pendingCompletePurchase) {
+            await _iap.completePurchase(purchase);
+          }
+          _completePurchaseWait(false);
+          break;
+        case PurchaseStatus.canceled:
+          if (purchase.pendingCompletePurchase) {
+            await _iap.completePurchase(purchase);
+          }
+          _completePurchaseWait(false);
+          break;
+      }
+      } catch (_) {
+        // Leave incomplete purchases pending for a later verified retry.
+        _completePurchaseWait(false);
+      }
+    }
+  }
+
+  bool _isActiveSubscription(PurchaseDetails purchase) {
+    if (purchase.productID != monthlyProductId &&
+        purchase.productID != yearlyProductId) {
+      return false;
+    }
+    // Android: 만료·해지된 구독은 복원/구매 스트림에 안 오거나 미지급 상태.
+    // purchased/restored면 활성으로 간주. (서버 검증은 B-1 범위 밖)
+    return purchase.status == PurchaseStatus.purchased ||
+        purchase.status == PurchaseStatus.restored;
+  }
+
+  void _completePurchaseWait(bool ok) {
+    final c = _purchaseCompleter;
+    if (c != null && !c.isCompleted) c.complete(ok);
   }
 
   Future<bool> isPremium() async {
+    if (CloudService.enabled) return CloudService.cachedPremium();
+    if (!storeBillingEnabled) {
+      await _clearLocalPremiumFlag();
+      return false;
+    }
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool(_premiumKey) ?? false;
   }
 
-  /// 현재 저장된(또는 마지막으로 선택된) 구독 플랜을 반환합니다.
   Future<SubscriptionPlan> currentPlan() async {
     final prefs = await SharedPreferences.getInstance();
     final v = prefs.getString(_planKey);
@@ -101,49 +230,188 @@ class SubscriptionService {
   }
 
   Future<void> setPremium(bool v) async {
+    if (v && !storeBillingEnabled) {
+      if (kDebugMode) {
+        debugPrint(
+          'SubscriptionService: storeBillingEnabled=false — setPremium(true) 무시',
+        );
+      }
+      return;
+    }
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_premiumKey, v);
     if (v) {
-      await prefs.setString(_premiumSinceKey, DateTime.now().toIso8601String());
+      if (!prefs.containsKey(_premiumSinceKey)) {
+        await prefs.setString(_premiumSinceKey, DateTime.now().toIso8601String());
+      }
     } else {
       await prefs.remove(_premiumSinceKey);
     }
   }
 
-  /// 구독 구매를 시도합니다. [plan]으로 월간/연간 중 선택한 플랜을 전달하면
-  /// 함께 저장되어, 이후 [PremiumScreen]에서 현재 이용 중인 플랜을 보여줄 때
-  /// 사용됩니다.
-  ///
-  /// TODO(developer): 실제 결제 연동 시 아래 임시 구현을 in_app_purchase
-  /// 패키지의 구매 플로우로 교체하세요. 지금은 실제 결제창 없이
-  /// [PremiumScreen]에서 사용자 확인을 받은 뒤 바로 로컬 상태만
-  /// 프리미엄으로 전환합니다(데모/체험용).
+  /// Play 결제 시트 호출. 성공 시 프리미엄 반영.
   Future<bool> purchasePremium({
     SubscriptionPlan plan = SubscriptionPlan.monthly,
   }) async {
-    try {
-      await setPremium(true);
-      await setPlan(plan);
-      // TODO(developer): 얼리버드 특가로 가입한 사용자는 이후 정가 인상 시에도
-      // 가입 당시 가격을 유지시켜주는 것이 좋습니다(그랜드파더링). 실제 결제
-      // 연동 시, 가입 시점의 plan/price를 함께 저장해두고 갱신 결제 시 그
-      // 가격을 그대로 사용하도록 처리하세요.
-      return true;
-    } catch (e) {
-      if (kDebugMode) debugPrint('SubscriptionService 구매 처리 실패: $e');
+    if (!CloudService.enabled) throw StateError('서버 결제 확인 준비 후 구매할 수 있어요.');
+    if (!storeBillingEnabled) {
+      if (kDebugMode) {
+        debugPrint(
+          'SubscriptionService: 스토어 결제 미연동 — purchasePremium 차단',
+        );
+      }
       return false;
+    }
+
+    if (_purchaseCompleter != null) return false;
+    await init();
+    if (_products.isEmpty) await _queryProducts();
+    final product = _products[productIdFor(plan)];
+    if (product == null) {
+      if (kDebugMode) {
+        debugPrint(
+          'SubscriptionService: 상품 없음 ${productIdFor(plan)} — '
+          'Play Console 구독·내부테스트 AAB를 확인하세요',
+        );
+      }
+      return false;
+    }
+
+    final accountId = CloudService.enabled ? await CloudService.accountId() : null;
+    if (_purchaseCompleter != null) return false;
+    _purchaseCompleter = Completer<bool>();
+    late final PurchaseParam purchaseParam;
+    if (defaultTargetPlatform == TargetPlatform.android &&
+        product is GooglePlayProductDetails) {
+      purchaseParam = GooglePlayPurchaseParam(
+        productDetails: product,
+        offerToken: product.offerToken,
+        applicationUserName: accountId,
+      );
+    } else {
+      purchaseParam = PurchaseParam(productDetails: product, applicationUserName: accountId);
+    }
+
+    try {
+      final started = await _iap.buyNonConsumable(purchaseParam: purchaseParam);
+      if (!started) return false;
+      return await _purchaseCompleter!.future.timeout(
+        const Duration(minutes: 5),
+        onTimeout: () => false,
+      );
+    } finally {
+      _purchaseCompleter = null;
     }
   }
 
-  /// 구독을 해지합니다. 실제 연동 시에는 스토어의 구독 관리 페이지로
-  /// 안내하는 방식이 일반적이며, 로컬 상태는 스토어 상태와 동기화되어야 합니다.
+  /// 실제 해지는 Play 구독 관리 페이지로 안내.
+  /// 로컬 플래그는 앱 재실행/`restorePurchases` 때 스토어 상태로 다시 맞춥니다.
   Future<void> cancelPremium() async {
-    await setPremium(false);
+    final plan = await currentPlan();
+    final sku = productIdFor(plan);
+    final uri = Uri.parse(
+      'https://play.google.com/store/account/subscriptions'
+      '?sku=$sku&package=com.mysticcat.journal',
+    );
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
   }
 
-  /// TODO(developer): 실제 결제 연동 시, 기기에 이미 구매 기록이 있는지
-  /// 스토어에 문의해서 복원하는 로직으로 교체하세요.
-  Future<bool> restorePurchases() async {
-    return isPremium();
+  /// 스토어에서 과거 구매를 다시 읽어 프리미엄 동기화.
+  /// 활성 구독이 없으면 로컬 프리미엄 플래그를 끕니다(만료·해지 반영).
+  Future<bool> restorePurchases() {
+    return _restoreInFlight ??= _restoreSafely().whenComplete(() {
+      _restoreInFlight = null;
+    });
+  }
+
+  Future<bool> _restoreSafely() async {
+    restoreUnavailable = false;
+    if (!storeBillingEnabled) {
+      await _clearLocalPremiumFlag();
+      return false;
+    }
+    _sawActiveEntitlement = false;
+    try {
+      if (!await _iap.isAvailable()) {
+        restoreUnavailable = true;
+        return isPremium();
+      }
+      if (defaultTargetPlatform != TargetPlatform.android) {
+        // This release targets Android. A restore stream has no reliable
+        // empty-result completion signal here; never revoke on a timer.
+        await _iap.restorePurchases();
+        restoreUnavailable = true;
+        return isPremium();
+      }
+      final addition = _iap
+          .getPlatformAddition<InAppPurchaseAndroidPlatformAddition>();
+      final response = await addition.queryPastPurchases();
+      if (response.error != null) {
+        restoreUnavailable = true;
+        return isPremium();
+      }
+      if (CloudService.enabled) {
+        for (final purchase in response.pastPurchases.where(_isActiveSubscription)) {
+          try {
+            await CloudService.verify(purchase.verificationData.serverVerificationData);
+          } on CloudException catch (error) {
+            if (error.code == 'purchase-owner-mismatch' || error.code == 'purchase-migration-required') continue;
+            rethrow;
+          }
+          if (purchase.pendingCompletePurchase) await _iap.completePurchase(purchase);
+        }
+        final result = await CloudService.refreshEntitlement();
+        if (result['active'] == true) {
+          await setPlan(result['productId'] == yearlyProductId ? SubscriptionPlan.yearly : SubscriptionPlan.monthly);
+        }
+        return result['active'] == true;
+      }
+      final active = response.pastPurchases
+          .where(_isActiveSubscription).toList();
+      if (active.isEmpty) {
+        // A purchase update received during the query takes precedence.
+        if (!_sawActiveEntitlement && _purchaseCompleter == null) {
+          await _clearLocalPremiumFlag();
+        }
+        return isPremium();
+      }
+      final purchase = active.firstWhere(
+        (p) => p.productID == yearlyProductId,
+        orElse: () => active.first,
+      );
+      await setPremium(true);
+      await setPlan(purchase.productID == yearlyProductId
+          ? SubscriptionPlan.yearly : SubscriptionPlan.monthly);
+      for (final item in active) {
+        if (item.pendingCompletePurchase) {
+          await _iap.completePurchase(item);
+        }
+      }
+      return true;
+    } catch (e) {
+      restoreUnavailable = true;
+      if (kDebugMode) debugPrint('SubscriptionService restore: $e');
+      // Transport/billing errors do not prove that an entitlement expired.
+      return isPremium();
+    }
+  }
+
+  Future<void> dispose() async {
+    await _purchaseSub?.cancel();
+    _purchaseSub = null;
+    _initialized = false;
+  }
+
+  Future<void> _clearLocalPremiumFlag() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool(_premiumKey) == true) {
+      await prefs.setBool(_premiumKey, false);
+      await prefs.remove(_premiumSinceKey);
+      if (kDebugMode) {
+        debugPrint('SubscriptionService: 로컬 프리미엄 플래그 제거');
+      }
+    }
   }
 }

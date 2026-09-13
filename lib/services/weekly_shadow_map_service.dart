@@ -78,7 +78,9 @@ class WeeklyShadowMapService {
     // 지난 달 같은 구간(1일부터, 오늘까지 지난 일수만큼)만 비교해 공정하게 만듭니다.
     final daysSoFar = todayStart.difference(thisMonthStart).inDays;
     final lastMonthStart = DateTime(ref.year, ref.month - 1, 1);
-    final lastMonthEnd = lastMonthStart.add(Duration(days: daysSoFar));
+    final candidateEnd = lastMonthStart.add(Duration(days: daysSoFar));
+    final previousEnd = DateTime(ref.year, ref.month, 0);
+    final lastMonthEnd = candidateEnd.isAfter(previousEnd) ? previousEnd : candidateEnd;
     return comparePeriods(
       history,
       aStart: thisMonthStart,
@@ -97,7 +99,9 @@ class WeeklyShadowMapService {
     final thisQuarterStart = DateTime(ref.year, quarterStartMonth, 1);
     final daysSoFar = todayStart.difference(thisQuarterStart).inDays;
     final lastQuarterStart = DateTime(ref.year, quarterStartMonth - 3, 1);
-    final lastQuarterEnd = lastQuarterStart.add(Duration(days: daysSoFar));
+    final candidateEnd = lastQuarterStart.add(Duration(days: daysSoFar));
+    final previousEnd = thisQuarterStart.subtract(const Duration(days: 1));
+    final lastQuarterEnd = candidateEnd.isAfter(previousEnd) ? previousEnd : candidateEnd;
     return comparePeriods(
       history,
       aStart: thisQuarterStart,
@@ -225,7 +229,7 @@ class WeeklyShadowMapService {
     final weekdayLabel = weekdayLabelFor(bestKey!.$1);
     final slotLabel = bestKey!.$2;
     final name = catNameFor(bestCatId!);
-    return '$weekdayLabel요일 $slotLabel에 $name 감정이\n자주 나타나요.';
+    return '최근 $days일 동안 $weekdayLabel요일 $slotLabel에\n$name 감정을 $bestCount번 기록했어요. 감정을 느낀 시간이 아닌 기록한 시간 기준이에요.';
   }
 
   // ── 프리미엄 티어: 다시 떠오른 감정(묻어두기 아카이빙 연동) ──

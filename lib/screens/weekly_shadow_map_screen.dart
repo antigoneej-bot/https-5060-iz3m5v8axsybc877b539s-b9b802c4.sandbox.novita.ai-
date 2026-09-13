@@ -11,7 +11,7 @@ import '../widgets/garden_path_card.dart';
 import '../widgets/stars_background.dart';
 import 'premium_screen.dart';
 
-/// 주간 그림자 지도 — 방울 터뜨리기 + 감정체크로 쌓인 감정 데이터를 주
+/// 감정 통계 · 확장 보기 — 방울 터뜨리기 + 감정체크로 쌓인 감정 데이터를 주
 /// 단위로 시각화하는 화면.
 ///
 /// 무료 티어: 이번 주 Top 3 감정 + 간단한 비율 시각화.
@@ -73,7 +73,7 @@ class _WeeklyShadowMapScreenState extends State<WeeklyShadowMapScreen> {
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          '주간 그림자 지도',
+                          '감정 통계 · 확장 보기',
                           style: titleFont(
                             fontSize: 19,
                             color: AppColors.titlePastelGreen,
@@ -94,6 +94,7 @@ class _WeeklyShadowMapScreenState extends State<WeeklyShadowMapScreen> {
                                 const SizedBox(height: 18),
                                 _TopEmotionsCard(
                                   topEmotions: app.weeklyTopEmotions,
+                                  total: app.weeklyEntryCount,
                                   last7Days: app.last7DaysCatIds(),
                                 ),
                                 const SizedBox(height: 22),
@@ -162,12 +163,12 @@ class _MapIntroCaption extends StatelessWidget {
 /// 무료 티어 — 이번 주 요일별 감정 색상 타일 + Top 3 비율 시각화.
 class _TopEmotionsCard extends StatelessWidget {
   final List<(String, int)> topEmotions;
+  final int total;
   final List<MapEntry<DateTime, String?>> last7Days;
-  const _TopEmotionsCard({required this.topEmotions, required this.last7Days});
+  const _TopEmotionsCard({required this.topEmotions, required this.total, required this.last7Days});
 
   @override
   Widget build(BuildContext context) {
-    final total = topEmotions.fold<int>(0, (a, e) => a + e.$2);
     return GlassBlob(
       accent: AppColors.blobMintAccent,
       background: AppColors.blobMint,
@@ -177,7 +178,7 @@ class _TopEmotionsCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '이번 주, 요일별 감정 흐름',
+            '최근 7일, 날짜별 기록',
             style: pathLabelFont(
               fontSize: 15.5,
               fontWeight: FontWeight.w700,
@@ -186,7 +187,7 @@ class _TopEmotionsCard extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            '하루 한 칸, 그날의 색으로 보여드려요',
+            '하루 마지막 기록의 색이에요. 순위는 모든 편지를 세어요',
             style: bodyFont(fontSize: 11.5, color: AppColors.inkSoft),
           ),
           const SizedBox(height: 14),

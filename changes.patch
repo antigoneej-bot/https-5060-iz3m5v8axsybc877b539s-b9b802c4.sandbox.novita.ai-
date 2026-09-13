@@ -1,0 +1,1961 @@
+--- a/lib/data/cat_browse_groups.dart
++++ b/lib/data/cat_browse_groups.dart
+@@ -0,0 +1,10 @@
++/// 찾기 편하도록 묶은 탐색 분류이며 심리 진단이 아닙니다.
++const catBrowseGroups = <String, List<String>>{
++  '기쁘고 기대돼요': ['dreamy', 'proud', 'mischievous', 'joyful', 'excited', 'curious', 'playful', 'grateful', 'courageous', 'witty', 'creative', 'leaderly', 'convicted'],
++  '편안해요': ['affectionate', 'focused', 'comforted', 'serene', 'studious', 'protective', 'content', 'openHearted'],
++  '슬프고 외로워요': ['sad', 'lonely', 'nostalgic', 'vulnerable', 'needy', 'grieving', 'excluded'],
++  '불안하고 두려워요': ['cautious', 'anxious', 'impatient', 'hesitant', 'surprised', 'dread'],
++  '화나고 관계가 복잡해요': ['jealous', 'angry', 'stubborn', 'sulky', 'ashamed', 'wronged', 'cynical', 'envious', 'hurtFeelings', 'inferior', 'guilty'],
++  '지치고 막막해요': ['weary', 'confused', 'indifferent', 'selfCritical', 'sleepy', 'hollow'],
++  '잘 모르겠어요': ['enchanted'],
++};
+--- a/lib/models/cat_achievement.dart
++++ b/lib/models/cat_achievement.dart
+@@ -103,8 +103,8 @@
+   CatAchievement(
+     id: 'full_care_7',
+     emoji: '💯',
+-    title: '완벽한 하루들',
+-    description: '하루 8가지 돌봄을 모두 완수한 날이 7번 쌓였어요',
++    title: '작은 돌봄의 나날',
++    description: '하루 한 가지 이상 나를 돌본 날이 7번 쌓였어요',
+     isUnlocked: (s) => s.totalFullCareDays >= 7,
+     progressLabel: (s) => _clampedProgress(s.totalFullCareDays, 7),
+   ),
+--- a/lib/models/cat_care_state.dart
++++ b/lib/models/cat_care_state.dart
+@@ -15,10 +15,10 @@
+ const int kDaysPerGrowthStage = 30;
+ 
+ /// 다마고치식 '마음 돌보기'의 현재 상태
+-/// - temperature: 마음 온도 (0~100). 하루 임무(8가지 돌봄)를 모두 완수하면 +1도,
++/// - temperature: 마음 온도 (0~100). 하루 한 가지 돌봄을 실천하면 +1도,
+ ///   출석(앱을 연 날)마다 +1도, 약속을 지킬 때마다 +1도가 오르고, 100도에 도달하면
+ ///   (구독자에 한해) 포인트로 적립되며 온도는 다시 0도로 시작합니다.
+-///   하루라도 돌보지 않으면 그만큼 온도가 내려갑니다.
++///   쉬었던 날에는 온도가 내려가지 않습니다. 심리 상태 측정값이 아닙니다.
+ /// - growthDays: 누적 출석일수. 이 값에 따라 0→1→2→3단계로 자라납니다.
+ /// - points: 마음 온도가 100도에 도달할 때마다(구독자 한정) 적립되는 포인트.
+ class CatCareState {
+@@ -61,8 +61,8 @@
+       journalingDoneToday &&
+       gratitudeDoneToday;
+ 
+-  /// 오늘의 돌봄 미션 8가지를 모두 마쳤는지
+-  bool get allDoneToday => bodyCareDoneToday && mindCareDoneToday;
++  /// 오늘 한 가지 이상의 돌봄을 실천했는지
++  bool get allDoneToday => completedCountToday >= 1;
+ 
+   /// 오늘 완료한 미션 수 (0~8)
+   int get completedCountToday => [
+--- a/lib/providers/app_state_provider.dart
++++ b/lib/providers/app_state_provider.dart
+@@ -645,16 +645,16 @@
+     return topId;
+   }
+ 
+-  /// 이번 달(최근 28일)을 전반부(1~2주)/후반부(3~4주)로 나눠 각각 최빈 고양이 id를
++  /// 이번 달을 전반부(1~15일)/후반부(16일~오늘)로 나눠 각각 최빈 고양이 id를
+   /// 반환합니다. 월간 회고 화면3의 서술형 요약(변화 있음/없음 비교)에 사용합니다.
+   (String?, String?) monthlyHalvesDominantCatIds({DateTime? now}) {
+     final ref = now ?? DateTime.now();
+     final todayStart = DateTime(ref.year, ref.month, ref.day);
+     final periodEnd = todayStart;
+-    final periodStart = todayStart.subtract(const Duration(days: 27));
+-    final firstHalfEnd = periodStart.add(const Duration(days: 13));
+-    final secondHalfStart = periodStart.add(const Duration(days: 14));
+-    final firstHalf = _dominantCatIdInRange(periodStart, firstHalfEnd);
++    final periodStart = DateTime(ref.year, ref.month, 1);
++    final firstHalfEnd = DateTime(ref.year, ref.month, 15);
++    final secondHalfStart = DateTime(ref.year, ref.month, 16);
++    final firstHalf = _dominantCatIdInRange(periodStart, firstHalfEnd.isAfter(periodEnd) ? periodEnd : firstHalfEnd);
+     final secondHalf = _dominantCatIdInRange(secondHalfStart, periodEnd);
+     return (firstHalf, secondHalf);
+   }
+--- a/lib/providers/cat_care_provider.dart
++++ b/lib/providers/cat_care_provider.dart
+@@ -38,7 +38,7 @@
+   /// 비웁니다. 평소에는 null.
+   String? bodyCareCelebrationMessage;
+ 
+-  /// 마음 돌보기까지 포함해 오늘의 돌봄 8가지를 방금 막 모두 마쳤을 때
++  /// 마음 돌보기까지 포함해 오늘 첫 돌봄을 실천했을 때
+   /// 보여줄 축하 말풍선 문구(마음 온도 +1도 안내). 화면에서 보여준 뒤
+   /// [clearAllCareCelebration]으로 비웁니다. 평소에는 null.
+   String? allCareCelebrationMessage;
+@@ -184,7 +184,7 @@
+     }
+ 
+     if (!wasAllDone && state.allDoneToday) {
+-      allCareCelebrationMessage = '오늘 돌봄을 모두 마쳤어요! 마음 온도가 1도 올랐어요 🌡️✨';
++      allCareCelebrationMessage = '오늘의 작은 돌봄을 마쳤어요! 마음 온도가 1도 올랐어요 🌡️✨';
+     }
+ 
+     await _refreshAchievements();
+--- a/lib/screens/about_app_screen.dart
++++ b/lib/screens/about_app_screen.dart
+@@ -102,20 +102,13 @@
+                             accent: AppColors.blobRoseAccent,
+                             background: AppColors.blobRose,
+                             body:
+-                                '이 앱은 두 가지 방식으로 마음을 들여다봐요.\n\n'
+-                                '하나는 "의식"이에요. 오늘의 감정과 닮은 고양이를 스스로 '
+-                                '선택하고, 그 고양이에게 편지를 쓰는 것이죠. 이건 내가 지금 '
+-                                '느끼는 걸 스스로 알아차리고 표현하는 과정이에요.\n\n'
+-                                '다른 하나는 "무의식"이에요. 데일리 내면소통에서는 고양이를 '
+-                                '직접 고르지 않고 무작위로 뽑아요. 신기하게도 가끔은 내가 '
+-                                '고른 고양이와 무작위로 뽑힌 고양이가 같을 때가 있는데, 이걸 '
+-                                '심리학에서는 "동시성(Synchronicity)"이라 불러요. 또 특정 '
+-                                '고양이가 한 달 동안 자꾸 반복해서 뽑힌다면, 그건 지금 내 마음이 '
+-                                '가장 자주 마주하고 있는 감정, 즉 "반복되는 그림자"를 보여주는 '
+-                                '신호일 수 있어요.\n\n'
+-                                '매일 기록을 남기다 보면, 의식적으로 느끼는 감정과 무의식이 '
+-                                '보내는 신호를 함께 살펴볼 수 있고, 그 안에서 나 자신을 조금씩 '
+-                                '더 깊이 이해하게 돼요.',
++                                '오늘의 감정과 닮은 고양이를 직접 고르고 편지를 쓰며 '
++                                '내 경험을 돌아볼 수 있어요.\n\n'
++                                '오늘의 고양이 카드는 무작위로 뽑는 재미용 카드예요. '
++                                '심리 검사나 무의식 분석, 미래 예측이 아니에요. '
++                                '같은 카드가 반복되거나 내가 고른 고양이와 같아도 우연일 수 있어요.\n\n'
++                                '카드 이야기에서 마음에 와닿는 부분만 골라 보세요. '
++                                '맞지 않으면 그냥 넘겨도 괜찮아요. 내 마음은 내가 정해요.',
+                           ),
+                           const SizedBox(height: 22),
+                           Center(
+@@ -251,7 +244,7 @@
+   static const _features = [
+     ('😽', '오늘의 감정 고양이 만나기', '지금 내 기분과 가장 닮은 고양이를 42마리 중에서 직접 골라보세요.'),
+     ('💌', '고양이에게 편지쓰기', '고른 고양이에게 하고 싶은 말을 편지로 남기며, 감정을 있는 그대로 들여다봐요.'),
+-    ('🌘', '데일리 내면소통 (카드뽑기)', '오늘의 고양이 카드를 무작위로 한 장 뽑아보고, 위로와 실천 지침을 받아보세요.'),
++    ('🌘', '오늘의 고양이 카드 (카드뽑기)', '오늘의 고양이 카드를 무작위로 한 장 뽑아보고, 위로와 실천 지침을 받아보세요.'),
+     ('🐾', '마음 돌보기', '밥 주기 · 물 주기 · 목욕 · 청소로 나만의 아기고양이를 함께 키워나가요.'),
+     ('🧘', '명상 · 움직임 가이드', '호흡법, 스트레칭, 걷기 명상 등 오늘의 감정에 어울리는 이완 가이드를 만나보세요.'),
+     ('🌡️', '마음 온도 기록 · 리포트', '그동안 쌓인 감정과 기록을 그래프와 월간 리포트로 돌아볼 수 있어요.'),
+--- a/lib/screens/app_tutorial_screen.dart
++++ b/lib/screens/app_tutorial_screen.dart
+@@ -56,7 +56,7 @@
+             _FeatureBullet(
+               emoji: '🔗',
+               title: '8개의 정원 산책로 카드',
+-              desc: '명상·움직임, 마음온도기록, 마음 돌보기, 데일리 내면소통, '
++              desc: '명상·움직임, 마음온도기록, 마음 돌보기, 오늘의 고양이 카드, '
+                   '오늘의 약속, 그림자 방울 터뜨리기, 주간 그림자 지도, 하루 닫기까지 '
+                   '아래로 하나씩 이어져 있어요. 카드를 누르면 각 기능으로 이동해요.',
+             ),
+@@ -270,10 +270,9 @@
+           items: const [
+             _FeatureBullet(
+               emoji: '🔮',
+-              title: '데일리 내면소통 (카드뽑기)',
+-              desc: '고양이를 직접 고르지 않고, 오늘의 카드 한 장을 무작위로 '
+-                  '뽑아 위로와 실천 지침을 받아요. 의식적으로 고른 고양이와 '
+-                  '뽑힌 고양이가 같으면 "동시성"이라 불러요.',
++              title: '오늘의 고양이 카드 (카드뽑기)',
++              desc: '무작위로 뽑는 재미용 카드예요. 심리 검사나 미래 예측이 아니며, '
++                  '마음에 와닿는 이야기만 가볍게 돌아보세요.',
+             ),
+             _FeatureBullet(
+               emoji: '🌸',
+@@ -676,9 +675,9 @@
+             '개념에서 출발했어요. 슬픔, 질투, 분노처럼 밀어내고 싶은 감정도 '
+             '없애야 할 것이 아니라 있는 그대로 바라볼 때 나를 더 온전하게 '
+             '만들어준다는 생각이에요.\n\n'
+-            '42마리 고양이는 그 감정의 스펙트럼을 나눈 것이고, "고양이 고르기"는 '
+-            '내가 의식적으로 알아차린 감정을, "데일리 내면소통(카드뽑기)"는 '
+-            '무의식이 보내는 신호를 들여다보는 두 가지 방법이에요.',
++            '고양이 고르기는 내가 느낀 감정을 표현하는 활동이고, '
++            '오늘의 고양이 카드는 우연히 만난 이야기로 생각을 넓히는 재미용 활동이에요. '
++            '카드는 숨겨진 마음을 알아내거나 진단하지 않아요.',
+             style: bodyFont(fontSize: 12.5, color: AppColors.moon, height: 1.7),
+           ),
+           const SizedBox(height: 12),
+--- a/lib/screens/cat_selection_screen.dart
++++ b/lib/screens/cat_selection_screen.dart
+@@ -1,3 +1,5 @@
++import 'package:shared_preferences/shared_preferences.dart';
++import '../data/cat_browse_groups.dart';
+ import 'dart:math';
+ import 'dart:ui';
+ import 'package:flutter/material.dart';
+@@ -29,6 +31,22 @@
+ 
+ class _CatSelectionScreenState extends State<CatSelectionScreen>
+     with TickerProviderStateMixin {
++  String? _group;
++  String _query = '';
++  bool _showAll = false;
++  bool _favoritesOnly = false;
++  final Set<String> _favorites = {};
++  final TextEditingController _search = TextEditingController();
++  Future<void> _loadFavorites() async {
++    final prefs = await SharedPreferences.getInstance();
++    if (!mounted) return;
++    setState(() => _favorites.addAll(prefs.getStringList('cat_browse_favorites_v1') ?? []));
++  }
++  Future<void> _toggleFavorite(String id) async {
++    setState(() { if (!_favorites.add(id)) _favorites.remove(id); });
++    final prefs = await SharedPreferences.getInstance();
++    await prefs.setStringList('cat_browse_favorites_v1', _favorites.toList());
++  }
+   bool _showReassurance = false;
+   bool _checkedReassurance = false;
+ 
+@@ -53,10 +71,11 @@
+   @override
+   void initState() {
+     super.initState();
++    _loadFavorites();
+     _sharedFloat = AnimationController(
+       vsync: this,
+       duration: const Duration(seconds: 5),
+-    )..repeat();
++    );
+     WidgetsBinding.instance.addPostFrameCallback(
+       (_) => _maybeShowReassurance(),
+     );
+@@ -64,6 +83,7 @@
+ 
+   @override
+   void dispose() {
++    _search.dispose();
+     _sharedFloat.dispose();
+     super.dispose();
+   }
+@@ -99,7 +119,17 @@
+ 
+   @override
+   Widget build(BuildContext context) {
+-    final allCats = shadowCats.where((c) => c.selectable).toList();
++    final app = context.watch<AppStateProvider>();
++    final catalog = shadowCats.where((c) => c.selectable).toList();
++    final recent = app.history.map((e) => e.catId).toSet().take(3).toList();
++    final filtered = catalog.where((cat) {
++      if (_favoritesOnly && !_favorites.contains(cat.id)) return false;
++      if (_query.isNotEmpty) return '${cat.keyword} ${cat.nameKr}'.contains(_query);
++      return _group == null || catBrowseGroups[_group]!.contains(cat.id);
++    }).toList();
++    final browsing = _group != null || _query.isNotEmpty || _showAll || _favoritesOnly;
++    final allCats = browsing ? (_showAll || _query.isNotEmpty || _favoritesOnly
++        ? filtered : filtered.take(6).toList()) : <ShadowCat>[];
+     final isPremiumUser = context.watch<AppStateProvider>().isPremiumUser;
+     return Column(
+       crossAxisAlignment: CrossAxisAlignment.stretch,
+@@ -115,7 +145,7 @@
+         ),
+         const SizedBox(height: 6),
+         Text(
+-          '${allCats.length}마리의 그림자 감정 고양이 카드 중\n마음에 닿는 카드를 골라보세요',
++          '먼저 가까운 마음을 골라주세요.\n오늘 고른 감정이 함께 키우는 고양이를 바꾸지는 않아요.',
+           textAlign: TextAlign.center,
+           style: bodyFont(
+             fontSize: 12.5,
+@@ -123,6 +153,49 @@
+             height: 1.5,
+           ),
+         ),
++        const SizedBox(height: 14),
++        TextField(
++          controller: _search,
++          decoration: const InputDecoration(
++            labelText: '감정 찾기', hintText: '예: 서운함, 감사',
++            prefixIcon: Icon(Icons.search), border: OutlineInputBorder(),
++          ),
++          onChanged: (value) => setState(() => _query = value.trim()),
++        ),
++        const SizedBox(height: 12),
++        Wrap(spacing: 8, runSpacing: 8, children: [
++          for (final name in catBrowseGroups.keys)
++            ChoiceChip(label: Text(name), selected: _group == name,
++              onSelected: (_) => setState(() {
++                _group = _group == name ? null : name;
++                _showAll = false; _favoritesOnly = false;
++                _search.clear(); _query = '';
++              })),
++          ChoiceChip(label: const Text('전체 고양이'), selected: _showAll && _group == null,
++            onSelected: (_) => setState(() {
++              _group = null; _showAll = true; _favoritesOnly = false;
++              _search.clear(); _query = '';
++            })),
++          FilterChip(label: const Text('즐겨찾기'), selected: _favoritesOnly,
++            onSelected: (value) => setState(() {
++              _favoritesOnly = value; _group = null; _showAll = false;
++              _search.clear(); _query = '';
++            })),
++        ]),
++        if (!browsing && recent.isNotEmpty) ...[
++          const SizedBox(height: 14),
++          const Text('최근에 고른 마음'),
++          Wrap(spacing: 8, children: [for (final id in recent)
++            ActionChip(label: Text(shadowCatById(id).keyword), onPressed: () {
++              final cat = shadowCatById(id);
++              if (cat.isPremium && !isPremiumUser) {
++                _onTapPremiumCat(cat);
++              } else { app.selectCat(cat); }
++            }),
++          ]),
++        ],
++        if (browsing && allCats.isEmpty)
++          const Padding(padding: EdgeInsets.all(16), child: Text('찾는 고양이가 없어요. 다른 감정이나 전체 고양이를 골라보세요.')),
+         if (_checkedReassurance)
+           AnimatedSize(
+             duration: const Duration(milliseconds: 300),
+@@ -139,7 +212,7 @@
+           physics: const NeverScrollableScrollPhysics(),
+           itemCount: allCats.length,
+           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+-            crossAxisCount: 3,
++            crossAxisCount: 2,
+             crossAxisSpacing: 12,
+             mainAxisSpacing: 12,
+             childAspectRatio: 0.78,
+@@ -147,7 +220,7 @@
+           itemBuilder: (context, index) {
+             final cat = allCats[index];
+             final locked = cat.isPremium && !isPremiumUser;
+-            return _CatCard(
++            return Stack(children: [ _CatCard(
+               cat: cat,
+               seed: index,
+               locked: locked,
+@@ -156,9 +229,17 @@
+               onTap: locked
+                   ? () => _onTapPremiumCat(cat)
+                   : () => context.read<AppStateProvider>().selectCat(cat),
+-            );
++            ), Positioned(top: 0, right: 0, child: IconButton(
++              tooltip: _favorites.contains(cat.id) ? '즐겨찾기 해제' : '즐겨찾기 추가',
++              onPressed: () => _toggleFavorite(cat.id),
++              icon: Icon(_favorites.contains(cat.id) ? Icons.star : Icons.star_border,
++                color: AppColors.ink),
++            )) ]);
+           },
+         ),
++        if (browsing && !_showAll && _query.isEmpty && !_favoritesOnly && filtered.length > 6)
++          TextButton(onPressed: () => setState(() => _showAll = true),
++            child: Text('이 마음의 고양이 더 보기 (${filtered.length - 6})')),
+       ],
+     );
+   }
+@@ -653,7 +734,7 @@
+                     Text(
+                       widget.locked
+                           ? '？？？'
+-                          : '${widget.cat.emoji} ${widget.cat.nameKr}',
++                          : '${widget.cat.emoji} ${widget.cat.keyword}',
+                       textAlign: TextAlign.center,
+                       maxLines: 1,
+                       overflow: TextOverflow.ellipsis,
+--- a/lib/screens/daily_card_screen.dart
++++ b/lib/screens/daily_card_screen.dart
+@@ -13,7 +13,7 @@
+ import '../widgets/garden_path_card.dart';
+ import 'premium_screen.dart';
+ 
+-/// 데일리 내면소통 - 타로카드처럼 펼쳐진 카드 스프레드에서 한 장을 골라
++/// 오늘의 고양이 카드 - 타로카드처럼 펼쳐진 카드 스프레드에서 한 장을 골라
+ /// 오늘의 내면 고양이와 위로/지침을 받는 화면
+ class DailyCardScreen extends StatefulWidget {
+   const DailyCardScreen({super.key});
+@@ -49,7 +49,7 @@
+       crossAxisAlignment: CrossAxisAlignment.stretch,
+       children: [
+         Text(
+-          '데일리 내면소통',
++          '오늘의 고양이 카드',
+           textAlign: TextAlign.center,
+           style: titleFont(fontSize: 24, color: AppColors.titlePastelGreen),
+         ),
+@@ -58,10 +58,16 @@
+           switch (provider.stage) {
+             DailyCardStage.shuffling => '카드를 섞고 있어요...',
+             DailyCardStage.spread => '마음 가는 카드 한 장을 골라보세요',
+-            DailyCardStage.revealed => '오늘 당신에게 온 내면의 고양이예요',
++            DailyCardStage.revealed => '오늘 우연히 만난 고양이예요',
+           },
+           textAlign: TextAlign.center,
+           style: bodyFont(fontSize: 12.5, color: AppColors.inkSoft),
++        ),
++        const SizedBox(height: 8),
++        Text(
++          '무작위로 뽑는 재미용 카드예요. 심리 검사나 미래 예측이 아니에요.\n마음에 와닿는 부분만 보고, 맞지 않으면 넘겨도 좋아요.',
++          textAlign: TextAlign.center,
++          style: bodyFont(fontSize: 11.5, color: AppColors.inkSoft),
+         ),
+         if (provider.stage == DailyCardStage.spread) ...[
+           const SizedBox(height: 6),
+@@ -607,7 +613,7 @@
+             const SizedBox(width: 8),
+             Expanded(
+               child: Text(
+-                '오늘 편지도 쓰면, 의식과 무의식을 비교해 볼 수 있어요',
++                '오늘 편지도 쓰면, 내 마음과 오늘의 카드을 비교해 볼 수 있어요',
+                 style: bodyFont(
+                   fontSize: 12.5,
+                   color: AppColors.moon,
+@@ -636,7 +642,7 @@
+               const Text('✨', style: TextStyle(fontSize: 16)),
+               const SizedBox(width: 8),
+               Text(
+-                '의식과 무의식',
++                '내 마음과 오늘의 카드',
+                 style: pathLabelFont(
+                   fontSize: 14.5,
+                   fontWeight: FontWeight.w700,
+@@ -660,7 +666,7 @@
+                   const SizedBox(width: 6),
+                   Expanded(
+                     child: Text(
+-                      '심리학 박사의 그림자 해석 더 보기',
++                      '감정을 돌아보는 질문 더 보기',
+                       style: pathLabelFont(
+                         fontSize: 12,
+                         fontWeight: FontWeight.w700,
+@@ -780,7 +786,7 @@
+                       const Text('✨', style: TextStyle(fontSize: 16)),
+                       const SizedBox(width: 8),
+                       Text(
+-                        '의식과 무의식',
++                        '내 마음과 오늘의 카드',
+                         style: pathLabelFont(
+                           fontSize: 14.5,
+                           fontWeight: FontWeight.w700,
+@@ -814,7 +820,7 @@
+                   ),
+                   const SizedBox(height: 6),
+                   Text(
+-                    '프리미엄 · 의식과 무의식 비교',
++                    '프리미엄 · 내 마음과 카드 비교',
+                     style: bodyFont(
+                       fontSize: 12,
+                       color: AppColors.blobPeriwinkleAccent,
+--- a/lib/screens/emotion_statistics_screen.dart
++++ b/lib/screens/emotion_statistics_screen.dart
+@@ -0,0 +1,174 @@
++import 'monthly_shadow_reflection_screen.dart';
++import 'package:flutter/material.dart';
++import 'package:provider/provider.dart';
++import '../providers/app_state_provider.dart';
++import '../data/shadow_cats_data.dart';
++import '../models/letter_entry.dart';
++import '../services/emotion_summary_service.dart';
++import '../services/subscription_service.dart';
++import '../theme.dart';
++import '../utils/cat_palette.dart';
++import 'weekly_shadow_map_screen.dart';
++import 'daily_card_screen.dart';
++import 'premium_screen.dart';
++
++/// One entry for weekly/monthly statistics. Written feelings and random cards
++/// are deliberately separate. Raw records remain available without subscription.
++class EmotionStatisticsScreen extends StatefulWidget {
++  final bool initialMonthly;
++  const EmotionStatisticsScreen({super.key, this.initialMonthly = false});
++  @override
++  State<EmotionStatisticsScreen> createState() => _EmotionStatisticsScreenState();
++}
++class _EmotionStatisticsScreenState extends State<EmotionStatisticsScreen> {
++  late bool _monthly;
++  late DateTime _month;
++  bool _premium = false;
++  @override
++  void initState() {
++    super.initState();
++    _monthly = widget.initialMonthly;
++    final now = DateTime.now();
++    _month = DateTime(now.year, now.month);
++    _loadPremium();
++  }
++  Future<void> _loadPremium() async {
++    final premium = await SubscriptionService().isPremium();
++    if (mounted) setState(() => _premium = premium);
++  }
++  String _label(DateTime date) => '${date.month}/${date.day}';
++  Widget _section(String title, List<Widget> children) => Card(
++    margin: const EdgeInsets.only(bottom: 16),
++    color: Colors.white,
++    child: Padding(padding: const EdgeInsets.all(16), child: Column(
++      crossAxisAlignment: CrossAxisAlignment.stretch,
++      children: [Text(title, style: bodyFont(fontSize: 17, color: AppColors.ink, fontWeight: FontWeight.w700)),
++        const SizedBox(height: 12), ...children],
++    )),
++  );
++  void _openDay(DateTime day, List<LetterEntry> entries) {
++    showModalBottomSheet<void>(context: context, isScrollControlled: true,
++      builder: (context) => SafeArea(child: SizedBox(
++        height: MediaQuery.sizeOf(context).height * .65,
++        child: ListView(padding: const EdgeInsets.all(20), children: [
++          Text('${_label(day)}의 기록 ${entries.length}개', style: bodyFont(fontSize: 19)),
++          const SizedBox(height: 12),
++          if (entries.isEmpty) const Text('이날은 남긴 기록이 없어요.'),
++          for (final entry in entries) ListTile(
++            title: Text('${shadowCatById(entry.catId).keyword} · ${entry.date.hour.toString().padLeft(2, '0')}:${entry.date.minute.toString().padLeft(2, '0')}'),
++            subtitle: Text(entry.letterText.isEmpty ? '감정을 남겼어요.' : entry.letterText),
++          ),
++        ]),
++      )),
++    );
++  }
++  @override
++  Widget build(BuildContext context) {
++    final history = context.watch<AppStateProvider>().history;
++    final today = EmotionSummaryService.day(DateTime.now());
++    final currentMonth = DateTime(today.year, today.month);
++    final start = _monthly ? _month : today.subtract(const Duration(days: 6));
++    final lastOfMonth = DateTime(_month.year, _month.month + 1, 0);
++    final end = _monthly && lastOfMonth.isBefore(today) ? lastOfMonth : today;
++    final records = EmotionSummaryService.entries(history, start, end);
++    final ranked = EmotionSummaryService.ranked(records);
++    final top = ranked.take(3).toList();
++    final byDay = <DateTime, List<LetterEntry>>{};
++    for (final entry in records) {
++      byDay.putIfAbsent(EmotionSummaryService.day(entry.date), () => []).add(entry);
++    }
++    final days = end.difference(start).inDays + 1;
++    final offset = _monthly ? start.weekday - 1 : 0;
++    final calendarDays = _monthly ? lastOfMonth.day : 7;
++    return Scaffold(
++      backgroundColor: AppColors.bg0,
++      appBar: AppBar(title: const Text('감정 통계')),
++      body: SafeArea(child: ListView(padding: const EdgeInsets.all(16), children: [
++        Wrap(spacing: 8, children: [
++          ChoiceChip(label: const Text('최근 7일'), selected: !_monthly,
++            onSelected: (_) => setState(() => _monthly = false)),
++          ChoiceChip(label: const Text('월간'), selected: _monthly,
++            onSelected: (_) => setState(() => _monthly = true)),
++        ]),
++        if (_monthly) Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
++          IconButton(tooltip: '이전 달', onPressed: () => setState(() => _month = DateTime(_month.year, _month.month - 1)), icon: const Icon(Icons.chevron_left)),
++          Text('${_month.year}년 ${_month.month}월', style: bodyFont(fontSize: 18)),
++          IconButton(tooltip: '다음 달', onPressed: _month.isBefore(currentMonth)
++            ? () => setState(() => _month = DateTime(_month.year, _month.month + 1)) : null, icon: const Icon(Icons.chevron_right)),
++        ]),
++        Padding(padding: const EdgeInsets.symmetric(vertical: 12), child: Text(
++          '${start.year}년 ${_label(start)}–${_label(end)} · $days일 중 ${byDay.length}일 기록 · 총 ${records.length}번',
++          style: bodyFont(fontSize: 15, color: AppColors.ink))),
++        _section(_monthly ? '감정 달력' : '날짜별 기록', [
++          const Text('색은 그날의 마지막 기록이에요. 날짜를 누르면 모든 기록을 볼 수 있어요.'),
++          const SizedBox(height: 12),
++          if (_monthly) Row(children: [for (final day in ['월','화','수','목','금','토','일']) Expanded(child: Center(child: Text(day)))]),
++          GridView.builder(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
++            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 7, mainAxisSpacing: 6, crossAxisSpacing: 4, mainAxisExtent: 76),
++            itemCount: offset + calendarDays,
++            itemBuilder: (context, index) {
++              if (index < offset) return const SizedBox.shrink();
++              final date = DateTime(start.year, start.month, start.day + index - offset);
++              final entries = byDay[date] ?? <LetterEntry>[];
++              final future = date.isAfter(today);
++              final cat = entries.isEmpty ? null : shadowCatById(entries.last.catId);
++              return Semantics(label: '${_label(date)}, ${entries.length}개 기록', button: !future,
++                child: InkWell(onTap: future ? null : () => _openDay(date, entries),
++                  child: Container(padding: const EdgeInsets.all(3),
++                    decoration: BoxDecoration(color: cat == null ? AppColors.bg0 : CatPalette.backgroundFor(cat.id), borderRadius: BorderRadius.circular(10)),
++                    child: Column(children: [Text('${date.day}', style: TextStyle(color: future ? Colors.grey : AppColors.ink)),
++                      if (cat != null) Text(cat.emoji),
++                      if (entries.length > 1) Text('+${entries.length - 1}', style: const TextStyle(fontSize: 11)),
++                    ]),
++                  ),
++                ));
++            }),
++          const SizedBox(height: 8),
++          const Text('빈칸은 기록이 없는 날이에요. 감정의 좋고 나쁨을 뜻하지 않아요.'),
++        ]),
++        _section('자주 기록한 감정', [
++          if (records.isEmpty) const Text('아직 이 기간에 남긴 기록이 없어요. 편지를 쓰면 이곳에 쌓여요.'),
++          for (final item in top) Padding(padding: const EdgeInsets.only(bottom: 14), child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
++            Text('${shadowCatById(item.key).keyword} · 전체 ${records.length}번 중 ${item.value}번'),
++            const SizedBox(height: 6),
++            LinearProgressIndicator(value: item.value / records.length, color: CatPalette.accentFor(item.key), backgroundColor: AppColors.bg2, minHeight: 8),
++          ])),
++          if (ranked.length > 3) Text('그 밖의 감정 ${records.length - top.fold<int>(0, (sum, item) => sum + item.value)}번'),
++          if (records.isNotEmpty) const Text('모든 편지의 선택 횟수예요. 감정의 강도나 전체 생활의 비율은 아니에요.'),
++        ]),
++        if (_monthly) _section('지난달과 나란히 보기', [
++          if (!_premium) ...[
++            const Text('구독으로 같은 기간의 기록량과 감정을 비교할 수 있어요.'),
++            TextButton(onPressed: () async {
++              await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const PremiumScreen()));
++              await _loadPremium();
++            }, child: const Text('정원 플러스 보기')),
++          ] else ..._comparison(history, start, end, records),
++        ]),
++        if (records.isNotEmpty) _section('이번 기록에서 남기고 싶은 것', [
++          const Text('어떤 장면을 기억하고 싶나요? 날짜를 눌러 그날의 편지를 다시 읽어보세요.'),
++        ]),
++        if (_monthly && _month == currentMonth && records.isNotEmpty)
++          TextButton(onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const MonthlyShadowReflectionScreen())), child: const Text('이번 달 회고와 마무리 편지')),
++        TextButton(onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const WeeklyShadowMapScreen())), child: const Text('최근 기록의 확장 통계 보기')),
++        TextButton(onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => Scaffold(appBar: AppBar(title: const Text('재미로 뽑는 카드')), body: const SingleChildScrollView(padding: EdgeInsets.all(20), child: DailyCardScreen())))), child: const Text('재미용 카드 따로 보기')),
++      ])),
++    );
++  }
++  List<Widget> _comparison(List<LetterEntry> history, DateTime start, DateTime end, List<LetterEntry> current) {
++    final previousStart = DateTime(start.year, start.month - 1);
++    final previousLast = DateTime(start.year, start.month, 0);
++    final candidate = DateTime(previousStart.year, previousStart.month, end.day);
++    final previousEnd = candidate.isAfter(previousLast) ? previousLast : candidate;
++    final previous = EmotionSummaryService.entries(history, previousStart, previousEnd);
++    final ranked = EmotionSummaryService.ranked(previous);
++    return [
++      Text('이번 기간 ${_label(start)}–${_label(end)}: ${EmotionSummaryService.recordedDays(current)}일, ${current.length}번 기록'),
++      Text('지난 기간 ${_label(previousStart)}–${_label(previousEnd)}: ${EmotionSummaryService.recordedDays(previous)}일, ${previous.length}번 기록'),
++      const SizedBox(height: 8),
++      if (EmotionSummaryService.recordedDays(current) < 3 || EmotionSummaryService.recordedDays(previous) < 3)
++        const Text('비교할 기록이 아직 적어요. 지금은 기록량만 살펴봐요.')
++      else Text('지난 기간에는 ${shadowCatById(ranked.first.key).keyword}을(를) ${ranked.first.value}번 기록했어요. 기록량이 다르므로 감정이 더 심해졌거나 나아졌다는 뜻은 아니에요.'),
++    ];
++  }
++}
+--- a/lib/screens/history_screen.dart
++++ b/lib/screens/history_screen.dart
+@@ -1,3 +1,4 @@
++import 'emotion_statistics_screen.dart';
+ import 'package:flutter/material.dart';
+ import 'package:intl/intl.dart';
+ import 'package:provider/provider.dart';
+@@ -12,8 +13,6 @@
+ import '../widgets/lively_cat_image.dart';
+ import '../widgets/garden_path_card.dart';
+ import '../widgets/feature_scaffold.dart';
+-import 'weekly_reflection_screen.dart';
+-import 'monthly_shadow_reflection_screen.dart';
+ import 'mind_temperature_history_screen.dart';
+ 
+ class HistoryScreen extends StatefulWidget {
+@@ -221,7 +220,7 @@
+                   SizedBox(
+                     width: 42,
+                     child: Text(
+-                      '${e.value}마리',
++                      '${e.value}회',
+                       textAlign: TextAlign.right,
+                       style: numberFont(
+                         fontSize: 12.5,
+@@ -265,29 +264,16 @@
+         const SizedBox(height: 12),
+         GardenPathCard(
+           emoji: '🗓️',
+-          title: '이번 주 돌아보기',
+-          subtitle: '이번 주 함께한 고양이와 요일별 흐름을 살펴보세요',
++          title: '감정 통계',
++          subtitle: '최근 7일과 월간 기록을 한곳에서 살펴보세요',
+           accent: AppColors.blobMintAccent,
+           background: AppColors.blobMint,
+           floatSeed: 41,
+           onTap: () => Navigator.of(context).push(
+-            MaterialPageRoute(builder: (_) => const WeeklyReflectionScreen()),
+-          ),
+-        ),
+-        const SizedBox(height: 12),
+-        GardenPathCard(
+-          emoji: '📖',
+-          title: '이번 달 돌아보기',
+-          subtitle: '한 달간의 감정 흐름을 문장으로 되짚어보세요',
+-          accent: AppColors.blobLavenderAccent,
+-          background: AppColors.blobLavender,
+-          floatSeed: 42,
+-          onTap: () => Navigator.of(context).push(
+-            MaterialPageRoute(
+-              builder: (_) => const MonthlyShadowReflectionScreen(),
+-            ),
+-          ),
+-        ),
++            MaterialPageRoute(builder: (_) => const EmotionStatisticsScreen()),
++          ),
++        ),
++
+       ],
+     );
+   }
+@@ -744,7 +730,7 @@
+ 
+ /// 답장 편지 아래에 덧붙는 "심리 해석" 섹션 - 마음온도기록과 같은 원칙으로,
+ /// 오늘 고른 그림자 고양이의 감정을 바탕으로 상태 설명·해결책·위로와 응원·
+-/// 명상법을 심리학 박사의 시선으로 풀어서 보여줍니다. 기본은 접혀 있고,
++/// 명상법을 선택한 감정을 돌아보는 질문으로 풀어서 보여줍니다. 기본은 접혀 있고,
+ /// 탭하면 펼쳐집니다.
+ class _ReplyInsightSection extends StatefulWidget {
+   final String catId;
+@@ -780,7 +766,7 @@
+                 const SizedBox(width: 8),
+                 Expanded(
+                   child: Text(
+-                    '심리학 박사의 마음 해석 더 보기',
++                    '감정을 돌아보는 질문 더 보기',
+                     style: pathLabelFont(
+                       fontSize: 12.5,
+                       fontWeight: FontWeight.w700,
+--- a/lib/screens/home_tab_screen.dart
++++ b/lib/screens/home_tab_screen.dart
+@@ -1,3 +1,4 @@
++import 'emotion_statistics_screen.dart';
+ import 'dart:math' as math;
+ 
+ import 'package:flutter/material.dart';
+@@ -18,10 +19,7 @@
+ import 'daily_card_screen.dart';
+ import 'todays_promise_screen.dart';
+ import 'day_close_screen.dart';
+-import 'weekly_reflection_screen.dart';
+-import 'monthly_shadow_reflection_screen.dart';
+ import 'bubble_garden_screen.dart';
+-import 'weekly_shadow_map_screen.dart';
+ import 'sprout_reflection_screen.dart';
+ import 'cat_bond_screen.dart';
+ import 'heart_letters_screen.dart';
+@@ -53,6 +51,18 @@
+     return Column(
+       crossAxisAlignment: CrossAxisAlignment.stretch,
+       children: [
++        Text(
++          '오늘은 한 가지면 충분해요',
++          style: bodyFont(fontSize: 16, color: AppColors.ink),
++        ),
++        const SizedBox(height: 8),
++        OutlinedButton(
++          onPressed: unseenReply != null ? onGoToRecords : onGoToCatSelect,
++          child: Text(unseenReply != null
++              ? '도착한 고양이 편지 읽기'
++              : '오늘의 감정 고르고 한 줄 보내기'),
++        ),
++        const SizedBox(height: 16),
+         if (unseenReply != null) ...[
+           _CatReplyBanner(entry: unseenReply, onTap: onGoToRecords),
+           const SizedBox(height: 16),
+@@ -125,7 +135,7 @@
+         GardenPathCard(
+           emoji: '🌿',
+           title: '마음 돌보기',
+-          subtitle: '명상·움직임, 몸 돌봄, 데일리 내면소통을 모아뒀어요',
++          subtitle: '명상·움직임, 몸 돌봄, 오늘의 고양이 카드을 모아뒀어요',
+           accent: AppColors.blobMintAccent,
+           background: AppColors.blobMint,
+           alignX: 0.28,
+@@ -165,13 +175,13 @@
+                   ),
+                   CategoryItem(
+                     emoji: '🔮',
+-                    title: '데일리 내면소통',
++                    title: '오늘의 고양이 카드',
+                     subtitle: '오늘의 카드를 뽑아 위로와 지침을 받아보세요',
+                     accent: AppColors.blobPeriwinkleAccent,
+                     background: AppColors.blobPeriwinkle,
+                     onTap: (ctx) => pushFullScreen(
+                       ctx,
+-                      '데일리 내면소통',
++                      '오늘의 고양이 카드',
+                       const DailyCardScreen(),
+                     ),
+                   ),
+@@ -256,14 +266,14 @@
+                   ),
+                   CategoryItem(
+                     emoji: '🗺️',
+-                    title: '주간 그림자 지도',
++                    title: '감정 통계',
+                     subtitle: '이번 주 자주 마주한 감정 Top 3를 지도처럼 살펴보세요',
+                     accent: AppColors.blobPeachAccent,
+                     background: AppColors.blobPeach,
+                     onTap: (ctx) => pushFullScreen(
+                       ctx,
+-                      '주간 그림자 지도',
+-                      const WeeklyShadowMapScreen(),
++                      '감정 통계',
++                      const EmotionStatisticsScreen(),
+                     ),
+                   ),
+                   CategoryItem(
+@@ -938,7 +948,7 @@
+   }
+ }
+ 
+-/// 주간/월간 회고 자동 노출 배너 영역.
++/// 주간/월간 통계 자동 노출 배너 영역.
+ /// 진입 조건(가입 후 7일/30일 경과 등)을 만족하고, 아직 이번 주기 안에
+ /// 보지 않았을 때만 나타납니다. 사용자가 앱을 열었을 때 화면에 조용히
+ /// 보이는 카드일 뿐, 푸시 알림 등 어떤 강제 알림도 사용하지 않습니다.
+@@ -989,7 +999,7 @@
+               subtitle: '한 달간의 감정 흐름을 문장으로 되짚어볼 수 있어요',
+               onTap: () => Navigator.of(context).push(
+                 MaterialPageRoute(
+-                  builder: (_) => const MonthlyShadowReflectionScreen(),
++                  builder: (_) => const EmotionStatisticsScreen(initialMonthly: true),
+                 ),
+               ),
+             )
+@@ -999,7 +1009,7 @@
+               subtitle: '이번 주 함께한 고양이와 요일별 흐름을 살펴보세요',
+               onTap: () => Navigator.of(context).push(
+                 MaterialPageRoute(
+-                  builder: (_) => const WeeklyReflectionScreen(),
++                  builder: (_) => const EmotionStatisticsScreen(),
+                 ),
+               ),
+             ),
+--- a/lib/screens/monthly_shadow_reflection_screen.dart
++++ b/lib/screens/monthly_shadow_reflection_screen.dart
+@@ -136,7 +136,7 @@
+   }
+ }
+ 
+-/// 화면 3 — 4주간 데이터를 문장으로 자동 생성한 서술형 요약.
++/// 화면 3 — 이번 달 데이터를 문장으로 자동 생성한 서술형 요약.
+ /// 그래프/차트 없이, 문장 하나로 이번 달의 흐름을 관찰합니다.
+ class _MonthlySummaryCard extends StatelessWidget {
+   final String? firstHalfCatId;
+@@ -178,7 +178,7 @@
+           ),
+           const SizedBox(height: 10),
+           Text(
+-            '4주간의 기록을 살펴본 관찰 결과입니다',
++            '이번 달 1일부터 오늘까지 남긴 기록을 살펴봤어요',
+             textAlign: TextAlign.center,
+             style: bodyFont(fontSize: 11.5, color: accent),
+           ),
+@@ -265,14 +265,14 @@
+           const Text('🌘', style: TextStyle(fontSize: 28)),
+           const SizedBox(height: 12),
+           Text(
+-            '이번 달, 무의식이\n보여준 패턴',
++            '이번 달, 우연히\n만난 고양이들',
+             textAlign: TextAlign.center,
+             style: titleFont(fontSize: 18, color: AppColors.ink, height: 1.5),
+           ),
+           const SizedBox(height: 10),
+           Text(
+             sentence ??
+-                '아직 데일리 카드뽑기 기록이 충분하지 않아요.\n매일 카드를 뽑으면 반복되는 그림자를 관찰할 수 있어요.',
++                '아직 데일리 카드뽑기 기록이 충분하지 않아요.\n무작위 카드 기록이에요. 실제 감정의 빈도를 뜻하지 않아요.',
+             textAlign: TextAlign.center,
+             style: bodyFont(fontSize: 13, color: AppColors.moon, height: 1.5),
+           ),
+--- a/lib/screens/pet_care_screen.dart
++++ b/lib/screens/pet_care_screen.dart
+@@ -35,7 +35,7 @@
+ 
+ /// 마음 돌보기 (다마고치식) - 매일 몸(밥/물/목욕/청소)과 마음(호흡명상/걷기명상/
+ /// 마음기록/감사쓰기)을 함께 돌보며 나의 그림자 고양이를 키우고 마음 온도를
+-/// 유지하는 화면. 하루라도 돌보지 않으면 온도가 1도씩 내려갑니다.
++/// 유지하는 화면. 쉬었던 날에는 온도를 깎지 않습니다.
+ /// 처음엔 아기 고양이로 시작해서, 정성껏 돌본 날이 쌓일수록 청년을 거쳐
+ /// 내가 고른 그림자 고양이의 모습으로 다 자라납니다.
+ /// '힐링 정원' 컨셉에 맞춰 딱딱한 흰 사각 박스를 모두 걷어내고, 반투명
+@@ -425,7 +425,7 @@
+                 const SizedBox(width: 10),
+                 Expanded(
+                   child: Text(
+-                    '오늘 돌봄을 모두 마쳤어요! 마음 온도가 올라갔어요.',
++                    '오늘의 작은 돌봄을 마쳤어요! 마음 온도가 올라갔어요.',
+                     style: pathLabelFont(
+                       fontSize: 13.5,
+                       fontWeight: FontWeight.w700,
+@@ -451,7 +451,7 @@
+                 const SizedBox(width: 10),
+                 Expanded(
+                   child: Text(
+-                    '오늘의 돌봄 ${care.state.completedCountToday}/8 · 하루라도 돌보지 않으면 마음 온도가 내려가요.',
++                    '오늘 ${care.state.completedCountToday}가지 실천 · 한 가지면 충분해요. 나머지는 선택이에요.\n마음 온도는 돌봄 활동의 표시이며 심리 점수가 아니에요.',
+                     style: bodyFont(fontSize: 11.5, color: AppColors.inkSoft),
+                   ),
+                 ),
+--- a/lib/screens/premium_screen.dart
++++ b/lib/screens/premium_screen.dart
+@@ -41,6 +41,7 @@
+   }
+ 
+   Future<void> _load() async {
++    await _sub.refreshProducts();
+     final premium = await _sub.isPremium();
+     final plan = await _sub.currentPlan();
+     if (!mounted) return;
+@@ -52,6 +53,7 @@
+   }
+ 
+   Future<void> _purchase() async {
++    if (_purchasing) return;
+     if (!_billingReady) {
+       if (!mounted) return;
+       ScaffoldMessenger.of(context).showSnackBar(
+@@ -65,6 +67,8 @@
+     var ok = false;
+     try {
+       ok = await _sub.purchasePremium(plan: _selectedPlan);
++    } catch (_) {
++      ok = false;
+     } finally {
+       if (mounted) {
+         setState(() {
+@@ -75,6 +79,11 @@
+       }
+     }
+     if (!mounted) return;
++    if (!ok) {
++      ScaffoldMessenger.of(context).showSnackBar(
++        const SnackBar(content: Text('구매가 완료되지 않았어요. 잠시 후 다시 확인해 주세요.')),
++      );
++    }
+     if (ok) {
+       final app = context.read<AppStateProvider>();
+       final care = context.read<CatCareProvider>();
+@@ -108,11 +117,13 @@
+   }
+ 
+   Future<void> _restore() async {
++    if (_purchasing) return;
+     if (!_billingReady) return;
+     setState(() => _purchasing = true);
+-    var ok = false;
++    var ok = await _sub.isPremium();
+     try {
+       ok = await _sub.restorePurchases();
++      _activePlan = await _sub.currentPlan();
+     } finally {
+       if (mounted) {
+         setState(() {
+@@ -122,7 +133,7 @@
+       }
+     }
+     if (!mounted) return;
+-    if (ok) {
++    {
+       final app = context.read<AppStateProvider>();
+       final care = context.read<CatCareProvider>();
+       final promise = context.read<PromiseProvider>();
+@@ -136,7 +147,9 @@
+     }
+     ScaffoldMessenger.of(context).showSnackBar(
+       SnackBar(
+-        content: Text(ok ? '구매 내역을 복원했어요' : '복원할 구독이 없어요'),
++        content: Text(_sub.restoreUnavailable
++            ? '스토어에 연결하지 못했어요. 기존 이용 상태를 유지했으니 잠시 후 다시 시도해 주세요.'
++            : ok ? '구매 내역을 복원했어요' : '복원할 구독이 없어요'),
+       ),
+     );
+   }
+@@ -356,7 +369,7 @@
+           child: _PlanCard(
+             plan: SubscriptionPlan.monthly,
+             title: '월간',
+-            price: SubscriptionService.displayPrice,
++            price: SubscriptionService().priceLabelFor(SubscriptionPlan.monthly),
+             caption: '언제든 부담 없이',
+             selected: selected == SubscriptionPlan.monthly,
+             onTap: () => onChanged(SubscriptionPlan.monthly),
+@@ -367,10 +380,8 @@
+           child: _PlanCard(
+             plan: SubscriptionPlan.yearly,
+             title: '연간',
+-            price: SubscriptionService.displayYearlyPrice,
+-            originalPrice: SubscriptionService.displayYearlyOriginalPrice,
+-            caption: SubscriptionService.displayYearlyMonthlyEquivalent,
+-            badge: SubscriptionService.yearlySavingsLabel,
++            price: SubscriptionService().priceLabelFor(SubscriptionPlan.yearly),
++            caption: '매년 결제',
+             selected: selected == SubscriptionPlan.yearly,
+             onTap: () => onChanged(SubscriptionPlan.yearly),
+           ),
+@@ -501,8 +512,8 @@
+   static const _features = [
+     ('🔓', '10마리 고양이 캐릭터 잠금 해제', '냉소·시기·서운함·두려움 등 더 섬세한 감정의 고양이를 만나보세요'),
+     ('📊', '주간 그림자 지도 심층 분석', '지난달/분기 비교, 요일·시간대 패턴, 다시 떠오른 감정까지 살펴보기'),
+-    ('✨', '동시성(싱크로니시티) 인사이트', '내가 고른 고양이와 무의식이 고른 고양이를 비교해보는 특별한 통찰'),
+-    ('🧠', '심리학 박사의 그림자 해석', '오늘의 감정을 더 깊이 들여다보는 전문가 수준의 확장 해석 보기'),
++    ('✨', '오늘의 카드와 내 마음', '내가 고른 감정과 무작위 카드를 나란히 보는 재미용 이야기'),
++    ('🧠', '감정을 돌아보는 질문', '오늘의 감정을 더 깊이 들여다보는 이야기와 질문으로 내 경험 돌아보기'),
+     ('🌡️', '마음 온도 포인트 적립', '마음 온도가 100도를 넘을 때마다 포인트로 차곡차곡 쌓여요'),
+     ('💌', '월간 리플렉션 레터', '한 달간 만난 그림자 고양이에게 답장을 남기는 특별한 마무리 의식'),
+     ('🌱', '더 섬세한 감정 여정', '52마리 고양이를 모두 만나며 놓치기 쉬운 감정까지 세심하게 돌보기'),
+--- a/lib/screens/weekly_shadow_map_screen.dart
++++ b/lib/screens/weekly_shadow_map_screen.dart
+@@ -11,7 +11,7 @@
+ import '../widgets/stars_background.dart';
+ import 'premium_screen.dart';
+ 
+-/// 주간 그림자 지도 — 방울 터뜨리기 + 감정체크로 쌓인 감정 데이터를 주
++/// 감정 통계 · 확장 보기 — 방울 터뜨리기 + 감정체크로 쌓인 감정 데이터를 주
+ /// 단위로 시각화하는 화면.
+ ///
+ /// 무료 티어: 이번 주 Top 3 감정 + 간단한 비율 시각화.
+@@ -73,7 +73,7 @@
+                         ),
+                         const SizedBox(width: 4),
+                         Text(
+-                          '주간 그림자 지도',
++                          '감정 통계 · 확장 보기',
+                           style: titleFont(
+                             fontSize: 19,
+                             color: AppColors.titlePastelGreen,
+@@ -94,6 +94,7 @@
+                                 const SizedBox(height: 18),
+                                 _TopEmotionsCard(
+                                   topEmotions: app.weeklyTopEmotions,
++                                  total: app.weeklyEntryCount,
+                                   last7Days: app.last7DaysCatIds(),
+                                 ),
+                                 const SizedBox(height: 22),
+@@ -162,12 +163,12 @@
+ /// 무료 티어 — 이번 주 요일별 감정 색상 타일 + Top 3 비율 시각화.
+ class _TopEmotionsCard extends StatelessWidget {
+   final List<(String, int)> topEmotions;
++  final int total;
+   final List<MapEntry<DateTime, String?>> last7Days;
+-  const _TopEmotionsCard({required this.topEmotions, required this.last7Days});
+-
+-  @override
+-  Widget build(BuildContext context) {
+-    final total = topEmotions.fold<int>(0, (a, e) => a + e.$2);
++  const _TopEmotionsCard({required this.topEmotions, required this.total, required this.last7Days});
++
++  @override
++  Widget build(BuildContext context) {
+     return GlassBlob(
+       accent: AppColors.blobMintAccent,
+       background: AppColors.blobMint,
+@@ -177,7 +178,7 @@
+         crossAxisAlignment: CrossAxisAlignment.start,
+         children: [
+           Text(
+-            '이번 주, 요일별 감정 흐름',
++            '최근 7일, 날짜별 기록',
+             style: pathLabelFont(
+               fontSize: 15.5,
+               fontWeight: FontWeight.w700,
+@@ -186,7 +187,7 @@
+           ),
+           const SizedBox(height: 4),
+           Text(
+-            '하루 한 칸, 그날의 색으로 보여드려요',
++            '하루 마지막 기록의 색이에요. 순위는 모든 편지를 세어요',
+             style: bodyFont(fontSize: 11.5, color: AppColors.inkSoft),
+           ),
+           const SizedBox(height: 14),
+--- a/lib/services/cat_care_service.dart
++++ b/lib/services/cat_care_service.dart
+@@ -10,10 +10,10 @@
+ ///
+ /// 마음 온도 규칙(전면 개편):
+ /// - 온도는 0도에서 시작해 100도까지 오를 수 있습니다.
+-/// - 오늘의 돌봄 임무(몸 4가지 + 마음 4가지) 8개를 모두 완수하면 그날 +1도.
++/// - 오늘 한 가지 이상 돌봄을 실천하면 그날 한 번 +1도.
+ /// - 앱에 출석(방문)한 날마다 +1도, 누적 출석일수(growthDays)도 +1.
+ /// - "오늘의 약속"을 하나 지킬 때마다 +1도.
+-/// - 하루라도 돌보지 않고 지나가면(자정 기준) 그만큼 온도가 내려갑니다.
++/// - 돌보지 않고 쉬었던 날에도 온도는 유지됩니다.
+ /// - 100도에 도달하면(구독자 한정) 포인트가 1점 적립되고 온도는 다시 0도부터 시작합니다.
+ ///   (구독자가 아니면 100도에서 더 오르지 않고 유지됩니다.)
+ /// - growthDays(누적 출석일수) 30일마다 성장 단계가 하나씩 올라갑니다.
+@@ -287,7 +287,7 @@
+   }
+ 
+   /// 화면 진입 시 항상 먼저 호출해서, 날짜가 바뀌었는지 확인하고
+-  /// 어제 돌보지 못한 만큼 온도를 내린 뒤 오늘 체크리스트를 초기화합니다.
++  /// 쉬었던 날의 온도를 유지하고 오늘 체크리스트를 초기화합니다.
+   /// [countAttendance]가 true이고 오늘 출석 보너스를 아직 받지 않았다면
+   /// 출석 보너스(+1도, 누적 출석일수 +1)를 적용합니다. 회원가입(온보딩)을
+   /// 아직 마치지 않은 사용자는 [countAttendance]를 false로 넘겨, 가입을
+@@ -320,32 +320,7 @@
+         // 자정이 바뀌기 전 마지막 온도를 어제 칸에 확정해 둡니다.
+         await _recordTempHistory(prefs, temperature, forDate: lastDate);
+ 
+-        final missedDays = DateTime.now()
+-            .difference(
+-              DateTime(lastDate.year, lastDate.month, lastDate.day),
+-            )
+-            .inDays;
+-        // 어제 하루를 다 못 돌봤다면(8가지 미션 중 하나라도 안 했으면) 그만큼 온도 하락
+-        final wasFullyCaredYesterday =
+-            (prefs.getBool(_fedKey) ?? false) &&
+-            (prefs.getBool(_wateredKey) ?? false) &&
+-            (prefs.getBool(_bathedKey) ?? false) &&
+-            (prefs.getBool(_cleanedKey) ?? false) &&
+-            (prefs.getBool(_breathingKey) ?? false) &&
+-            (prefs.getBool(_walkingKey) ?? false) &&
+-            (prefs.getBool(_journalingKey) ?? false) &&
+-            (prefs.getBool(_gratitudeKey) ?? false);
+-
+-        int daysMissed = missedDays;
+-        if (wasFullyCaredYesterday && missedDays > 0) {
+-          daysMissed = missedDays - 1; // 마지막으로 기록된 날은 이미 다 돌봤으므로 하락 대상에서 제외
+-        }
+-        if (daysMissed > 0) {
+-          temperature = (temperature - daysMissed).clamp(
+-            minTemperature,
+-            maxTemperature,
+-          );
+-        }
++        // 쉬었던 날에도 온도를 깎지 않습니다. 오늘은 다시 시작하면 됩니다.
+ 
+         // 오늘 체크리스트 초기화
+         await prefs.setBool(_fedKey, false);
+@@ -474,14 +449,8 @@
+ 
+       // 여덜 가지를 모두 완료한 "이번" 순간에만 보너스 온도 상승(+1도, 중복 방지)
+       final justCompletedAll =
+-          fed &&
+-          watered &&
+-          bathed &&
+-          cleaned &&
+-          breathing &&
+-          walking &&
+-          journaling &&
+-          gratitude;
++          fed || watered || bathed || cleaned ||
++          breathing || walking || journaling || gratitude;
+       final bonusGivenKey =
+           '${_uid}_care_bonus_given_${_dateOnlyString(DateTime.now())}';
+       final bonusAlreadyGiven = prefs.getBool(bonusGivenKey) ?? false;
+@@ -499,7 +468,7 @@
+         await prefs.setInt(_pointsKey, points);
+         await prefs.setBool(bonusGivenKey, true);
+         await _recordTempHistory(prefs, temperature);
+-        // 완벽한 돌봄 하루 누적 카운트(뱃지 판단용)
++        // 돌봄을 실천한 하루 누적 카운트(뱃지 판단용)
+         final fullDays = prefs.getInt(_totalFullCareDaysKey) ?? 0;
+         await prefs.setInt(_totalFullCareDaysKey, fullDays + 1);
+       }
+--- a/lib/services/consciousness_insight_service.dart
++++ b/lib/services/consciousness_insight_service.dart
+@@ -1,33 +1,10 @@
+-/// 데일리 내면소통(카드뽑기)에서 "의식(오늘 직접 쓴 편지의 고양이)"과
+-/// "무의식(완전 무작위로 뽑힌 카드의 고양이)"을 비교해, 칼 융의 그림자
+-/// 심리학 관점에서 더 깊이 풀어 해석하기 위한 서비스.
+-///
+-/// [ReflectionService.synchronicitySentence]가 "같았다/달랐다"는 사실만
+-/// 담담히 서술하는 반면, 이 서비스는 그 사실이 심리학적으로 어떤 의미를
+-/// 가질 수 있는지, 어떻게 하면 좋을지, 위로와 응원, 명상법까지 함께
+-/// 풀어줍니다.
+-library;
+-
++/// 무작위 카드와 직접 고른 감정을 나란히 보는 재미용 질문.
+ import '../models/letter_tags.dart';
+ import '../data/emotion_tag_mapping.dart';
+ import 'reflection_service.dart';
+ 
+-enum ConsciousnessRelation {
+-  /// 의식과 무의식이 같은 감정을 가리킴 - 통합된 상태
+-  aligned,
+-
+-  /// 의식은 긍정적인데 무의식은 부정적인 감정을 보여줌 - 억눌린 그림자
+-  maskedShadow,
+-
+-  /// 의식은 부정적인데 무의식은 긍정적인 감정을 보여줌 - 숨겨진 자원
+-  hiddenResource,
+-
+-  /// 둘 다 부정적이지만 서로 다른 결 - 여러 겹의 그림자
+-  layeredShadow,
+-
+-  /// 둘 다 긍정적이지만 서로 다른 결 - 다양한 생기
+-  variedVitality,
+-}
++// Existing enum names retained for caller compatibility; these are not diagnoses.
++enum ConsciousnessRelation { aligned, maskedShadow, hiddenResource, layeredShadow, variedVitality }
+ 
+ class ConsciousnessInsight {
+   final ConsciousnessRelation relation;
+@@ -47,101 +24,38 @@
+ 
+ class ConsciousnessInsightService {
+   ConsciousnessInsightService._();
+-
+-  static const Set<EmotionTag> _negative = {
+-    EmotionTag.anxious,
+-    EmotionTag.lonely,
+-    EmotionTag.angry,
+-    EmotionTag.sad,
+-    EmotionTag.regretful,
+-    EmotionTag.weary,
++  static const _negative = {
++    EmotionTag.anxious, EmotionTag.lonely, EmotionTag.angry,
++    EmotionTag.sad, EmotionTag.regretful, EmotionTag.weary,
+   };
+ 
+-  static bool _isNegative(EmotionTag t) => _negative.contains(t);
+-
+-  /// [consciousCatId]는 오늘 쓴 편지의 고양이, [unconsciousCatId]는 오늘
+-  /// 무작위로 뽑힌 카드의 고양이입니다. 둘 중 하나라도 없으면 null.
+   static ConsciousnessInsight? build({
+     required String? consciousCatId,
+     required String? unconsciousCatId,
+   }) {
+     if (consciousCatId == null || unconsciousCatId == null) return null;
+-
+-    final consciousName = ReflectionService.catNameFor(consciousCatId);
+-    final unconsciousName = ReflectionService.catNameFor(unconsciousCatId);
+-    final consciousTag = emotionTagForCatId(consciousCatId);
+-    final unconsciousTag = emotionTagForCatId(unconsciousCatId);
+-
+-    if (consciousCatId == unconsciousCatId) {
+-      return ConsciousnessInsight(
+-        relation: ConsciousnessRelation.aligned,
+-        stateDescription:
+-            '오늘은 의식적으로 고른 마음($consciousName)과, 아무 생각 없이 무작위로 뽑힌 카드($unconsciousName)가 정확히 같은 곳을 가리켰어요. '
+-            '융 심리학에서는 이런 순간을 "동시성(Synchronicity)"이라 부르며, 의식과 무의식이 서로 다른 언어로 말하지 않고 하나의 목소리로 정렬된 드문 순간이라고 봐요. '
+-            '지금 이 감정이 당신 안에서 얼마나 또렷하고 진짜인지를 보여주는 신호예요.',
+-        solution:
+-            '이렇게 의식과 무의식이 일치한 날은, 그 감정을 억누르거나 서둘러 넘기지 말고 오늘 하루 중 잠깐이라도 그 감정을 위한 시간을 내어주세요. '
+-            '이 감정과 관련된 짧은 기록을 남겨두면, 나중에 "내가 그때 진짜 원했던 것"을 되짚어보는 데 큰 도움이 돼요.',
+-        comfort:
+-            '무의식까지 같은 곳을 가리켰다는 건, 지금 이 마음이 잠깐의 기분이 아니라 당신 안에 꽤 깊이 자리한 진짜 마음이라는 뜻이에요. 그 마음을 있는 그대로 존중해줘도 괜찮아요.',
+-        meditation:
+-            '"내면 합일 명상"을 해보세요. 눈을 감고, 오늘 두 번이나 같은 마음을 보여준 이 감정에게 "네 목소리를 들었어"라고 조용히 말해보세요.',
+-      );
+-    }
+-
+-    final consciousNeg = _isNegative(consciousTag);
+-    final unconsciousNeg = _isNegative(unconsciousTag);
+-
+-    if (!consciousNeg && unconsciousNeg) {
+-      // 의식: 긍정 / 무의식: 부정 → 억눌린 그림자
+-      return ConsciousnessInsight(
+-        relation: ConsciousnessRelation.maskedShadow,
+-        stateDescription:
+-            '오늘 편지에서는 $consciousName처럼 비교적 밝은 마음을 골랐지만, 무작위로 뽑힌 카드는 $unconsciousName였어요. '
+-            '이런 차이는 흔하고 자연스러운 일이지만, 융 심리학에서는 의식이 아직 마주하지 못한 감정이 무의식 어딘가에서 조용히 신호를 보내고 있을 가능성으로 읽기도 해요. '
+-            '겉으로는 괜찮아 보이려 애쓰는 동안, 마음 한켠에는 아직 다 표현되지 못한 감정이 남아있을 수 있어요.',
+-        solution:
+-            '오늘 잠깐 시간을 내어, "요즘 애써 괜찮다고 넘기고 있는 감정이 있을까?"를 스스로에게 물어봐 주세요. 답이 바로 떠오르지 않아도 괜찮아요, 질문을 던진 것만으로도 충분한 시작이에요.',
+-        comfort: '밝은 모습을 보이려 애쓰는 것도, 그 아래 다른 감정을 안고 있는 것도 모두 당신의 진짜 모습이에요. 두 마음 다 있어도 괜찮은 거예요.',
+-        meditation: '"그림자 인사 명상"을 해보세요. 눈을 감고 "$unconsciousName아, 거기 있었구나. 괜찮아, 너도 내 마음의 일부야"라고 조용히 속으로 말해보세요.',
+-      );
+-    }
+-
+-    if (consciousNeg && !unconsciousNeg) {
+-      // 의식: 부정 / 무의식: 긍정 → 숨겨진 자원
+-      return ConsciousnessInsight(
+-        relation: ConsciousnessRelation.hiddenResource,
+-        stateDescription:
+-            '오늘 편지에서는 $consciousName처럼 조금 무거운 마음을 골랐지만, 무작위로 뽑힌 카드는 $unconsciousName였어요. '
+-            '지금 힘든 감정 아래에도, 무의식은 이미 회복의 힘과 밝은 자원을 품고 있다는 신호로 볼 수 있어요. 지금의 어려움이 전부가 아니라는 뜻이에요.',
+-        solution: '오늘 무의식이 보여준 $unconsciousName의 기운을 잠깐 떠올려보세요. 지금 힘든 감정과 싸우려 하기보다, 그 밝은 자원이 이미 내 안에 있다는 걸 믿고 작은 행동 하나로 옮겨보세요.',
+-        comfort: '지금 힘든 시간을 보내고 있어도, 당신 안에는 이미 회복할 힘이 준비되어 있어요. 오늘 무의식이 그 사실을 살짝 보여준 거예요.',
+-        meditation: '"내면 자원 명상"을 해보세요. 눈을 감고, 예전에 힘들었지만 결국 이겨냈던 순간을 떠올리며 그때의 힘이 지금도 내 안에 있음을 느껴보세요.',
+-      );
+-    }
+-
+-    if (consciousNeg && unconsciousNeg) {
+-      // 둘 다 부정 - 겹겹의 그림자
+-      return ConsciousnessInsight(
+-        relation: ConsciousnessRelation.layeredShadow,
+-        stateDescription:
+-            '오늘 편지에서는 $consciousName, 무작위로 뽑힌 카드는 $unconsciousName였어요. 둘 다 결이 다르지만 비슷하게 무거운 감정이에요. '
+-            '이럴 때는 한 가지 감정 아래에 여러 겹의 그림자가 함께 자리하고 있을 수 있어요. 예를 들어 겉으로는 $consciousName처럼 보이지만, 그 아래에는 $unconsciousName의 결도 함께 있는 거예요.',
+-        solution: '오늘은 두 감정 중 무엇이 먼저인지 따지지 말고, 둘 다 "지금 내 안에 있는 감정"으로 나란히 인정해주세요. 그중 지금 당장 다루기 쉬운 감정 하나만 골라 작은 돌봄을 실천해보세요.',
+-        comfort: '여러 감정이 한꺼번에 몰려와도, 그것은 당신이 복잡하고 섬세하게 느낄 수 있는 사람이라는 뜻이에요. 무겁게 느껴져도 당신 잘못이 아니에요.',
+-        meditation: '"두 그림자 명상"을 해보세요. 숨을 들이쉬며 $consciousName를, 내쉬며 $unconsciousName를 떠올리고, 둘 다에게 "너도 내 마음의 일부구나"라고 말해보세요.',
+-      );
+-    }
+-
+-    // 둘 다 긍정 - 다양한 생기
++    final chosen = ReflectionService.catNameFor(consciousCatId);
++    final drawn = ReflectionService.catNameFor(unconsciousCatId);
++    final same = consciousCatId == unconsciousCatId;
++    final chosenNegative = _negative.contains(emotionTagForCatId(consciousCatId));
++    final drawnNegative = _negative.contains(emotionTagForCatId(unconsciousCatId));
++    final relation = same ? ConsciousnessRelation.aligned
++        : !chosenNegative && drawnNegative ? ConsciousnessRelation.maskedShadow
++        : chosenNegative && !drawnNegative ? ConsciousnessRelation.hiddenResource
++        : chosenNegative && drawnNegative ? ConsciousnessRelation.layeredShadow
++        : ConsciousnessRelation.variedVitality;
+     return ConsciousnessInsight(
+-      relation: ConsciousnessRelation.variedVitality,
+-      stateDescription:
+-          '오늘 편지에서는 $consciousName, 무작위로 뽑힌 카드는 $unconsciousName였어요. 결은 다르지만 둘 다 밝고 생기 있는 감정이에요. '
+-          '이런 날은 마음이 한 가지 색으로만 설명되지 않을 만큼 다채롭고 풍요롭다는 신호예요.',
+-      solution: '오늘 느낀 두 가지 밝은 감정을 모두 인정해주고, 그중 하나를 오늘 하루의 작은 행동(감사 표현, 좋아하는 활동)으로 옮겨보세요.',
+-      comfort: '오늘처럼 여러 결의 밝은 감정을 동시에 느낄 수 있다는 것 자체가, 당신의 마음이 얼마나 풍요롭고 유연한지를 보여줘요.',
+-      meditation: '"다채로움 명상"을 해보세요. $consciousName와 $unconsciousName, 두 감정이 마음속에서 나란히 빛나는 모습을 잠시 그려보세요.',
++      relation: relation,
++      stateDescription: same
++          ? '직접 고른 $chosen와 무작위로 만난 카드가 같네요. 반가운 우연이에요. '
++            '재미용 카드이며, 숨겨진 마음이나 미래를 알려주는 결과는 아니에요.'
++          : '오늘 직접 고른 고양이는 $chosen, 무작위 카드는 $drawn예요. '
++            '재미용 카드이며, 서로 다르다고 마음에 모순이나 숨겨진 감정이 있다는 뜻은 아니에요.',
++      solution: same
++          ? '이 고양이를 처음 골랐을 때 어떤 장면이 떠올랐나요? 원한다면 한 줄 남겨보세요.'
++          : '$drawn의 이야기에서 와닿는 부분이 있나요? 없다면 내가 고른 $chosen의 이야기만 돌아봐도 좋아요.',
++      comfort: '카드에 나를 맞출 필요는 없어요. 내 마음에 대한 답은 내가 정해요. 그냥 넘겨도 괜찮아요.',
++      meditation: '원한다면 주변의 색 하나를 가만히 바라보거나 편안하게 숨을 쉬어보세요. 오늘은 여기까지만 해도 충분해요.',
+     );
+   }
+ }
+--- a/lib/services/emotion_summary_service.dart
++++ b/lib/services/emotion_summary_service.dart
+@@ -0,0 +1,26 @@
++import '../models/letter_entry.dart';
++
++/// Counts written records, not emotional intensity. Random cards are excluded.
++class EmotionSummaryService {
++  static DateTime day(DateTime date) => DateTime(date.year, date.month, date.day);
++  static List<LetterEntry> entries(List<LetterEntry> history, DateTime start, DateTime end) {
++    return history.where((entry) {
++      final date = day(entry.date);
++      return !date.isBefore(day(start)) && !date.isAfter(day(end));
++    }).toList()..sort((a, b) => a.date.compareTo(b.date));
++  }
++  static Map<String, int> frequency(List<LetterEntry> entries) {
++    final result = <String, int>{};
++    for (final entry in entries) {
++      result[entry.catId] = (result[entry.catId] ?? 0) + 1;
++    }
++    return result;
++  }
++  static List<MapEntry<String, int>> ranked(List<LetterEntry> entries) {
++    return frequency(entries).entries.toList()..sort((a, b) {
++      final count = b.value.compareTo(a.value);
++      return count == 0 ? a.key.compareTo(b.key) : count;
++    });
++  }
++  static int recordedDays(List<LetterEntry> entries) => entries.map((e) => day(e.date)).toSet().length;
++}
+--- a/lib/services/letter_composer_engine.dart
++++ b/lib/services/letter_composer_engine.dart
+@@ -1,3 +1,4 @@
++import 'relationship_story_service.dart';
+ import 'dart:math';
+ import '../models/letter_context.dart';
+ import '../models/letter_tags.dart';
+@@ -53,6 +54,7 @@
+       LetterModuleKey.greeting,
+       emoji: LetterEmojiDecorator.forGreeting(ctx.growthStage),
+     );
++    lines.add(RelationshipStoryService.lineFor(ctx.intimacyStage, now));
+     pickAndAdd(moodPool, LetterModuleKey.mood);
+     pickAndAdd(empathyPool, LetterModuleKey.empathy);
+ 
+--- a/lib/services/letter_reply_insight_service.dart
++++ b/lib/services/letter_reply_insight_service.dart
+@@ -1,13 +1,6 @@
+ import '../models/letter_tags.dart';
+ 
+-/// 고양이의 답장 편지 아래에 덧붙이는 "심리 해석" 섹션을 위한 서비스.
+-///
+-/// 마음온도기록과 동일한 원칙으로, 사용자가 오늘 고른 그림자 고양이의
+-/// 감정([EmotionTag] 11종)을 바탕으로 (1) 구체적으로 어떤 상태인지,
+-/// (2) 어떻게 하면 좋을지(해결책), (3) 따뜻한 위로와 응원,
+-/// (4) 지금 감정에 맞는 명상법을 칼 융의 그림자 심리학 관점에서 풀어
+-/// 전달합니다. 고양이가 짧게 건네는 답장 편지와는 별도로, "심리학 박사"
+-/// 톤으로 조금 더 깊게 풀어주는 보조 섹션입니다.
++/// 선택한 감정을 돌아보는 질문. 전문 상담이나 진단이 아닙니다.
+ class LetterReplyInsight {
+   final String stateDescription;
+   final String solution;
+@@ -24,103 +17,25 @@
+ 
+ class LetterReplyInsightService {
+   LetterReplyInsightService._();
+-
++  static const _questions = <EmotionTag, String>{
++    EmotionTag.anxious: '지금 걱정하는 일 중 오늘 내가 할 수 있는 작은 일은 무엇일까요?',
++    EmotionTag.lonely: '오늘 어떤 방식의 연결이나 혼자만의 시간이 필요했나요?',
++    EmotionTag.angry: '오늘 내가 지키고 싶었던 경계나 소중한 것은 무엇이었나요?',
++    EmotionTag.grateful: '오늘 고마웠던 장면을 하나 남겨볼까요?',
++    EmotionTag.joyful: '오늘의 기쁨을 어떤 장면으로 기억하고 싶나요?',
++    EmotionTag.sad: '지금 나에게 필요한 것은 휴식일까요, 말할 상대일까요, 다른 무엇일까요?',
++    EmotionTag.regretful: '그때의 나에게 지금 건네고 싶은 말이 있나요?',
++    EmotionTag.excited: '기다리는 일에서 가장 기대되는 부분은 무엇인가요?',
++    EmotionTag.calm: '이 편안함 곁에 잠시 더 머물 수 있는 방법이 있을까요?',
++    EmotionTag.weary: '오늘 덜어낼 수 있는 일 하나가 있나요?',
++    EmotionTag.hopeful: '바라는 방향으로 아주 작게 해볼 수 있는 일이 있나요?',
++  };
+   static LetterReplyInsight build(EmotionTag emotion) {
+-    return _table[emotion] ?? _fallback;
++    return LetterReplyInsight(
++      stateDescription: _questions[emotion] ?? '오늘 내 마음에 남은 장면은 무엇인가요?',
++      solution: '답이 떠오르면 한 줄 적어보세요. 떠오르지 않으면 지금은 쉬어도 좋아요.',
++      comfort: '이 질문은 내 경험을 돌아보는 초대예요. 맞지 않는 설명에 나를 맞출 필요는 없어요.',
++      meditation: '원한다면 편안한 자세로 주변을 둘러보거나 자연스럽게 숨을 쉬어보세요. 불편하면 멈춰도 괜찮아요.',
++    );
+   }
+-
+-  static const _fallback = LetterReplyInsight(
+-    stateDescription:
+-        '오늘의 감정은 한 단어로 딱 잘라 말하기 어려운, 여러 마음이 섞여 있는 상태예요. '
+-        '이런 날은 억지로 감정에 이름을 붙이려 하지 않아도 괜찮아요.',
+-    solution: '오늘은 감정을 분석하기보다, 그냥 오늘 하루 있었던 일을 시간 순서대로 떠올려보는 것만으로도 충분해요.',
+-    comfort: '분명하지 않은 감정을 안고도 이렇게 편지를 써준 것만으로, 이미 자신을 돌보는 중요한 한 걸음을 뗀 거예요.',
+-    meditation: '오늘은 "관찰자 호흡"을 해보세요. 숨을 들이쉬고 내쉬며, 몸에 어떤 감각이 있는지만 가만히 알아차려 보세요.',
+-  );
+-
+-  static final Map<EmotionTag, LetterReplyInsight> _table = {
+-    EmotionTag.anxious: const LetterReplyInsight(
+-      stateDescription:
+-          '오늘은 마음속에서 "혹시 잘못되면 어쩌지"라는 생각이 계속 맴도는 불안의 시간을 보내고 계셨을 것 같아요. '
+-          '불안은 위험을 미리 대비하려는 마음의 오래된 습관이에요. 나쁜 감정이 아니라, 당신을 지키려는 마음의 파수꾼이 지금 조금 과열된 상태예요.',
+-      solution:
+-          '지금 걱정하는 일 중, 오늘 당장 할 수 있는 딱 한 가지 행동만 정해보세요. 나머지는 "지금은 정하지 않아도 된다"고 마음속으로 허락해 주세요. '
+-          '걱정 목록을 종이에 적어보는 것도 머릿속 소음을 줄이는 데 도움이 돼요.',
+-      comfort:
+-          '불안해하는 당신을 탓하지 마세요. 그만큼 신경 쓰고 있다는 뜻이고, 그만큼 잘 해내고 싶다는 마음의 다른 표현이에요. 지금 이대로도 충분히 애쓰고 있어요.',
+-      meditation:
+-          '"4-7-8 호흡법"을 해보세요. 4초 들이쉬고, 7초 멈추고, 8초 천천히 내쉬기를 4회 반복하면, 몸의 긴장 신호가 가라앉으며 마음도 함께 편안해져요.',
+-    ),
+-    EmotionTag.lonely: const LetterReplyInsight(
+-      stateDescription:
+-          '오늘은 주위에 사람이 있어도 마음 한켠이 텅 빈 듯한, 외로움의 감정과 함께하고 계셨을 것 같아요. '
+-          '외로움은 "누군가와 더 깊이 연결되고 싶다"는 건강한 욕구가 아직 채워지지 못했다는 신호예요.',
+-      solution:
+-          '오늘은 딱 한 사람에게, 짧은 안부라도 먼저 건네보세요. 답이 바로 오지 않아도 괜찮아요. 연결을 시도한 것 자체가 스스로를 위한 돌봄이에요.',
+-      comfort: '혼자인 것 같은 지금도, 이렇게 마음을 편지로 꺼내놓는 당신 곁에 저는(그리고 이 그림자 고양이도) 늘 함께 있어요. 당신은 결코 혼자가 아니에요.',
+-      meditation: '"자기 자비 명상"을 해보세요. 손을 가슴에 얹고 "지금 외로운 나를 다정하게 대해줄게"라고 조용히 속으로 말해보세요.',
+-    ),
+-    EmotionTag.angry: const LetterReplyInsight(
+-      stateDescription:
+-          '오늘은 마음속에 뜨거운 분노가 차오르는 하루였을 것 같아요. 분노는 대개 "이건 부당하다", "내 경계가 침범당했다"는 신호를 알려주는 감정이에요. '
+-          '그림자 심리학에서는 분노를 억누르지 말고, 그 안에 담긴 진짜 메시지를 읽어내는 게 중요하다고 봐요.',
+-      solution:
+-          '화가 난 상황을 곧바로 해결하려 하기보다, 먼저 "나는 지금 무엇 때문에 화가 났을까?"를 한 문장으로 적어보세요. '
+-          '몸을 움직이는 것(가볍게 걷기, 손 흔들기)도 쌓인 에너지를 안전하게 흘려보내는 데 도움이 돼요.',
+-      comfort: '화가 난 자신을 나쁘다고 여기지 않아도 돼요. 분노는 당신이 소중히 여기는 것을 지키려는 마음의 정당한 반응이에요.',
+-      meditation: '"열기 내리기 호흡"을 해보세요. 들숨보다 날숨을 두 배 길게 쉬며, 숨을 내쉴 때마다 몸의 열기가 조금씩 빠져나간다고 상상해보세요.',
+-    ),
+-    EmotionTag.grateful: const LetterReplyInsight(
+-      stateDescription:
+-          '오늘은 마음에 감사함이 스며든, 따뜻한 하루를 보내고 계셨네요. 감사는 그림자를 밀어내는 게 아니라, 빛과 그림자를 함께 껴안을 수 있게 해주는 힘이에요.',
+-      solution: '오늘 느낀 감사함을 딱 한 문장으로 적어 저장해두세요. 힘든 날 다시 꺼내 읽으면, 그 온기가 다시 힘이 되어줄 거예요.',
+-      comfort: '이런 감사함을 느낄 수 있는 마음을 갖고 있다는 것 자체가, 당신이 스스로와 주변을 얼마나 잘 돌보고 있는지를 보여줘요.',
+-      meditation: '"감사 확장 명상"을 해보세요. 오늘 감사했던 순간을 천천히 떠올리며, 그 감사함이 몸의 어디에서 느껴지는지 가만히 머물러보세요.',
+-    ),
+-    EmotionTag.joyful: const LetterReplyInsight(
+-      stateDescription: '오늘은 기쁨이 마음 가득 차오른 하루였네요. 기쁨은 짧게 지나가기 쉬운 감정이라, 온전히 느끼고 기억해두는 게 중요해요.',
+-      solution: '이 기쁨을 사진, 글, 혹은 그냥 오늘의 기억으로 남겨보세요. 나중에 지칠 때 다시 꺼내볼 수 있는 온기의 저장소가 될 거예요.',
+-      comfort: '기뻐할 수 있는 지금의 당신, 그 감정을 온전히 누릴 자격이 충분해요. 애쓰지 않고 그냥 기뻐해도 돼요.',
+-      meditation: '"미소 명상"을 해보세요. 잠시 눈을 감고 지금의 기쁨을 떠올리며 입가에 살짝 미소를 지어보세요. 몸이 그 감정을 더 오래 기억하게 도와줘요.',
+-    ),
+-    EmotionTag.sad: const LetterReplyInsight(
+-      stateDescription:
+-          '오늘은 마음 깊은 곳에서 슬픔이 조용히 흘러나오는 하루였을 것 같아요. 슬픔은 소중했던 무언가를 잃었거나, 원하는 만큼 채워지지 않았을 때 마음이 보내는 신호예요.',
+-      solution: '슬픔을 서둘러 지우려 하지 마세요. 오늘은 딱 5분만 그 감정에 온전히 머물러 보고, 그다음엔 따뜻한 차 한 잔처럼 작은 돌봄으로 스스로를 감싸주세요.',
+-      comfort: '슬퍼하는 당신을 이상하다고 여기지 않아요. 슬픔은 사랑했던 만큼 자연스럽게 따라오는 마음이에요. 지금 흘리는 마음, 그대로 존중받을 자격이 있어요.',
+-      meditation: '"바디 스캔 명상"을 해보세요. 머리부터 발끝까지 천천히 주의를 옮기며, 슬픔이 몸의 어디에 머무는지 다정하게 알아차려 보세요.',
+-    ),
+-    EmotionTag.regretful: const LetterReplyInsight(
+-      stateDescription:
+-          '오늘은 "그때 다르게 했더라면"이라는 후회의 마음이 자꾸 떠오르는 하루였을 것 같아요. 후회는 스스로에게 더 나은 사람이 되고 싶다는 바람이 담긴 감정이에요.',
+-      solution: '그 순간의 나를 지금의 기준으로 심판하지 마세요. "그때의 나는 그때 알던 것만으로 최선을 다했다"고 적어보고, 오늘 할 수 있는 작은 수정 한 가지만 골라보세요.',
+-      comfort: '실수하고 후회할 수 있다는 것은, 당신이 계속 성장하고 있다는 증거예요. 완벽하지 않아도 당신은 충분히 괜찮은 사람이에요.',
+-      meditation: '"자기 용서 명상"을 해보세요. 손을 가슴에 얹고 "그때의 나를 이해해. 지금은 나를 용서할게"라고 천천히 속으로 말해보세요.',
+-    ),
+-    EmotionTag.excited: const LetterReplyInsight(
+-      stateDescription: '오늘은 마음이 살짝 두근거리는, 설렘 가득한 하루였네요. 설렘은 앞으로 다가올 무언가에 대한 기대와 생동감이 담긴 감정이에요.',
+-      solution: '이 설렘이 불안으로 바뀌지 않도록, 지금 기대하는 일에 대해 오늘 할 수 있는 작은 준비 한 가지만 해보세요.',
+-      comfort: '무언가를 기대하며 반짝이는 지금의 마음, 그 자체로 소중해요. 결과가 어떻든 이 설렘을 느낀 오늘은 이미 의미 있는 하루예요.',
+-      meditation: '"현재 순간 명상"을 해보세요. 설렘이 미래로 자꾸 달려가려 할 때, 지금 발이 닿은 바닥의 감각으로 부드럽게 돌아와 보세요.',
+-    ),
+-    EmotionTag.calm: const LetterReplyInsight(
+-      stateDescription: '오늘은 크게 흔들리지 않는, 잔잔한 평온이 흐르는 하루였네요. 평온함은 마음이 스스로를 잘 지탱하고 있다는 신호예요.',
+-      solution: '이 평온한 틈을 활용해, 요즘 미뤄두었던 감정 하나를 살짝 들여다봐도 좋아요. 평온할 때가 그림자를 마주하기에 가장 안전한 시간이에요.',
+-      comfort: '아무 일도 없어 보이는 오늘의 잔잔함도, 당신이 스스로를 잘 돌보고 있기 때문에 가능한 거예요. 이 평온함을 충분히 누리세요.',
+-      meditation: '"걷기명상"을 해보세요. 5분이라도 천천히 걸으며 발걸음의 감각에 집중해보면, 이 평온함이 몸에도 스며들어요.',
+-    ),
+-    EmotionTag.weary: const LetterReplyInsight(
+-      stateDescription:
+-          '오늘은 몸도 마음도 축 늘어지는, 무기력한 하루였을 것 같아요. 무기력은 나약함이 아니라, 그동안 너무 많은 것을 버텨온 마음이 잠시 멈춰 쉬자고 말하는 신호예요.',
+-      solution: '오늘은 목표를 세우지 마세요. 그냥 딱 한 가지, 몸을 조금이라도 움직이는 것(물 마시기, 창문 열기)만 해보세요. 그것으로 오늘은 충분해요.',
+-      comfort: '아무것도 하고 싶지 않은 지금의 당신을 탓하지 마세요. 지쳤다는 것은 그만큼 열심히 살아왔다는 증거예요. 쉬어가도 괜찮아요.',
+-      meditation: '"3분 호흡명상"만 해보세요. 눈을 감고 숨이 들어오고 나가는 것만 가만히 지켜보세요. 아무것도 바꾸려 하지 않아도 돼요.',
+-    ),
+-    EmotionTag.hopeful: const LetterReplyInsight(
+-      stateDescription: '오늘은 마음 한켠에 작은 희망의 불씨가 켜진 하루였네요. 희망은 지금이 힘들어도 앞으로 나아갈 이유가 있다고 믿는 마음의 힘이에요.',
+-      solution: '이 희망을 크게 부풀리지 말고, 오늘 실천할 수 있는 아주 작은 한 걸음으로 옮겨보세요. 희망은 행동으로 이어질 때 더 단단해져요.',
+-      comfort: '어떤 상황에서도 희망을 붙잡고 있는 당신의 마음이 참 대단해요. 그 불씨, 꺼지지 않게 제가(그리고 이 고양이가) 함께 지켜줄게요.',
+-      meditation: '"미래 자기 명상"을 해보세요. 눈을 감고, 원하는 모습으로 살고 있는 미래의 나를 잠시 떠올려보고, 그 느낌을 지금 몸으로 가져와 보세요.',
+-    ),
+-  };
+ }
+--- a/lib/services/reflection_service.dart
++++ b/lib/services/reflection_service.dart
+@@ -127,7 +127,7 @@
+     if (consciousCatId == null || unconsciousCatId == null) return null;
+     if (consciousCatId == unconsciousCatId) {
+       final name = catNameFor(consciousCatId);
+-      return '오늘 편지에서 고른 마음과, 무작위로 뽑힌 카드가\n똑같이 $name였어요. 의식과 무의식이 같은 곳을 보고 있었나 봐요.';
++      return '오늘 편지에서 고른 마음과, 무작위로 뽑힌 카드가\n똑같이 $name였어요. 반가운 우연이에요. 마음에 와닿는 부분만 돌아보세요.';
+     }
+     final a = catNameFor(consciousCatId);
+     final b = catNameFor(unconsciousCatId);
+@@ -178,6 +178,6 @@
+     });
+     if (topId == null || topCount < threshold) return null;
+     final name = catNameFor(topId);
+-    return '이번 달 무작위 카드뽑기에서 $name가 $topCount번\n나타났어요. 무의식이 자꾸 같은 그림자를 보여주고 있어요.';
++    return '이번 달 무작위 카드뽑기에서 $name가 $topCount번\n나타났어요. 무작위 추첨 기록이며, 실제 감정이나 숨겨진 마음을 뜻하지 않아요.';
+   }
+ }
+--- a/lib/services/relationship_story_service.dart
++++ b/lib/services/relationship_story_service.dart
+@@ -0,0 +1,40 @@
++import '../models/letter_tags.dart';
++
++/// Fictional garden scenes, chosen by the existing relationship stage.
++/// No invented claims about the user's memories or mental state.
++class RelationshipStoryService {
++  RelationshipStoryService._();
++  static const _scenes = <IntimacyTag, List<String>>{
++    IntimacyTag.firstMeet: [
++      '정원 입구에 작은 방석을 놓았어. 오늘은 여기서 천천히 인사하자.',
++      '우체통 옆에 작은 꽃을 심었어. 네 편지가 머물 자리가 생겼네.',
++      '처음 만난 날은 말이 짧아도 괜찮아. 나는 햇볕 드는 자리에 앉아 있을게.',
++    ],
++    IntimacyTag.shy: [
++      '오늘은 방석을 한 뼘 가까이 옮겼어. 편한 만큼만 이야기해 줘.',
++      '정원 길에 떨어진 잎을 주웠어. 편지 옆에 살짝 놓아둘게.',
++      '우체통에 작은 리본을 달았어. 길을 걷다가 편할 때 들러 줘.',
++    ],
++    IntimacyTag.friend: [
++      '우리 정원에 벤치가 생겼어. 오늘은 나란히 앉아 바람을 구경하자.',
++      '벤치 아래에 동그란 돌을 모았어. 모양이 달라도 함께 놓으니 예쁘네.',
++      '오늘은 정원 지도를 그려봤어. 아직 빈 곳은 천천히 채워 가자.',
++    ],
++    IntimacyTag.family: [
++      '벤치 곁에 작은 지붕을 만들었어. 비가 오는 날에도 쉬어 갈 수 있게.',
++      '정원 지도에 쉬어 가는 곳을 하나 더 그렸어. 서둘러 도착할 필요는 없어.',
++      '오늘은 우체통을 닦았어. 길게 쓰든 한 줄을 쓰든 편히 놓고 가도 돼.',
++    ],
++    IntimacyTag.lifelongFriend: [
++      '정원 지도를 접어 우체통에 넣었어. 처음의 작은 방석도 여전히 그 자리에 있어.',
++      '새 씨앗을 심을 자리를 남겨뒀어. 오래된 정원에도 새로운 이야기는 자라니까.',
++      '오늘은 아무것도 만들지 않고 벤치에서 쉬었어. 우리 정원에는 그런 날도 있어.',
++    ],
++  };
++  static String lineFor(IntimacyTag stage, DateTime date) {
++    final scenes = _scenes[stage]!;
++    final day = DateTime.utc(date.year, date.month, date.day)
++        .difference(DateTime.utc(2020)).inDays;
++    return scenes[day % scenes.length];
++  }
++}
+--- a/lib/services/subscription_service.dart
++++ b/lib/services/subscription_service.dart
+@@ -29,12 +29,12 @@
+   static const String _premiumSinceKey = 'premium_since';
+   static const String _planKey = 'premium_plan_type';
+ 
+-  static const String displayPrice = '월 4,900원';
++  static const String displayPrice = '월 3,900원';
+   static const String displayYearlyPrice = '연 29,000원';
+   static const String displayYearlyMonthlyEquivalent = '월 2,417원 상당';
+-  static const String yearlyDiscountLabel = '51% 할인';
+-  static const String displayYearlyOriginalPrice = '58,800원';
+-  static const String yearlySavingsLabel = '29,800원 절약';
++  static const String yearlyDiscountLabel = '38% 할인';
++  static const String displayYearlyOriginalPrice = '46,800원';
++  static const String yearlySavingsLabel = '17,800원 절약';
+   static const String earlybirdLabel = '정원 플러스 멤버십';
+   static const String earlybirdCaption = '구독은 언제든 해지할 수 있어요';
+   static const String billingComingSoonLabel = '곧 스토어에서 만나요';
+@@ -48,8 +48,22 @@
+   bool _initialized = false;
+ 
+   /// restorePurchases 동안 활성 구독을 한 건이라도 봤는지.
+-  /// 한 건도 없으면 로컬 프리미엄을 끕니다.
++  /// 오류 없는 Android 조회가 비어 있을 때만 로컬 프리미엄을 끕니다.
+   bool _sawActiveEntitlement = false;
++  bool restoreUnavailable = false;
++  Future<bool>? _restoreInFlight;
++
++  bool hasProduct(SubscriptionPlan plan) =>
++      _products.containsKey(productIdFor(plan));
++
++  Future<void> refreshProducts() async {
++    try {
++      await init();
++      await _queryProducts();
++    } catch (e) {
++      if (kDebugMode) debugPrint('SubscriptionService products unavailable: $e');
++    }
++  }
+ 
+   String productIdFor(SubscriptionPlan plan) =>
+       plan == SubscriptionPlan.yearly ? yearlyProductId : monthlyProductId;
+@@ -57,8 +71,10 @@
+   String priceLabelFor(SubscriptionPlan plan) {
+     final id = productIdFor(plan);
+     final store = _products[id];
+-    if (store != null && store.price.isNotEmpty) return store.price;
+-    return plan == SubscriptionPlan.yearly ? displayYearlyPrice : displayPrice;
++    if (store != null && store.price.isNotEmpty) {
++      return '${plan == SubscriptionPlan.yearly ? '연' : '월'} ${store.price}';
++    }
++    return '가격 확인 중';
+   }
+ 
+   /// 앱 시작 시 한 번 호출: 스토어 연결 + 미완료 구매 처리 + 상품 조회.
+@@ -71,21 +87,27 @@
+       return;
+     }
+ 
+-    final available = await _iap.isAvailable();
+-    if (!available) {
+-      if (kDebugMode) debugPrint('SubscriptionService: 스토어 사용 불가');
+-      return;
+-    }
+-
+-    _purchaseSub = _iap.purchaseStream.listen(
+-      _onPurchaseUpdates,
+-      onError: (Object e) {
+-        if (kDebugMode) debugPrint('SubscriptionService purchaseStream: $e');
+-      },
+-    );
+-
+-    await _queryProducts();
+-    await restorePurchases();
++    try {
++      final available = await _iap.isAvailable();
++      if (!available) {
++        _initialized = false;
++        if (kDebugMode) debugPrint('SubscriptionService: 스토어 사용 불가');
++        return;
++      }
++
++      _purchaseSub ??= _iap.purchaseStream.listen(
++        _onPurchaseUpdates,
++        onError: (Object e) {
++          if (kDebugMode) debugPrint('SubscriptionService purchaseStream: $e');
++        },
++      );
++
++      await _queryProducts();
++      await restorePurchases();
++    } catch (e) {
++      _initialized = false;
++      if (kDebugMode) debugPrint('SubscriptionService init: $e');
++    }
+   }
+ 
+   Future<void> _queryProducts() async {
+@@ -94,6 +116,7 @@
+     if (resp.error != null && kDebugMode) {
+       debugPrint('SubscriptionService query error: ${resp.error}');
+     }
++    _products.clear();
+     for (final p in resp.productDetails) {
+       _products[p.id] = p;
+     }
+@@ -107,6 +130,8 @@
+ 
+   void _onPurchaseUpdates(List<PurchaseDetails> purchases) async {
+     for (final purchase in purchases) {
++      if (purchase.productID != monthlyProductId &&
++          purchase.productID != yearlyProductId) continue;
+       switch (purchase.status) {
+         case PurchaseStatus.pending:
+           break;
+@@ -203,7 +228,9 @@
+     final prefs = await SharedPreferences.getInstance();
+     await prefs.setBool(_premiumKey, v);
+     if (v) {
+-      await prefs.setString(_premiumSinceKey, DateTime.now().toIso8601String());
++      if (!prefs.containsKey(_premiumSinceKey)) {
++        await prefs.setString(_premiumSinceKey, DateTime.now().toIso8601String());
++      }
+     } else {
+       await prefs.remove(_premiumSinceKey);
+     }
+@@ -222,6 +249,8 @@
+       return false;
+     }
+ 
++    if (_purchaseCompleter != null) return false;
++    await init();
+     if (_products.isEmpty) await _queryProducts();
+     final product = _products[productIdFor(plan)];
+     if (product == null) {
+@@ -247,13 +276,9 @@
+       purchaseParam = PurchaseParam(productDetails: product);
+     }
+ 
+-    final started = await _iap.buyNonConsumable(purchaseParam: purchaseParam);
+-    if (!started) {
+-      _purchaseCompleter = null;
+-      return false;
+-    }
+-
+     try {
++      final started = await _iap.buyNonConsumable(purchaseParam: purchaseParam);
++      if (!started) return false;
+       return await _purchaseCompleter!.future.timeout(
+         const Duration(minutes: 5),
+         onTimeout: () => false,
+@@ -279,63 +304,66 @@
+ 
+   /// 스토어에서 과거 구매를 다시 읽어 프리미엄 동기화.
+   /// 활성 구독이 없으면 로컬 프리미엄 플래그를 끕니다(만료·해지 반영).
+-  Future<bool> restorePurchases() async {
++  Future<bool> restorePurchases() {
++    return _restoreInFlight ??= _restoreSafely().whenComplete(() {
++      _restoreInFlight = null;
++    });
++  }
++
++  Future<bool> _restoreSafely() async {
++    restoreUnavailable = false;
+     if (!storeBillingEnabled) {
+       await _clearLocalPremiumFlag();
+       return false;
+     }
+-
+     _sawActiveEntitlement = false;
+-    var foundViaQuery = false;
+-
+-    // Android: queryPastPurchases 가 현재 소유(활성) 구독만 돌려주는 경우가 많아
+-    // 복원 스트림보다 만료 판별에 더 신뢰할 수 있습니다.
+-    if (defaultTargetPlatform == TargetPlatform.android) {
+-      try {
+-        final addition = _iap
+-            .getPlatformAddition<InAppPurchaseAndroidPlatformAddition>();
+-        final response = await addition.queryPastPurchases();
+-        for (final purchase in response.pastPurchases) {
+-          if (purchase.productID != monthlyProductId &&
+-              purchase.productID != yearlyProductId) {
+-            continue;
+-          }
+-          foundViaQuery = true;
+-          _sawActiveEntitlement = true;
+-          final plan = purchase.productID == yearlyProductId
+-              ? SubscriptionPlan.yearly
+-              : SubscriptionPlan.monthly;
+-          await setPremium(true);
+-          await setPlan(plan);
+-          if (purchase.pendingCompletePurchase) {
+-            await _iap.completePurchase(purchase);
+-          }
++    try {
++      if (!await _iap.isAvailable()) {
++        restoreUnavailable = true;
++        return isPremium();
++      }
++      if (defaultTargetPlatform != TargetPlatform.android) {
++        // This release targets Android. A restore stream has no reliable
++        // empty-result completion signal here; never revoke on a timer.
++        await _iap.restorePurchases();
++        restoreUnavailable = true;
++        return isPremium();
++      }
++      final addition = _iap
++          .getPlatformAddition<InAppPurchaseAndroidPlatformAddition>();
++      final response = await addition.queryPastPurchases();
++      if (response.error != null) {
++        restoreUnavailable = true;
++        return isPremium();
++      }
++      final active = response.pastPurchases
++          .where(_isActiveSubscription).toList();
++      if (active.isEmpty) {
++        // A purchase update received during the query takes precedence.
++        if (!_sawActiveEntitlement && _purchaseCompleter == null) {
++          await _clearLocalPremiumFlag();
+         }
+-      } catch (e) {
+-        if (kDebugMode) {
+-          debugPrint('SubscriptionService queryPastPurchases: $e');
++        return isPremium();
++      }
++      final purchase = active.firstWhere(
++        (p) => p.productID == yearlyProductId,
++        orElse: () => active.first,
++      );
++      await setPremium(true);
++      await setPlan(purchase.productID == yearlyProductId
++          ? SubscriptionPlan.yearly : SubscriptionPlan.monthly);
++      for (final item in active) {
++        if (item.pendingCompletePurchase) {
++          await _iap.completePurchase(item);
+         }
+       }
+-    }
+-
+-    try {
+-      await _iap.restorePurchases();
+-      // purchaseStream에서 setPremium 처리. 잠시 대기.
+-      await Future<void>.delayed(const Duration(milliseconds: 800));
++      return true;
+     } catch (e) {
++      restoreUnavailable = true;
+       if (kDebugMode) debugPrint('SubscriptionService restore: $e');
+-    }
+-
+-    if (!_sawActiveEntitlement && !foundViaQuery) {
+-      await _clearLocalPremiumFlag();
+-      if (kDebugMode) {
+-        debugPrint(
+-          'SubscriptionService: 활성 구독 없음 — 로컬 프리미엄 해제',
+-        );
+-      }
+-      return false;
+-    }
+-    return isPremium();
++      // Transport/billing errors do not prove that an entitlement expired.
++      return isPremium();
++    }
+   }
+ 
+   Future<void> dispose() async {
+--- a/lib/services/weekly_shadow_map_service.dart
++++ b/lib/services/weekly_shadow_map_service.dart
+@@ -78,7 +78,9 @@
+     // 지난 달 같은 구간(1일부터, 오늘까지 지난 일수만큼)만 비교해 공정하게 만듭니다.
+     final daysSoFar = todayStart.difference(thisMonthStart).inDays;
+     final lastMonthStart = DateTime(ref.year, ref.month - 1, 1);
+-    final lastMonthEnd = lastMonthStart.add(Duration(days: daysSoFar));
++    final candidateEnd = lastMonthStart.add(Duration(days: daysSoFar));
++    final previousEnd = DateTime(ref.year, ref.month, 0);
++    final lastMonthEnd = candidateEnd.isAfter(previousEnd) ? previousEnd : candidateEnd;
+     return comparePeriods(
+       history,
+       aStart: thisMonthStart,
+@@ -97,7 +99,9 @@
+     final thisQuarterStart = DateTime(ref.year, quarterStartMonth, 1);
+     final daysSoFar = todayStart.difference(thisQuarterStart).inDays;
+     final lastQuarterStart = DateTime(ref.year, quarterStartMonth - 3, 1);
+-    final lastQuarterEnd = lastQuarterStart.add(Duration(days: daysSoFar));
++    final candidateEnd = lastQuarterStart.add(Duration(days: daysSoFar));
++    final previousEnd = thisQuarterStart.subtract(const Duration(days: 1));
++    final lastQuarterEnd = candidateEnd.isAfter(previousEnd) ? previousEnd : candidateEnd;
+     return comparePeriods(
+       history,
+       aStart: thisQuarterStart,
+@@ -225,7 +229,7 @@
+     final weekdayLabel = weekdayLabelFor(bestKey!.$1);
+     final slotLabel = bestKey!.$2;
+     final name = catNameFor(bestCatId!);
+-    return '$weekdayLabel요일 $slotLabel에 $name 감정이\n자주 나타나요.';
++    return '최근 $days일 동안 $weekdayLabel요일 $slotLabel에\n$name 감정을 $bestCount번 기록했어요. 감정을 느낀 시간이 아닌 기록한 시간 기준이에요.';
+   }
+ 
+   // ── 프리미엄 티어: 다시 떠오른 감정(묻어두기 아카이빙 연동) ──
+--- a/lib/theme.dart
++++ b/lib/theme.dart
+@@ -16,7 +16,7 @@
+ 
+   // 텍스트: 밝은 배경 위에 놓일 진한 차콜/잉크 톤 (기존보다 살짝 더 차분하고 모던하게)
+   static const ink = Color(0xFF383032); // 카드 위 진한 텍스트
+-  static const inkSoft = Color(0xFF9A8F86); // 연한 보조 텍스트
++  static const inkSoft = Color(0xFF6F625B); // 연한 보조 텍스트
+ 
+   // 메인 포인트 컬러 (기존 골드 유지 - 데일리 내면소통/성장 등 핵심 액션에 사용)
+   static const gold = Color(0xFFDDA24C);
+@@ -48,7 +48,7 @@
+   static const catPeachBg = Color(0xFFFCEEE5);
+ 
+   // 홈 대표 타이틀용 파스텔 그린 (귀엽고 동글동글한 폰트와 함께 사용)
+-  static const titlePastelGreen = Color(0xFF8FBFA0);
++  static const titlePastelGreen = Color(0xFF44775B);
+   static const titlePastelGreenSoft = Color(0xFFB7D9C2);
+ 
+   // ── 힐링 정원 산책로 메뉴용 파스텔 블롭 컬러 (반투명 유기적 알약 카드) ──
+--- a/test/emotion_statistics_test.dart
++++ b/test/emotion_statistics_test.dart
+@@ -0,0 +1,52 @@
++import 'package:flutter_test/flutter_test.dart';
++import 'package:flutter_app/models/letter_entry.dart';
++import 'package:flutter_app/services/weekly_shadow_map_service.dart';
++import 'package:flutter_app/services/emotion_summary_service.dart';
++import 'package:flutter_app/data/shadow_cats_data.dart';
++import 'package:flutter_app/data/cat_browse_groups.dart';
++
++LetterEntry record(String id, DateTime date, [String cat = 'sad']) =>
++    LetterEntry(id: id, catId: cat, date: date, letterText: '기록');
++
++void main() {
++  test('March comparison does not include March in February results', () {
++    final history = [record('feb', DateTime(2026, 2, 28)), record('mar', DateTime(2026, 3, 1))];
++    final (current, previous) = WeeklyShadowMapService.compareThisMonthVsLastMonth(history, now: DateTime(2026, 3, 31));
++    expect(current['sad'], 1);
++    expect(previous['sad'], 1);
++  });
++  test('leap February and year boundary remain in previous month', () {
++    final history = [record('leap', DateTime(2024, 2, 29)), record('mar', DateTime(2024, 3, 1))];
++    final (_, previous) = WeeklyShadowMapService.compareThisMonthVsLastMonth(history, now: DateTime(2024, 3, 31));
++    expect(previous['sad'], 1);
++    final (_, december) = WeeklyShadowMapService.compareThisMonthVsLastMonth(
++      [record('dec', DateTime(2025, 12, 31)), record('jan', DateTime(2026, 1, 1))], now: DateTime(2026, 1, 31));
++    expect(december['sad'], 1);
++  });
++  test('previous quarter does not cross into current quarter', () {
++    final (_, previous) = WeeklyShadowMapService.compareThisQuarterVsLastQuarter(
++      [record('march', DateTime(2026, 3, 31)), record('april', DateTime(2026, 4, 1))], now: DateTime(2026, 6, 30));
++    expect(previous['sad'], 1);
++  });
++  test('calendar month excludes previous month; counts days separately', () {
++    final selected = EmotionSummaryService.entries([
++      record('old', DateTime(2026, 8, 31)),
++      record('a', DateTime(2026, 9, 1, 8)),
++      record('b', DateTime(2026, 9, 1, 20), 'joyful'),
++      record('c', DateTime(2026, 9, 2)),
++    ], DateTime(2026, 9, 1), DateTime(2026, 9, 2));
++    expect(selected.length, 3);
++    expect(EmotionSummaryService.recordedDays(selected), 2);
++    expect(EmotionSummaryService.ranked(selected).first.value, 2);
++  });
++  test('top-three ratios retain denominator of all records', () {
++    final ratios = WeeklyShadowMapService.topEmotionsRatio({'sad': 4, 'joyful': 3, 'angry': 2, 'weary': 1});
++    expect(ratios.first.$3, .4);
++    expect(ratios.fold<double>(0, (sum, entry) => sum + entry.$3), closeTo(.9, .0001));
++  });
++  test('every catalog cat is reachable in exactly one browse group', () {
++    final grouped = catBrowseGroups.values.expand((ids) => ids).toList();
++    expect(grouped.toSet().length, grouped.length);
++    expect(grouped.toSet(), shadowCats.map((cat) => cat.id).toSet());
++  });
++}
+--- a/test/gentle_care_and_cards_test.dart
++++ b/test/gentle_care_and_cards_test.dart
+@@ -0,0 +1,57 @@
++import 'package:flutter_test/flutter_test.dart';
++import 'package:shared_preferences/shared_preferences.dart';
++import 'package:flutter_app/services/cat_care_service.dart';
++import 'package:flutter_app/services/consciousness_insight_service.dart';
++import 'package:flutter_app/services/letter_reply_insight_service.dart';
++import 'package:flutter_app/services/relationship_story_service.dart';
++import 'package:flutter_app/models/letter_tags.dart';
++
++void main() {
++  TestWidgetsFlutterBinding.ensureInitialized();
++  setUp(() {
++    SharedPreferences.setMockInitialValues({});
++    CatCareService.setCurrentUser('test_gentle');
++  });
++  test('one task completes daily care; further tasks do not repeat bonus', () async {
++    final first = await CatCareService.completeTask(CareTask.feed, isPremium: false);
++    expect(first.allDoneToday, isTrue);
++    expect(first.temperature, 1);
++    for (final task in CareTask.values) {
++      final next = await CatCareService.completeTask(task, isPremium: false);
++      expect(next.temperature, 1);
++    }
++    final prefs = await SharedPreferences.getInstance();
++    expect(prefs.getInt('test_gentle_care_total_full_care_days'), 1);
++  });
++  test('any task can be the first daily care action', () async {
++    for (final task in CareTask.values) {
++      SharedPreferences.setMockInitialValues({});
++      final state = await CatCareService.completeTask(task, isPremium: false);
++      expect(state.allDoneToday, isTrue);
++      expect(state.temperature, 1);
++    }
++  });
++  test('random card comparison never becomes a diagnosis', () {
++    expect(ConsciousnessInsightService.build(consciousCatId: null, unconsciousCatId: 'sad'), isNull);
++    for (final chosen in ['sad', 'angry', 'dreamy']) {
++      for (final drawn in ['sad', 'angry', 'dreamy']) {
++        final result = ConsciousnessInsightService.build(consciousCatId: chosen, unconsciousCatId: drawn)!;
++        expect(result.stateDescription, contains('재미용'));
++        expect(result.comfort, contains('그냥 넘겨도'));
++        expect(result.stateDescription, isNot(contains('박사')));
++      }
++    }
++  });
++  test('every emotion has a reflective question', () {
++    for (final emotion in EmotionTag.values) {
++      expect(LetterReplyInsightService.build(emotion).stateDescription, endsWith('?'));
++    }
++  });
++  test('relationship scenes are stable for a day and vary across days', () {
++    for (final stage in IntimacyTag.values) {
++      final date = DateTime(2026, 9, 12);
++      expect(RelationshipStoryService.lineFor(stage, date), RelationshipStoryService.lineFor(stage, date));
++      expect(RelationshipStoryService.lineFor(stage, date), isNot(RelationshipStoryService.lineFor(stage, date.add(const Duration(days: 1)))));
++    }
++  });
++}

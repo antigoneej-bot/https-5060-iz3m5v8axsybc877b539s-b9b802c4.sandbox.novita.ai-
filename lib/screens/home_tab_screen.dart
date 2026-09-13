@@ -1,3 +1,6 @@
+import 'emotion_statistics_screen.dart';
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_state_provider.dart';
@@ -16,10 +19,7 @@ import 'pet_care_screen.dart';
 import 'daily_card_screen.dart';
 import 'todays_promise_screen.dart';
 import 'day_close_screen.dart';
-import 'weekly_reflection_screen.dart';
-import 'monthly_shadow_reflection_screen.dart';
 import 'bubble_garden_screen.dart';
-import 'weekly_shadow_map_screen.dart';
 import 'sprout_reflection_screen.dart';
 import 'cat_bond_screen.dart';
 import 'heart_letters_screen.dart';
@@ -51,6 +51,18 @@ class HomeTabScreen extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        Text(
+          '오늘은 한 가지면 충분해요',
+          style: bodyFont(fontSize: 16, color: AppColors.ink),
+        ),
+        const SizedBox(height: 8),
+        OutlinedButton(
+          onPressed: unseenReply != null ? onGoToRecords : onGoToCatSelect,
+          child: Text(unseenReply != null
+              ? '도착한 고양이 편지 읽기'
+              : '오늘의 감정 고르고 한 줄 보내기'),
+        ),
+        const SizedBox(height: 16),
         if (unseenReply != null) ...[
           _CatReplyBanner(entry: unseenReply, onTap: onGoToRecords),
           const SizedBox(height: 16),
@@ -106,7 +118,15 @@ class HomeTabScreen extends StatelessWidget {
           onMeetCat: onGoToCatSelect,
         ),
         const SizedBox(height: 26),
-        _StreakBlob(streak: app.streak),
+        Builder(
+          builder: (context) {
+            final careDays =
+                context.watch<CatCareProvider>().state.growthDays;
+            // 설치일 기준(streak)과 출석일(growthDays) 중 큰 값으로 맞춤
+            final days = math.max(app.streak, careDays);
+            return _StreakBlob(streak: days);
+          },
+        ),
         const SizedBox(height: 18),
         GrowthHeader(state: context.watch<CatCareProvider>().state),
         const SizedBox(height: 44),
@@ -115,7 +135,7 @@ class HomeTabScreen extends StatelessWidget {
         GardenPathCard(
           emoji: '🌿',
           title: '마음 돌보기',
-          subtitle: '명상·움직임, 몸 돌봄, 데일리 내면소통을 모아뒀어요',
+          subtitle: '명상·움직임, 몸 돌봄, 오늘의 고양이 카드을 모아뒀어요',
           accent: AppColors.blobMintAccent,
           background: AppColors.blobMint,
           alignX: 0.28,
@@ -134,7 +154,12 @@ class HomeTabScreen extends StatelessWidget {
                     subtitle: '호흡, 알아차림, 움직임, 표현하기 가이드를 살펴보세요',
                     accent: AppColors.blobLavenderAccent,
                     background: AppColors.blobLavender,
-                    onTap: onGoToMeditation,
+                    onTap: (ctx) {
+                      // 카테고리 목록이 탭 셸 위에 덮여 있으므로, 먼저 닫고
+                      // 명상 탭으로 바꿔야 바로 보입니다.
+                      Navigator.of(ctx).pop();
+                      onGoToMeditation();
+                    },
                   ),
                   CategoryItem(
                     emoji: '🐟',
@@ -142,21 +167,21 @@ class HomeTabScreen extends StatelessWidget {
                     subtitle: '밥·물·목욕과 호흡·걷기 명상으로 고양이를 함께 키워보세요',
                     accent: AppColors.blobRoseAccent,
                     background: AppColors.blobRose,
-                    onTap: () => pushFullScreen(
-                      context,
+                    onTap: (ctx) => pushFullScreen(
+                      ctx,
                       '마음 돌보기',
                       const PetCareScreen(),
                     ),
                   ),
                   CategoryItem(
                     emoji: '🔮',
-                    title: '데일리 내면소통',
+                    title: '오늘의 고양이 카드',
                     subtitle: '오늘의 카드를 뽑아 위로와 지침을 받아보세요',
                     accent: AppColors.blobPeriwinkleAccent,
                     background: AppColors.blobPeriwinkle,
-                    onTap: () => pushFullScreen(
-                      context,
-                      '데일리 내면소통',
+                    onTap: (ctx) => pushFullScreen(
+                      ctx,
+                      '오늘의 고양이 카드',
                       const DailyCardScreen(),
                     ),
                   ),
@@ -188,8 +213,8 @@ class HomeTabScreen extends StatelessWidget {
                     subtitle: '감사·용서·미안함·사랑, 짧게 적으면 내일 답장이 와요',
                     accent: AppColors.blobButterAccent,
                     background: AppColors.blobButter,
-                    onTap: () => pushFullScreen(
-                      context,
+                    onTap: (ctx) => pushFullScreen(
+                      ctx,
                       '마음편지',
                       const HeartLettersScreen(),
                     ),
@@ -200,8 +225,8 @@ class HomeTabScreen extends StatelessWidget {
                     subtitle: '오늘 나를 위해 지켜주고 싶은 작은 약속을 남겨보세요',
                     accent: AppColors.blobRoseAccent,
                     background: AppColors.blobRose,
-                    onTap: () => pushFullScreen(
-                      context,
+                    onTap: (ctx) => pushFullScreen(
+                      ctx,
                       '오늘의 약속',
                       const TodaysPromiseScreen(),
                     ),
@@ -234,18 +259,21 @@ class HomeTabScreen extends StatelessWidget {
                     subtitle: '지난 편지와 마음 온도 변화를 돌아보세요',
                     accent: AppColors.blobRoseAccent,
                     background: AppColors.blobRose,
-                    onTap: onGoToRecords,
+                    onTap: (ctx) {
+                      Navigator.of(ctx).pop();
+                      onGoToRecords();
+                    },
                   ),
                   CategoryItem(
                     emoji: '🗺️',
-                    title: '주간 그림자 지도',
+                    title: '감정 통계',
                     subtitle: '이번 주 자주 마주한 감정 Top 3를 지도처럼 살펴보세요',
                     accent: AppColors.blobPeachAccent,
                     background: AppColors.blobPeach,
-                    onTap: () => pushFullScreen(
-                      context,
-                      '주간 그림자 지도',
-                      const WeeklyShadowMapScreen(),
+                    onTap: (ctx) => pushFullScreen(
+                      ctx,
+                      '감정 통계',
+                      const EmotionStatisticsScreen(),
                     ),
                   ),
                   CategoryItem(
@@ -254,8 +282,8 @@ class HomeTabScreen extends StatelessWidget {
                     subtitle: '오늘 곁에 남긴 약속들을 조용히 돌아보며 하루를 닫아요',
                     accent: AppColors.blobPeriwinkleAccent,
                     background: AppColors.blobPeriwinkle,
-                    onTap: () => pushFullScreen(
-                      context,
+                    onTap: (ctx) => pushFullScreen(
+                      ctx,
                       '하루 닫기',
                       const DayCloseScreen(),
                     ),
@@ -266,8 +294,8 @@ class HomeTabScreen extends StatelessWidget {
                     subtitle: '오늘 마주한 감정을 방울로 만나, 하나씩 터뜨려 놓아주세요',
                     accent: AppColors.blobLavenderAccent,
                     background: AppColors.blobLavender,
-                    onTap: () => pushFullScreen(
-                      context,
+                    onTap: (ctx) => pushFullScreen(
+                      ctx,
                       '오늘의 그림자 방울 터뜨리기',
                       const BubbleGardenScreen(),
                     ),
@@ -792,10 +820,16 @@ class _StreakBlob extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           _StreakWeekDots(days: last7),
+          const SizedBox(height: 8),
+          Text(
+            '숫자는 앱과 함께한(출석) 일수예요.\n아래 점은 최근 7일 중 편지를 남긴 날이에요',
+            textAlign: TextAlign.center,
+            style: bodyFont(fontSize: 11, color: AppColors.inkSoft),
+          ),
           if (!recordedToday && streak > 0) ...[
             const SizedBox(height: 10),
             Text(
-              '오늘 아직 기록이 없어요 · 지금 만나면 계속 이어져요',
+              '오늘 아직 기록이 없어요 · 지금 만나면 마음이 이어져요',
               style: bodyFont(fontSize: 11, color: AppColors.blobButterAccent),
             ),
           ],
@@ -914,7 +948,7 @@ class _StreakWeekDots extends StatelessWidget {
   }
 }
 
-/// 주간/월간 회고 자동 노출 배너 영역.
+/// 주간/월간 통계 자동 노출 배너 영역.
 /// 진입 조건(가입 후 7일/30일 경과 등)을 만족하고, 아직 이번 주기 안에
 /// 보지 않았을 때만 나타납니다. 사용자가 앱을 열었을 때 화면에 조용히
 /// 보이는 카드일 뿐, 푸시 알림 등 어떤 강제 알림도 사용하지 않습니다.
@@ -965,7 +999,7 @@ class _ReflectionBannerAreaState extends State<_ReflectionBannerArea> {
               subtitle: '한 달간의 감정 흐름을 문장으로 되짚어볼 수 있어요',
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (_) => const MonthlyShadowReflectionScreen(),
+                  builder: (_) => const EmotionStatisticsScreen(initialMonthly: true),
                 ),
               ),
             )
@@ -975,7 +1009,7 @@ class _ReflectionBannerAreaState extends State<_ReflectionBannerArea> {
               subtitle: '이번 주 함께한 고양이와 요일별 흐름을 살펴보세요',
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (_) => const WeeklyReflectionScreen(),
+                  builder: (_) => const EmotionStatisticsScreen(),
                 ),
               ),
             ),

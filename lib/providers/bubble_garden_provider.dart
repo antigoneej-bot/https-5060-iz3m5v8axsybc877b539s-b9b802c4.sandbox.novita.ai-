@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import '../data/cat_emotion_tone.dart';
 import '../models/letter_entry.dart';
@@ -172,14 +174,20 @@ class BubbleGardenProvider extends ChangeNotifier {
     pointsEarnedThisSession += BubbleGardenService.pointsPerBubble;
     reactionCatId = target.catId;
     reactionLine = reactionLineFor;
-    await SoundService().playBubblePop();
-
     if (bubbles.isNotEmpty && bubbles.every(_isHandled)) {
       stage = BubbleGardenStage.allPopped;
-      await SoundService().playGardenComplete();
-      await _tryRecallPastMemo();
     }
     notifyListeners();
+    unawaited(() async {
+      try {
+        await SoundService().playBubblePop();
+        if (stage == BubbleGardenStage.allPopped) {
+          await SoundService().playGardenComplete();
+          await _tryRecallPastMemo();
+          notifyListeners();
+        }
+      } catch (_) {}
+    }());
   }
 
   /// 방울을 터뜨리며(또는 터뜨린 직후) 그 감정 고양이에게 남기는 아주 짧은
@@ -229,14 +237,20 @@ class BubbleGardenProvider extends ChangeNotifier {
         .toList();
     alreadyBuriedToday = true;
     showBuryReflection = true;
-    await SoundService().playChime();
-
     if (bubbles.isNotEmpty && bubbles.every(_isHandled)) {
       stage = BubbleGardenStage.allPopped;
-      await SoundService().playGardenComplete();
-      await _tryRecallPastMemo();
     }
     notifyListeners();
+    unawaited(() async {
+      try {
+        await SoundService().playChime();
+        if (stage == BubbleGardenStage.allPopped) {
+          await SoundService().playGardenComplete();
+          await _tryRecallPastMemo();
+          notifyListeners();
+        }
+      } catch (_) {}
+    }());
     return true;
   }
 }

@@ -1,5 +1,6 @@
 import 'package:hive_flutter/hive_flutter.dart';
 import '../models/buried_emotion_entry.dart';
+import 'hive_encryption.dart';
 
 /// '그림자 방울 묻어두기' 데이터를 계정별로 관리하는 서비스.
 ///
@@ -27,7 +28,7 @@ class BuriedEmotionService {
     if (_box != null && _box!.isOpen) {
       await _box!.close();
     }
-    _box = await Hive.openBox('buried_emotions_$_uid');
+    _box = await HiveEncryption.openBox('buried_emotions_$_uid');
   }
 
   static Future<void> clearCurrentUser() async {

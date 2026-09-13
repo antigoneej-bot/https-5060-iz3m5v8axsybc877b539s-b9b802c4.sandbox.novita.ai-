@@ -3,6 +3,7 @@ import 'dart:math';
 import '../models/memory_entry.dart';
 import '../data/memory_keyword_dictionary.dart';
 import '../data/memory_recall_templates.dart';
+import 'hive_encryption.dart';
 
 /// 고양이 기억 시스템(설계서 6장)의 데이터를 계정별로 관리하는 서비스.
 ///
@@ -19,7 +20,7 @@ class CatMemoryService {
     if (_box != null && _box!.isOpen) {
       await _box!.close();
     }
-    _box = await Hive.openBox('cat_memories_$_uid');
+    _box = await HiveEncryption.openBox('cat_memories_$_uid');
   }
 
   static Future<void> clearCurrentUser() async {

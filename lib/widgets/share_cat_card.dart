@@ -331,7 +331,7 @@ class ShareCatCardContent extends StatelessWidget {
             borderRadius: BorderRadius.circular(24),
             child: LivelyCatImage(
               imageAsset: cat.imageAsset,
-              width: double.infinity,
+              width: 256,
               height: 220,
               borderRadius: BorderRadius.circular(24),
             ),

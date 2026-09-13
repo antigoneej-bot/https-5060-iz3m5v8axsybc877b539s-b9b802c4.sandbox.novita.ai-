@@ -1,0 +1,1598 @@
+--- v3/BACKEND_SETUP_KO.md
++++ v4/BACKEND_SETUP_KO.md
+@@ -0,0 +1,66 @@
++# 서버 연결 안내 — 배포 전 확인 필요
++
++이 폴더는 배포 가능한 형태의 출발점이며 실제 Firebase 프로젝트에 배포하지 않았습니다. Firebase·Play 관리자 설정과 실기기 내부 테스트가 필요합니다. 비밀키를 앱·ZIP·저장소에 넣지 마세요.
++
++## 1. Firebase와 Play 준비
++
++- 앱에서 사용하는 Firebase 프로젝트와 Android 등록 정보를 확인합니다. 이메일/비밀번호 인증과 이메일 인증 메일을 설정합니다.
++- Firestore, 기본 Cloud Storage 버킷, Cloud Functions 실행에 필요한 결제·API 설정을 준비합니다. 예산 알림을 설정하고 예상 트래픽으로 비용을 확인합니다.
++- App Check의 Play Integrity에 실제 앱 서명 SHA-256과 배포 경로를 등록합니다. 코드의 `GARDEN_ANDROID_APP_ID`는 Android 패키지명이 아니라 Firebase Android 앱 ID입니다.
++- Functions 실행 서비스 계정에 Google Play의 해당 앱 구매 조회·구독 관리에 필요한 권한을 부여하고 Google Play Developer API를 활성화합니다. 런타임 기본 인증을 사용하며 앱 안에 서비스 계정 JSON을 배포하지 않습니다.
++- 패키지 `com.mysticcat.journal`, 상품 `garden_plus_monthly`, `garden_plus_yearly`가 실제 Play Console과 일치하는지 확인합니다.
++- Pub/Sub `play-rtdn` 토픽에 Google Play의 실시간 개발자 알림을 연결합니다. Google의 알림 게시 계정에 해당 토픽 Publisher 권한을 주고 테스트 알림을 확인합니다.
++
++공식 참고:
++- [App Check / Play Integrity 설정](https://firebase.google.com/docs/app-check/android/play-integrity-provider)
++- [구독 상태와 외부 계정 식별자](https://developers.google.com/android-publisher/api-ref/rest/v3/purchases.subscriptionsv2)
++- [실시간 개발자 알림 설정](https://developer.android.com/google/play/billing/getting-ready#configure-rtdn)
++- [Flutter Google Play 구매 인자](https://pub.dev/documentation/in_app_purchase_android/latest/in_app_purchase_android/GooglePlayPurchaseParam-class.html)
++
++## 2. 설치·배포
++
++Node 22와 Firebase CLI가 있는 관리자 개발 환경에서 실행합니다. 아래 값은 실제 프로젝트 값으로 교체해야 합니다.
++
++```bash
++cd backend
++npm install
++npm test
++cp .env.example .env
++```
++
++`.env`의 `GARDEN_ANDROID_APP_ID`를 설정하고 프로젝트 루트로 돌아와 배포합니다. **동봉 규칙은 모든 클라이언트 직접 접근을 차단하므로, 다른 앱과 공유하는 Firebase 프로젝트라면 기존 규칙을 검토·병합한 뒤 배포해야 합니다.** 관리 SDK를 사용하는 이 서버만 저장소에 접근하도록 의도했습니다.
++
++```bash
++firebase deploy --project YOUR_PROJECT_ID --only functions,firestore:rules,storage
++```
++
++Functions 런타임 인증·권한, 기본 Storage 버킷 및 RTDN 토픽을 확인합니다. 배포 결과의 gardenApi HTTPS URL을 사용합니다.
++
++```bash
++flutter pub get
++flutter analyze
++flutter test
++flutter build appbundle --release --dart-define=GARDEN_BACKEND_URL=YOUR_HTTPS_GARDEN_API_URL
++```
++
++Play 내부 테스트에서 설치하고 App Check가 통과하는지 확인합니다. 운영 검증을 통과시키려고 App Check나 계정 소유권 검사를 제거하지 마세요. URL 없는 빌드는 기존 로컬 구독 판정이며 서버 기능은 비활성입니다. 현재 구현은 Android Play 대상입니다.
++
++## 3. 계정과 기존 구매 이전
++
++신규 구매는 이메일 인증된 Firebase UID의 SHA-256 값을 Play 구매의 계정 식별자로 전달합니다. 실제 플러그인 버전에서 Google 조회 응답의 `obfuscatedExternalAccountId`가 동일한지 반드시 내부 구매로 확인합니다. 토큰 소유권은 트랜잭션으로 고정하며 다른 계정이 가져갈 수 없습니다.
++
++과거 구매는 이 식별자가 없을 수 있습니다. 구매 토큰을 처음 제출한 계정에 무조건 연결하지 않도록 `purchase-migration-required`로 차단했습니다. 기존 구독자의 검증된 소유권을 이전하는 운영 절차/관리 도구는 아직 없습니다. 영수증 제출만으로 자동 연결하지 말고 소유권 확인·지원·감사 절차를 마련한 뒤 이전하세요. 이전 전 기존 사용자의 구독이 갑자기 차단되는 서버 모드 전환은 출시하지 마세요.
++
++계정 삭제는 해당 백업·계정·검증 정보를 삭제하고 재사용 방지용 구매 토큰 해시 표식만 남깁니다. Play 구독은 별도로 남습니다. 백업 삭제 실패·중간 실패 재시도와 동시 요청은 통합 테스트에서 확인해야 합니다.
++
++## 4. 반드시 확인할 통합 시나리오
++
++- 구매→Google 검증→구매 승인→권한 반영, 복원, 갱신, 갱신 취소 후 만료일까지 접근, 만료·보류·환불, 네트워크 실패 재시도.
++- 다른 Firebase 계정의 구매 토큰 제출, 다른 앱 App Check 토큰, 이메일 미인증, 잘못된 토큰으로 권한이나 데이터가 열리지 않는지.
++- RTDN이 실제 Google 최신 상태를 반영하는지. 지연·중복·재시도에도 사용자 권한이 적절한지.
++- 두 계정의 서버 백업 목록·복원·삭제가 격리되는지. 암호 오류와 파일 변조 시 기존 기기 데이터가 유지되는지.
++- 백업 11개 업로드 후 최근 10개 보존, 실패 시 이전 백업 유지, 구독 종료 후 기존 백업 복원.
++- 현재는 서버 판정의 보안 저장소 캐시를 최대 48시간, 실제 만료일 이내에서 허용합니다. 따라서 기기 오프라인 권한 회수는 즉각적이지 않습니다. 서버 백업 API는 매번 Google 상태를 확인합니다.
++- 장기 구독자의 구매 토큰 누적 시 Google 조회 시간·쿼터, 대용량 백업, 계정 삭제 도중 요청, 함수 오류 재시도를 부하/통합 테스트합니다. 예산·속도 제한·보존 정책은 출시 운영 조건에 맞게 확정합니다.
++
++보안 규칙·관리자 IAM·삭제 후 보존되는 사업자 백업 및 로그 정책까지 확인해야 실제 저장/삭제 보장을 설명할 수 있습니다. 코드만으로 운영 환경의 보안을 검증한 것은 아닙니다.
+--- v3/V4_NOTES_KO.md
++++ v4/V4_NOTES_KO.md
+@@ -0,0 +1,49 @@
++# 마음냥 정원 v4 — 저장 신뢰성과 구독 기반
++
++2026-09-13. v3 수정본을 바탕으로 만든 누적 **소스 수정본**입니다. APK/AAB가 아니며, Flutter 컴파일·기기 실행·실결제·서버 배포는 아직 하지 않았습니다. 앞선 수정 내역은 V2_NOTES_KO.md, V3_NOTES_KO.md에 있습니다.
++
++## 이번 구현
++
++| 우선순위 | 변경 | 적용 범위 |
++|---|---|---|
++| 1 | 편지 초안 자동 저장 | 일반 고양이 편지와 마음 편지. 고양이/종류별 분리, 입력 후 300ms 저장, 앱 전환·화면 종료 시 저장 시도 |
++| 2 | 암호화 파일 백업·복원 | 마이 → 기록 보관과 백업. 무료. 기존 ID는 유지하고 없는 항목만 추가 |
++| 3 | 서버 구독 검증 | Google Play 구매 조회, Firebase 계정 결합, App Check. 서버 설정 후 활성화 |
++| 4 | 구독자 자동 백업 | 명시적 동의 후 앱을 열었을 때 24시간마다 시도, 최근 10개 버전. 서버 설정 필요 |
++| 5 | 구독용 이야기 | 마이 → 고양이와 함께하는 여정. 3개 주제 × 4편, 각 주제 첫 편 무료 |
++
++편지 답장은 처음 생성된 내용을 저장해 다시 열 때 달라지지 않도록 했습니다. 예전에 읽었던 답장은 과거 본문이 저장되어 있지 않으므로 v4에서 처음 생성한 시점부터 고정됩니다. 기기 암호화 키를 동시에 초기화할 때 서로 다른 키를 만들 수 있던 경쟁 조건도 직렬화했습니다.
++
++## 저장과 복원의 실제 조건
++
++- 초안 저장도 실패할 수 있으며 화면에 실패 문구를 표시합니다. 300ms 내 강제 종료·OS 프로세스 종료까지 보장하지 않습니다. 초안은 기기 분실 대비 백업을 대신하지 않습니다.
++- 파일은 AES-256-GCM으로 암호화하고 PBKDF2-HMAC-SHA256 600,000회로 암호에서 키를 만듭니다. 백업 암호는 최소 12자이며 파일에 포함하지 않습니다. 사용자는 충분히 긴 고유 암호를 보관해야 합니다.
++- 파일 가져오기는 최대 8MiB, 원본 JSON은 4MiB까지 지원합니다. 장기간 사용하는 실제 기록량으로 용량·저사양 기기 암호화 시간을 확인해야 합니다.
++- 편지·돌아보기·카드·버블 메모·묻은 감정·추억·활동·약속·마음 편지·초안·캐시 답장과 허용된 정원 설정을 포함합니다. 결제 권한, 인증 토큰, 알림 예약, 분석 설정은 백업에서 제외합니다.
++- 복원 전에 형식·설정 자료형·허용된 기록 종류를 검사합니다. 복원 중 중단되면 암호화 작업 기록을 바탕으로 다음 시작 때 이어서 처리합니다. 복원 직후 앱을 재시작해야 화면 상태가 일치합니다.
++- 현재 기록이 있으면 정원 성장·프로필 설정을 유지합니다. 빈 정원은 백업 설정을 가져옵니다. 서로 다른 기기의 성장 수치를 합산하는 동기화는 구현하지 않았습니다.
++- 기존 Hive의 평문→암호화 이전 실패 시 원본을 유지하는 동작은 남아 있습니다. 따라서 모든 기존 설치의 기록이 반드시 암호화되었다고 단정할 수 없습니다. 새 초안과 복원 작업 기록은 암호화 실패 시 평문 저장을 하지 않습니다.
++- 한 기기에 정원 하나라는 기존 구조를 유지합니다. 로그인 변경만으로 기기 기록은 전환되지 않으며 로그아웃해도 남습니다. 자동 백업은 사용자가 동의한 계정과 기기를 결합합니다.
++- 서버에는 암호화 백업 본문과 별도로 계정·시각·구독 검증용 구매 토큰이 저장됩니다. 기기 자동 백업 암호는 보안 저장소에 둡니다. 서버에는 보내지 않습니다. 분실한 암호를 운영자가 재설정해서 과거 백업을 열 수는 없습니다.
++- 구독 만료 후에도 수동 파일 백업과 기존 서버 백업 복원은 열어 둡니다. 앱이 닫혀 있을 때 실행되는 Android 백그라운드 작업은 아닙니다.
++
++## 구독 유지 운영 제안
++
++이번 12편은 유한한 초기 콘텐츠입니다. 매달 새 콘텐츠가 자동 공급되는 구조나 지속 구독률 개선을 검증한 결과가 아닙니다. 사용자가 매주 이야기를 읽고 자신의 기록을 돌아볼 이유를 먼저 제공하고, 다음 주제는 실제 이용을 보고 제작하는 편이 좋습니다.
++
++가격은 이번 v4에서 추가로 바꾸지 않았습니다. 구독료 인하를 먼저 확정하기보다 첫 기록 저장 성공, 7일 재방문, 주간/월간 통계 열람, 이야기 이용, 갱신 및 해지 이유를 확인하세요. 이 지표 수집 대시보드는 이번 구현 범위에 포함되지 않습니다.
++
++## 검증 현황과 다음 실행 순서
++
++- 실행 완료: `node --check backend/index.js`, `node --test backend/test/policy.test.js` — 서버 정책 단위 테스트 11개 통과.
++- 테스트 소스 추가: `test/backup_safety_test.dart` — 암호화 왕복, 잘못된 암호/변조, 잘못된 설정·중복 기록·결제 권한 가져오기 차단. **Flutter SDK 부재로 미실행**.
++- Firebase SDK를 설치하고 실행한 통합 테스트, 보안 규칙 에뮬레이터, 서버 API, RTDN, Android 파일 선택·재설치 복원은 미검증입니다.
++- `pubspec.lock`은 새 의존성으로 갱신되지 않았습니다. Flutter 환경에서 `flutter pub get`으로 해결하고 lock 변경을 검토해야 합니다.
++
++1. Flutter 환경에서 `flutter pub get`, `flutter analyze`, `flutter test`를 실행하고 결과에 따라 수정합니다.
++2. 테스트 기기에서 편지를 쓰다 나갔다 돌아오기, 고양이 전환, 파일 저장·복원, 잘못된 암호, 중복 복원, 복원 중 종료를 확인합니다. 새 기기/재설치 시 기존 백업 파일은 별도로 보관하세요.
++3. BACKEND_SETUP_KO.md에 따라 테스트 Firebase/Play 환경을 설정하고 서버 연동 빌드를 내부 테스트합니다.
++4. 기존 구독자의 계정 연결 이전 절차를 먼저 해결합니다. 완료 전 전체 사용자에게 서버 모드를 강제하지 않습니다.
++5. 개인정보 안내와 스토어 데이터 공개 내용을 실제 운영 설정에 맞게 갱신하고, 운영 중인 최신 버전보다 큰 versionCode로 서명 AAB를 만듭니다.
++
++서버 URL을 주지 않은 빌드는 새 계정/서버 기능을 숨기며 기존 로컬 구독 판정을 사용합니다. **이 상태를 서버 결제 검증이 적용된 출시본이라고 부르면 안 됩니다.**
+--- v3/backend/firestore.rules
++++ v4/backend/firestore.rules
+@@ -0,0 +1,7 @@
++rules_version = '2';
++service cloud.firestore {
++  match /databases/{database}/documents {
++    // All client access goes through authenticated server routes.
++    match /{document=**} { allow read, write: if false; }
++  }
++}
+--- v3/backend/index.js
++++ v4/backend/index.js
+@@ -0,0 +1,154 @@
++import { randomUUID } from 'node:crypto';
++import { initializeApp } from 'firebase-admin/app';
++import { getAuth } from 'firebase-admin/auth';
++import { getAppCheck } from 'firebase-admin/app-check';
++import { getFirestore, FieldValue } from 'firebase-admin/firestore';
++import { getStorage } from 'firebase-admin/storage';
++import { onRequest } from 'firebase-functions/v2/https';
++import { onMessagePublished } from 'firebase-functions/v2/pubsub';
++import { GoogleAuth } from 'google-auth-library';
++import { PACKAGE, PRODUCTS, entitlement, assertOwner, tokenHash, validEnvelope } from './policy.js';
++initializeApp();
++const db = getFirestore();
++const publisher = new GoogleAuth({scopes:['https://www.googleapis.com/auth/androidpublisher']});
++async function lookup(token) {
++  const client = await publisher.getClient();
++  const response = await client.request({url: `https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${PACKAGE}/purchases/subscriptionsv2/tokens/${encodeURIComponent(token)}`});
++  return response.data;
++}
++async function acknowledge(token, productId, purchase) {
++  if (purchase.acknowledgementState !== 'ACKNOWLEDGEMENT_STATE_PENDING') return;
++  const client = await publisher.getClient();
++  await client.request({method:'POST', url:`https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${PACKAGE}/purchases/subscriptions/${productId}/tokens/${encodeURIComponent(token)}:acknowledge`, data:{}});
++}
++async function verify(uid, token) {
++  const ref = db.doc(`purchaseTokens/${tokenHash(token)}`);
++  const purchase = await lookup(token);
++  // Bind transactionally so two accounts cannot claim the same purchase.
++  await db.runTransaction(async tx => {
++    const existing = await tx.get(ref);
++    if (existing.data()?.deleted) throw new Error('purchase-owner-mismatch');
++    assertOwner(purchase, uid, existing.data()?.uid);
++    tx.set(ref, {uid, token, updatedAt: FieldValue.serverTimestamp()}, {merge:true});
++  });
++  const result = entitlement(purchase);
++  if (result.active) await acknowledge(token, result.productId, purchase);
++  await db.doc(`users/${uid}/entitlements/${tokenHash(token)}`).set(result);
++  return result;
++}
++async function status(uid, refresh = false) {
++  if (refresh) {
++    const tokens = await db.collection('purchaseTokens').where('uid','==',uid).get();
++    // Failure propagates: never replace known status with a fabricated expiry.
++    for (const doc of tokens.docs) {
++      try { await verify(uid, doc.data().token); }
++      catch (error) {
++        if (error.response?.status !== 410) throw error;
++        await db.doc(`users/${uid}/entitlements/${doc.id}`).set({active:false, expiresAt:null, productId:null, checkedAt:new Date().toISOString()});
++      }
++    }
++  }
++  const records = await db.collection(`users/${uid}/entitlements`).get();
++  const now = Date.now();
++  const active = records.docs.map(d => d.data()).filter(e => e.active && Date.parse(e.expiresAt) > now)
++    .sort((a,b) => Date.parse(b.expiresAt)-Date.parse(a.expiresAt));
++  return active[0] ?? {active:false, expiresAt:null, productId:null, checkedAt:new Date(now).toISOString()};
++}
++async function rateLimit(uid, action) {
++  const ref = db.doc(`users/${uid}/limits/${action}`);
++  await db.runTransaction(async tx => {
++    const doc = await tx.get(ref); const old = doc.data() ?? {}; const now = Date.now();
++    const window = now - (old.start ?? 0) < 60000;
++    const count = window ? (old.count ?? 0) + 1 : 1;
++    if (count > (action === 'backup' ? 2 : 20)) throw new Error('rate-limit');
++    tx.set(ref,{start:window?old.start:now,count});
++  });
++}
++export const gardenApi = onRequest({region:'asia-northeast3', maxInstances:3, timeoutSeconds:60, memory:'512MiB'}, async (req,res) => {
++  res.set('Cache-Control','no-store');
++  if (req.method !== 'POST') {res.status(405).json({error:'method-not-allowed'}); return;}
++  let identity;
++  try {
++    const bearer = req.get('Authorization') ?? '';
++    if (!bearer.startsWith('Bearer ')) throw new Error();
++    identity = await getAuth().verifyIdToken(bearer.slice(7), true);
++    const attestation = await getAppCheck().verifyToken(req.get('X-Firebase-AppCheck') ?? '');
++    if (!process.env.GARDEN_ANDROID_APP_ID || attestation.appId !== process.env.GARDEN_ANDROID_APP_ID) throw new Error();
++  } catch {res.status(401).json({error:'authentication-required'});return;}
++  if (!identity.email_verified) {res.status(403).json({error:'verify-email'});return;}
++  const uid = identity.uid;
++  const action = req.body?.action;
++  try {
++    if (req.rawBody.length > 8 * 1024 * 1024) {res.status(413).json({error:'too-large'});return;}
++    await rateLimit(uid, action === 'backup' ? 'backup' : 'api');
++    if (action === 'verify') {
++      const token = req.body.token;
++      if (typeof token !== 'string' || token.length < 8 || token.length > 4096) {res.status(400).json({error:'invalid-token'});return;}
++      await verify(uid, token); res.json(await status(uid)); return;
++    }
++    if (action === 'status') {res.json(await status(uid,true));return;}
++    if (action === 'backup') {
++      if (!(await status(uid,true)).active) {res.status(403).json({error:'subscription-required'});return;}
++      const envelope = req.body.envelope;
++      if (!validEnvelope(envelope)) {res.status(400).json({error:'invalid-backup'});return;}
++      const id = `${Date.now()}-${randomUUID()}`;
++      const object = getStorage().bucket().file(`backups/${uid}/${id}.json`);
++      await object.save(JSON.stringify(envelope), {resumable:false, contentType:'application/json'});
++      await db.doc(`users/${uid}/backups/${id}`).set({createdAt:FieldValue.serverTimestamp(), id});
++      // Keep ten complete snapshots, not only the newest copy.
++      const versions = await db.collection(`users/${uid}/backups`).orderBy('createdAt','desc').get();
++      for (const doc of versions.docs.slice(10)) {
++        await getStorage().bucket().file(`backups/${uid}/${doc.id}.json`).delete({ignoreNotFound:true});
++        await doc.ref.delete();
++      }
++      res.json({id, savedAt:new Date().toISOString()});return;
++    }
++    if (action === 'listBackups') {
++      // Restoration is allowed even after subscription expires.
++      const versions = await db.collection(`users/${uid}/backups`).orderBy('createdAt','desc').limit(10).get();
++      res.json({versions:versions.docs.map(d=>({id:d.id, createdAt:d.data().createdAt?.toDate().toISOString()}))});return;
++    }
++    if (action === 'downloadBackup') {
++      const id = req.body.id;
++      if (typeof id !== 'string' || !/^[0-9]+-[a-f0-9-]{36}$/.test(id)) {res.status(400).json({error:'invalid-id'});return;}
++      const [bytes] = await getStorage().bucket().file(`backups/${uid}/${id}.json`).download();
++      res.json({envelope:JSON.parse(bytes.toString('utf8'))});return;
++    }
++    if (action === 'deleteCloudAccount') {
++      if (Date.now()/1000 - identity.auth_time > 300) {res.status(403).json({error:'recent-login-required'});return;}
++      await getStorage().bucket().deleteFiles({prefix:`backups/${uid}/`});
++      await db.recursiveDelete(db.doc(`users/${uid}`));
++      // Keep only irreversible ownership tombstones; remove uid and raw token.
++      const owned = await db.collection('purchaseTokens').where('uid','==',uid).get();
++      for (const doc of owned.docs) await doc.ref.set({deleted:true});
++      await getAuth().deleteUser(uid);
++      res.json({deleted:true});return;
++    }
++    res.status(400).json({error:'unknown-action'});
++  } catch (error) {
++    const expected = ['purchase-owner-mismatch','purchase-migration-required','rate-limit'];
++    const code = expected.includes(error.message) ? error.message : 'temporarily-unavailable';
++    res.status(code === 'rate-limit' ? 429 : code === 'temporarily-unavailable' ? 503 : 403).json({error:code});
++  }
++});
++
++// Configure Play Console to publish RTDN to this topic. Payload is a signal;
++// always fetch the current purchase from Google, never trust notification state.
++export const playNotifications = onMessagePublished({topic:'play-rtdn',region:'asia-northeast3',retry:true}, async event => {
++  const notification = event.data.message.json;
++  if (notification?.packageName !== PACKAGE) return;
++  const token = notification.subscriptionNotification?.purchaseToken;
++  if (typeof token !== 'string') return;
++  const doc = await db.doc(`purchaseTokens/${tokenHash(token)}`).get();
++  if (!doc.exists || doc.data().deleted) return;
++  const uid = doc.data().uid;
++  try { await getAuth().getUser(uid); } catch (error) {
++    if (error.code === 'auth/user-not-found') return;
++    throw error;
++  }
++  try { await verify(uid,token); }
++  catch (error) {
++    if (error.response?.status !== 410) throw error;
++    await db.doc(`users/${uid}/entitlements/${tokenHash(token)}`).set({active:false, expiresAt:null, productId:null, checkedAt:new Date().toISOString()});
++  }
++});
+--- v3/backend/package.json
++++ v4/backend/package.json
+@@ -0,0 +1,6 @@
++{
++  "name": "maeumnyang-backend", "private": true, "type": "module",
++  "main": "index.js", "engines": {"node": "22"},
++  "scripts": {"test": "node --test", "check": "node --check index.js"},
++  "dependencies": {"firebase-admin": "^13.0.0", "firebase-functions": "^6.0.0", "google-auth-library": "^9.15.0"}
++}
+--- v3/backend/policy.js
++++ v4/backend/policy.js
+@@ -0,0 +1,30 @@
++import { createHash } from 'node:crypto';
++export const PACKAGE = 'com.mysticcat.journal';
++export const PRODUCTS = new Set(['garden_plus_monthly', 'garden_plus_yearly']);
++export const accountHash = uid => createHash('sha256').update(uid).digest('hex');
++export const tokenHash = token => createHash('sha256').update(token).digest('hex');
++export function entitlement(purchase, now = Date.now()) {
++  const allowed = new Set(['SUBSCRIPTION_STATE_ACTIVE', 'SUBSCRIPTION_STATE_IN_GRACE_PERIOD', 'SUBSCRIPTION_STATE_CANCELED']);
++  const items = (purchase.lineItems ?? []).filter(item => PRODUCTS.has(item.productId) && Number.isFinite(Date.parse(item.expiryTime)));
++  items.sort((a,b) => Date.parse(b.expiryTime) - Date.parse(a.expiryTime));
++  const item = items.find(item => Date.parse(item.expiryTime) > now);
++  return {active: allowed.has(purchase.subscriptionState) && !!item,
++    productId: item?.productId ?? null, expiresAt: item?.expiryTime ?? null,
++    checkedAt: new Date(now).toISOString()};
++}
++export function assertOwner(purchase, uid, existingOwner) {
++  if (existingOwner && existingOwner !== uid) throw new Error('purchase-owner-mismatch');
++  const obfuscated = purchase.externalAccountIdentifiers?.obfuscatedExternalAccountId;
++  // Legacy purchases lacking an account binding require a verified migration.
++  if (!existingOwner && obfuscated !== accountHash(uid)) throw new Error('purchase-migration-required');
++  if (obfuscated && obfuscated !== accountHash(uid)) throw new Error('purchase-owner-mismatch');
++}
++export function validEnvelope(value) {
++  if (!value || typeof value !== 'object' || value.format !== 'maeumnyang-backup' || value.version !== 1) return false;
++  if (Object.keys(value).sort().join(',') !== 'ciphertext,format,mac,nonce,salt,version') return false;
++  const valid = (key, size) => typeof value[key] === 'string' && /^[A-Za-z0-9+/]*={0,2}$/.test(value[key]) &&
++    Buffer.from(value[key], 'base64').length === size;
++  return valid('salt',16) && valid('nonce',12) && valid('mac',16) &&
++    typeof value.ciphertext === 'string' && value.ciphertext.length > 0 &&
++    value.ciphertext.length <= 6 * 1024 * 1024 && /^[A-Za-z0-9+/]*={0,2}$/.test(value.ciphertext);
++}
+--- v3/backend/storage.rules
++++ v4/backend/storage.rules
+@@ -0,0 +1,6 @@
++rules_version = '2';
++service firebase.storage {
++  match /b/{bucket}/o {
++    match /{object=**} { allow read, write: if false; }
++  }
++}
+--- v3/backend/test/policy.test.js
++++ v4/backend/test/policy.test.js
+@@ -0,0 +1,31 @@
++import test from 'node:test';
++import assert from 'node:assert/strict';
++import { accountHash, assertOwner, entitlement, validEnvelope } from '../policy.js';
++const now=Date.parse('2026-09-13T00:00:00Z');
++const active=(state='SUBSCRIPTION_STATE_ACTIVE',expiry='2026-10-13T00:00:00Z',productId='garden_plus_monthly')=>({subscriptionState:state,lineItems:[{productId,expiryTime:expiry}]});
++test('active known product with future expiry is granted',()=>assert.equal(entitlement(active(),now).active,true));
++test('cancelled renewal retains paid access until expiry',()=>assert.equal(entitlement(active('SUBSCRIPTION_STATE_CANCELED'),now).active,true));
++test('expired cancellation is denied',()=>assert.equal(entitlement(active('SUBSCRIPTION_STATE_CANCELED','2026-09-12T00:00:00Z'),now).active,false));
++test('pending hold pause and expired states are denied',()=>{
++ for(const state of ['SUBSCRIPTION_STATE_PENDING','SUBSCRIPTION_STATE_ON_HOLD','SUBSCRIPTION_STATE_PAUSED','SUBSCRIPTION_STATE_EXPIRED']) assert.equal(entitlement(active(state),now).active,false);
++});
++test('grace period with current Google expiry is honored',()=>assert.equal(entitlement(active('SUBSCRIPTION_STATE_IN_GRACE_PERIOD'),now).active,true));
++test('unknown products and invalid dates cannot grant premium',()=>{
++ assert.equal(entitlement(active('SUBSCRIPTION_STATE_ACTIVE','2026-10-13T00:00:00Z','unrelated'),now).active,false);
++ assert.equal(entitlement(active('SUBSCRIPTION_STATE_ACTIVE','bad'),now).active,false);
++});
++test('first purchase must bind to authenticated uid',()=>{
++ assert.doesNotThrow(()=>assertOwner({externalAccountIdentifiers:{obfuscatedExternalAccountId:accountHash('a')}},'a'));
++ assert.throws(()=>assertOwner({externalAccountIdentifiers:{obfuscatedExternalAccountId:accountHash('b')}},'a'));
++});
++test('legacy unbound purchases are not silently claimed',()=>assert.throws(()=>assertOwner({},'a'),/migration/));
++test('existing token owner cannot be replaced',()=>assert.throws(()=>assertOwner({},'b','a'),/mismatch/));
++test('verified legacy ownership can be retained',()=>assert.doesNotThrow(()=>assertOwner({},'a','a')));
++const envelope=()=>({format:'maeumnyang-backup',version:1,salt:Buffer.alloc(16).toString('base64'),nonce:Buffer.alloc(12).toString('base64'),mac:Buffer.alloc(16).toString('base64'),ciphertext:'YQ=='});
++test('backup accepts only bounded encrypted envelope',()=>{
++ assert.equal(validEnvelope(envelope()),true);
++ assert.equal(validEnvelope({...envelope(),letterText:'private diary'}),false);
++ assert.equal(validEnvelope({...envelope(),salt:'a'}),false);
++ assert.equal(validEnvelope({...envelope(),version:2}),false);
++ assert.equal(validEnvelope({...envelope(),ciphertext:'a'.repeat(6*1024*1024+1)}),false);
++});
+--- v3/firebase.json
++++ v4/firebase.json
+@@ -0,0 +1 @@
++{"functions":{"source":"backend"},"firestore":{"rules":"backend/firestore.rules"},"storage":{"rules":"backend/storage.rules"}}
+--- v3/lib/data/subscriber_journeys.dart
++++ v4/lib/data/subscriber_journeys.dart
+@@ -0,0 +1,33 @@
++/// Authored finite content, not an automatic monthly-content promise.
++class JourneyWeek {
++  final String story;
++  final String question;
++  final String action;
++  const JourneyWeek(this.story,this.question,this.action);
++}
++class SubscriberJourney {
++  final String id;
++  final String title;
++  final List<JourneyWeek> weeks;
++  const SubscriberJourney(this.id,this.title,this.weeks);
++}
++const subscriberJourneys = [
++  SubscriberJourney('kindness','나에게 조금 다정해지기',[
++    JourneyWeek('고양이가 작은 방석을 창가에 놓았어요. 아무것도 해내지 않아도 앉을 수 있는 자리래요.','오늘 나에게 조금 덜 엄격해져도 되는 일은 무엇인가요?','원한다면 쉬어 갈 자리에서 잠깐 앉아보세요.'),
++    JourneyWeek('정원에는 빨리 자라는 풀도, 아직 흙 아래 있는 씨앗도 있어요. 고양이는 두 곳에 똑같이 물을 주었어요.','남과 비교하지 않고 인정하고 싶은 내 속도가 있나요?','작아도 내가 해낸 일 하나를 적어보세요.'),
++    JourneyWeek('고양이가 울퉁불퉁한 돌을 벤치 옆에 놓았어요. 반듯하지 않아도 마음에 드는 모양이래요.','고치려 애쓰기 전에 받아들여도 되는 내 모습이 있나요?','오늘 나에게 해주고 싶은 말을 한 줄 남겨보세요.'),
++    JourneyWeek('한 달의 편지를 상자에 모았어요. 고양이는 가장 긴 편지 대신 다시 읽고 싶은 편지부터 골랐어요.','이번 여정에서 다시 읽고 싶은 내 문장은 무엇인가요?','기록에서 편지 한 통을 다시 읽어보세요.'),
++  ]),
++  SubscriberJourney('boundaries','내 마음의 문 돌보기',[
++    JourneyWeek('정원 문에 작은 손잡이가 생겼어요. 열어 둘 때와 닫아 둘 때를 정하는 건 정원의 주인이래요.','지금 나에게 필요한 거리는 어느 정도인가요?','오늘 선택할 수 있는 작은 거절이나 요청을 떠올려보세요.'),
++    JourneyWeek('고양이는 방문객을 위해 의자를 놓고 자기 방석도 남겨뒀어요. 둘 다 놓을 자리가 있었어요.','다른 사람을 배려하면서 놓치고 있던 내 필요가 있나요?','원하는 것을 짧은 문장으로 적어보세요.'),
++    JourneyWeek('바람이 강한 날에는 정원 문을 조금 닫았어요. 고양이는 바람이 잦아든 뒤 다시 열기로 했어요.','바로 답하지 않고 시간을 가져도 되는 일이 있나요?','가능하다면 답하기 전에 잠깐 쉬어보세요.'),
++    JourneyWeek('문 옆에 작은 꽃이 피었어요. 고양이는 닫았던 날도 열었던 날도 정원을 돌본 날이라고 했어요.','이번 여정에서 나를 존중했던 순간을 하나 고른다면요?','내 선택을 평가하지 않고 한 줄 기록해보세요.'),
++  ]),
++  SubscriberJourney('small_joy','작은 기쁨 발견하기',[
++    JourneyWeek('고양이가 창틀의 햇빛을 따라 움직였어요. 멀리 가지 않아도 밝은 자리가 있었어요.','오늘 잠깐 눈길이 머문 장면은 무엇인가요?','주변에서 마음에 드는 색 하나를 찾아보세요.'),
++    JourneyWeek('정원 한쪽에서 이름 모를 풀을 발견했어요. 고양이는 이름을 알아내기 전에 모양부터 구경했어요.','잘하지 않아도 궁금한 일이 있나요?','가능하면 궁금했던 것을 잠깐 살펴보세요.'),
++    JourneyWeek('고양이가 아끼던 리본을 우체통에 달았어요. 작은 장식 하나로 익숙한 길이 달라 보였어요.','내 하루에 더하고 싶은 작은 즐거움이 있나요?','부담 없이 할 수 있는 즐거운 일 하나를 골라보세요.'),
++    JourneyWeek('고양이는 모아둔 잎과 돌을 늘어놓았어요. 대단한 것은 없어도 정원에서 보낸 시간이 담겨 있었어요.','다음 달에도 함께 가져가고 싶은 작은 기쁨은 무엇인가요?','기억하고 싶은 장면을 편지에 남겨보세요.'),
++  ]),
++];
+--- v3/lib/main.dart
++++ v4/lib/main.dart
+@@ -1,3 +1,7 @@
++import 'package:firebase_app_check/firebase_app_check.dart';
++import 'services/cloud_service.dart';
++import 'services/auto_backup_service.dart';
++import 'services/backup_service.dart';
+ import 'package:flutter/material.dart';
+ import 'package:provider/provider.dart';
+ import 'package:intl/date_symbol_data_local.dart';
+@@ -40,6 +44,18 @@
+     debugPrint('Firebase initialization failed: $e');
+   }
+   await StorageService.init();
++  try {
++    await BackupService.resumePending();
++  } catch (_) {
++    runApp(const MaterialApp(home: Scaffold(body: SafeArea(child: Padding(
++      padding: EdgeInsets.all(24), child: Text('이전 복원을 마치지 못했어요. 기록을 보호하기 위해 시작을 멈췄어요. 저장 공간을 확인하고 다시 열어 주세요. 앱을 삭제하지 마세요.'),
++    )))));
++    return;
++  }
++  if (CloudService.enabled) {
++    try { await FirebaseAppCheck.instance.activate(androidProvider: AndroidProvider.playIntegrity); }
++    catch (_) { /* Cloud requests remain unavailable until attestation succeeds. */ }
++  }
+   await StorageService.recordInstallDateIfNeeded();
+   // guest → local_user 누적 데이터 복구 후, Storage도 처음부터 local_user로 연다.
+   await StorageService.migrateGuestScopeIfNeeded(_localUserId);
+@@ -56,6 +72,7 @@
+   await SubscriptionService().init();
+   await initializeDateFormatting('ko_KR', null);
+   runApp(const MysticCatApp());
++  AutoBackupService.instance.start();
+ }
+ 
+ class MysticCatApp extends StatelessWidget {
+--- v3/lib/screens/cat_flow_tab_screen.dart
++++ v4/lib/screens/cat_flow_tab_screen.dart
+@@ -37,7 +37,7 @@
+           ),
+         ),
+         const SizedBox(height: 12),
+-        const MeditationFlowScreen(),
++        MeditationFlowScreen(key: ValueKey(app.selectedCat!.id)),
+       ],
+     );
+   }
+--- v3/lib/screens/data_safety_screen.dart
++++ v4/lib/screens/data_safety_screen.dart
+@@ -0,0 +1,213 @@
++import 'package:provider/provider.dart';
++import '../providers/app_state_provider.dart';
++import '../providers/cat_care_provider.dart';
++import '../providers/promise_provider.dart';
++import 'dart:convert';
++import 'dart:io';
++import 'dart:typed_data';
++import 'package:flutter/material.dart';
++import 'package:flutter/services.dart';
++import 'package:file_picker/file_picker.dart';
++import 'package:firebase_auth/firebase_auth.dart';
++import '../services/backup_codec.dart';
++import '../services/backup_service.dart';
++import '../services/cloud_service.dart';
++import '../services/auto_backup_service.dart';
++import '../services/subscription_service.dart';
++import '../theme.dart';
++
++class DataSafetyScreen extends StatefulWidget {
++  const DataSafetyScreen({super.key});
++  @override
++  State<DataSafetyScreen> createState() => _DataSafetyScreenState();
++}
++class _DataSafetyScreenState extends State<DataSafetyScreen> {
++  bool _busy = false;
++  String _message = '기록은 현재 이 기기에 저장됩니다.';
++  final _email = TextEditingController();
++  final _loginPassword = TextEditingController();
++  @override
++  void dispose() { _email.dispose(); _loginPassword.dispose(); super.dispose(); }
++  Future<void> _work(Future<void> Function() action) async {
++    if (_busy) return;
++    setState(() => _busy = true);
++    AutoBackupService.instance.paused = true;
++    try { await action(); }
++    catch (e) {
++      if (mounted) setState(() => _message = e is CloudException ? e.toString()
++        : e is FirebaseAuthException ? '로그인 정보를 확인해 주세요. 이메일 인증 또는 비밀번호 재설정이 필요할 수 있어요.'
++        : '완료하지 못했어요. 암호·파일·저장 공간과 연결을 확인해 주세요. 기존 기록은 지우지 않았어요.');
++    } finally {
++      AutoBackupService.instance.paused = false;
++      if (mounted) {
++        if (CloudService.enabled) {
++          final app = context.read<AppStateProvider>();
++          final care = context.read<CatCareProvider>();
++          final promise = context.read<PromiseProvider>();
++          try { await app.refreshPremiumStatus(); await care.load(); await promise.load(); } catch (_) {}
++        }
++        if (mounted) setState(() => _busy = false);
++      }
++    }
++  }
++  Future<String?> _password({required bool creating}) async {
++    final controller = TextEditingController();
++    final confirm = TextEditingController();
++    final result = await showDialog<String>(context: context, builder: (context) => StatefulBuilder(
++      builder: (context, update) => AlertDialog(
++        title: Text(creating ? '백업 암호 정하기' : '백업 암호 입력'),
++        content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
++          const Text('앱 로그인 암호와 별개예요. 암호를 잃으면 새 기기에서 백업을 복원할 수 없어요. 안전한 곳에 보관해 주세요.'),
++          TextField(controller:controller, obscureText:true, enableSuggestions:false, autocorrect:false,
++            decoration:const InputDecoration(labelText:'백업 암호'), onChanged:(_)=>update((){})),
++          if (creating) TextField(controller:confirm, obscureText:true, enableSuggestions:false, autocorrect:false,
++            decoration:const InputDecoration(labelText:'암호 다시 입력 (12자 이상)'), onChanged:(_)=>update((){})),
++        ])),
++        actions:[TextButton(onPressed:()=>Navigator.pop(context), child:const Text('취소')),
++          TextButton(onPressed: controller.text.isNotEmpty && (!creating || (controller.text.length >= 12 && controller.text == confirm.text))
++            ? ()=>Navigator.pop(context,controller.text) : null, child:const Text('확인'))],
++      ),
++    ));
++    controller.dispose(); confirm.dispose(); return result;
++  }
++  Future<void> _export() async {
++    final password = await _password(creating:true);
++    if (password == null) return;
++    final bytes = await BackupCodec.encrypt(await BackupService.snapshot(),password);
++    final path = await FilePicker.platform.saveFile(dialogTitle:'암호화 백업 저장',
++      fileName:'maeumnyang-${DateTime.now().millisecondsSinceEpoch}.mng', bytes:bytes);
++    if (path != null && mounted) setState(() => _message='암호화 백업 파일을 저장했어요. 파일과 암호를 안전한 곳에 보관해 주세요.');
++  }
++  Future<void> _restoreBytes(Uint8List bytes) async {
++    final password = await _password(creating:false);
++    if (password == null) return;
++    final data = await BackupCodec.decrypt(bytes,password);
++    BackupService.validate(data);
++    final existing = await BackupService.hasLocalRecords();
++    if (!mounted) return;
++    final ok = await showDialog<bool>(context:context,builder:(context)=>AlertDialog(
++      title:const Text('복원 미리보기'),
++      content:Text('백업 날짜: ${data['createdAt']}\n기록·초안·답장 항목: ${BackupService.count(data)}개\n\n'
++        '기존 항목과 같은 ID는 현재 기록을 유지하고, 없는 항목만 추가해요.\n'
++        '${existing ? '현재 정원 이름·성장 설정은 유지해요.' : '새 정원에는 백업의 이름·성장 설정도 가져와요.'}\n'
++        '복원 후 앱을 다시 열어 주세요.'),
++      actions:[TextButton(onPressed:()=>Navigator.pop(context,false),child:const Text('취소')),
++        FilledButton(onPressed:()=>Navigator.pop(context,true),child:const Text('복원'))],
++    ));
++    if (ok != true) return;
++    final added = await BackupService.restore(data);
++    if (!mounted) return;
++    await showDialog<void>(context:context,barrierDismissible:false,builder:(context)=>PopScope(canPop:false,
++      child:AlertDialog(title:const Text('복원 완료'),content:Text('$added개 항목을 추가했어요. 같은 ID는 현재 기록을 유지했어요. 앱을 닫은 뒤 다시 열어 주세요.'),
++        actions:[TextButton(onPressed:()=>SystemNavigator.pop(),child:const Text('앱 닫기'))])));
++  }
++  Future<void> _import() async {
++    final selected = await FilePicker.platform.pickFiles(type:FileType.any,withData:false);
++    if (selected == null || selected.files.single.path == null) return;
++    final file = File(selected.files.single.path!);
++    if (await file.length() > BackupCodec.maxBytes) throw const FormatException('파일이 너무 커요.');
++    await _restoreBytes(await file.readAsBytes());
++  }
++  Future<void> _cloudRestore() async {
++    final result = await CloudService.call('listBackups');
++    final versions = List<Map<String,dynamic>>.from((result['versions'] as List).map((v)=>Map<String,dynamic>.from(v as Map)));
++    if (!mounted) return;
++    if (versions.isEmpty) {setState(()=>_message='서버에 저장된 백업이 없어요.');return;}
++    final id = await showDialog<String>(context:context,builder:(context)=>SimpleDialog(title:const Text('복원할 백업 선택'),
++      children:[for (final version in versions) SimpleDialogOption(onPressed:()=>Navigator.pop(context,version['id']),child:Text(version['createdAt']?.toString() ?? version['id'] as String))]));
++    if (id == null) return;
++    final backup = await CloudService.call('downloadBackup',{'id':id});
++    await _restoreBytes(Uint8List.fromList(utf8.encode(jsonEncode(backup['envelope']))));
++  }
++  Future<void> _signIn(bool create) async {
++    if (create) {
++      final credential = await FirebaseAuth.instance.createUserWithEmailAndPassword(email:_email.text.trim(),password:_loginPassword.text);
++      await credential.user!.sendEmailVerification();
++      if (mounted) setState(()=>_message='인증 메일을 확인한 뒤 아래의 인증 확인을 눌러 주세요.');
++    } else {
++      await FirebaseAuth.instance.signInWithEmailAndPassword(email:_email.text.trim(),password:_loginPassword.text);
++      if (mounted) setState(()=>_message='로그인했어요. 이 기기에는 하나의 정원이 저장되며 로그인만으로 다른 기록을 가져오지는 않아요.');
++    }
++    _loginPassword.clear();
++  }
++  @override
++  Widget build(BuildContext context) {
++    final user = CloudService.enabled ? FirebaseAuth.instance.currentUser : null;
++    return PopScope(canPop:!_busy,child:Scaffold(
++      appBar:AppBar(title:const Text('기록 보관과 백업')),
++      body:ListView(padding:const EdgeInsets.all(20),children:[
++        Text(_message,style:bodyFont(fontSize:16,color:AppColors.ink)),
++        if (_busy) const Padding(padding:EdgeInsets.all(12),child:LinearProgressIndicator()),
++        const SizedBox(height:16),
++        const Text('편지는 기기에 자동 저장해요. 앱 삭제·분실에 대비하려면 별도 백업이 필요해요.'),
++        FilledButton(onPressed:_busy?null:()=>_work(_export),child:const Text('암호화 백업 파일 저장')),
++        OutlinedButton(onPressed:_busy?null:()=>_work(_import),child:const Text('백업 파일에서 복원')),
++        const Divider(height:32),
++        if (!CloudService.enabled) const Text('계정과 자동 백업은 서버 연결 준비 후 이용할 수 있어요. 현재는 위의 파일 백업을 이용해 주세요.')
++        else ...[
++          if (user == null) ...[
++            const Text('자동 백업·서버 결제 확인을 위한 계정'),
++            TextField(controller:_email,keyboardType:TextInputType.emailAddress,decoration:const InputDecoration(labelText:'이메일')),
++            TextField(controller:_loginPassword,obscureText:true,enableSuggestions:false,autocorrect:false,decoration:const InputDecoration(labelText:'로그인 비밀번호')),
++            Wrap(spacing:8,children:[
++              TextButton(onPressed:_busy?null:()=>_work(()=>_signIn(false)),child:const Text('로그인')),
++              TextButton(onPressed:_busy?null:()=>_work(()=>_signIn(true)),child:const Text('계정 만들기')),
++              TextButton(onPressed:_busy?null:()=>_work(() async {
++                await FirebaseAuth.instance.sendPasswordResetEmail(email:_email.text.trim());
++                if (mounted) setState(()=>_message='입력한 이메일의 비밀번호 재설정 안내를 확인해 주세요.');
++              }),child:const Text('비밀번호 재설정')),
++            ]),
++          ] else ...[
++            Text('계정: ${user.email ?? ''}'),
++            TextButton(onPressed:_busy?null:()=>_work(() async {
++              await user.reload();
++              await FirebaseAuth.instance.currentUser?.getIdToken(true);
++              final verified = FirebaseAuth.instance.currentUser?.emailVerified == true;
++              if (verified) await SubscriptionService().restorePurchases();
++              if (mounted) setState(()=>_message=verified?'이메일 인증을 확인했어요.':'아직 이메일 인증 전이에요.');
++            }),child:const Text('이메일 인증 확인')),
++            const Text('이 기기의 정원 전체를 이 계정에 백업합니다. 다른 사람과 공유하는 기기라면 먼저 기록을 확인해 주세요.'),
++            const Text('자동 백업은 구독 중 앱을 열었을 때 하루 한 번 시도합니다. 최근 10개 버전을 보관하며 구독 종료 후에도 기존 백업은 복원할 수 있어요.'),
++            ValueListenableBuilder<String>(valueListenable:AutoBackupService.instance.status,builder:(_,value,__)=>Text(value)),
++            TextButton(onPressed:_busy?null:()=>_work(() async {
++              final password = await _password(creating:true);
++              if (password == null) return;
++              // Explicit consent: this stores the backup password in device secure storage.
++              if (!mounted) return;
++              final consent = await showDialog<bool>(context:context,builder:(context)=>AlertDialog(
++                title:const Text('이 계정에 자동 백업할까요?'),
++                content:const Text('백업 암호를 기기의 보안 저장소에 보관해 자동 백업에 사용해요. 새 기기에서 복원할 암호는 별도로 보관해 주세요. 암호를 변경하면 이전 백업에는 이전 암호가 필요해요.'),
++                actions:[TextButton(onPressed:()=>Navigator.pop(context,false),child:const Text('취소')),TextButton(onPressed:()=>Navigator.pop(context,true),child:const Text('켜기'))]));
++              if (consent == true) {
++                AutoBackupService.instance.paused=false;
++                await AutoBackupService.instance.enable(password);
++              }
++            }),child:const Text('자동 백업 켜기')),
++            TextButton(onPressed:_busy?null:()=>_work(() async {
++              AutoBackupService.instance.paused=false;
++              await AutoBackupService.instance.run(force:true);
++            }),child:const Text('지금 서버에 백업')),
++            TextButton(onPressed:_busy?null:()=>_work(AutoBackupService.instance.disable),child:const Text('자동 백업 끄기')),
++            TextButton(onPressed:_busy?null:()=>_work(_cloudRestore),child:const Text('서버 백업에서 복원')),
++            TextButton(onPressed:_busy?null:()=>_work(() async {
++              await AutoBackupService.instance.disable();
++              await FirebaseAuth.instance.signOut();
++              if (mounted) setState(()=>_message='로그아웃했어요. 이 기기의 기록은 그대로 남아 있어요.');
++            }),child:const Text('로그아웃')),
++            TextButton(onPressed:_busy?null:()=>_work(() async {
++              final confirm = await showDialog<bool>(context:context,builder:(context)=>AlertDialog(
++                title:const Text('서버 계정과 백업을 삭제할까요?'),
++                content:const Text('이 작업은 되돌릴 수 없어요. 기기 기록과 Play 구독은 별도로 남아요. 구독 해지는 Play에서 해주세요. 최근 5분 이내 로그인해야 삭제할 수 있어요.'),
++                actions:[TextButton(onPressed:()=>Navigator.pop(context,false),child:const Text('취소')),TextButton(onPressed:()=>Navigator.pop(context,true),child:const Text('삭제'))]));
++              if (confirm != true) return;
++              await CloudService.call('deleteCloudAccount');
++              await AutoBackupService.instance.disable();
++              await FirebaseAuth.instance.signOut();
++              if (mounted) setState(()=>_message='서버 계정과 백업을 삭제했어요. 이 기기 기록은 남아 있어요.');
++            }),child:const Text('서버 계정과 백업 삭제')),
++          ],
++        ],
++      ]),
++    ));
++  }
++}
+--- v3/lib/screens/heart_letters_screen.dart
++++ v4/lib/screens/heart_letters_screen.dart
+@@ -1,3 +1,4 @@
++import '../services/draft_service.dart';
+ import 'package:flutter/material.dart';
+ import '../models/special_letter_entry.dart';
+ import '../services/special_letter_service.dart';
+@@ -209,7 +210,12 @@
+ }
+ 
+ class _WriteHeartLetterSheetState extends State<_WriteHeartLetterSheet> {
+-  final _controller = TextEditingController();
++  late final DraftTextController _controller;
++  @override
++  void initState() {
++    super.initState();
++    _controller = DraftTextController('heart_${widget.type.storageKey}');
++  }
+   bool _sending = false;
+   SpecialLetterEntry? _result;
+ 
+@@ -228,6 +234,7 @@
+         type: widget.type,
+         letterText: text,
+       );
++      await _controller.discard();
+       if (!mounted) return;
+       setState(() => _result = entry);
+     } catch (_) {
+--- v3/lib/screens/meditation_flow_screen.dart
++++ v4/lib/screens/meditation_flow_screen.dart
+@@ -1,3 +1,4 @@
++import '../services/draft_service.dart';
+ import 'dart:async';
+ 
+ import 'package:flutter/material.dart';
+@@ -29,7 +30,12 @@
+ }
+ 
+ class _MeditationFlowScreenState extends State<MeditationFlowScreen> {
+-  final TextEditingController _letterController = TextEditingController();
++  late final DraftTextController _letterController;
++  @override
++  void initState() {
++    super.initState();
++    _letterController = DraftTextController('letter_${context.read<AppStateProvider>().selectedCat!.id}');
++  }
+   String? _moodEmoji;
+   FlowStage? _lastStage;
+ 
+@@ -213,6 +219,9 @@
+         moodEmoji: widget.moodEmoji,
+         onTemperatureBonus: care.applyLetterSentBonus,
+       );
++      if (widget.controller is DraftTextController) {
++        await (widget.controller as DraftTextController).discard();
++      }
+       // 편지를 쓴 행위 자체를 마음 돌보기의 '마음기록' 임무와 자동으로
+       // 연동합니다(중복 완료는 서비스 내부에서 안전하게 무시됩니다).
+       if (mounted) {
+--- v3/lib/screens/my_screen.dart
++++ v4/lib/screens/my_screen.dart
+@@ -1,3 +1,5 @@
++import 'subscriber_journeys_screen.dart';
++import 'data_safety_screen.dart';
+ import 'dart:io' show Platform;
+ import 'package:flutter/foundation.dart';
+ import 'package:flutter/material.dart';
+@@ -52,6 +54,8 @@
+         _ProfileCard(streak: app.streak, totalLetters: app.history.length),
+         const SizedBox(height: 14),
+         const _PremiumCard(),
++        _InfoLinkRow(icon: Icons.auto_stories_outlined, label: '고양이와 함께하는 여정',
++          onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SubscriberJourneysScreen()))),
+         const SizedBox(height: 16),
+         GrowthHeader(state: context.watch<CatCareProvider>().state),
+         const SizedBox(height: 20),
+@@ -68,6 +72,12 @@
+         ),
+         const SizedBox(height: 12),
+         _SettingsCard(sound: sound, onChanged: () => setState(() {})),
++        const SizedBox(height: 14),
++        _InfoLinkRow(
++          icon: Icons.lock_outline,
++          label: '기록 보관과 백업',
++          onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const DataSafetyScreen())),
++        ),
+         const SizedBox(height: 14),
+         const _ReminderCard(),
+         const SizedBox(height: 14),
+--- v3/lib/screens/premium_screen.dart
++++ v4/lib/screens/premium_screen.dart
+@@ -1,3 +1,5 @@
++import '../services/cloud_service.dart';
++import 'data_safety_screen.dart';
+ import 'dart:async';
+ 
+ import 'package:flutter/material.dart';
+@@ -200,6 +202,11 @@
+                                   activePlan: _activePlan,
+                                 ),
+                                 const SizedBox(height: 18),
++                                if (CloudService.enabled)
++                                  TextButton(onPressed: () async {
++                                    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const DataSafetyScreen()));
++                                    await _load();
++                                  }, child: const Text('구매 계정 로그인·인증')),
+                                 if (!_isPremium) ...[
+                                   _PlanSelector(
+                                     selected: _selectedPlan,
+--- v3/lib/screens/subscriber_journeys_screen.dart
++++ v4/lib/screens/subscriber_journeys_screen.dart
+@@ -0,0 +1,43 @@
++import 'package:flutter/material.dart';
++import 'package:shared_preferences/shared_preferences.dart';
++import '../data/subscriber_journeys.dart';
++import '../services/subscription_service.dart';
++import 'premium_screen.dart';
++
++class SubscriberJourneysScreen extends StatefulWidget {
++  const SubscriberJourneysScreen({super.key});
++  @override
++  State<SubscriberJourneysScreen> createState()=>_SubscriberJourneysScreenState();
++}
++class _SubscriberJourneysScreenState extends State<SubscriberJourneysScreen> {
++  bool _premium=false;
++  final Set<String> _done={};
++  @override
++  void initState(){super.initState();_load();}
++  Future<void> _load() async {
++    final premium=await SubscriptionService().isPremium();
++    final prefs=await SharedPreferences.getInstance();
++    if(mounted)setState((){_premium=premium;_done.clear();_done.addAll(prefs.getStringList('local_user_journey_done')??[]);});
++  }
++  @override
++  Widget build(BuildContext context)=>Scaffold(
++    appBar:AppBar(title:const Text('고양이와 함께하는 여정')),
++    body:ListView(padding:const EdgeInsets.all(20),children:[
++      const Text('준비된 3개 주제, 각 4개의 이야기예요. 주 1편씩 또는 편한 속도로 만나보세요. 쉬었던 날의 벌점은 없어요.'),
++      for(final journey in subscriberJourneys) Card(child:ExpansionTile(title:Text(journey.title),children:[
++        for(var i=0;i<journey.weeks.length;i++) Padding(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
++          Text('${i+1}번째 이야기'),
++          if(_premium || i==0) ...[
++            Text(journey.weeks[i].story),const SizedBox(height:10),
++            Text(journey.weeks[i].question),const SizedBox(height:10),
++            Text(journey.weeks[i].action),
++            CheckboxListTile(title:const Text('이 이야기를 만나봤어요'),value:_done.contains('${journey.id}_$i'),onChanged:(value)async{
++              final key='${journey.id}_$i';setState((){if(value==true){_done.add(key);}else{_done.remove(key);}});
++              final prefs=await SharedPreferences.getInstance();await prefs.setStringList('local_user_journey_done',_done.toList());
++            }),
++          ] else TextButton(onPressed:()async{await Navigator.of(context).push(MaterialPageRoute(builder:(_)=>const PremiumScreen()));await _load();},child:const Text('정원 플러스로 이어 읽기')),
++        ])),
++      ])),
++    ]),
++  );
++}
+--- v3/lib/services/auto_backup_service.dart
++++ v4/lib/services/auto_backup_service.dart
+@@ -0,0 +1,72 @@
++import 'dart:async';
++import 'dart:convert';
++import 'package:flutter/material.dart';
++import 'package:firebase_auth/firebase_auth.dart';
++import 'package:flutter_secure_storage/flutter_secure_storage.dart';
++import 'package:shared_preferences/shared_preferences.dart';
++import 'cloud_service.dart';
++import 'backup_service.dart';
++import 'backup_codec.dart';
++
++/// Runs on app resume and while open, not an Android background-job promise.
++class AutoBackupService with WidgetsBindingObserver {
++  static final instance = AutoBackupService._();
++  AutoBackupService._();
++  static const _secure = FlutterSecureStorage();
++  bool _running = false;
++  bool paused = false;
++  Timer? _timer;
++  final status = ValueNotifier<String>('자동 백업 꺼짐');
++  String? _uid() => CloudService.enabled ? FirebaseAuth.instance.currentUser?.uid : null;
++  void start() {
++    if (!CloudService.enabled || _timer != null) return;
++    WidgetsBinding.instance.addObserver(this);
++    _timer = Timer.periodic(const Duration(minutes:5), (_) => unawaited(run()));
++    unawaited(run());
++  }
++  Future<bool> isEnabled() async {
++    final uid = _uid();
++    return uid != null && await _secure.read(key:'auto_backup_owner') == uid &&
++      await _secure.read(key:'auto_backup_password_$uid') != null;
++  }
++  Future<void> enable(String password) async {
++    final uid = _uid();
++    if (uid == null || password.length < 12) throw StateError('로그인과 12자 이상의 백업 암호가 필요해요.');
++    // A device contains one local garden. Explicitly bind it to the chosen account.
++    await _secure.write(key:'auto_backup_owner',value:uid);
++    await _secure.write(key:'auto_backup_password_$uid',value:password);
++    await run(force:true);
++  }
++  Future<void> disable() async {
++    final uid = _uid();
++    await _secure.delete(key:'auto_backup_owner');
++    if (uid != null) await _secure.delete(key:'auto_backup_password_$uid');
++    status.value = '자동 백업 꺼짐';
++  }
++  Future<void> run({bool force = false}) async {
++    if (_running || paused || !CloudService.enabled) return;
++    _running = true;
++    try {
++      if (!await isEnabled()) { status.value='자동 백업 꺼짐'; return; }
++      final uid = _uid()!;
++      final prefs = await SharedPreferences.getInstance();
++      final last = DateTime.tryParse(prefs.getString('last_cloud_backup_$uid') ?? '');
++      if (!force && last != null && DateTime.now().difference(last) < const Duration(hours:24)) {
++        status.value='마지막 서버 백업: ${last.toLocal()}'; return;
++      }
++      status.value='백업 준비 중';
++      final password = await _secure.read(key:'auto_backup_password_$uid');
++      if (password == null) return;
++      final bytes = await BackupCodec.encrypt(await BackupService.snapshot(), password);
++      if (paused || _uid() != uid || !await isEnabled()) return;
++      final result = await CloudService.call('backup',{'envelope':jsonDecode(utf8.decode(bytes))});
++      await prefs.setString('last_cloud_backup_$uid', result['savedAt'] as String);
++      status.value='서버 백업 완료: ${result['savedAt']}';
++    } catch (_) { status.value='백업 대기 중 · 로그인·구독·연결을 확인해 주세요'; }
++    finally { _running = false; }
++  }
++  @override
++  void didChangeAppLifecycleState(AppLifecycleState state) {
++    if (state == AppLifecycleState.resumed) unawaited(run());
++  }
++}
+--- v3/lib/services/backup_codec.dart
++++ v4/lib/services/backup_codec.dart
+@@ -0,0 +1,52 @@
++import 'dart:convert';
++import 'dart:math';
++import 'dart:typed_data';
++import 'package:cryptography/cryptography.dart';
++import 'package:flutter/foundation.dart';
++
++/// Password-derived authenticated encryption. Password is never stored in file.
++class BackupCodec {
++  static const maxBytes = 8 * 1024 * 1024;
++  static const iterations = 600000;
++  static Future<Uint8List> encrypt(Map<String, dynamic> snapshot, String password) =>
++      compute(_seal, {'snapshot': snapshot, 'password': password});
++  static Future<Map<String, dynamic>> decrypt(Uint8List bytes, String password) =>
++      compute(_open, {'bytes': bytes, 'password': password});
++}
++Future<SecretKey> _derive(String password, List<int> salt) => Pbkdf2(
++  macAlgorithm: Hmac.sha256(), iterations: BackupCodec.iterations, bits: 256,
++).deriveKey(secretKey: SecretKey(utf8.encode(password)), nonce: salt);
++Future<Uint8List> _seal(Map<String, dynamic> input) async {
++  final password = input['password'] as String;
++  if (password.length < 12) throw const FormatException('백업 암호는 12자 이상으로 정해 주세요.');
++  final plaintext = utf8.encode(jsonEncode(input['snapshot']));
++  if (plaintext.length > 4 * 1024 * 1024) throw const FormatException('백업 용량이 현재 한도를 넘었어요.');
++  final rng = Random.secure();
++  final salt = List<int>.generate(16, (_) => rng.nextInt(256));
++  final secret = await _derive(password, salt);
++  final box = await AesGcm.with256bits().encrypt(plaintext, secretKey: secret,
++      aad: utf8.encode('maeumnyang-backup-v1'));
++  return Uint8List.fromList(utf8.encode(jsonEncode({
++    'format': 'maeumnyang-backup', 'version': 1,
++    'salt': base64Encode(salt), 'nonce': base64Encode(box.nonce),
++    'ciphertext': base64Encode(box.cipherText), 'mac': base64Encode(box.mac.bytes),
++  })));
++}
++Future<Map<String, dynamic>> _open(Map<String, dynamic> input) async {
++  final bytes = input['bytes'] as Uint8List;
++  if (bytes.length > BackupCodec.maxBytes) throw const FormatException('파일이 너무 커요.');
++  final raw = jsonDecode(utf8.decode(bytes));
++  if (raw is! Map || raw['format'] != 'maeumnyang-backup' || raw['version'] != 1) {
++    throw const FormatException('지원하지 않는 백업 형식이에요.');
++  }
++  final salt = base64Decode(raw['salt'] as String);
++  final nonce = base64Decode(raw['nonce'] as String);
++  final mac = base64Decode(raw['mac'] as String);
++  if (salt.length != 16 || nonce.length != 12 || mac.length != 16) throw const FormatException('손상된 백업이에요.');
++  final key = await _derive(input['password'] as String, salt);
++  final plaintext = await AesGcm.with256bits().decrypt(
++    SecretBox(base64Decode(raw['ciphertext'] as String), nonce: nonce, mac: Mac(mac)),
++    secretKey: key, aad: utf8.encode('maeumnyang-backup-v1'));
++  if (plaintext.length > 4 * 1024 * 1024) throw const FormatException('파일이 너무 커요.');
++  return Map<String, dynamic>.from(jsonDecode(utf8.decode(plaintext)) as Map);
++}
+--- v3/lib/services/backup_service.dart
++++ v4/lib/services/backup_service.dart
+@@ -0,0 +1,167 @@
++import 'draft_service.dart';
++import 'dart:convert';
++import 'package:hive_flutter/hive_flutter.dart';
++import 'package:shared_preferences/shared_preferences.dart';
++import '../models/letter_entry.dart';
++import '../models/reflection_letter_entry.dart';
++import '../models/daily_draw_entry.dart';
++import '../models/bubble_memo_entry.dart';
++import '../models/buried_emotion_entry.dart';
++import '../models/memory_entry.dart';
++import '../models/usage_history_entry.dart';
++import '../models/promise_entry.dart';
++import '../models/special_letter_entry.dart';
++import '../data/shadow_cats_data.dart';
++import 'hive_encryption.dart';
++
++/// Additive restore: existing records always win. Pending journal makes a
++/// partially applied merge resumable without deleting current records.
++class BackupService {
++  static const boxes = [
++    'letter_entries','reflection_letters','daily_draw_entries','bubble_memo_entries',
++    'buried_emotions','cat_memories','usage_history','promise_entries','special_letters',
++    'drafts','reply_cache',
++  ];
++  static const globals = {'companion_name','onboarding_completed_v1',
++    'welcome_intro_completed_v1','cat_browse_favorites_v1','bgm_enabled','sfx_enabled','bgm_volume'};
++  static String? prefType(String key) {
++    const globalTypes = {'companion_name':'string', 'onboarding_completed_v1':'bool',
++      'welcome_intro_completed_v1':'bool', 'cat_browse_favorites_v1':'strings',
++      'bgm_enabled':'bool', 'sfx_enabled':'bool', 'bgm_volume':'double'};
++    if (globalTypes.containsKey(key)) return globalTypes[key];
++    if (!key.startsWith('local_user_')) return null;
++    final name = key.substring('local_user_'.length);
++    const ints = {'care_temperature','care_growth_days','care_points',
++      'care_total_points_earned','care_total_full_care_days','care_total_consumables_used',
++      'care_total_pats','streak_count','growth_level'};
++    const strings = {'care_last_date','care_companion_cat_id','care_attendance_counted_date',
++      'daily_card_last_date','daily_card_last_cat_id','bubble_last_date',
++      'last_visit_date','growth_challenge_start'};
++    const lists = {'care_temp_history','care_owned_accessories','care_equipped_slots',
++      'care_consumable_inventory','care_graduated_cats','care_unlocked_achievements',
++      'bubble_session_cat_ids','bubble_popped_indices','growth_completed_days','journey_done'};
++    const bools = {'care_fed_today','care_watered_today','care_bathed_today','care_cleaned_today',
++      'care_breathing_today','care_walking_today','care_journaling_today','care_gratitude_today'};
++    if (ints.contains(name) || RegExp(r'^care_activity_bonus_claimed_\d{4}-\d{2}-\d{2}$').hasMatch(name)) return 'int';
++    if (bools.contains(name) || RegExp(r'^care_bonus_given_\d{4}-\d{2}-\d{2}$').hasMatch(name)) return 'bool';
++    if (strings.contains(name)) return 'string';
++    if (lists.contains(name)) return 'strings';
++    return null;
++  }
++  static bool allowedPref(String key) => prefType(key) != null;
++  static Future<Box> _journal() async => Hive.isBoxOpen('restore_journal__enc')
++      ? Hive.box('restore_journal__enc')
++      : Hive.openBox('restore_journal__enc', encryptionCipher: await HiveEncryption.cipher());
++  static Future<Box?> _existing(String name) async {
++    final logical = '${name}_local_user';
++    if (!await Hive.boxExists(logical) && !await Hive.boxExists('${logical}__enc')) return null;
++    return HiveEncryption.openBox(logical);
++  }
++  static Future<Map<String, dynamic>> snapshot() async {
++    await DraftTextController.flushAll();
++    final data = <String, dynamic>{};
++    for (final name in boxes) {
++      final box = await _existing(name);
++      if (box == null) { data[name] = []; continue; }
++      await box.flush();
++      data[name] = [for (final key in box.keys.toList()) {'key': key, 'value': box.get(key)}];
++    }
++    final prefs = await SharedPreferences.getInstance();
++    final settings = <String, dynamic>{};
++    for (final key in prefs.getKeys().where(allowedPref)) {
++      final value = prefs.get(key);
++      settings[key] = {'type': value is bool ? 'bool' : value is int ? 'int'
++          : value is double ? 'double' : value is String ? 'string' : 'strings', 'value': value};
++    }
++    final result = <String, dynamic>{'schema': 1, 'createdAt': DateTime.now().toUtc().toIso8601String(), 'boxes': data, 'settings': settings};
++    // Converts Hive nested maps to JSON-safe maps, rejecting unsupported values.
++    return Map<String, dynamic>.from(jsonDecode(jsonEncode(result)) as Map);
++  }
++  static void validate(Map<String, dynamic> snapshot) {
++    if (snapshot['schema'] != 1 || snapshot['boxes'] is! Map || snapshot['settings'] is! Map ||
++        DateTime.tryParse(snapshot['createdAt']?.toString() ?? '') == null) throw const FormatException('백업 구조가 올바르지 않아요.');
++    final catIds = shadowCats.map((cat) => cat.id).toSet();
++    var total = 0;
++    for (final entry in (snapshot['boxes'] as Map).entries) {
++      if (!boxes.contains(entry.key) || entry.value is! List) throw const FormatException('알 수 없는 기록 종류예요.');
++      final seen = <Object>{};
++      for (final row in entry.value as List) {
++        if (++total > 50000 || row is! Map || (row['key'] is! String && row['key'] is! int) || !seen.add(row['key'] as Object)) throw const FormatException('잘못된 기록 항목이에요.');
++        final value = row['value'];
++        if (entry.key == 'drafts' || entry.key == 'reply_cache') {
++          if (value is! String || value.length > 100000) throw const FormatException('잘못된 편지예요.');
++          continue;
++        }
++        if (value is! Map) throw const FormatException('잘못된 기록이에요.');
++        if (value.containsKey('catId') && !catIds.contains(value['catId'])) throw const FormatException('지원하지 않는 고양이 기록이에요.');
++        switch (entry.key) {
++          case 'letter_entries': LetterEntry.fromMap(value); break;
++          case 'reflection_letters': ReflectionLetterEntry.fromMap(value); break;
++          case 'daily_draw_entries': DailyDrawEntry.fromMap(value); break;
++          case 'bubble_memo_entries': BubbleMemoEntry.fromMap(value); break;
++          case 'buried_emotions': BuriedEmotionEntry.fromMap(value); break;
++          case 'cat_memories': MemoryEntry.fromMap(value); break;
++          case 'usage_history': UsageHistoryEntry.fromMap(value); break;
++          case 'promise_entries': PromiseEntry.fromMap(value); break;
++          case 'special_letters': SpecialLetterEntry.fromMap(value); break;
++        }
++      }
++    }
++    for (final entry in (snapshot['settings'] as Map).entries) {
++      if (entry.key is! String || !allowedPref(entry.key as String) || entry.value is! Map) throw const FormatException('허용되지 않은 설정이에요.');
++      final v = entry.value['value'];
++      final valid = switch (entry.value['type']) {
++        'bool' => v is bool, 'int' => v is int, 'double' => v is num,
++        'string' => v is String, 'strings' => v is List && v.every((e) => e is String), _ => false,
++      };
++      if (!valid || entry.value['type'] != prefType(entry.key as String)) throw const FormatException('설정 값이 올바르지 않아요.');
++    }
++  }
++  static int count(Map<String, dynamic> data) => (data['boxes'] as Map).values.fold<int>(0, (sum, rows) => sum + (rows as List).length);
++  static Future<bool> hasLocalRecords() async {
++    for (final name in boxes.where((name) => name != 'drafts' && name != 'reply_cache')) {
++      final box = await _existing(name);
++      if (box != null && box.isNotEmpty) return true;
++    }
++    return false;
++  }
++  static Future<int> restore(Map<String, dynamic> data) async {
++    validate(data);
++    final journal = await _journal();
++    if (journal.containsKey('pending')) throw StateError('이전 복원을 마치려면 앱을 다시 열어 주세요.');
++    await journal.put('pending', {'data': data, 'restoreProfile': !await hasLocalRecords()});
++    await journal.flush();
++    return resumePending();
++  }
++  static Future<int> resumePending() async {
++    final journal = await _journal();
++    final pending = journal.get('pending');
++    if (pending == null) return 0;
++    final data = Map<String, dynamic>.from(pending['data'] as Map);
++    validate(data);
++    var added = 0;
++    for (final entry in (data['boxes'] as Map).entries) {
++      final box = await HiveEncryption.openBox('${entry.key}_local_user');
++      for (final row in entry.value as List) {
++        if (!box.containsKey(row['key'])) { await box.put(row['key'], row['value']); added++; }
++      }
++      await box.flush();
++    }
++    final prefs = await SharedPreferences.getInstance();
++    for (final entry in (data['settings'] as Map).entries) {
++      if (pending['restoreProfile'] != true && prefs.containsKey(entry.key)) continue;
++      final v = entry.value['value'];
++      final key = entry.key as String;
++      switch (entry.value['type']) {
++        case 'bool': await prefs.setBool(key, v as bool); break;
++        case 'int': await prefs.setInt(key, v as int); break;
++        case 'double': await prefs.setDouble(key, (v as num).toDouble()); break;
++        case 'string': await prefs.setString(key, v as String); break;
++        case 'strings': await prefs.setStringList(key, List<String>.from(v as List)); break;
++      }
++    }
++    await journal.delete('pending');
++    await journal.flush();
++    return added;
++  }
++}
+--- v3/lib/services/cloud_service.dart
++++ v4/lib/services/cloud_service.dart
+@@ -0,0 +1,79 @@
++import 'dart:convert';
++import 'package:firebase_auth/firebase_auth.dart';
++import 'package:firebase_app_check/firebase_app_check.dart';
++import 'package:flutter_secure_storage/flutter_secure_storage.dart';
++import 'package:http/http.dart' as http;
++import 'package:cryptography/cryptography.dart';
++
++class CloudService {
++  static const endpoint = String.fromEnvironment('GARDEN_BACKEND_URL');
++  static bool get enabled => endpoint.isNotEmpty;
++  static const _secure = FlutterSecureStorage();
++  static Future<Map<String, dynamic>> call(String action, [Map<String,dynamic> params = const {}]) async {
++    final uri = Uri.tryParse(endpoint);
++    if (uri == null || uri.scheme != 'https') throw StateError('서버 연결 준비가 필요해요.');
++    final user = FirebaseAuth.instance.currentUser;
++    if (user == null) throw StateError('먼저 로그인해 주세요.');
++    final token = await user.getIdToken();
++    final appCheck = await FirebaseAppCheck.instance.getToken();
++    if (token == null || appCheck == null) throw StateError('로그인 상태를 다시 확인해 주세요.');
++    final response = await http.post(uri, headers:{'Authorization':'Bearer $token',
++      'X-Firebase-AppCheck':appCheck,'Content-Type':'application/json'},
++      body:jsonEncode({'action':action,...params})).timeout(const Duration(seconds: 50));
++    if (response.statusCode != 200) {
++      final body = jsonDecode(response.body);
++      throw CloudException(body is Map ? body['error']?.toString() ?? 'temporarily-unavailable' : 'temporarily-unavailable');
++    }
++    return Map<String,dynamic>.from(jsonDecode(response.body) as Map);
++  }
++  static Future<String> accountId() async {
++    final user = FirebaseAuth.instance.currentUser;
++    if (user == null || !user.emailVerified) throw StateError('이메일 인증 후 구매해 주세요.');
++    final hash = await Sha256().hash(utf8.encode(user.uid));
++    return hash.bytes.map((byte) => byte.toRadixString(16).padLeft(2,'0')).join();
++  }
++  static Future<Map<String,dynamic>> verify(String token) async {
++    final uid = FirebaseAuth.instance.currentUser?.uid;
++    final result = await call('verify', {'token':token});
++    if (uid != null && FirebaseAuth.instance.currentUser?.uid == uid) {
++      await _secure.write(key:'entitlement_$uid',value:jsonEncode(result));
++    }
++    return result;
++  }
++  static Future<Map<String,dynamic>> refreshEntitlement() async {
++    final uid = FirebaseAuth.instance.currentUser?.uid;
++    final result = await call('status');
++    if (uid != null && FirebaseAuth.instance.currentUser?.uid == uid) {
++      await _secure.write(key:'entitlement_$uid',value:jsonEncode(result));
++    }
++    return result;
++  }
++  static Future<bool> cachedPremium() async {
++    final uid = FirebaseAuth.instance.currentUser?.uid;
++    if (uid == null) return false;
++    final raw = await _secure.read(key:'entitlement_$uid');
++    if (raw == null) return false;
++    try {
++      final result = jsonDecode(raw);
++      final now = DateTime.now().toUtc();
++      final checked = DateTime.parse(result['checkedAt'] as String).toUtc();
++      final expires = DateTime.parse(result['expiresAt'] as String).toUtc();
++      return result['active'] == true && expires.isAfter(now) &&
++          !checked.isAfter(now.add(const Duration(minutes:5))) && now.difference(checked) < const Duration(hours:48);
++    } catch (_) { return false; }
++  }
++}
++class CloudException implements Exception {
++  final String code;
++  const CloudException(this.code);
++  @override
++  String toString() => switch(code) {
++    'verify-email' => '이메일 인증을 완료한 뒤 다시 시도해 주세요.',
++    'subscription-required' => '자동 백업은 구독 중에 이용할 수 있어요. 수동 백업과 기존 백업 복원은 계속 가능해요.',
++    'purchase-migration-required' => '이전 구독을 계정에 연결하려면 확인이 필요해요. 문의해 주세요.',
++    'purchase-owner-mismatch' => '이 구매는 다른 계정에 연결되어 있어요.',
++    'rate-limit' => '잠시 후 다시 시도해 주세요.',
++    'recent-login-required' => '계정 삭제 전 다시 로그인해 주세요.',
++    _ => '서버 연결을 확인할 수 없어요. 잠시 후 다시 시도해 주세요.',
++  };
++}
+--- v3/lib/services/draft_service.dart
++++ v4/lib/services/draft_service.dart
+@@ -0,0 +1,131 @@
++import 'dart:async';
++import 'package:flutter/material.dart';
++import 'package:hive_flutter/hive_flutter.dart';
++import 'hive_encryption.dart';
++
++/// Drafts never fall back to plaintext storage.
++class DraftService {
++  static Future<Box>? _opening;
++  static Future<Box> box() => _opening ??= _open();
++  static Future<Box> _open() async {
++    try {
++      return await Hive.openBox('drafts_local_user__enc',
++          encryptionCipher: await HiveEncryption.cipher());
++    } catch (_) { _opening = null; rethrow; }
++  }
++}
++
++class DraftTextController extends TextEditingController with WidgetsBindingObserver {
++  static final Set<DraftTextController> _active = {};
++  static final Set<Future<void>> _closing = {};
++  static Future<void> flushAll() async {
++    await Future.wait(_closing.toList());
++    for (final controller in _active.toList()) {
++      await controller.flush();
++      if (controller._failed) throw StateError('임시저장을 완료하지 못했어요.');
++    }
++  }
++  final String draftKey;
++  final ValueNotifier<String> saveStatus = ValueNotifier('임시저장 확인 중');
++  Timer? _timer;
++  Future<void> _tail = Future.value();
++  late final Future<void> _ready;
++  bool _hydrated = false;
++  bool _disposed = false;
++  bool _discarded = false;
++  bool _failed = false;
++  bool _loadingText = false;
++  int _revision = 0;
++  String _lastText = '';
++  DraftTextController(this.draftKey) {
++    _active.add(this);
++    addListener(_changed);
++    WidgetsBinding.instance.addObserver(this);
++    _ready = _hydrate();
++  }
++  void _status(String value) { if (!_disposed) saveStatus.value = value; }
++  Future<void> _hydrate() async {
++    try {
++      final box = await DraftService.box();
++      final saved = box.get(draftKey);
++      if (_revision == 0 && !_discarded && saved is String) {
++        _lastText = saved;
++        if (!_disposed) {
++          _loadingText = true;
++          value = TextEditingValue(text: saved, selection: TextSelection.collapsed(offset: saved.length));
++          _loadingText = false;
++        }
++      }
++      _hydrated = true;
++      _status('이 기기에 암호화 임시저장');
++      if (_revision > 0 && !_discarded) _schedule();
++    } catch (_) {
++      _failed = true;
++      _hydrated = true;
++      _status('임시저장 실패 · 내용을 복사해 보관해 주세요');
++    }
++  }
++  void _schedule() {
++    if (_disposed) return;
++    _timer?.cancel();
++    _status('저장 중');
++    _timer = Timer(const Duration(milliseconds: 300), () { unawaited(flush()); });
++  }
++  void _changed() {
++    if (_loadingText || text == _lastText) return;
++    _lastText = text;
++    _revision++;
++    _discarded = false;
++    if (_hydrated) _schedule();
++  }
++  Future<void> flush() async {
++    _timer?.cancel();
++    await _ready;
++    if (_discarded) { await _tail; return; }
++    // A failed read must never overwrite a previously saved draft with empty text.
++    if (_failed && _revision == 0) return;
++    final snapshot = _lastText;
++    _tail = _tail.catchError((Object _) {}).then((_) async {
++      try {
++        final box = await DraftService.box();
++        await box.put(draftKey, snapshot);
++        await box.flush();
++        _failed = false;
++        _status('이 기기에 암호화 임시저장');
++      } catch (_) { _failed = true; _status('임시저장 실패 · 내용을 복사해 보관해 주세요'); }
++    });
++    await _tail;
++  }
++  Future<void> discard() async {
++    _timer?.cancel();
++    _discarded = true;
++    _lastText = '';
++    _loadingText = true;
++    if (!_disposed) clear();
++    _loadingText = false;
++    await _ready;
++    _tail = _tail.catchError((Object _) {}).then((_) async {
++      final box = await DraftService.box();
++      await box.delete(draftKey);
++      await box.flush();
++    });
++    await _tail;
++  }
++  @override
++  void didChangeAppLifecycleState(AppLifecycleState state) {
++    if (state != AppLifecycleState.resumed) unawaited(flush());
++  }
++  @override
++  void dispose() {
++    _disposed = true;
++    final closing = flush();
++    _closing.add(closing);
++    unawaited(closing.whenComplete(() => _closing.remove(closing)));
++    _active.remove(this);
++    _timer?.cancel();
++    WidgetsBinding.instance.removeObserver(this);
++    removeListener(_changed);
++    saveStatus.dispose();
++    super.dispose();
++  }
++}
+--- v3/lib/services/hive_encryption.dart
++++ v4/lib/services/hive_encryption.dart
+@@ -22,10 +22,18 @@
+   );
+ 
+   static HiveAesCipher? _cipher;
++  static Future<HiveAesCipher>? _cipherOpening;
+ 
+   /// AES 암호화를 위한 [HiveAesCipher]를 준비합니다.
+-  static Future<HiveAesCipher> cipher() async {
+-    if (_cipher != null) return _cipher!;
++  static Future<HiveAesCipher> cipher() {
++    if (_cipher != null) return Future.value(_cipher!);
++    return _cipherOpening ??= _loadCipher().catchError((Object error) {
++      _cipherOpening = null;
++      throw error;
++    });
++  }
++
++  static Future<HiveAesCipher> _loadCipher() async {
+ 
+     String? encoded = await _secureStorage.read(key: _secureKeyName);
+     if (encoded == null || encoded.isEmpty) {
+--- v3/lib/services/reply_text_builder.dart
++++ v4/lib/services/reply_text_builder.dart
+@@ -1,3 +1,4 @@
++import 'hive_encryption.dart';
+ import '../models/letter_entry.dart';
+ import '../models/shadow_cat.dart';
+ import '../models/cat_care_state.dart';
+@@ -11,24 +12,44 @@
+ /// [FeatureFlags.useNewLetterEngine]에 따라 신규 8모듈 조합 시스템과 기존
+ /// `generateCatReply()`(레거시) 중 하나로 즉시 전환/롤백할 수 있습니다
+ /// (설계서 13.5절 "확정 — 기존 generateCatReply()와의 관계" 참고).
++final Map<String, Future<String>> _replyInFlight = {};
+ Future<String> buildReplyText({
+   required LetterEntry entry,
+   required ShadowCat cat,
+   required List<LetterEntry> history,
+   required CatGrowthStage growthStage,
+   required int visitStreak,
++}) => _replyInFlight.putIfAbsent(entry.id, () => _buildReplyText(
++  entry: entry, cat: cat, history: history, growthStage: growthStage, visitStreak: visitStreak,
++).whenComplete(() => _replyInFlight.remove(entry.id)));
++
++Future<String> _buildReplyText({
++  required LetterEntry entry,
++  required ShadowCat cat,
++  required List<LetterEntry> history,
++  required CatGrowthStage growthStage,
++  required int visitStreak,
+ }) async {
++  final cache = await HiveEncryption.openBox('reply_cache_local_user');
++  final cached = cache.get(entry.id);
++  if (cached is String) return cached;
+   if (!FeatureFlags.useNewLetterEngine) {
+-    return generateCatReply(entry, cat);
++    final reply = generateCatReply(entry, cat);
++    await cache.put(entry.id, reply);
++    await cache.flush();
++    return reply;
+   }
+ 
+   final ctx = LetterContextBuilder.build(
+     catId: cat.id,
+-    history: history,
++    history: history.where((item) => !item.date.isAfter(entry.date)).toList(),
+     growthStage: growthStage,
+     visitStreak: visitStreak,
+-    now: DateTime.now(),
++    now: entry.date,
+   );
+   final generator = TemplateReplyGenerator();
+-  return generator.generate(ctx);
++  final reply = await generator.generate(ctx);
++  await cache.put(entry.id, reply);
++  await cache.flush();
++  return reply;
+ }
+--- v3/lib/services/subscription_service.dart
++++ v4/lib/services/subscription_service.dart
+@@ -1,3 +1,4 @@
++import 'cloud_service.dart';
+ import 'dart:async';
+ 
+ import 'package:flutter/foundation.dart';
+@@ -132,12 +133,15 @@
+     for (final purchase in purchases) {
+       if (purchase.productID != monthlyProductId &&
+           purchase.productID != yearlyProductId) continue;
++      try {
+       switch (purchase.status) {
+         case PurchaseStatus.pending:
+           break;
+         case PurchaseStatus.purchased:
+         case PurchaseStatus.restored:
+-          final ok = _isActiveSubscription(purchase);
++          final ok = CloudService.enabled
++              ? (await CloudService.verify(purchase.verificationData.serverVerificationData))['active'] == true
++              : _isActiveSubscription(purchase);
+           if (ok) {
+             _sawActiveEntitlement = true;
+             final plan = purchase.productID == yearlyProductId
+@@ -167,6 +171,10 @@
+           _completePurchaseWait(false);
+           break;
+       }
++      } catch (_) {
++        // Leave incomplete purchases pending for a later verified retry.
++        _completePurchaseWait(false);
++      }
+     }
+   }
+ 
+@@ -187,6 +195,7 @@
+   }
+ 
+   Future<bool> isPremium() async {
++    if (CloudService.enabled) return CloudService.cachedPremium();
+     if (!storeBillingEnabled) {
+       await _clearLocalPremiumFlag();
+       return false;
+@@ -263,17 +272,18 @@
+       return false;
+     }
+ 
++    final accountId = CloudService.enabled ? await CloudService.accountId() : null;
+     _purchaseCompleter = Completer<bool>();
+-
+     late final PurchaseParam purchaseParam;
+     if (defaultTargetPlatform == TargetPlatform.android &&
+         product is GooglePlayProductDetails) {
+       purchaseParam = GooglePlayPurchaseParam(
+         productDetails: product,
+         offerToken: product.offerToken,
++        applicationUserName: accountId,
+       );
+     } else {
+-      purchaseParam = PurchaseParam(productDetails: product);
++      purchaseParam = PurchaseParam(productDetails: product, applicationUserName: accountId);
+     }
+ 
+     try {
+@@ -336,6 +346,17 @@
+         restoreUnavailable = true;
+         return isPremium();
+       }
++      if (CloudService.enabled) {
++        for (final purchase in response.pastPurchases.where(_isActiveSubscription)) {
++          await CloudService.verify(purchase.verificationData.serverVerificationData);
++          if (purchase.pendingCompletePurchase) await _iap.completePurchase(purchase);
++        }
++        final result = await CloudService.refreshEntitlement();
++        if (result['active'] == true) {
++          await setPlan(result['productId'] == yearlyProductId ? SubscriptionPlan.yearly : SubscriptionPlan.monthly);
++        }
++        return result['active'] == true;
++      }
+       final active = response.pastPurchases
+           .where(_isActiveSubscription).toList();
+       if (active.isEmpty) {
+--- v3/lib/widgets/journal_box.dart
++++ v4/lib/widgets/journal_box.dart
+@@ -1,3 +1,4 @@
++import '../services/draft_service.dart';
+ import 'package:flutter/material.dart';
+ import '../theme.dart';
+ import 'garden_path_card.dart';
+@@ -38,6 +39,11 @@
+             hint,
+             style: bodyFont(fontSize: 12, color: AppColors.blobLavenderAccent),
+           ),
++          if (controller is DraftTextController)
++            ValueListenableBuilder<String>(
++              valueListenable: (controller as DraftTextController).saveStatus,
++              builder: (_, status, __) => Text(status, style: bodyFont(fontSize: 12, color: AppColors.inkSoft)),
++            ),
+           const SizedBox(height: 12),
+           Container(
+             decoration: BoxDecoration(
+--- v3/pubspec.yaml
++++ v4/pubspec.yaml
+@@ -28,6 +28,11 @@
+   package_info_plus: ^9.0.1
+   gal: ^2.3.2
+ 
++  cryptography: 2.7.0
++  file_picker: 8.1.7
++  firebase_auth: 5.3.1
++  firebase_app_check: 0.3.1+3
++  http: 1.2.2
+   flutter_secure_storage: ^9.2.4
+ 
+   # Firebase (Analytics only for now - ?? ??/?? ?? ? ??? ??? ?? ??)
+--- v3/test/backup_safety_test.dart
++++ v4/test/backup_safety_test.dart
+@@ -0,0 +1,52 @@
++import 'dart:convert';
++import 'dart:typed_data';
++import 'package:flutter_test/flutter_test.dart';
++import 'package:flutter_app/services/backup_codec.dart';
++import 'package:flutter_app/services/backup_service.dart';
++
++Map<String,dynamic> sample() => {
++  'schema':1, 'createdAt':'2026-09-13T00:00:00Z',
++  'boxes':{'drafts':[{'key':'letter_test','value':'오늘의 마음 기록'}]},
++  'settings':{'companion_name':{'type':'string','value':'마음냥'}},
++};
++void main() {
++  TestWidgetsFlutterBinding.ensureInitialized();
++  test('encrypted backup roundtrip preserves Korean records', () async {
++    final data = sample();
++    final bytes = await BackupCodec.encrypt(data,'test-only-password-123');
++    expect(utf8.decode(bytes), isNot(contains('오늘의 마음 기록')));
++    expect(await BackupCodec.decrypt(bytes,'test-only-password-123'), data);
++  }, timeout: const Timeout(Duration(minutes:2)));
++  test('wrong password and changed authentication tag cannot restore', () async {
++    final bytes = await BackupCodec.encrypt(sample(),'test-only-password-123');
++    await expectLater(BackupCodec.decrypt(bytes,'wrong-password-123'),throwsA(anything));
++    final envelope = jsonDecode(utf8.decode(bytes)) as Map;
++    final tag = base64Decode(envelope['mac'] as String); tag[0] ^= 1;
++    envelope['mac'] = base64Encode(tag);
++    await expectLater(BackupCodec.decrypt(Uint8List.fromList(utf8.encode(jsonEncode(envelope))),
++      'test-only-password-123'),throwsA(anything));
++  }, timeout: const Timeout(Duration(minutes:2)));
++  test('backup validates an ordinary snapshot', () { BackupService.validate(sample()); });
++  test('import cannot restore premium rights', () {
++    final data = sample();
++    (data['settings'] as Map)['local_user_premium'] = {'type':'bool','value':true};
++    expect(()=>BackupService.validate(data),throwsFormatException);
++  });
++  test('known preference cannot be restored with an incompatible type', () {
++    final data = sample();
++    (data['settings'] as Map)['local_user_care_temperature'] = {'type':'string','value':'oops'};
++    expect(()=>BackupService.validate(data),throwsFormatException);
++  });
++  test('duplicate IDs and unknown record boxes fail before any write', () {
++    final data = sample();
++    (data['boxes']['drafts'] as List).add({'key':'letter_test','value':'duplicate'});
++    expect(()=>BackupService.validate(data),throwsFormatException);
++    final other = sample(); (other['boxes'] as Map)['purchase_tokens'] = [];
++    expect(()=>BackupService.validate(other),throwsFormatException);
++  });
++  test('unknown preferences are excluded from export', () {
++    expect(BackupService.allowedPref('local_user_new_secret'),isFalse);
++    expect(BackupService.allowedPref('last_cloud_backup_some_uid'),isFalse);
++    expect(BackupService.allowedPref('local_user_journey_done'),isTrue);
++  });
++}

@@ -8,6 +8,7 @@ class FeatureFlags {
 
   /// true: 새 8모듈 편지 조합 엔진(LetterComposerEngine) 사용
   /// false: 레거시 4조각 조합(opener+comfortMessage+guidance+closer) 사용
+  // Legacy composer only. Active v5 entry point is reply_text_builder.dart.
   static const bool useNewLetterEngine = true;
 
   /// ⚠️ 디버그 전용: true로 켜면 "다음날 오전 6시" 대기 없이 편지를 보낸

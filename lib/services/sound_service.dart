@@ -13,6 +13,7 @@ class SoundService {
   final AudioPlayer _purrPlayer = AudioPlayer();
   final AudioPlayer _bubblePlayer = AudioPlayer();
 
+  bool narrationPlaying = false;
   bool sfxEnabled = true;
   bool bgmEnabled = false;
   double bgmVolume = 0.35;
@@ -33,6 +34,7 @@ class SoundService {
   }
 
   Future<void> startBgm() async {
+    if (narrationPlaying) return;
     try {
       await _bgmPlayer
           .play(AssetSource('audio/bgm_mystic.mp3'), volume: bgmVolume)

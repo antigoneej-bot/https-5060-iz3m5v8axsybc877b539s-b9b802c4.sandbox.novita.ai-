@@ -1,3 +1,6 @@
+import '../models/reply_style.dart';
+import '../widgets/reply_style_picker.dart';
+import '../services/draft_service.dart';
 import 'package:flutter/material.dart';
 import '../models/special_letter_entry.dart';
 import '../services/special_letter_service.dart';
@@ -209,9 +212,18 @@ class _WriteHeartLetterSheet extends StatefulWidget {
 }
 
 class _WriteHeartLetterSheetState extends State<_WriteHeartLetterSheet> {
-  final _controller = TextEditingController();
+  late final DraftTextController _controller;
+  @override
+  void initState() {
+    super.initState();
+    _controller = DraftTextController('heart_${widget.type.storageKey}');
+  }
+  ReplyStyle _replyStyle = ReplyStyle.listen;
   bool _sending = false;
   SpecialLetterEntry? _result;
+  String? _submissionId;
+  String? _attemptText;
+  ReplyStyle? _attemptStyle;
 
   @override
   void dispose() {
@@ -223,15 +235,29 @@ class _WriteHeartLetterSheetState extends State<_WriteHeartLetterSheet> {
     final text = _controller.text.trim();
     if (text.isEmpty || _sending) return;
     setState(() => _sending = true);
-    final entry = await SpecialLetterService.sendLetter(
-      type: widget.type,
-      letterText: text,
-    );
-    if (!mounted) return;
-    setState(() {
-      _result = entry;
-      _sending = false;
-    });
+    try {
+      if (_submissionId == null || _attemptText != text || _attemptStyle != _replyStyle) {
+        _submissionId = '${DateTime.now().microsecondsSinceEpoch}_${widget.type.storageKey}';
+        _attemptText = text;
+        _attemptStyle = _replyStyle;
+      }
+      final entry = await SpecialLetterService.sendLetter(
+        type: widget.type,
+        submissionId: _submissionId,
+        letterText: text,
+        replyStyle: _replyStyle,
+      );
+      try { await _controller.discard(); } catch (_) { /* Source is already saved. */ }
+      if (!mounted) return;
+      setState(() => _result = entry);
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('편지를 보내지 못했어요. 잠시 후 다시 시도해 주세요')),
+      );
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
   }
 
   @override
@@ -316,6 +342,8 @@ class _WriteHeartLetterSheetState extends State<_WriteHeartLetterSheet> {
                     ),
                   ),
                   const SizedBox(height: 16),
+                  ReplyStylePicker(value:_replyStyle,enabled:!_sending,onChanged:(value)=>setState(()=>_replyStyle=value)),
+                  const SizedBox(height:16),
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(

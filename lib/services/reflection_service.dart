@@ -127,7 +127,7 @@ class ReflectionService {
     if (consciousCatId == null || unconsciousCatId == null) return null;
     if (consciousCatId == unconsciousCatId) {
       final name = catNameFor(consciousCatId);
-      return '오늘 편지에서 고른 마음과, 무작위로 뽑힌 카드가\n똑같이 $name였어요. 의식과 무의식이 같은 곳을 보고 있었나 봐요.';
+      return '오늘 편지에서 고른 마음과, 무작위로 뽑힌 카드가\n똑같이 $name였어요. 반가운 우연이에요. 마음에 와닿는 부분만 돌아보세요.';
     }
     final a = catNameFor(consciousCatId);
     final b = catNameFor(unconsciousCatId);
@@ -178,6 +178,6 @@ class ReflectionService {
     });
     if (topId == null || topCount < threshold) return null;
     final name = catNameFor(topId);
-    return '이번 달 무작위 카드뽑기에서 $name가 $topCount번\n나타났어요. 무의식이 자꾸 같은 그림자를 보여주고 있어요.';
+    return '이번 달 무작위 카드뽑기에서 $name가 $topCount번\n나타났어요. 무작위 추첨 기록이며, 실제 감정이나 숨겨진 마음을 뜻하지 않아요.';
   }
 }

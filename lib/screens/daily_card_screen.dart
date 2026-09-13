@@ -13,7 +13,7 @@ import '../widgets/animated_cat_art.dart';
 import '../widgets/garden_path_card.dart';
 import 'premium_screen.dart';
 
-/// 데일리 내면소통 - 타로카드처럼 펼쳐진 카드 스프레드에서 한 장을 골라
+/// 오늘의 고양이 카드 - 타로카드처럼 펼쳐진 카드 스프레드에서 한 장을 골라
 /// 오늘의 내면 고양이와 위로/지침을 받는 화면
 class DailyCardScreen extends StatefulWidget {
   const DailyCardScreen({super.key});
@@ -49,7 +49,7 @@ class _DailyCardScreenState extends State<DailyCardScreen> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-          '데일리 내면소통',
+          '오늘의 고양이 카드',
           textAlign: TextAlign.center,
           style: titleFont(fontSize: 24, color: AppColors.titlePastelGreen),
         ),
@@ -58,10 +58,16 @@ class _DailyCardScreenState extends State<DailyCardScreen> {
           switch (provider.stage) {
             DailyCardStage.shuffling => '카드를 섞고 있어요...',
             DailyCardStage.spread => '마음 가는 카드 한 장을 골라보세요',
-            DailyCardStage.revealed => '오늘 당신에게 온 내면의 고양이예요',
+            DailyCardStage.revealed => '오늘 우연히 만난 고양이예요',
           },
           textAlign: TextAlign.center,
           style: bodyFont(fontSize: 12.5, color: AppColors.inkSoft),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          '무작위로 뽑는 재미용 카드예요. 심리 검사나 미래 예측이 아니에요.\n마음에 와닿는 부분만 보고, 맞지 않으면 넘겨도 좋아요.',
+          textAlign: TextAlign.center,
+          style: bodyFont(fontSize: 11.5, color: AppColors.inkSoft),
         ),
         if (provider.stage == DailyCardStage.spread) ...[
           const SizedBox(height: 6),
@@ -607,7 +613,7 @@ class _SynchronicitySectionState extends State<_SynchronicitySection> {
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                '오늘 편지도 쓰면, 의식과 무의식을 비교해 볼 수 있어요',
+                '오늘 편지도 쓰면, 내 마음과 오늘의 카드을 비교해 볼 수 있어요',
                 style: bodyFont(
                   fontSize: 12.5,
                   color: AppColors.moon,
@@ -636,7 +642,7 @@ class _SynchronicitySectionState extends State<_SynchronicitySection> {
               const Text('✨', style: TextStyle(fontSize: 16)),
               const SizedBox(width: 8),
               Text(
-                '의식과 무의식',
+                '내 마음과 오늘의 카드',
                 style: pathLabelFont(
                   fontSize: 14.5,
                   fontWeight: FontWeight.w700,
@@ -660,7 +666,7 @@ class _SynchronicitySectionState extends State<_SynchronicitySection> {
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
-                      '심리학 박사의 그림자 해석 더 보기',
+                      '감정을 돌아보는 질문 더 보기',
                       style: pathLabelFont(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
@@ -780,7 +786,7 @@ class _LockedSynchronicityCard extends StatelessWidget {
                       const Text('✨', style: TextStyle(fontSize: 16)),
                       const SizedBox(width: 8),
                       Text(
-                        '의식과 무의식',
+                        '내 마음과 오늘의 카드',
                         style: pathLabelFont(
                           fontSize: 14.5,
                           fontWeight: FontWeight.w700,
@@ -814,7 +820,7 @@ class _LockedSynchronicityCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    '프리미엄 · 의식과 무의식 비교',
+                    '프리미엄 · 내 마음과 카드 비교',
                     style: bodyFont(
                       fontSize: 12,
                       color: AppColors.blobPeriwinkleAccent,

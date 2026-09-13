@@ -1,5 +1,6 @@
 import 'package:hive_flutter/hive_flutter.dart';
 import '../models/promise_entry.dart';
+import 'hive_encryption.dart';
 
 /// "오늘의 약속" 데이터를 계정별로 관리하는 서비스.
 /// 하루 최대 6개까지 등록할 수 있고, 자정이 지나면 그날의 약속은
@@ -16,7 +17,7 @@ class PromiseService {
     if (_box != null && _box!.isOpen) {
       await _box!.close();
     }
-    _box = await Hive.openBox('promise_entries_$_uid');
+    _box = await HiveEncryption.openBox('promise_entries_$_uid');
   }
 
   static Future<void> clearCurrentUser() async {

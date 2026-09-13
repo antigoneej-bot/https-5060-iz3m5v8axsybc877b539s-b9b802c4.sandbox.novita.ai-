@@ -1,3 +1,4 @@
+import 'reply_style.dart';
 import '../utils/feature_flags.dart';
 
 /// 그림자 고양이에게 쓴 편지 기록
@@ -19,6 +20,7 @@ class LetterEntry {
   /// 이 편지에 대한 고양이의 답장을 이미 열어봤는지 여부. 홈 화면의
   /// "답장이 도착했어요" 배너를 한 번만 보여주기 위한 플래그입니다.
   final bool replySeen;
+  final ReplyStyle replyStyle;
 
   LetterEntry({
     required this.id,
@@ -28,6 +30,7 @@ class LetterEntry {
     this.meditationKey,
     this.moodEmoji,
     this.replySeen = false,
+    this.replyStyle = ReplyStyle.listen,
   });
 
   /// 답장을 열어봤음을 표시한 새 인스턴스를 반환합니다.
@@ -40,6 +43,7 @@ class LetterEntry {
       meditationKey: meditationKey,
       moodEmoji: moodEmoji,
       replySeen: true,
+      replyStyle: replyStyle,
     );
   }
 
@@ -55,6 +59,7 @@ class LetterEntry {
       meditationKey: key,
       moodEmoji: moodEmoji,
       replySeen: replySeen,
+      replyStyle: replyStyle,
     );
   }
 
@@ -84,6 +89,7 @@ class LetterEntry {
       'meditationKey': meditationKey,
       'moodEmoji': moodEmoji,
       'replySeen': replySeen,
+      'replyStyle': replyStyle.name,
     };
   }
 
@@ -96,6 +102,7 @@ class LetterEntry {
       meditationKey: map['meditationKey'] as String?,
       moodEmoji: map['moodEmoji'] as String?,
       replySeen: map['replySeen'] as bool? ?? false,
+      replyStyle: parseReplyStyle(map['replyStyle']),
     );
   }
 }

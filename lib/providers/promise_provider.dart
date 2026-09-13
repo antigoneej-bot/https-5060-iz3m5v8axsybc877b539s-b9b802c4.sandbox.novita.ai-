@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import '../models/promise_entry.dart';
 import '../services/promise_service.dart';
@@ -52,34 +54,33 @@ class PromiseProvider extends ChangeNotifier {
     return ok;
   }
 
-  /// 약속 체크(또는 해제)를 처리합니다. 체크한 순간에만(해제할 때는 제외)
-  /// 리액션 문구를 노출하고, 마음 온도 보너스 신호를 함께 보냅니다. 약속을
-  /// 지키는 기쁨은 구독 여부와 무관하므로, 누구나 약속 하나를 지킬 때마다
-  /// 마음 온도가 1도씩 오릅니다(100도 초과 시 포인트 적립은 구독자 전용).
+  /// 약속 체크(또는 해제)를 처리합니다.
   ///
-  /// 반환값: 방금 체크해서 성장 보너스(+1도)를 적용해야 하면 true.
-  /// (실제 온도 적립/성장 애니메이션은 화면에서 CatCareProvider를 통해 처리)
-  Future<bool> toggleKept(String id) async {
+  /// 반환값: 마음 온도에 적용할 delta.
+  /// - `+1`: 방금 지킴으로 체크
+  /// - `-1`: 체크 해제 (이전에 받은 보너스 환수)
+  /// - `0`: 변화 없음
+  Future<int> toggleKept(String id) async {
     final idx = entries.indexWhere((e) => e.id == id);
-    if (idx == -1) return false;
+    if (idx == -1) return 0;
     final current = entries[idx];
     final newKept = !current.kept;
     await PromiseService.setKept(id, newKept);
     entries = PromiseService.getTodayEntries();
 
-    bool grantsBonus = false;
     if (newKept) {
-      await SoundService().playChime();
       lastReaction = '하나를 지켰어요 — 고양이가 한 뼘 자랐어요 🌿';
-      grantsBonus = true;
-    } else {
-      lastReaction = null;
-      // 약속을 다시 해제했다면, 다음에 전부 지켰을 때 다시 축하할 수 있도록
-      // 완료 축하 플래그를 초기화합니다.
-      _celebratedToday = false;
+      notifyListeners();
+      unawaited(SoundService().playChime());
+      return 1;
     }
+
+    lastReaction = null;
+    // 약속을 다시 해제했다면, 다음에 전부 지켰을 때 다시 축하할 수 있도록
+    // 완료 축하 플래그를 초기화합니다.
+    _celebratedToday = false;
     notifyListeners();
-    return grantsBonus;
+    return -1;
   }
 
   void clearReaction() {
@@ -93,9 +94,9 @@ class PromiseProvider extends ChangeNotifier {
   Future<void> celebrateAllKept() async {
     if (!allKept || _celebratedToday) return;
     _celebratedToday = true;
-    await SoundService().playPurr();
     allKeptCelebrationMessage = '골골골... 오늘의 약속을 모두 지켰어요! 정말 잘했어요 😽✨';
     notifyListeners();
+    unawaited(SoundService().playPurr());
   }
 
   void clearAllKeptCelebration() {

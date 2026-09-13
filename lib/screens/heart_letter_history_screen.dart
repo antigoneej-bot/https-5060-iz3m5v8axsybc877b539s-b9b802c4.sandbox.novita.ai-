@@ -1,3 +1,4 @@
+import '../widgets/saved_heart_reply.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/special_letter_entry.dart';
@@ -225,10 +226,7 @@ class _HistoryLetterCardState extends State<_HistoryLetterCard> {
                     ],
                   ),
                   const SizedBox(height: 6),
-                  Text(
-                    entry.replyText,
-                    style: bodyFont(fontSize: 12.5, color: AppColors.moon, height: 1.6),
-                  ),
+                  SavedHeartReply(key: ValueKey('heart:${entry.id}'), entry: entry),
                 ],
               ),
             ),

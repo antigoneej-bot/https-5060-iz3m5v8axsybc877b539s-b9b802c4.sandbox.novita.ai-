@@ -35,7 +35,7 @@ const bool kShowMochiDebugPanel = true;
 
 /// 마음 돌보기 (다마고치식) - 매일 몸(밥/물/목욕/청소)과 마음(호흡명상/걷기명상/
 /// 마음기록/감사쓰기)을 함께 돌보며 나의 그림자 고양이를 키우고 마음 온도를
-/// 유지하는 화면. 하루라도 돌보지 않으면 온도가 1도씩 내려갑니다.
+/// 유지하는 화면. 쉬었던 날에는 온도를 깎지 않습니다.
 /// 처음엔 아기 고양이로 시작해서, 정성껏 돌본 날이 쌓일수록 청년을 거쳐
 /// 내가 고른 그림자 고양이의 모습으로 다 자라납니다.
 /// '힐링 정원' 컨셉에 맞춰 딱딱한 흰 사각 박스를 모두 걷어내고, 반투명
@@ -425,7 +425,7 @@ class _PetCareScreenState extends State<PetCareScreen> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    '오늘 돌봄을 모두 마쳤어요! 마음 온도가 올라갔어요.',
+                    '오늘의 작은 돌봄을 마쳤어요! 마음 온도가 올라갔어요.',
                     style: pathLabelFont(
                       fontSize: 13.5,
                       fontWeight: FontWeight.w700,
@@ -451,7 +451,7 @@ class _PetCareScreenState extends State<PetCareScreen> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    '오늘의 돌봄 ${care.state.completedCountToday}/8 · 하루라도 돌보지 않으면 마음 온도가 내려가요.',
+                    '오늘 ${care.state.completedCountToday}가지 실천 · 한 가지면 충분해요. 나머지는 선택이에요.\n마음 온도는 돌봄 활동의 표시이며 심리 점수가 아니에요.',
                     style: bodyFont(fontSize: 11.5, color: AppColors.inkSoft),
                   ),
                 ),
@@ -1153,9 +1153,9 @@ class _PattableCatStageState extends State<_PattableCatStage>
                   ),
                 )
               : widget.stage == CatGrowthStage.teen
-              ? const AnimatedTeenCat(size: 140)
+              ? AnimatedTeenCat(size: 140, reactionToken: _tapSeed)
               : widget.stage == CatGrowthStage.adult
-              ? const AnimatedAdultCat(size: 140)
+              ? AnimatedAdultCat(size: 140, reactionToken: _tapSeed)
               : AnimatedCatArt(imageAsset: widget.imageAsset, size: 140),
           Positioned(
             right: -4,

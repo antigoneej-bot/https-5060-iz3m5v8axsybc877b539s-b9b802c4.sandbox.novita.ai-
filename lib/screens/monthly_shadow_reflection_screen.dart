@@ -136,7 +136,7 @@ class _NoMonthlyDataYet extends StatelessWidget {
   }
 }
 
-/// 화면 3 — 4주간 데이터를 문장으로 자동 생성한 서술형 요약.
+/// 화면 3 — 이번 달 데이터를 문장으로 자동 생성한 서술형 요약.
 /// 그래프/차트 없이, 문장 하나로 이번 달의 흐름을 관찰합니다.
 class _MonthlySummaryCard extends StatelessWidget {
   final String? firstHalfCatId;
@@ -178,7 +178,7 @@ class _MonthlySummaryCard extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           Text(
-            '4주간의 기록을 살펴본 관찰 결과입니다',
+            '이번 달 1일부터 오늘까지 남긴 기록을 살펴봤어요',
             textAlign: TextAlign.center,
             style: bodyFont(fontSize: 11.5, color: accent),
           ),
@@ -265,14 +265,14 @@ class _UnconsciousPatternCard extends StatelessWidget {
           const Text('🌘', style: TextStyle(fontSize: 28)),
           const SizedBox(height: 12),
           Text(
-            '이번 달, 무의식이\n보여준 패턴',
+            '이번 달, 우연히\n만난 고양이들',
             textAlign: TextAlign.center,
             style: titleFont(fontSize: 18, color: AppColors.ink, height: 1.5),
           ),
           const SizedBox(height: 10),
           Text(
             sentence ??
-                '아직 데일리 카드뽑기 기록이 충분하지 않아요.\n매일 카드를 뽑으면 반복되는 그림자를 관찰할 수 있어요.',
+                '아직 데일리 카드뽑기 기록이 충분하지 않아요.\n무작위 카드 기록이에요. 실제 감정의 빈도를 뜻하지 않아요.',
             textAlign: TextAlign.center,
             style: bodyFont(fontSize: 13, color: AppColors.moon, height: 1.5),
           ),

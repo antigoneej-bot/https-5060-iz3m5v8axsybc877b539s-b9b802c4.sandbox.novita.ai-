@@ -103,8 +103,8 @@ final List<CatAchievement> catAchievements = [
   CatAchievement(
     id: 'full_care_7',
     emoji: '💯',
-    title: '완벽한 하루들',
-    description: '하루 8가지 돌봄을 모두 완수한 날이 7번 쌓였어요',
+    title: '작은 돌봄의 나날',
+    description: '하루 한 가지 이상 나를 돌본 날이 7번 쌓였어요',
     isUnlocked: (s) => s.totalFullCareDays >= 7,
     progressLabel: (s) => _clampedProgress(s.totalFullCareDays, 7),
   ),

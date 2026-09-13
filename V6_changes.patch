@@ -1,0 +1,404 @@
+--- /dev/null
++++ b/V6_NOTES_KO.md
+@@ -0,0 +1,27 @@
++# v6 — 첫 단계: 편지 저장 성공과 부가 처리 분리
++
++## 변경 범위
++- 일반 감정 편지와 온보딩 첫 편지: Hive 저장 및 flush 완료 후 전송 성공 처리.
++- 같은 작성 흐름에서 동일 내용 재시도는 동일 ID를 사용. 동시에 제출된 동일 요청은 진행 중 Future를 공유.
++- 성장 보상·온도 보상·알림·소리는 저장 성공 이후 실행. 부가 처리 실패가 편지 재전송을 유도하지 않도록 분리.
++- 초안 정리 실패 안내와 저장 확인 실패 안내 분리.
++- 다음 화면으로 전환되어도 마음기록 임무 처리가 실행되도록 화면 mounted 조건 제거.
++- 저장 실패/재시도, 동시 제출, 지연·실패 보상, 저장 후 UI 콜백 실패를 다루는 회귀 테스트 추가.
++
++## 검증 상태
++이 환경에는 Flutter/Dart SDK가 없어 의존성 해결, flutter analyze, 테스트 실행, APK 빌드는 수행하지 못했습니다. 추가한 테스트는 미실행 상태입니다. 파일 변경 비교와 ZIP 무결성 확인만 수행했습니다. 배포 완료본이나 설치 APK가 아닌 소스 수정본입니다.
++
++Flutter SDK가 설치된 환경에서 프로젝트 루트의 `bash tool/verify_release_candidate.sh`를 실행하세요. 이 스크립트는 의존성 설치, 정적 분석, 전체 테스트, 디버그 APK 빌드를 순서대로 실행하며 실패 시 중단합니다. 성공해도 실기기 결제·복원·강제 종료 테스트와 릴리스 서명 확인은 별도입니다.
++
++## 남은 한계
++- 제출 ID는 메모리에 유지합니다. 앱 재시작이나 작성 흐름 재시작 후 재전송까지 중복 방지를 보장하지 않습니다.
++- 저장 성공 후 앱이 종료되거나 보상이 실패하면 보상이 누락될 수 있습니다. 중복 온도 지급을 피하기 위해 자동 재시도를 추가하지 않았습니다. 영속적인 보상 작업 목록과 멱등 처리 설계가 후속 작업입니다.
++- 특별 편지의 답장 생성/저장 순서는 이번 변경 범위에 포함되지 않습니다.
++- 실제 디스크 오류/용량 부족 시 flush 동작은 실기기 확인이 필요합니다.
++
++## 후속 순서
++1. Flutter 환경에서 검증 스크립트 실행 및 실패 수정. 강제 종료/재전송 시나리오 확인.
++2. 백업 복구 실패 시 복구 화면, 앱 잠금, 실제 데이터 전송과 일치하는 개인정보 안내.
++3. 결제 서버·구독 복원·권한 검증·계정별 데이터 처리 검증.
++4. 답장의 일기 관련성 및 반복 방지 개선.
++5. 주간·월간 회고와 직접 제작할 명상 오디오 연결.
+--- a/lib/providers/app_state_provider.dart
++++ b/lib/providers/app_state_provider.dart
+@@ -1,3 +1,5 @@
++import 'dart:math';
++import '../services/persisted_submission.dart';
+ import '../models/reply_style.dart';
+ import 'dart:async';
+ 
+@@ -200,6 +202,7 @@
+   /// 가로채므로 이 메서드까지 도달하지 않습니다.
+   void selectCat(ShadowCat cat) {
+     if (cat.isPremium && !isPremiumUser) return;
++    _letterSubmission = null;
+     selectedCat = cat;
+     flowStage = FlowStage.story;
+     currentLetterId = null;
+@@ -219,6 +222,12 @@
+     flowStage = FlowStage.letter;
+     notifyListeners();
+   }
++
++  PersistedSubmission<LetterEntry>? _letterSubmission;
++  PersistedSubmission<LetterEntry>? _onboardingSubmission;
++  String _newLetterId() => '${DateTime.now().microsecondsSinceEpoch}_${Random.secure().nextInt(1 << 32)}';
++  bool _sameLetter(LetterEntry entry,String text,String catId,String? mood,ReplyStyle style) =>
++      entry.letterText == text && entry.catId == catId && entry.moodEmoji == mood && entry.replyStyle == style;
+ 
+   /// 편지를 쓰고 "보내기"를 누른 즉시(=명상/온도체크와 완전히 독립적으로)
+   /// 편지를 저장하고, 마음 온도를 자동으로 +1도 올립니다. 사용자가 직접
+@@ -238,48 +247,49 @@
+     ReplyStyle replyStyle = ReplyStyle.listen,
+     required Future<void> Function() onTemperatureBonus,
+   }) async {
+-    if (selectedCat == null) return;
+-    final entry = LetterEntry(
+-      id: '${DateTime.now().millisecondsSinceEpoch}',
+-      catId: selectedCat!.id,
+-      date: DateTime.now(),
+-      letterText: letterText,
+-      moodEmoji: moodEmoji,
+-      replyStyle: replyStyle,
++    final cat = selectedCat;
++    if (cat == null) throw StateError('감정 고양이를 먼저 골라 주세요.');
++    final old = _letterSubmission;
++    if (old != null && _sameLetter(old.payload,letterText,cat.id,moodEmoji,replyStyle)) {
++      await old.submit();
++      return;
++    }
++    final entry = LetterEntry(id:_newLetterId(),catId:cat.id,date:DateTime.now(),
++      letterText:letterText,moodEmoji:moodEmoji,replyStyle:replyStyle);
++    final submission = PersistedSubmission<LetterEntry>(
++      payload:entry, persist:StorageService.saveLetter,
++      onSaved:(saved) {
++        history = [saved,...history.where((item)=>item.id!=saved.id)];
++        currentLetterId = saved.id;
++        flowStage = FlowStage.meditation;
++        notifyListeners();
++      },
++      afterSaved:(_) => _afterLetterSaved(entry,cat.nameKr,onTemperatureBonus),
+     );
+-    await StorageService.saveLetter(entry);
+-    history = StorageService.getAllLetters();
+-    currentLetterId = entry.id;
+-
+-    // 답장에는 사용자가 저장을 허용하지 않은 과거 기억을 자동으로 꺼내지 않습니다.
+-    // v5: no automatic extraction or surprise recall of private memories.
+-
+-    final (leveledUp, level, points, elapsed) =
+-        await StorageService.recordGrowthDay();
+-    growthLevel = level;
+-    growthPoints = points;
+-    growthElapsedDays = elapsed;
+-    justLeveledUp = leveledUp;
+-
+-    // 편지를 보냈다는 사실 자체로 마음 온도 +1도.
+-    await onTemperatureBonus();
+-
+-    // 알림·사운드·Analytics보다 먼저 다음 단계로 전환합니다.
+-    // (부작용이 지연/실패해도 "편지 보내기" 다음 화면이 안 뜨는 일을 막음)
+-    flowStage = FlowStage.meditation;
+-    notifyListeners();
+-
++    _letterSubmission = submission;
++    await submission.submit();
++  }
++
++  Future<void> _afterLetterSaved(LetterEntry entry,String catName,
++      Future<void> Function() onTemperatureBonus) async {
++    // Each post-save step is independent; do not retry non-idempotent bonuses here.
++    try {
++      final (leveledUp, level, points, elapsed) = await StorageService.recordGrowthDay();
++      growthLevel=level; growthPoints=points; growthElapsedDays=elapsed; justLeveledUp=leveledUp;
++      notifyListeners();
++    } catch (_) {}
++    try { await onTemperatureBonus(); } catch (_) {}
+     unawaited(() async {
+       try {
+         await AnalyticsService().logEvent(AnalyticsEvents.letterSent, {
+           'cat_id': entry.catId,
+-          'has_text': letterText.trim().isNotEmpty ? 1 : 0,
++          'has_text': entry.letterText.trim().isNotEmpty ? 1 : 0,
+         });
+       } catch (_) {}
+       try {
+         await NotificationService().notifyMissionCompletedToday();
+         await NotificationService().scheduleCatReplyNotification(
+-          catName: selectedCat?.nameKr ?? entry.catId,
++          catName: catName,
+           scheduledAt: entry.replyAvailableAt,
+         );
+       } catch (_) {}
+@@ -342,52 +352,26 @@
+     ShadowCat cat, {
+     String? moodEmoji,
+   }) async {
+-    final entry = LetterEntry(
+-      id: '${DateTime.now().millisecondsSinceEpoch}',
+-      catId: cat.id,
+-      date: DateTime.now(),
+-      letterText: letterText,
+-      moodEmoji: moodEmoji,
++    final old = _onboardingSubmission;
++    if (old != null && _sameLetter(old.payload,letterText,cat.id,moodEmoji,ReplyStyle.listen)) {
++      await old.submit(); return;
++    }
++    final entry=LetterEntry(id:_newLetterId(),catId:cat.id,date:DateTime.now(),letterText:letterText,moodEmoji:moodEmoji);
++    final submission=PersistedSubmission<LetterEntry>(payload:entry,persist:StorageService.saveLetter,
++      onSaved:(saved) {
++        history=[saved,...history.where((item)=>item.id!=saved.id)];
++        notifyListeners();
++      },
++      afterSaved:(_) => _afterLetterSaved(entry,cat.nameKr,() async {
++        await CatCareService.adjustBonusTemperature(1,isPremium:isPremiumUser,countAsActivityBonus:true);
++      }),
+     );
+-    await StorageService.saveLetter(entry);
+-    history = StorageService.getAllLetters();
+-
+-    // v5: no automatic extraction or surprise recall of private memories.
+-
+-    final (leveledUp, level, points, elapsed) =
+-        await StorageService.recordGrowthDay();
+-    growthLevel = level;
+-    growthPoints = points;
+-    growthElapsedDays = elapsed;
+-    justLeveledUp = leveledUp;
+-
+-    // 일반 편지 전송과 동일하게 온보딩 첫 편지도 마음 온도 +1
+-    try {
+-      await CatCareService.adjustBonusTemperature(
+-        1,
+-        isPremium: isPremiumUser,
+-        countAsActivityBonus: true,
+-      );
+-    } catch (_) {}
+-
+-    notifyListeners();
+-
+-    // 알림·사운드는 UI(온보딩 다음 단계)를 막지 않도록 백그라운드 처리
+-    unawaited(() async {
+-      try {
+-        await NotificationService().notifyMissionCompletedToday();
+-        await NotificationService().scheduleCatReplyNotification(
+-          catName: cat.nameKr,
+-          scheduledAt: entry.replyAvailableAt,
+-        );
+-      } catch (_) {}
+-      try {
+-        await SoundService().playChime();
+-      } catch (_) {}
+-    }());
++    _onboardingSubmission=submission;
++    await submission.submit();
+   }
+ 
+   void restartFlow() {
++    _letterSubmission = null;
+     selectedCat = null;
+     flowStage = FlowStage.selecting;
+     currentLetterId = null;
+--- a/lib/screens/meditation_flow_screen.dart
++++ b/lib/screens/meditation_flow_screen.dart
+@@ -215,24 +215,31 @@
+     final appState = context.read<AppStateProvider>();
+     final care = context.read<CatCareProvider>();
+     try {
+-      // 편지를 보내는 즉시 저장되고, 그 자체로 마음 온도가 +1도 오릅니다.
++      // 편지 저장이 완료되면 전송 성공. 보상 처리는 따로 진행합니다.
+       // 사용자가 온도 값을 따로 입력하는 절차는 없습니다.
+       await appState.sendLetter(
+         widget.controller.text.trim(),
+         moodEmoji: widget.moodEmoji,
+         replyStyle: _replyStyle,
+-        onTemperatureBonus: care.applyLetterSentBonus,
++        onTemperatureBonus: () async {
++          try {
++            await care.applyLetterSentBonus();
++          } finally {
++            // 화면이 다음 단계로 넘어가도 기록 임무 처리는 이어갑니다.
++            await care.journaling();
++          }
++        },
+       );
+       if (widget.controller is DraftTextController) {
+-        await (widget.controller as DraftTextController).discard();
++        try { await (widget.controller as DraftTextController).discard(); }
++        catch (_) {
++          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
++            content:Text('편지는 저장됐어요. 초안을 정리하지 못했지만 다시 보낼 필요는 없어요.')));
++        }
+       }
+-      // 편지를 쓴 행위 자체를 마음 돌보기의 '마음기록' 임무와 자동으로
+-      // 연동합니다(중복 완료는 서비스 내부에서 안전하게 무시됩니다).
+-      if (mounted) {
+-        try {
+-          await care.journaling();
+-        } catch (_) {}
+-      }
++    } catch (_) {
++      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
++        content:Text('저장 완료를 확인하지 못했어요. 내용은 유지돼요. 다시 눌러 저장을 확인해 주세요.')));
+     } finally {
+       if (mounted) setState(() => _sending = false);
+     }
+--- /dev/null
++++ b/lib/services/persisted_submission.dart
+@@ -0,0 +1,30 @@
++import 'dart:async';
++
++/// One immutable payload per send attempt. Retrying a failed flush reuses its ID.
++/// Post-save work cannot change a successful save into a failed submission.
++class PersistedSubmission<T> {
++  final T payload;
++  final Future<void> Function(T) persist;
++  final void Function(T) onSaved;
++  final Future<void> Function(T) afterSaved;
++  bool _saved = false;
++  Future<void>? _flight;
++  PersistedSubmission({required this.payload, required this.persist,
++    required this.onSaved, required this.afterSaved});
++  Future<void> submit() {
++    if (_saved) return Future.value();
++    return _flight ??= _run();
++  }
++  Future<void> _run() async {
++    try {
++      await persist(payload);
++      _saved = true;
++      // Post-commit callbacks must not trigger a resend of the same letter.
++      try { onSaved(payload); } catch (_) {}
++      unawaited(_finish());
++    } finally { _flight = null; }
++  }
++  Future<void> _finish() async {
++    try { await afterSaved(payload); } catch (_) {}
++  }
++}
+--- a/lib/services/storage_service.dart
++++ b/lib/services/storage_service.dart
+@@ -183,7 +183,9 @@
+   }
+ 
+   static Future<void> saveLetter(LetterEntry entry) async {
+-    await letterBox.put(entry.id, entry.toMap());
++    // A retry after an uncertain write uses the same immutable ID.
++    if (!letterBox.containsKey(entry.id)) await letterBox.put(entry.id, entry.toMap());
++    await letterBox.flush();
+   }
+ 
+   /// 이미 저장된 편지에 명상 실천 여부(meditationKey)만 덧붙여 갱신합니다.
+--- /dev/null
++++ b/test/persisted_submission_test.dart
+@@ -0,0 +1,86 @@
++import 'dart:async';
++import 'package:flutter_test/flutter_test.dart';
++import '../lib/services/persisted_submission.dart';
++
++void main() {
++  test('concurrent sends persist once; delayed rewards do not block success', () async {
++    final disk = Completer<void>();
++    final reward = Completer<void>();
++    var writes = 0;
++    var saved = 0;
++    var bonuses = 0;
++    final operation = PersistedSubmission<String>(
++      payload: 'stable-id',
++      persist: (_) async { writes++; await disk.future; },
++      onSaved: (_) { saved++; },
++      afterSaved: (_) async { bonuses++; await reward.future; },
++    );
++    final first = operation.submit();
++    final second = operation.submit();
++    expect(writes, 1);
++    expect(saved, 0);
++    disk.complete();
++    await Future.wait([first, second]).timeout(const Duration(seconds: 1));
++    expect(saved, 1);
++    expect(bonuses, 1);
++    await operation.submit();
++    expect(writes, 1);
++    expect(bonuses, 1);
++    reward.complete();
++  });
++
++  test('failed flush retries the same key without creating another record', () async {
++    final records = <String, String>{};
++    var attempts = 0;
++    var saved = 0;
++    var bonuses = 0;
++    final operation = PersistedSubmission<String>(
++      payload: 'stable-id',
++      persist: (id) async {
++        records.putIfAbsent(id, () => 'letter');
++        if (++attempts == 1) throw StateError('simulated flush failure');
++      },
++      onSaved: (_) { saved++; },
++      afterSaved: (_) async { bonuses++; },
++    );
++    await expectLater(operation.submit(), throwsStateError);
++    expect(saved, 0);
++    expect(bonuses, 0);
++    await operation.submit();
++    expect(records.keys, ['stable-id']);
++    expect(attempts, 2);
++    expect(saved, 1);
++    expect(bonuses, 1);
++  });
++
++  test('failed reward does not turn a committed letter into a failed send', () async {
++    var writes = 0;
++    var bonuses = 0;
++    final operation = PersistedSubmission<int>(
++      payload: 1,
++      persist: (_) async { writes++; },
++      onSaved: (_) {},
++      afterSaved: (_) async { bonuses++; throw StateError('reward unavailable'); },
++    );
++    await operation.submit();
++    await Future<void>.delayed(Duration.zero);
++    await operation.submit();
++    expect(writes, 1);
++    expect(bonuses, 1);
++  });
++
++  test('post-commit UI callback failure does not cause another write', () async {
++    var writes = 0;
++    var bonuses = 0;
++    final operation = PersistedSubmission<int>(
++      payload: 1,
++      persist: (_) async { writes++; },
++      onSaved: (_) { throw StateError('listener failure'); },
++      afterSaved: (_) async { bonuses++; },
++    );
++    await operation.submit();
++    await operation.submit();
++    expect(writes, 1);
++    expect(bonuses, 1);
++  });
++}
+--- /dev/null
++++ b/tool/verify_release_candidate.sh
+@@ -0,0 +1,12 @@
++#!/usr/bin/env bash
++set -euo pipefail
++cd "$(dirname "$0")/.."
++if ! command -v flutter >/dev/null 2>&1; then
++  echo 'Flutter SDK is required; no build or tests were run.' >&2
++  exit 127
++fi
++flutter --version
++flutter pub get
++flutter analyze
++flutter test
++flutter build apk --debug

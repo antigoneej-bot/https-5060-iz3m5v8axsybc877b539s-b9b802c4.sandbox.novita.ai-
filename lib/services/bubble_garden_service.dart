@@ -31,8 +31,23 @@ class BubbleGardenService {
   static String get _sessionCatIdsKey => '${_uid}_bubble_session_cat_ids';
   static String get _poppedIndicesKey => '${_uid}_bubble_popped_indices';
 
-  static String _dateOnlyString(DateTime d) =>
-      DateTime(d.year, d.month, d.day).toIso8601String();
+  static String _dateOnlyString(DateTime d) {
+    final y = d.year.toString().padLeft(4, '0');
+    final m = d.month.toString().padLeft(2, '0');
+    final day = d.day.toString().padLeft(2, '0');
+    return '$y-$m-$day';
+  }
+
+  static String? _normalizeStoredDay(String? raw) {
+    if (raw == null || raw.isEmpty) return null;
+    final m = RegExp(r'^(\d{4})-(\d{2})-(\d{2})').firstMatch(raw.trim());
+    if (m != null) {
+      return '${m.group(1)}-${m.group(2)}-${m.group(3)}';
+    }
+    final d = DateTime.tryParse(raw);
+    if (d == null) return null;
+    return _dateOnlyString(d);
+  }
 
   /// 방울 하나를 터뜨렸을 때 얻는 포인트(경쟁/등급 개념 없이 항상 동일).
   static const int pointsPerBubble = 1;
@@ -45,7 +60,7 @@ class BubbleGardenService {
   /// 오늘 이미 방울밭 세션을 만들었는지 여부.
   static Future<bool> hasSessionToday() async {
     final prefs = await SharedPreferences.getInstance();
-    final lastDate = prefs.getString(_lastSessionDateKey);
+    final lastDate = _normalizeStoredDay(prefs.getString(_lastSessionDateKey));
     return lastDate == _dateOnlyString(DateTime.now());
   }
 

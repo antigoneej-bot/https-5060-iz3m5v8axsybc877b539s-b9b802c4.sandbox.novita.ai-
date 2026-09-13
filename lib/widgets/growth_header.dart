@@ -15,9 +15,12 @@ class GrowthHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final progress = (state.temperature / 100).clamp(0.0, 1.0);
     final remain = state.daysUntilNextStage;
+    final attended = state.growthDays;
     final dayLabel = remain == null
         ? '가장 높은 단계까지 자랐어요'
-        : '다음 단계까지 출석 $remain일 남음';
+        : attended <= 0
+            ? '다음 단계까지 출석 $remain일 남음'
+            : '출석 ${attended}일째 · 다음 단계까지 $remain일';
     return GlassBlob(
       accent: AppColors.blobMintAccent,
       background: AppColors.blobMint,

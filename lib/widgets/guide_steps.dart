@@ -1,3 +1,4 @@
+import 'meditation_audio_player.dart';
 import 'package:flutter/material.dart';
 import '../theme.dart';
 import '../data/solutions_data.dart';
@@ -48,6 +49,7 @@ class GuideSteps extends StatelessWidget {
           ),
           if (guideKey != null) ...[
             const SizedBox(height: 10),
+            MeditationAudioPlayer(key: ValueKey(guideKey), guideKey: guideKey!),
             MeditationVideoPlayer(
               assetPath: meditationVideoAssetPath(guideKey!),
               accent: AppColors.blobMintAccent,

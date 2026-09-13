@@ -1,3 +1,9 @@
+import 'widgets/app_lock_gate.dart';
+import 'screens/startup_recovery_screen.dart';
+import 'package:firebase_app_check/firebase_app_check.dart';
+import 'services/cloud_service.dart';
+import 'services/auto_backup_service.dart';
+import 'services/backup_service.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -13,6 +19,7 @@ import 'services/bubble_garden_service.dart';
 import 'services/special_letter_service.dart';
 import 'services/buried_emotion_service.dart';
 import 'services/analytics_service.dart';
+import 'services/subscription_service.dart';
 import 'services/cat_memory_service.dart';
 import 'services/usage_history_service.dart';
 import 'providers/app_state_provider.dart';
@@ -29,7 +36,7 @@ import 'screens/welcome_intro_screen.dart';
 /// 로그인 없이 기기 하나당 하나의 로컬 사용자로 동작합니다.
 const String _localUserId = 'local_user';
 
-void main() async {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   try {
     await Firebase.initializeApp(
@@ -38,14 +45,42 @@ void main() async {
   } catch (e) {
     debugPrint('Firebase initialization failed: $e');
   }
-  await StorageService.init();
+  var storageReady = false;
+  var resuming = true;
+  try {
+    await AnalyticsService().loadConsent();
+    await StorageService.init();
+    storageReady = true;
+    await BackupService.resumePending();
+    resuming = false;
+    await _launchGarden();
+  } catch (_) {
+    runApp(StartupRecoveryApp(retry: main, canDefer: storageReady && resuming));
+  }
+}
+
+Future<void> _launchGarden() async {
+  if (CloudService.enabled) {
+    try { await FirebaseAppCheck.instance.activate(androidProvider: AndroidProvider.playIntegrity); }
+    catch (_) { /* Cloud requests remain unavailable until attestation succeeds. */ }
+  }
   await StorageService.recordInstallDateIfNeeded();
+  // guest → local_user 누적 데이터 복구 후, Storage도 처음부터 local_user로 연다.
+  await StorageService.migrateGuestScopeIfNeeded(_localUserId);
+  await StorageService.setCurrentUser(_localUserId);
+  CatCareService.setCurrentUser(_localUserId);
+  DailyCardService.setCurrentUser(_localUserId);
+  BubbleGardenService.setCurrentUser(_localUserId);
+  await PromiseService.setCurrentUser(_localUserId);
+  await SpecialLetterService.setCurrentUser(_localUserId);
   await AnalyticsService().logRetentionMilestoneIfNeeded();
   await SoundService().init();
   await NotificationService().init();
   await NotificationService().restoreIfEnabled();
+  await SubscriptionService().init();
   await initializeDateFormatting('ko_KR', null);
   runApp(const MysticCatApp());
+  AutoBackupService.instance.start();
 }
 
 class MysticCatApp extends StatelessWidget {
@@ -62,6 +97,7 @@ class MysticCatApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => BuriedEmotionProvider()),
       ],
       child: MaterialApp(
+        builder: (_, child) => AppLockGate(child: child!),
         title: '마음냥 정원',
         debugShowCheckedModeBanner: false,
         theme: appTheme,
@@ -79,6 +115,7 @@ class _AppRoot extends StatefulWidget {
 
 class _AppRootState extends State<_AppRoot> {
   bool _dataLoaded = false;
+  bool _bootstrapFailed = false;
   // "회원가입"(온보딩 완료) 여부가 인트로 게이트입니다.
   // 아직 가입하지 않았다면 앱을 실행할 때마다(재실행 포함) 3단계 웰컴
   // 투어(이름짓기 → 컨셉 소개 → 여정 시작)를 보여줍니다. 웰컴 투어를 마치면
@@ -92,30 +129,23 @@ class _AppRootState extends State<_AppRoot> {
   @override
   void initState() {
     super.initState();
+    // main()에서 이미 setCurrentUser 했지만, 위젯 재생성 시에도 동기 UID를 보장합니다.
+    // (Hive 비동기 오픈은 _bootstrap에서 await)
     CatCareService.setCurrentUser(_localUserId);
     DailyCardService.setCurrentUser(_localUserId);
-    PromiseService.setCurrentUser(_localUserId);
     BubbleGardenService.setCurrentUser(_localUserId);
-    SpecialLetterService.setCurrentUser(_localUserId);
     _bootstrap();
   }
 
   Future<void> _bootstrap() async {
-    // BuriedEmotionService는 Hive Box를 열어야 해서(비동기) 다른 서비스처럼
-    // initState에서 바로 호출하지 않고, 다른 부트스트랩 작업과 함께 여기서
-    // await합니다.
-    await BuriedEmotionService.setCurrentUser(_localUserId);
-    // 편지 생성 시스템(신규 8모듈 조합 엔진)이 사용하는 계정별 Hive Box.
-    await CatMemoryService.setCurrentUser(_localUserId);
-    await UsageHistoryService.setCurrentUser(_localUserId);
-    final signedUp = await StorageService.isOnboardingCompleted();
-    if (!mounted) return;
-    setState(() {
-      _needsWelcomeIntro = !signedUp;
-      _introChecked = true;
-    });
-
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
+    if (mounted) setState(() => _bootstrapFailed = false);
+    try {
+      await PromiseService.setCurrentUser(_localUserId);
+      await SpecialLetterService.setCurrentUser(_localUserId);
+      await BuriedEmotionService.setCurrentUser(_localUserId);
+      await CatMemoryService.setCurrentUser(_localUserId);
+      await UsageHistoryService.setCurrentUser(_localUserId);
+      final signedUp = await StorageService.isOnboardingCompleted();
       if (!mounted) return;
       final appState = context.read<AppStateProvider>();
       final catCare = context.read<CatCareProvider>();
@@ -127,11 +157,14 @@ class _AppRootState extends State<_AppRoot> {
       await dailyCard.load();
       await promise.load();
       await buriedEmotion.load();
-      if (!mounted) return;
-      setState(() {
+      if (mounted) setState(() {
+        _needsWelcomeIntro = !signedUp;
+        _introChecked = true;
         _dataLoaded = true;
       });
-    });
+    } catch (_) {
+      if (mounted) setState(() => _bootstrapFailed = true);
+    }
   }
 
   void _onWelcomeIntroFinished() async {
@@ -145,6 +178,12 @@ class _AppRootState extends State<_AppRoot> {
 
   @override
   Widget build(BuildContext context) {
+    if (_bootstrapFailed) return Scaffold(body: SafeArea(child: Center(child: Column(
+      mainAxisSize: MainAxisSize.min, children: [
+        const Text('기록을 불러오지 못했어요. 기록을 삭제하지 않고 다시 시도할 수 있어요.'),
+        FilledButton(onPressed: _bootstrap, child: const Text('다시 불러오기')),
+      ],
+    ))));
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 500),
       switchInCurve: Curves.easeIn,

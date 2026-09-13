@@ -168,38 +168,40 @@ class _ShareReflectionCardDialogState
   Widget build(BuildContext context) {
     return Dialog(
       backgroundColor: Colors.transparent,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 28, vertical: 32),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          RepaintBoundary(key: _boundaryKey, child: widget.cardContent),
-          const SizedBox(height: 18),
-          Wrap(
-            alignment: WrapAlignment.center,
-            spacing: 10,
-            runSpacing: 10,
-            children: [
-              _RoundButton(
-                icon: Icons.close_rounded,
-                label: '닫기',
-                filled: false,
-                onTap: () => Navigator.pop(context),
-              ),
-              _RoundButton(
-                icon: Icons.download_rounded,
-                label: _saving ? '저장 중...' : '폰에 저장',
-                filled: false,
-                onTap: (_sharing || _saving) ? null : _saveOnly,
-              ),
-              _RoundButton(
-                icon: Icons.ios_share_rounded,
-                label: _sharing ? '만드는 중...' : '공유하기',
-                filled: true,
-                onTap: (_sharing || _saving) ? null : _share,
-              ),
-            ],
-          ),
-        ],
+      insetPadding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            RepaintBoundary(key: _boundaryKey, child: widget.cardContent),
+            const SizedBox(height: 18),
+            Wrap(
+              alignment: WrapAlignment.center,
+              spacing: 10,
+              runSpacing: 10,
+              children: [
+                _RoundButton(
+                  icon: Icons.close_rounded,
+                  label: '닫기',
+                  filled: false,
+                  onTap: () => Navigator.pop(context),
+                ),
+                _RoundButton(
+                  icon: Icons.download_rounded,
+                  label: _saving ? '저장 중...' : '폰에 저장',
+                  filled: false,
+                  onTap: (_sharing || _saving) ? null : _saveOnly,
+                ),
+                _RoundButton(
+                  icon: Icons.ios_share_rounded,
+                  label: _sharing ? '만드는 중...' : '공유하기',
+                  filled: true,
+                  onTap: (_sharing || _saving) ? null : _share,
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -389,9 +391,11 @@ class ShareWeeklyCardContent extends StatelessWidget {
           if (cat != null)
             ClipRRect(
               borderRadius: BorderRadius.circular(24),
+              // 카드 안쪽 가로(300 - 좌우 패딩 44)에 맞춘 유한 너비.
+              // infinity를 넘기면 LivelyCatImage의 cacheWidth 계산이 깨진다.
               child: LivelyCatImage(
                 imageAsset: cat.imageAsset,
-                width: double.infinity,
+                width: 256,
                 height: 190,
                 borderRadius: BorderRadius.circular(24),
               ),
