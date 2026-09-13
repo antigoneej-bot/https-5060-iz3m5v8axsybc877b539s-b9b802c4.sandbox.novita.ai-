@@ -51,16 +51,9 @@ class HomeTabScreen extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          '오늘은 한 가지면 충분해요',
-          style: bodyFont(fontSize: 16, color: AppColors.ink),
-        ),
-        const SizedBox(height: 8),
-        OutlinedButton(
-          onPressed: unseenReply != null ? onGoToRecords : onGoToCatSelect,
-          child: Text(unseenReply != null
-              ? '도착한 고양이 편지 읽기'
-              : '오늘의 감정 고르고 한 줄 보내기'),
+        _TodayInviteCard(
+          hasUnseenReply: unseenReply != null,
+          onTap: unseenReply != null ? onGoToRecords : onGoToCatSelect,
         ),
         const SizedBox(height: 16),
         if (unseenReply != null) ...[
@@ -494,6 +487,76 @@ class _PathSignpost extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// 홈 화면 맨 위, 오늘의 감정 기록을 안내하는 카드.
+/// 딱딱한 텍스트+아웃라인 버튼 조합 대신, 앱 전체의 파스텔 유리질감
+/// (GlassBlob) 카드 스타일과 통일해 손글씨 라벨 폰트와 알약형 CTA 버튼으로
+/// 다시 꾸몄습니다. 아직 열어보지 않은 답장이 있으면 문구/버튼이 바뀝니다.
+class _TodayInviteCard extends StatelessWidget {
+  final bool hasUnseenReply;
+  final VoidCallback onTap;
+  const _TodayInviteCard({required this.hasUnseenReply, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassBlob(
+      accent: AppColors.blobLavenderAccent,
+      background: AppColors.blobLavender,
+      floatSeed: 1,
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              const Text('🌸', style: TextStyle(fontSize: 18)),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  hasUnseenReply
+                      ? '고양이의 답장이 도착했어요'
+                      : '오늘은 한 가지면 충분해요',
+                  style: pathLabelFont(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.ink,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            height: 46,
+            child: OutlinedButton(
+              onPressed: onTap,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.blobLavenderAccent,
+                backgroundColor: Colors.white.withValues(alpha: 0.55),
+                side: BorderSide(
+                  color: AppColors.blobLavenderAccent.withValues(alpha: 0.45),
+                  width: 1.2,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ),
+              child: Text(
+                hasUnseenReply ? '도착한 고양이 편지 읽기' : '오늘의 감정 고르고 한 줄 보내기',
+                style: pathLabelFont(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.blobLavenderAccent,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
