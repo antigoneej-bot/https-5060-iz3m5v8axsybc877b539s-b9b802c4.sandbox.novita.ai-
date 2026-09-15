@@ -11,6 +11,13 @@ dependencies:
   flutter:
     sdk: flutter
 
+  flutter_localizations:
+    sdk: flutter
+  flame: 1.32.0
+  home_widget: 0.9.2+1
+  google_mobile_ads: 5.3.1
+
+  characters: ^1.4.0
   cupertino_icons: ^1.0.8
   provider: 6.1.5+1
   shared_preferences: 2.5.3
@@ -50,6 +57,9 @@ flutter:
   uses-material-design: true
 
   assets:
+    - assets/fonts/
+    - assets/mongi/images/
+    - assets/mongi/audio/
     - assets/cards36/
     - assets/mochi/
     - assets/icon/
@@ -62,3 +72,18 @@ flutter:
     - assets/growth/teen_frames/
     - assets/growth/adult_frames/
     - assets/onboarding_intro/
+
+  fonts:
+    - family: GowunDodum
+      fonts:
+        - asset: assets/fonts/GowunDodum-Regular.ttf
+    - family: GamjaFlower
+      fonts:
+        - asset: assets/fonts/GamjaFlower-Regular.ttf
+    - family: NanumPenScript
+      fonts:
+        - asset: assets/fonts/NanumPenScript-Regular.ttf
+    - family: Poppins
+      fonts:
+        - asset: assets/fonts/Poppins-ExtraBold.ttf
+          weight: 800

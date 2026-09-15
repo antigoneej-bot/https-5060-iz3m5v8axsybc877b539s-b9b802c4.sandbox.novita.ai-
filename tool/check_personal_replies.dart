@@ -14,7 +14,7 @@ void main(){
   verify(reply.parts.length==3,'listen mode adds no question or action module');
   final work=engine.compose(letterText:'상사에게 업무 이야기를 했다.',style:ReplyStyle.reflect,catName:'마음냥');
   verify(work.topic=='work' && work.parts.length==4,'reflection uses work context');
-  verify(work.parts[2].contains('?'),'reflection has one question');
+  verify(!work.parts[2].contains('?'),'reflection summarizes without requiring an answer');
   final suggestion=engine.compose(letterText:diary,style:ReplyStyle.suggest,catName:'마음냥');
   verify(suggestion.parts[2].contains('친구') || suggestion.parts[2].contains('상대') || suggestion.parts[2].contains('대화') || suggestion.parts[2].contains('답할지'),'suggestion stays within routed subject');
   verify(PersonalReplyEngine.topicFor('친구와 회사 이야기를 했다.')=='general','mixed subjects do not guess the main event');

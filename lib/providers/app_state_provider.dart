@@ -1,3 +1,4 @@
+import '../mongi/integration/mongi_garden_store.dart';
 import 'dart:math';
 import '../services/persisted_submission.dart';
 import '../models/reply_style.dart';
@@ -272,6 +273,8 @@ class AppStateProvider extends ChangeNotifier {
 
   Future<void> _afterLetterSaved(LetterEntry entry,String catName,
       Future<void> Function() onTemperatureBonus) async {
+    // Garden reward retries are safe: one persisted date can grant only once.
+    try { await MongiGardenStore.instance.claimTodayRecord(); } catch (_) {}
     // Each post-save step is independent; do not retry non-idempotent bonuses here.
     try {
       final (leveledUp, level, points, elapsed) = await StorageService.recordGrowthDay();
@@ -308,6 +311,10 @@ class AppStateProvider extends ChangeNotifier {
     required Future<void> Function() onTemperatureBonus,
   }) async {
     selectedMeditationKey = meditationKey;
+    if (meditationKey != null) {
+      await MongiGardenStore.instance.claimCompletedCare();
+    }
+
     if (currentLetterId != null && meditationKey != null) {
       try {
         await StorageService.updateLetterMeditation(

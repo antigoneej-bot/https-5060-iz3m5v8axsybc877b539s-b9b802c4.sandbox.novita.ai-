@@ -1,5 +1,10 @@
 package com.mysticcat.journal
 
+import android.net.Uri
+import android.os.Handler
+import android.os.Looper
+import com.android.installreferrer.api.InstallReferrerClient
+import com.android.installreferrer.api.InstallReferrerStateListener
 import android.app.Activity
 import android.app.KeyguardManager
 import android.content.Intent
@@ -30,6 +35,36 @@ class MainActivity : FlutterActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        val playbackChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "garden/background_audio")
+        MeditationPlaybackService.command = { name -> playbackChannel.invokeMethod(name, null) }
+        playbackChannel.setMethodCallHandler { call, result ->
+            try {
+                val service = Intent(this, MeditationPlaybackService::class.java)
+                when (call.method) {
+                    "start" -> {
+                        if (android.os.Build.VERSION.SDK_INT >= 26) startForegroundService(service)
+                        else startService(service)
+                        result.success(null)
+                    }
+                    "update" -> {
+                        MeditationPlaybackService.instance?.update(
+                            call.argument<String>("title") ?: "마음냥 정원 명상",
+                            call.argument<Boolean>("playing") ?: false,
+                            call.argument<Number>("position")?.toLong() ?: 0L,
+                            call.argument<Number>("duration")?.toLong() ?: 0L,
+                            call.argument<Number>("speed")?.toFloat() ?: 1f)
+                        result.success(null)
+                    }
+                    "stop" -> { stopService(service); result.success(null) }
+                    else -> result.notImplemented()
+                }
+            } catch (e: Exception) { result.error("playback-service", e.message, null) }
+        }
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "garden/install_referrer")
+            .setMethodCallHandler { call, result ->
+                if (call.method == "read") readPostcardReferrer(result)
+                else result.notImplemented()
+            }
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "garden/app_lock")
             .setMethodCallHandler { call, result ->
                 when (call.method) {
@@ -43,6 +78,45 @@ class MainActivity : FlutterActivity() {
                     else -> result.notImplemented()
                 }
             }
+    }
+
+    private fun readPostcardReferrer(result: MethodChannel.Result) {
+        val client = InstallReferrerClient.newBuilder(applicationContext).build()
+        val handler = Handler(Looper.getMainLooper())
+        var finished = false
+        fun finish(source: String?) {
+            // All calls arrive through this main-thread handler.
+            if (finished) return
+            finished = true
+            handler.removeCallbacksAndMessages(null)
+            try { client.endConnection() } catch (_: Exception) { }
+            result.success(source)
+        }
+        handler.postDelayed({ finish(null) }, 5000)
+        try {
+            client.startConnection(object : InstallReferrerStateListener {
+                override fun onInstallReferrerSetupFinished(responseCode: Int) {
+                    handler.post {
+                        if (!finished) {
+                            if (responseCode != InstallReferrerClient.InstallReferrerResponse.OK) {
+                                finish(null)
+                            } else {
+                                try {
+                                    val params = Uri.parse("https://referrer.invalid/?" + client.installReferrer.installReferrer)
+                                    val matches = params.getQueryParameter("utm_source") == "garden_postcard" &&
+                                        params.getQueryParameter("utm_medium") == "share" &&
+                                        params.getQueryParameter("utm_campaign") == "garden_v1"
+                                    finish(if (matches) "garden_postcard" else "other")
+                                } catch (_: Exception) { finish(null) }
+                            }
+                        }
+                    }
+                }
+                override fun onInstallReferrerServiceDisconnected() {
+                    handler.post { finish(null) }
+                }
+            })
+        } catch (_: Exception) { finish(null) }
     }
 
     // The OS verifies the credential. The app never receives or stores a PIN.

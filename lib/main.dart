@@ -1,3 +1,6 @@
+import 'mongi/providers/garden_provider.dart';
+import 'mongi/integration/postcard_attribution.dart';
+import 'mongi/l10n/gen/app_localizations.dart' as mongi;
 import 'widgets/app_lock_gate.dart';
 import 'screens/startup_recovery_screen.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
@@ -83,6 +86,7 @@ Future<void> _launchGarden() async {
   await initializeDateFormatting('ko_KR', null);
   runApp(const MysticCatApp());
   AutoBackupService.instance.start();
+  PostcardAttribution.check();
 }
 
 class MysticCatApp extends StatelessWidget {
@@ -91,6 +95,7 @@ class MysticCatApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
+        ChangeNotifierProvider(create: (_) => GardenProvider()),
         ChangeNotifierProvider(create: (_) => AppStateProvider()),
         ChangeNotifierProvider(create: (_) => CatCareProvider()),
         ChangeNotifierProvider(create: (_) => DailyCardProvider()),
@@ -99,6 +104,9 @@ class MysticCatApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => BuriedEmotionProvider()),
       ],
       child: MaterialApp(
+        localizationsDelegates: mongi.AppLocalizations.localizationsDelegates,
+        supportedLocales: const [Locale('ko')],
+        locale: const Locale('ko'),
         builder: (_, child) => AppLockGate(child: child!),
         title: '마음냥 정원',
         debugShowCheckedModeBanner: false,

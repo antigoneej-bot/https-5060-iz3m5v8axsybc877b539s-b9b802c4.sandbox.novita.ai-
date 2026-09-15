@@ -14,6 +14,26 @@ class SoundService {
   final AudioPlayer _bubblePlayer = AudioPlayer();
 
   bool narrationPlaying = false;
+  bool gardenSuspended = false;
+  Future<void> _bgmTail = Future.value();
+  Future<void> _bgmAction(Future<void> Function() action) {
+    final result = _bgmTail.then((_) => action());
+    _bgmTail = result.catchError((Object _) {});
+    return result;
+  }
+
+  Future<void> stopAll() async {
+    await stopBgm();
+    for (final player in [
+      _sfxPlayer,
+      _meowPlayer,
+      _purrPlayer,
+      _bubblePlayer,
+    ]) {
+      await player.stop();
+    }
+  }
+
   bool sfxEnabled = true;
   bool bgmEnabled = false;
   double bgmVolume = 0.35;
@@ -33,8 +53,8 @@ class SoundService {
     }
   }
 
-  Future<void> startBgm() async {
-    if (narrationPlaying) return;
+  Future<void> startBgm() => _bgmAction(() async {
+    if (narrationPlaying || gardenSuspended || !bgmEnabled) return;
     try {
       await _bgmPlayer
           .play(AssetSource('audio/bgm_mystic.mp3'), volume: bgmVolume)
@@ -43,12 +63,12 @@ class SoundService {
     } catch (e) {
       if (kDebugMode) debugPrint('BGM start error: $e');
     }
-  }
+  });
 
-  Future<void> stopBgm() async {
+  Future<void> stopBgm() => _bgmAction(() async {
     await _bgmPlayer.stop();
     _bgmStarted = false;
-  }
+  });
 
   Future<void> setBgmEnabled(bool v) async {
     bgmEnabled = v;
@@ -72,7 +92,7 @@ class SoundService {
   }
 
   Future<void> playShuffle() async {
-    if (!sfxEnabled) return;
+    if (!sfxEnabled || gardenSuspended || narrationPlaying) return;
     try {
       await _sfxPlayer
           .play(AssetSource('audio/sfx_shuffle.mp3'))
@@ -81,7 +101,7 @@ class SoundService {
   }
 
   Future<void> playFlip() async {
-    if (!sfxEnabled) return;
+    if (!sfxEnabled || gardenSuspended || narrationPlaying) return;
     try {
       await _sfxPlayer
           .play(AssetSource('audio/sfx_flip.mp3'))
@@ -90,7 +110,7 @@ class SoundService {
   }
 
   Future<void> playChime() async {
-    if (!sfxEnabled) return;
+    if (!sfxEnabled || gardenSuspended || narrationPlaying) return;
     try {
       await _sfxPlayer
           .play(AssetSource('audio/sfx_chime.mp3'))
@@ -99,7 +119,7 @@ class SoundService {
   }
 
   Future<void> playMeow() async {
-    if (!sfxEnabled) return;
+    if (!sfxEnabled || gardenSuspended || narrationPlaying) return;
     try {
       await _meowPlayer
           .play(AssetSource('audio/sfx_meow.mp3'))
@@ -109,7 +129,7 @@ class SoundService {
 
   /// 고양이를 연속으로 여러 번 쓰다듬었을 때 나오는 골골송(퍼링) 사운드.
   Future<void> playPurr() async {
-    if (!sfxEnabled) return;
+    if (!sfxEnabled || gardenSuspended || narrationPlaying) return;
     try {
       await _purrPlayer
           .play(AssetSource('audio/sfx_purr.mp3'))
@@ -120,7 +140,7 @@ class SoundService {
   /// '오늘의 그림자 방울 터뜨리기'에서 방울 하나를 터뜨렸을 때 나는
   /// 아주 작고 부드러운 소리.
   Future<void> playBubblePop() async {
-    if (!sfxEnabled) return;
+    if (!sfxEnabled || gardenSuspended || narrationPlaying) return;
     try {
       await _bubblePlayer
           .play(AssetSource('audio/sfx_bubble_pop.mp3'))
@@ -130,7 +150,7 @@ class SoundService {
 
   /// 방울을 모두 터뜨려 오늘의 의식을 마쳤을 때 나는 잔잔한 완료 사운드.
   Future<void> playGardenComplete() async {
-    if (!sfxEnabled) return;
+    if (!sfxEnabled || gardenSuspended || narrationPlaying) return;
     try {
       await _sfxPlayer
           .play(AssetSource('audio/sfx_garden_complete.mp3'))

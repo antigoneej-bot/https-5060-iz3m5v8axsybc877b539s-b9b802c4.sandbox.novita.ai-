@@ -1,4 +1,9 @@
 import 'dart:ui';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
+import '../services/media_coordinator.dart';
+import '../services/sound_service.dart';
+import '../mongi/services/sound_manager.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_state_provider.dart';
@@ -27,6 +32,30 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   int _navIndex = 0;
+  bool _closed = false;
+  bool _exiting = false;
+  Future<void> _exitGarden() async {
+    if (_exiting) return;
+    setState(() => _exiting = true);
+    SoundService().gardenSuspended = true;
+    try {
+      await MediaCoordinator.instance.stopAll();
+      await SoundService().stopAll();
+      await SoundManager.instance.pauseAllForBackground();
+      if (!mounted) return;
+      setState(() => _closed = true);
+      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+        await SystemNavigator.pop();
+      }
+    } catch (_) {
+      if (mounted)
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('종료하지 못했어요. 다시 시도해 주세요.')));
+    } finally {
+      if (mounted) setState(() => _exiting = false);
+    }
+  }
 
   @override
   void initState() {
@@ -77,6 +106,36 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
+    if (_closed)
+      return Scaffold(
+        body: GardenScaffoldBackground(
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '오늘도 수고했어요 🌿',
+                  style: titleFont(
+                    fontSize: 24,
+                    color: AppColors.titlePastelGreen,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                const Text('정원을 닫았어요. 편안하게 쉬어가세요.'),
+                if (kIsWeb) const Text('이 창을 닫아도 괜찮아요.'),
+                const SizedBox(height: 20),
+                TextButton(
+                  onPressed: () {
+                    SoundService().gardenSuspended = false;
+                    setState(() => _closed = false);
+                  },
+                  child: const Text('정원 다시 열기'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
     final app = context.watch<AppStateProvider>();
 
     // 온보딩 종료 등에서 특정 탭으로 이동해달라는 요청이 있으면 반영합니다.
@@ -107,6 +166,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               ),
               const Positioned(top: 2, right: 24, child: SoundToggleButton()),
               const Positioned(top: 2, right: 72, child: _NoticeBellButton()),
+              Positioned(
+                top: 2,
+                left: 16,
+                child: TextButton.icon(
+                  onPressed: _exiting ? null : _exitGarden,
+                  icon: const Icon(Icons.power_settings_new, size: 18),
+                  label: const Text('종료'),
+                ),
+              ),
               if (app.showFirstMeetingBanner)
                 Positioned(
                   top: 16,

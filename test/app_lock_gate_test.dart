@@ -7,11 +7,9 @@ import '../lib/widgets/app_lock_gate.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   tearDown(() {
-    debugDefaultTargetPlatformOverride = null;
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(AppLockService.channel, null);
   });
   testWidgets('locked app hides records and canceled authentication keeps them hidden', (tester) async {
-    debugDefaultTargetPlatformOverride = TargetPlatform.android;
     var accept = false;
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(AppLockService.channel, (call) async {
       if (call.method == 'isEnabled') return true;
@@ -34,5 +32,5 @@ void main() {
     await tester.pump();
     expect(find.text('PRIVATE_RECORD'), findsNothing);
     await tester.pumpWidget(const SizedBox());
-  });
+  }, variant: TargetPlatformVariant.only(TargetPlatform.android));
 }

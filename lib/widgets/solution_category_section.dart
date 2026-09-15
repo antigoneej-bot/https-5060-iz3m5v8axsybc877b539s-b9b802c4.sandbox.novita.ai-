@@ -21,6 +21,8 @@ class SolutionCategorySection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final visibleKeys = publishedGuides(category.guideKeys);
+    if (visibleKeys.isEmpty) return const SizedBox.shrink();
     return GlassBlob(
       accent: accent,
       background: background,
@@ -43,7 +45,7 @@ class SolutionCategorySection extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          ...category.guideKeys.map(
+          ...visibleKeys.map(
             (key) => _GuideTile(
               guideKey: key,
               accent: accent,
@@ -107,13 +109,27 @@ class _GuideTileState extends State<_GuideTile> {
                     Text(guide.icon, style: const TextStyle(fontSize: 18)),
                     const SizedBox(width: 10),
                     Expanded(
-                      child: Text(
-                        guide.title,
-                        style: bodyFont(
-                          fontSize: 13.5,
-                          color: AppColors.ink,
-                          fontWeight: FontWeight.w600,
-                        ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            guide.title,
+                            style: bodyFont(
+                              fontSize: 13.5,
+                              color: AppColors.ink,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            meditationMedia[widget.guideKey]?.label ??
+                                guide.subtitle,
+                            style: bodyFont(
+                              fontSize: 11.5,
+                              color: AppColors.inkSoft,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                     Icon(

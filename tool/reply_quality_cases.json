@@ -1,0 +1,202 @@
+[
+  {
+    "text": "상사가 내 말을 무시해서 화났어.",
+    "situation": "dismissed_angry"
+  },
+  {
+    "text": "오늘 상사가 내 말을 무시했어. 화가 났어.",
+    "situation": "dismissed_angry"
+  },
+  {
+    "text": "상사에게 화냈는데 계속 마음에 걸려.",
+    "situation": "anger_regret"
+  },
+  {
+    "text": "내가 상사에게 화를 냈어. 후회돼.",
+    "situation": "anger_regret"
+  },
+  {
+    "text": "상사가 칭찬했는데 부담스러워.",
+    "situation": "praise_pressure"
+  },
+  {
+    "text": "칭찬받았지만 부담이 커.",
+    "situation": "praise_pressure"
+  },
+  {
+    "text": "면접 떨어졌어. 엄마는 괜찮다고 하는데 더 미안해.",
+    "situation": "interview_guilt"
+  },
+  {
+    "text": "오늘 면접에서 떨어졌어. 어머니는 괜찮다고 하시는데 미안해.",
+    "situation": "interview_guilt"
+  },
+  {
+    "text": "월세가 올라서 걱정돼.",
+    "situation": "money_worry"
+  },
+  {
+    "text": "생활비가 계속 늘어서 막막해.",
+    "situation": "money_worry"
+  },
+  {
+    "text": "나는 대출 때문에 걱정이 커.",
+    "situation": "money_worry"
+  },
+  {
+    "text": "돈 문제로 오늘도 걱정이 돼.",
+    "situation": "money_worry"
+  },
+  {
+    "text": "나는 오늘 외로워.",
+    "situation": "lonely"
+  },
+  {
+    "text": "오늘 나는 집에 오니 외로워.",
+    "situation": "lonely"
+  },
+  {
+    "text": "나는 사람들을 만나고 돌아와도 외로워.",
+    "situation": "lonely"
+  },
+  {
+    "text": "나는 주말 저녁이면 외로워.",
+    "situation": "lonely"
+  },
+  {
+    "text": "나는 오늘 너무 지쳤어.",
+    "situation": "exhausted"
+  },
+  {
+    "text": "오늘 나는 많이 피곤해.",
+    "situation": "exhausted"
+  },
+  {
+    "text": "나는 이제 쉬고 싶어.",
+    "situation": "exhausted"
+  },
+  {
+    "text": "나는 일을 마치고 나니 너무 지쳤어.",
+    "situation": "exhausted"
+  },
+  {
+    "text": "나는 소설을 완성해서 뿌듯해.",
+    "situation": "happy_effort"
+  },
+  {
+    "text": "나는 시험에 합격해서 기뻐.",
+    "situation": "happy_effort"
+  },
+  {
+    "text": "오늘 나는 청소를 끝내서 뿌듯해.",
+    "situation": "happy_effort"
+  },
+  {
+    "text": "나는 일을 해내서 기뻐.",
+    "situation": "happy_effort"
+  },
+  {
+    "text": "나는 친구와 비교하면 초라해.",
+    "situation": "comparison"
+  },
+  {
+    "text": "나는 남들과 비교하다가 위축돼.",
+    "situation": "comparison"
+  },
+  {
+    "text": "오늘 나는 성과를 비교해서 초라해.",
+    "situation": "comparison"
+  },
+  {
+    "text": "나는 사진을 보며 비교하다가 위축돼.",
+    "situation": "comparison"
+  },
+  {
+    "text": "나는 앞날이 불안해.",
+    "situation": "uncertain_future"
+  },
+  {
+    "text": "나는 미래가 막막해.",
+    "situation": "uncertain_future"
+  },
+  {
+    "text": "오늘 나는 앞으로 어떻게 될지 불안해.",
+    "situation": "uncertain_future"
+  },
+  {
+    "text": "나는 미래를 생각하면 불안해.",
+    "situation": "uncertain_future"
+  },
+  {
+    "text": "월세가 올랐지만 걱정되지 않아.",
+    "situation": null
+  },
+  {
+    "text": "나는 외롭지 않아. 혼자가 편해.",
+    "situation": null
+  },
+  {
+    "text": "친구가 너무 지쳤다고 했어.",
+    "situation": null
+  },
+  {
+    "text": "나는 합격했지만 기쁘지 않아.",
+    "situation": null
+  },
+  {
+    "text": "친구가 상사에게 화냈는데 후회한대.",
+    "situation": null
+  },
+  {
+    "text": "상사가 나에게 화냈는데 마음에 걸려.",
+    "situation": null
+  },
+  {
+    "text": "상사가 칭찬했는데 부담스럽지 않아.",
+    "situation": null
+  },
+  {
+    "text": "상사에게 화냈다면 후회했을 거야.",
+    "situation": null
+  },
+  {
+    "text": "“상사가 칭찬했는데 부담스러워.” 소설의 대사야.",
+    "situation": null
+  },
+  {
+    "text": "엄마가 아파서 병원에 갔어. 걱정돼.",
+    "situation": null
+  },
+  {
+    "text": "아빠와 다퉜어. 속상해.",
+    "situation": null
+  },
+  {
+    "text": "키우던 고양이를 떠나보냈어. 그리워.",
+    "situation": null
+  },
+  {
+    "text": "친구가 약속을 취소해서 서운해.",
+    "situation": null
+  },
+  {
+    "text": "월세도 걱정이고 엄마에게도 미안해.",
+    "situation": null
+  },
+  {
+    "text": "너무 잘됐네. 또 야근이라니.",
+    "situation": null
+  },
+  {
+    "text": "나는 앞으로 불안해질까 봐 걱정이야.",
+    "situation": null
+  },
+  {
+    "text": "조언하지 말아줘. 그냥 들어줘.",
+    "situation": null
+  },
+  {
+    "text": "오늘은 할 말이 없어.",
+    "situation": null
+  }
+]

@@ -92,6 +92,9 @@ class AnalyticsService {
   /// 자주 쓰는 이벤트들의 로컬 카운트를 한 번에 조회합니다(디버그 화면용).
   Future<Map<String, int>> getAllKnownEventCounts() async {
     final names = [
+      'garden_postcard_share_requested',
+      'garden_postcard_share_target',
+      'garden_postcard_install_open',
       AnalyticsEvents.letterSent,
       AnalyticsEvents.meditationCompleted,
       AnalyticsEvents.shareCard,

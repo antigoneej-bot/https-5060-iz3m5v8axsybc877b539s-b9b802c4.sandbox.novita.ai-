@@ -1,3 +1,4 @@
+import '../mongi/integration/session_transaction.dart';
 import 'personal_reply_service.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -20,6 +21,7 @@ class StorageService {
 
   static Future<void> init() async {
     await Hive.initFlutter();
+    await SessionTransaction.initialize();
   }
 
   /// 예전 기본 UID(`guest`)에 쌓인 prefs/Hive를 [userId](`local_user`)로

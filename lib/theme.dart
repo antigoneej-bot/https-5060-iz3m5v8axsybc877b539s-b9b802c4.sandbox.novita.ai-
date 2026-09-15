@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+
+const appFontFallback = [
+  'NotoColorEmoji',
+  'Apple Color Emoji',
+  'Segoe UI Emoji',
+];
 
 /// 마음냥 정원 - 미니멀하고 세련된 모던 파스텔 테마
 /// 따뜻한 크림/아이보리 베이스 위에, 카테고리마다 서로 다른 포인트 컬러를 사용해
@@ -7,8 +12,11 @@ import 'package:google_fonts/google_fonts.dart';
 class AppColors {
   // 배경: 밝고 따뜻한 크림/아이보리
   static const bg0 = Color(0xFFFAF7F2); // 가장 밝은 배경 (필드, 입력창)
-  static const bg1 = Color(0xFFFFFFFF); // 카드/패널 배경 (흰색)
+  static const bg1 = Color(0xFFFFFCF7); // 카드/패널 배경 (흰색)
   static const bg2 = Color(0xFFF3EADA); // 강조 표면 (활성 탭 등, 연한 크림)
+
+  static const lavenderInk = Color(0xFF66517E);
+  static const sageLine = Color(0xFFCBDDCE);
 
   // 카드 앞면 (기존 유지 - 크림톤이라 밝은 테마와도 잘 어울림)
   static const cardFace = Color(0xFFFFFBF2);
@@ -22,6 +30,7 @@ class AppColors {
   static const gold = Color(0xFFDDA24C);
   static const goldSoft = Color(0xFFB9812E);
   static const rose = Color(0xFFD97B85);
+  static const roseStrong = Color(0xFFA64E64);
 
   // 'moon' : 밝은 배경 위 진한 본문 텍스트
   static const moon = Color(0xFF564C46);
@@ -83,7 +92,9 @@ TextStyle serifFont({
   double? letterSpacing,
   double? height,
 }) {
-  return GoogleFonts.gowunDodum(
+  return TextStyle(
+    fontFamily: 'GowunDodum',
+    fontFamilyFallback: appFontFallback,
     fontSize: fontSize,
     fontWeight: fontWeight ?? FontWeight.w400,
     color: color,
@@ -101,7 +112,9 @@ TextStyle bodyFont({
   double? letterSpacing,
   double? height,
 }) {
-  return GoogleFonts.gowunDodum(
+  return TextStyle(
+    fontFamily: 'GowunDodum',
+    fontFamilyFallback: appFontFallback,
     fontSize: fontSize,
     fontWeight: fontWeight ?? FontWeight.w400,
     color: color,
@@ -120,7 +133,9 @@ TextStyle titleFont({
   double? letterSpacing,
   double? height,
 }) {
-  return GoogleFonts.gamjaFlower(
+  return TextStyle(
+    fontFamily: 'GamjaFlower',
+    fontFamilyFallback: appFontFallback,
     fontSize: fontSize,
     fontWeight: fontWeight ?? FontWeight.w400,
     color: color,
@@ -140,7 +155,9 @@ TextStyle brandFont({
   double? letterSpacing,
   double? height,
 }) {
-  return GoogleFonts.nanumPenScript(
+  return TextStyle(
+    fontFamily: 'NanumPenScript',
+    fontFamilyFallback: appFontFallback,
     fontSize: fontSize,
     fontWeight: fontWeight ?? FontWeight.w400,
     color: color,
@@ -158,7 +175,9 @@ TextStyle pathLabelFont({
   double? letterSpacing,
   double? height,
 }) {
-  return GoogleFonts.gamjaFlower(
+  return TextStyle(
+    fontFamily: 'GamjaFlower',
+    fontFamilyFallback: appFontFallback,
     fontSize: fontSize,
     fontWeight: fontWeight ?? FontWeight.w400,
     color: color,
@@ -175,7 +194,9 @@ TextStyle numberFont({
   Color? color,
   double? letterSpacing,
 }) {
-  return GoogleFonts.poppins(
+  return TextStyle(
+    fontFamily: 'Poppins',
+    fontFamilyFallback: ['GowunDodum', ...appFontFallback],
     fontSize: fontSize,
     fontWeight: fontWeight ?? FontWeight.w700,
     color: color,
@@ -186,13 +207,161 @@ TextStyle numberFont({
 final ThemeData appTheme = ThemeData(
   useMaterial3: true,
   scaffoldBackgroundColor: AppColors.bg0,
-  textTheme: GoogleFonts.gowunDodumTextTheme(
-    ThemeData.light().textTheme,
-  ).apply(bodyColor: AppColors.moon, displayColor: AppColors.moon),
+  fontFamily: 'GowunDodum',
+  fontFamilyFallback: appFontFallback,
+  textTheme: ThemeData.light().textTheme
+      .apply(
+        fontFamily: 'GowunDodum',
+        fontFamilyFallback: appFontFallback,
+        bodyColor: AppColors.ink,
+        displayColor: AppColors.ink,
+      )
+      .copyWith(
+        headlineSmall: titleFont(
+          fontSize: 28,
+          color: AppColors.titlePastelGreen,
+        ),
+        titleLarge: titleFont(fontSize: 24, color: AppColors.titlePastelGreen),
+        titleMedium: bodyFont(fontSize: 16, fontWeight: FontWeight.w700),
+        bodyLarge: bodyFont(fontSize: 16),
+        bodyMedium: bodyFont(),
+        bodySmall: bodyFont(fontSize: 12, color: AppColors.inkSoft),
+      ),
   colorScheme: ColorScheme.light(
-    primary: AppColors.gold,
-    secondary: AppColors.goldSoft,
+    primary: AppColors.titlePastelGreen,
+    onPrimary: Colors.white,
+    onSurface: AppColors.ink,
+    onSurfaceVariant: AppColors.inkSoft,
+    outline: AppColors.inkSoft,
+    secondary: AppColors.roseStrong,
     surface: AppColors.bg1,
+    surfaceContainerHighest: AppColors.catSageBg,
+    primaryContainer: AppColors.blobMint,
+    onPrimaryContainer: AppColors.titlePastelGreen,
+    secondaryContainer: AppColors.blobLavender,
+    onSecondaryContainer: AppColors.lavenderInk,
+    tertiary: AppColors.lavenderInk,
+    outlineVariant: AppColors.sageLine,
+  ),
+  appBarTheme: AppBarTheme(
+    backgroundColor: AppColors.bg0,
+    foregroundColor: AppColors.ink,
+    surfaceTintColor: Colors.transparent,
+    elevation: 0,
+    scrolledUnderElevation: 0,
+    titleTextStyle: titleFont(fontSize: 24, color: AppColors.titlePastelGreen),
+  ),
+  chipTheme: ChipThemeData(
+    backgroundColor: AppColors.bg1,
+    selectedColor: AppColors.blobMint,
+    disabledColor: AppColors.catSageBg,
+    labelStyle: bodyFont(fontSize: 13, color: AppColors.ink),
+    secondaryLabelStyle: bodyFont(
+      fontSize: 13,
+      color: AppColors.titlePastelGreen,
+    ),
+    side: const BorderSide(color: AppColors.sageLine),
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+  ),
+  bottomSheetTheme: const BottomSheetThemeData(
+    backgroundColor: AppColors.bg0,
+    surfaceTintColor: Colors.transparent,
+    showDragHandle: true,
+    dragHandleColor: AppColors.catSage,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+    ),
+  ),
+  listTileTheme: ListTileThemeData(
+    iconColor: AppColors.titlePastelGreen,
+    titleTextStyle: bodyFont(
+      fontSize: 15,
+      color: AppColors.ink,
+      fontWeight: FontWeight.w600,
+    ),
+    subtitleTextStyle: bodyFont(fontSize: 13, color: AppColors.inkSoft),
+    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+  ),
+  expansionTileTheme: const ExpansionTileThemeData(
+    iconColor: AppColors.titlePastelGreen,
+    collapsedIconColor: AppColors.inkSoft,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.all(Radius.circular(20)),
+    ),
+    collapsedShape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.all(Radius.circular(20)),
+    ),
+    childrenPadding: EdgeInsets.fromLTRB(12, 0, 12, 16),
+  ),
+  dividerTheme: const DividerThemeData(
+    color: AppColors.sageLine,
+    thickness: 1,
+    space: 24,
+  ),
+  snackBarTheme: SnackBarThemeData(
+    backgroundColor: AppColors.titlePastelGreen,
+    contentTextStyle: bodyFont(color: Colors.white),
+    actionTextColor: AppColors.blobButter,
+    behavior: SnackBarBehavior.floating,
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+  ),
+  progressIndicatorTheme: const ProgressIndicatorThemeData(
+    color: AppColors.titlePastelGreen,
+    linearTrackColor: AppColors.blobMint,
+  ),
+  textButtonTheme: TextButtonThemeData(
+    style: TextButton.styleFrom(
+      minimumSize: const Size(48, 48),
+      foregroundColor: AppColors.titlePastelGreen,
+      textStyle: bodyFont(fontSize: 14, fontWeight: FontWeight.w700),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+    ),
+  ),
+  filledButtonTheme: FilledButtonThemeData(
+    style: FilledButton.styleFrom(
+      minimumSize: const Size(48, 48),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+    ),
+  ),
+  elevatedButtonTheme: ElevatedButtonThemeData(
+    style: ElevatedButton.styleFrom(
+      backgroundColor: AppColors.titlePastelGreen,
+      foregroundColor: Colors.white,
+      elevation: 0,
+      minimumSize: const Size(48, 48),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+    ),
+  ),
+  outlinedButtonTheme: OutlinedButtonThemeData(
+    style: OutlinedButton.styleFrom(
+      foregroundColor: AppColors.titlePastelGreen,
+      minimumSize: const Size(48, 48),
+      side: const BorderSide(color: AppColors.catSage),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+    ),
+  ),
+  inputDecorationTheme: InputDecorationTheme(
+    filled: true,
+    fillColor: AppColors.bg1,
+    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+    hintStyle: bodyFont(color: AppColors.inkSoft),
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(16),
+      borderSide: const BorderSide(color: AppColors.line),
+    ),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(16),
+      borderSide: const BorderSide(color: AppColors.line),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(16),
+      borderSide: const BorderSide(
+        color: AppColors.titlePastelGreen,
+        width: 1.5,
+      ),
+    ),
   ),
   cardTheme: CardThemeData(
     color: AppColors.bg1,
@@ -200,7 +369,9 @@ final ThemeData appTheme = ThemeData(
     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
   ),
   dialogTheme: DialogThemeData(
-    backgroundColor: AppColors.bg1,
+    backgroundColor: AppColors.bg0,
+    titleTextStyle: titleFont(fontSize: 26, color: AppColors.titlePastelGreen),
+    contentTextStyle: bodyFont(fontSize: 15, color: AppColors.ink),
     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
   ),
 );

@@ -1,3 +1,5 @@
+import 'meditation_check_in.dart';
+import 'meditation_favorite.dart';
 import 'meditation_audio_player.dart';
 import 'package:flutter/material.dart';
 import '../theme.dart';
@@ -17,6 +19,9 @@ class GuideSteps extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (guideKey == null || !publishedMeditationKeys.contains(guideKey)) {
+      return const SizedBox.shrink();
+    }
     return Container(
       key: ValueKey(guide.title),
       padding: const EdgeInsets.all(16),
@@ -47,6 +52,19 @@ class GuideSteps extends StatelessWidget {
               ),
             ],
           ),
+          const SizedBox(height: 8),
+          Text(
+            meditationMedia[guideKey]?.label ?? guide.subtitle,
+            style: bodyFont(fontSize: 12, color: AppColors.inkSoft),
+          ),
+          if (guideKey == 'fireplaceRest') ...[
+            const SizedBox(height: 6),
+            Text(
+              '고정된 장작 이미지를 보며 소리를 듣는 명상이에요.',
+              style: bodyFont(fontSize: 12, color: AppColors.ink),
+            ),
+          ],
+          MeditationFavorite(guideKey: guideKey!),
           if (guideKey != null) ...[
             const SizedBox(height: 10),
             MeditationAudioPlayer(key: ValueKey(guideKey), guideKey: guideKey!),
@@ -55,6 +73,7 @@ class GuideSteps extends StatelessWidget {
               accent: AppColors.blobMintAccent,
             ),
           ],
+          MeditationCheckIn(guideKey: guideKey!),
           const SizedBox(height: 10),
           ...guide.steps.asMap().entries.map(
             (entry) => Padding(

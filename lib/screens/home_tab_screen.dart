@@ -1,3 +1,6 @@
+import '../widgets/daily_care_card.dart';
+import '../mongi/integration/mongi_experience.dart';
+import '../mongi/integration/mongi_entry_card.dart';
 import 'emotion_statistics_screen.dart';
 import 'dart:math' as math;
 
@@ -52,9 +55,17 @@ class HomeTabScreen extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _TodayInviteCard(
-          hasUnseenReply: unseenReply != null,
-          onTap: unseenReply != null ? onGoToRecords : onGoToCatSelect,
+        DailyCareCard(
+          onWrite: onGoToCatSelect,
+          onRest: onGoToMeditation,
+          onRun: () => Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (_) => const MongiExperience())),
+          onGarden: () => pushFullScreen(
+            context,
+            '나의 정원',
+            MyGardenScreen(onGoMeetCat: onGoToCatSelect),
+          ),
         ),
         const SizedBox(height: 16),
         if (unseenReply != null) ...[
@@ -116,11 +127,11 @@ class HomeTabScreen extends StatelessWidget {
             MyGardenScreen(onGoMeetCat: onGoToCatSelect),
           ),
         ),
+        MongiEntryCard(onGoMeetCat: onGoToCatSelect),
         const SizedBox(height: 26),
         Builder(
           builder: (context) {
-            final careDays =
-                context.watch<CatCareProvider>().state.growthDays;
+            final careDays = context.watch<CatCareProvider>().state.growthDays;
             // 설치일 기준(streak)과 출석일(growthDays) 중 큰 값으로 맞춤
             final days = math.max(app.streak, careDays);
             return _StreakBlob(streak: days);
@@ -166,11 +177,8 @@ class HomeTabScreen extends StatelessWidget {
                     subtitle: '밥·물·목욕과 호흡·걷기 명상으로 고양이를 함께 키워보세요',
                     accent: AppColors.blobRoseAccent,
                     background: AppColors.blobRose,
-                    onTap: (ctx) => pushFullScreen(
-                      ctx,
-                      '마음 돌보기',
-                      const PetCareScreen(),
-                    ),
+                    onTap: (ctx) =>
+                        pushFullScreen(ctx, '마음 돌보기', const PetCareScreen()),
                   ),
                   CategoryItem(
                     emoji: '🔮',
@@ -212,11 +220,8 @@ class HomeTabScreen extends StatelessWidget {
                     subtitle: '감사·용서·미안함·사랑, 짧게 적으면 내일 답장이 와요',
                     accent: AppColors.blobButterAccent,
                     background: AppColors.blobButter,
-                    onTap: (ctx) => pushFullScreen(
-                      ctx,
-                      '마음편지',
-                      const HeartLettersScreen(),
-                    ),
+                    onTap: (ctx) =>
+                        pushFullScreen(ctx, '마음편지', const HeartLettersScreen()),
                   ),
                   CategoryItem(
                     emoji: '🌱',
@@ -281,11 +286,8 @@ class HomeTabScreen extends StatelessWidget {
                     subtitle: '오늘 곁에 남긴 약속들을 조용히 돌아보며 하루를 닫아요',
                     accent: AppColors.blobPeriwinkleAccent,
                     background: AppColors.blobPeriwinkle,
-                    onTap: (ctx) => pushFullScreen(
-                      ctx,
-                      '하루 닫기',
-                      const DayCloseScreen(),
-                    ),
+                    onTap: (ctx) =>
+                        pushFullScreen(ctx, '하루 닫기', const DayCloseScreen()),
                   ),
                   CategoryItem(
                     emoji: '🫧',
@@ -512,76 +514,6 @@ class _PathSignpost extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-/// 홈 화면 맨 위, 오늘의 감정 기록을 안내하는 카드.
-/// 딱딱한 텍스트+아웃라인 버튼 조합 대신, 앱 전체의 파스텔 유리질감
-/// (GlassBlob) 카드 스타일과 통일해 손글씨 라벨 폰트와 알약형 CTA 버튼으로
-/// 다시 꾸몄습니다. 아직 열어보지 않은 답장이 있으면 문구/버튼이 바뀝니다.
-class _TodayInviteCard extends StatelessWidget {
-  final bool hasUnseenReply;
-  final VoidCallback onTap;
-  const _TodayInviteCard({required this.hasUnseenReply, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GlassBlob(
-      accent: AppColors.blobLavenderAccent,
-      background: AppColors.blobLavender,
-      floatSeed: 1,
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              const Text('🌸', style: TextStyle(fontSize: 18)),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  hasUnseenReply
-                      ? '고양이의 답장이 도착했어요'
-                      : '오늘은 한 가지면 충분해요',
-                  style: pathLabelFont(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.ink,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          SizedBox(
-            width: double.infinity,
-            height: 46,
-            child: OutlinedButton(
-              onPressed: onTap,
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.blobLavenderAccent,
-                backgroundColor: Colors.white.withValues(alpha: 0.55),
-                side: BorderSide(
-                  color: AppColors.blobLavenderAccent.withValues(alpha: 0.45),
-                  width: 1.2,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(999),
-                ),
-              ),
-              child: Text(
-                hasUnseenReply ? '도착한 고양이 편지 읽기' : '오늘의 감정 고르고 한 줄 보내기',
-                style: pathLabelFont(
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.blobLavenderAccent,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -950,9 +882,9 @@ class _StreakMilestoneUpsell extends StatelessWidget {
       padding: const EdgeInsets.only(top: 12),
       child: GestureDetector(
         onTap: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const PremiumScreen()),
-          );
+          Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (_) => const PremiumScreen()));
         },
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -1087,7 +1019,8 @@ class _ReflectionBannerAreaState extends State<_ReflectionBannerArea> {
               subtitle: '한 달간의 감정 흐름을 문장으로 되짚어볼 수 있어요',
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (_) => const EmotionStatisticsScreen(initialMonthly: true),
+                  builder: (_) =>
+                      const EmotionStatisticsScreen(initialMonthly: true),
                 ),
               ),
             )

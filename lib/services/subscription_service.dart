@@ -42,7 +42,7 @@ class SubscriptionService {
   static const String billingComingSoonCaption =
       '결제와 서버 확인 준비 중이에요 · 혜택은 미리 둘러볼 수 있어요';
 
-  final InAppPurchase _iap = InAppPurchase.instance;
+  late final InAppPurchase _iap = InAppPurchase.instance;
   StreamSubscription<List<PurchaseDetails>>? _purchaseSub;
   final Map<String, ProductDetails> _products = {};
   Completer<bool>? _purchaseCompleter;
@@ -58,6 +58,7 @@ class SubscriptionService {
       _products.containsKey(productIdFor(plan));
 
   Future<void> refreshProducts() async {
+    if (kIsWeb) return;
     try {
       await init();
       await _queryProducts();
@@ -82,6 +83,8 @@ class SubscriptionService {
   Future<void> init() async {
     if (_initialized) return;
     _initialized = true;
+
+    if (kIsWeb) return;
 
     if (!storeBillingEnabled) {
       await _clearLocalPremiumFlag();
@@ -253,6 +256,7 @@ class SubscriptionService {
   Future<bool> purchasePremium({
     SubscriptionPlan plan = SubscriptionPlan.monthly,
   }) async {
+    if (kIsWeb) throw StateError('웹 프리뷰에서는 결제를 지원하지 않아요.');
     if (!CloudService.enabled) throw StateError('서버 결제 확인 준비 후 구매할 수 있어요.');
     if (!storeBillingEnabled) {
       if (kDebugMode) {
@@ -327,6 +331,10 @@ class SubscriptionService {
   }
 
   Future<bool> _restoreSafely() async {
+    if (kIsWeb) {
+      restoreUnavailable = true;
+      return false;
+    }
     restoreUnavailable = false;
     if (!storeBillingEnabled) {
       await _clearLocalPremiumFlag();

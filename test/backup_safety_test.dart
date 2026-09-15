@@ -6,8 +6,8 @@ import 'package:flutter_app/services/backup_service.dart';
 
 Map<String,dynamic> sample() => {
   'schema':1, 'createdAt':'2026-09-13T00:00:00Z',
-  'boxes':{'drafts':[{'key':'letter_test','value':'오늘의 마음 기록'}]},
-  'settings':{'companion_name':{'type':'string','value':'마음냥'}},
+  'boxes':<String,dynamic>{'drafts':[{'key':'letter_test','value':'오늘의 마음 기록'}]},
+  'settings':<String,dynamic>{'companion_name':{'type':'string','value':'마음냥'}},
 };
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

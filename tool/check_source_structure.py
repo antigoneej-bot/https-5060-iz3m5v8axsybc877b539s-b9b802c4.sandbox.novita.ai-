@@ -51,7 +51,7 @@ for folder in ['lib', 'test', 'tool', 'android/app/src/main/kotlin']:
         if path.suffix not in {'.dart', '.kt'}: continue
         check_delimiters(path); checked += 1
         if path.suffix != '.dart': continue
-        for ref in re.findall(r"(?:import|export|part)\s+['\"]([^'\"]+)['\"]", path.read_text()):
+        for ref in re.findall(r"^\s*(?:import|export|part)\s+['\"]([^'\"]+)['\"]", path.read_text(), re.M):
             if ref.startswith('package:flutter_app/'):
                 target = ROOT/'lib'/ref.split('package:flutter_app/')[1]
             elif ':' not in ref: target = path.parent/ref

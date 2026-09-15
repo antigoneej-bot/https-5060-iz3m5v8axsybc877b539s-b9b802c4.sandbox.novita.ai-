@@ -54,6 +54,10 @@ android {
     }
 
     buildTypes {
+        debug {
+            applicationIdSuffix = ".preview"
+            versionNameSuffix = "-test"
+        }
         release {
             signingConfig = if (keystorePropertiesFile.exists()) {
                 signingConfigs.getByName("release")
@@ -69,6 +73,13 @@ flutter {
 }
 
 dependencies {
+    implementation("com.android.installreferrer:installreferrer:2.2")
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }
 
+
+// Preview installs alongside the store app. Firebase is explicitly initialized
+// from Dart options; the store-only google-services client has a different id.
+tasks.matching { it.name == "processDebugGoogleServices" }.configureEach {
+    enabled = false
+}

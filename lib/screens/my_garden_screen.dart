@@ -1,3 +1,4 @@
+import '../mongi/integration/unified_garden_panel.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../data/shadow_cats_data.dart';
@@ -16,18 +17,21 @@ import '../widgets/garden_path_card.dart';
 /// 표시되어, 앞으로 채워나갈 자리라는 걸 은은하게 보여줍니다.
 class MyGardenScreen extends StatelessWidget {
   final VoidCallback onGoMeetCat;
-  const MyGardenScreen({super.key, required this.onGoMeetCat});
+  final bool showMongiPanel;
+  const MyGardenScreen({super.key, required this.onGoMeetCat, this.showMongiPanel = true});
 
   @override
   Widget build(BuildContext context) {
     final app = context.watch<AppStateProvider>();
     final metIds = app.metCatIds;
-    final cats = freeShadowCats;
+    final cats = shadowCats.where((cat) => !cat.isPremium || metIds.contains(cat.id)).toList();
     final metCount = cats.where((c) => metIds.contains(c.id)).length;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (showMongiPanel) const UnifiedGardenPanel(),
+        const SizedBox(height: 20),
         GlassBlob(
           accent: AppColors.blobMintAccent,
           background: AppColors.blobMint,
@@ -41,7 +45,7 @@ class MyGardenScreen extends StatelessWidget {
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      '나의 정원',
+                      '함께한 고양이',
                       style: pathLabelFont(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,

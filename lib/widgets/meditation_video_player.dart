@@ -1,7 +1,13 @@
+import '../services/meditation_sleep_service.dart';
+import '../services/meditation_library_store.dart';
+import 'meditation_sleep_controls.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show ByteData;
+import 'package:flutter/services.dart' show AssetManifest, rootBundle;
 import 'package:video_player/video_player.dart';
 import '../theme.dart';
+import 'dart:async';
+import '../services/media_coordinator.dart';
+import '../services/meditation_completion_service.dart';
 
 /// 명상/움직임 가이드에 딸린 "영상으로 따라하기" 재생 위젯.
 ///
@@ -24,16 +30,21 @@ class MeditationVideoPlayer extends StatefulWidget {
   State<MeditationVideoPlayer> createState() => _MeditationVideoPlayerState();
 }
 
-class _MeditationVideoPlayerState extends State<MeditationVideoPlayer> {
+class _MeditationVideoPlayerState extends State<MeditationVideoPlayer>
+    with WidgetsBindingObserver {
   bool _checking = true;
   bool _exists = false;
   bool _expanded = false;
   VideoPlayerController? _controller;
   bool _initializing = false;
+  bool _completionRecorded = false;
+  bool _sessionCompleted = false;
+  bool _foreground = true;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _checkAssetExists();
   }
 
@@ -42,12 +53,11 @@ class _MeditationVideoPlayerState extends State<MeditationVideoPlayer> {
   /// "이 가이드의 영상이 아직 준비되지 않았다"를 조용히 감지합니다.
   Future<void> _checkAssetExists() async {
     try {
-      final ByteData _ = await DefaultAssetBundle.of(
-        context,
-      ).load(widget.assetPath);
+      final manifest = await AssetManifest.loadFromAssetBundle(rootBundle);
+      final exists = manifest.listAssets().contains(widget.assetPath);
       if (!mounted) return;
       setState(() {
-        _exists = true;
+        _exists = exists;
         _checking = false;
       });
     } catch (_) {
@@ -59,8 +69,83 @@ class _MeditationVideoPlayerState extends State<MeditationVideoPlayer> {
     }
   }
 
+  Future<void> _pauseDirect() async {
+    MeditationSleepService.instance.detach(this);
+    await _controller?.pause();
+  }
+
+  Future<void> _play(VideoPlayerController controller) =>
+      MediaCoordinator.instance.run(() async {
+        if (!mounted || !_expanded || !_foreground) return;
+        await MediaCoordinator.instance.claim(this, _pauseDirect);
+        await controller.setVolume(1);
+        await controller.play();
+        MeditationSleepService.instance.attach(
+          this,
+          volume: (factor) => MediaCoordinator.instance.run(() async {
+            if (mounted &&
+                identical(MeditationSleepService.instance.owner, this))
+              await controller.setVolume(factor);
+          }),
+          stop: () => MediaCoordinator.instance.run(() async {
+            await _pauseDirect();
+            MediaCoordinator.instance.release(this);
+          }),
+        );
+        unawaited(
+          MeditationLibraryStore.instance
+              .played(widget.assetPath.split('/').last.split('.').first)
+              .catchError((Object _) {}),
+        );
+      });
+  void _onProgress() {
+    final value = _controller?.value;
+    if (value == null || _completionRecorded || value.duration == Duration.zero)
+      return;
+    if (value.isCompleted) {
+      _completionRecorded = true;
+      final key = widget.assetPath.split('/').last.split('.').first;
+      if (!_sessionCompleted) {
+        _sessionCompleted = true;
+        unawaited(MeditationCompletionService.instance.complete(guideKey: key));
+      }
+      final sleep = MeditationSleepService.instance;
+      if (key == 'fireplaceRest' &&
+          identical(sleep.owner, this) &&
+          sleep.repeat &&
+          (sleep.deadline == null || sleep.remaining > Duration.zero)) {
+        unawaited(
+          MediaCoordinator.instance.run(() async {
+            if (!mounted || !_foreground || !identical(sleep.owner, this))
+              return;
+            await _controller!.seekTo(Duration.zero);
+            await _controller!.play();
+            _completionRecorded = false;
+          }),
+        );
+      } else {
+        sleep.detach(this);
+        MediaCoordinator.instance.release(this);
+      }
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _foreground = state == AppLifecycleState.resumed;
+    if (state != AppLifecycleState.resumed) {
+      unawaited(
+        MediaCoordinator.instance.run(() async {
+          await _pauseDirect();
+          MediaCoordinator.instance.release(this);
+        }),
+      );
+    }
+  }
+
   Future<void> _togglePlay() async {
-    if (!_exists) return;
+    if (!_exists || _initializing) return;
+    unawaited(MeditationCompletionService.instance.retry());
     if (!_expanded) {
       setState(() {
         _expanded = true;
@@ -69,17 +154,27 @@ class _MeditationVideoPlayerState extends State<MeditationVideoPlayer> {
       final controller = VideoPlayerController.asset(widget.assetPath);
       try {
         await controller.initialize();
-        await controller.setLooping(true);
-        await controller.play();
+        await controller.setLooping(false);
         if (!mounted) {
-          controller.dispose();
+          await controller.dispose();
           return;
         }
+        _controller = controller;
+        _sessionCompleted = false;
+        await MeditationCompletionService.instance.begin(
+          widget.assetPath.split('/').last.split('.').first,
+        );
+        _completionRecorded = false;
+        controller.addListener(_onProgress);
+        await _play(controller);
+        if (!mounted) return;
         setState(() {
           _controller = controller;
           _initializing = false;
         });
       } catch (_) {
+        MediaCoordinator.instance.release(this);
+        _controller = null;
         controller.dispose();
         if (!mounted) return;
         setState(() {
@@ -89,8 +184,12 @@ class _MeditationVideoPlayerState extends State<MeditationVideoPlayer> {
         });
       }
     } else {
-      await _controller?.pause();
+      await MediaCoordinator.instance.run(() async {
+        await _pauseDirect();
+        MediaCoordinator.instance.release(this);
+      });
       _controller?.dispose();
+      if (!mounted) return;
       setState(() {
         _controller = null;
         _expanded = false;
@@ -100,7 +199,12 @@ class _MeditationVideoPlayerState extends State<MeditationVideoPlayer> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    MeditationSleepService.instance.detach(this);
+    MediaCoordinator.instance.release(this);
+    _controller?.removeListener(_onProgress);
     _controller?.dispose();
+    _controller = null;
     super.dispose();
   }
 
@@ -113,6 +217,39 @@ class _MeditationVideoPlayerState extends State<MeditationVideoPlayer> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          if (_controller != null && _controller!.value.isInitialized)
+            ValueListenableBuilder<VideoPlayerValue>(
+              valueListenable: _controller!,
+              builder: (context, value, child) => TextButton.icon(
+                icon: Icon(value.isPlaying ? Icons.pause : Icons.play_arrow),
+                label: Text(value.isPlaying ? '일시정지' : '재생'),
+                onPressed: () async {
+                  final controller = _controller;
+                  if (controller == null) return;
+                  if (value.isPlaying) {
+                    await MediaCoordinator.instance.run(() async {
+                      await _pauseDirect();
+                      MediaCoordinator.instance.release(this);
+                    });
+                  } else {
+                    if (value.position >= value.duration) {
+                      _sessionCompleted = false;
+                      await MeditationCompletionService.instance.begin(
+                        widget.assetPath.split('/').last.split('.').first,
+                      );
+                      _completionRecorded = false;
+                      await controller.seekTo(Duration.zero);
+                    }
+                    await _play(controller);
+                  }
+                },
+              ),
+            ),
+          if (_expanded)
+            MeditationSleepControls(
+              owner: this,
+              allowRepeat: widget.assetPath.endsWith('/fireplaceRest.mp4'),
+            ),
           if (_expanded)
             ClipRRect(
               borderRadius: BorderRadius.circular(14),
@@ -178,7 +315,9 @@ class _MeditationVideoPlayerState extends State<MeditationVideoPlayer> {
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      '영상으로 따라하기',
+                      widget.assetPath.endsWith('/fireplaceRest.mp4')
+                          ? '장작 이미지와 소리 재생'
+                          : '영상으로 따라하기',
                       style: pathLabelFont(
                         fontSize: 12.5,
                         fontWeight: FontWeight.w700,

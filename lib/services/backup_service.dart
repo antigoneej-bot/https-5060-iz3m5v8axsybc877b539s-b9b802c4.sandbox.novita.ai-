@@ -1,3 +1,8 @@
+import '../mongi/integration/mongi_garden_store.dart';
+import '../mongi/integration/session_transaction.dart';
+import '../mongi/integration/mongi_backup_schema.dart';
+import '../mongi/integration/plant_memory.dart';
+import '../mongi/integration/mongi_garden_data.dart';
 import 'draft_service.dart';
 import 'dart:convert';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -20,7 +25,7 @@ class BackupService {
   static const boxes = [
     'letter_entries','reflection_letters','daily_draw_entries','bubble_memo_entries',
     'buried_emotions','cat_memories','usage_history','promise_entries','special_letters',
-    'drafts','reply_cache','personal_replies','reply_feedback',
+    'drafts','reply_cache','personal_replies','reply_feedback','garden_memories','mongi_progress',
   ];
   static const globals = {'companion_name','onboarding_completed_v1',
     'welcome_intro_completed_v1','cat_browse_favorites_v1','bgm_enabled','sfx_enabled','bgm_volume'};
@@ -34,7 +39,7 @@ class BackupService {
     const ints = {'care_temperature','care_growth_days','care_points',
       'care_total_points_earned','care_total_full_care_days','care_total_consumables_used',
       'care_total_pats','streak_count','growth_level'};
-    const strings = {'care_last_date','care_companion_cat_id','care_attendance_counted_date',
+    const strings = {'mongi_garden_v1','care_last_date','care_companion_cat_id','care_attendance_counted_date',
       'daily_card_last_date','daily_card_last_cat_id','bubble_last_date',
       'last_visit_date','growth_challenge_start'};
     const lists = {'care_temp_history','care_owned_accessories','care_equipped_slots',
@@ -59,14 +64,19 @@ class BackupService {
   }
   static Future<Map<String, dynamic>> snapshot() async {
     await DraftTextController.flushAll();
+    return MongiGardenStore.instance.consistentRead(_snapshotCommitted);
+  }
+  static Future<Map<String, dynamic>> _snapshotCommitted() async {
+    await SessionTransaction.recover();
     final data = <String, dynamic>{};
     for (final name in boxes) {
       final box = await _existing(name);
       if (box == null) { data[name] = []; continue; }
       await box.flush();
-      data[name] = [for (final key in box.keys.toList()) {'key': key, 'value': box.get(key)}];
+      data[name] = [for (final key in box.keys.toList()) if (name != 'mongi_progress' || MongiBackupSchema.allows(key)) {'key': key, 'value': box.get(key)}];
     }
     final prefs = await SharedPreferences.getInstance();
+    await prefs.reload();
     final settings = <String, dynamic>{};
     for (final key in prefs.getKeys().where(allowedPref)) {
       final value = prefs.get(key);
@@ -88,6 +98,10 @@ class BackupService {
       for (final row in entry.value as List) {
         if (++total > 50000 || row is! Map || (row['key'] is! String && row['key'] is! int) || !seen.add(row['key'] as Object)) throw const FormatException('잘못된 기록 항목이에요.');
         final value = row['value'];
+        if (entry.key == 'mongi_progress') {
+          MongiBackupSchema.validate(row['key'] as Object, value);
+          continue;
+        }
         if (entry.key == 'personal_replies') {
           if (row['key'] is! String || value is! String || value.length > 100000) throw const FormatException('잘못된 답장 기록이에요.');
           final metadata = jsonDecode(value);
@@ -95,6 +109,12 @@ class BackupService {
               metadata['reply'] is! String || metadata['parts'] is! List ||
               !(metadata['parts'] as List).every((part) => part is String) ||
               !{'listen','reflect','suggest'}.contains(metadata['style'])) throw const FormatException('잘못된 답장 기록이에요.');
+          continue;
+        }
+        if (entry.key == 'garden_memories') {
+          if (value is! Map) throw const FormatException('잘못된 식물 기록이에요.');
+          final memory = PlantMemory.fromJson(value);
+          if (row['key'] != memory.plantId) throw const FormatException('식물 기록이 일치하지 않아요.');
           continue;
         }
         if (entry.key == 'reply_feedback') {
@@ -128,10 +148,17 @@ class BackupService {
         'string' => v is String, 'strings' => v is List && v.every((e) => e is String), _ => false,
       };
       if (!valid || entry.value['type'] != prefType(entry.key as String)) throw const FormatException('설정 값이 올바르지 않아요.');
+      if (entry.key == 'local_user_mongi_garden_v1') {
+        MongiGardenData.fromJson(Map<String, dynamic>.from(jsonDecode(v as String) as Map));
+      }
     }
   }
   static int count(Map<String, dynamic> data) => (data['boxes'] as Map).values.fold<int>(0, (sum, rows) => sum + (rows as List).length);
   static Future<bool> hasLocalRecords() async {
+    // Game progress exists independently of journal entries. Preserve even an
+    // unreadable snapshot so importing a backup cannot silently erase it.
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.containsKey('local_user_mongi_garden_v1')) return true;
     for (final name in boxes.where((name) => !{'drafts','reply_cache','personal_replies','reply_feedback'}.contains(name))) {
       final box = await _existing(name);
       if (box != null && box.isNotEmpty) return true;
@@ -201,6 +228,12 @@ class BackupService {
     }
     final prefs = await SharedPreferences.getInstance();
     for (final entry in (data['settings'] as Map).entries) {
+      // Also protect snapshots written since a restore was queued, including
+      // journals created by an older app version with restoreProfile=true.
+      if (entry.key == 'local_user_mongi_garden_v1' &&
+          prefs.containsKey(entry.key)) {
+        continue;
+      }
       if (pending['restoreProfile'] != true && prefs.containsKey(entry.key)) continue;
       final v = entry.value['value'];
       final key = entry.key as String;

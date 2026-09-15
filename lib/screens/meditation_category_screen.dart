@@ -68,7 +68,7 @@ class MeditationCategoryScreen extends StatelessWidget {
                             )
                           else
                             Text(
-                              '지금은 딱히 대처법이 필요 없는 편안한 감정이에요 🌤️',
+                              '이 감정에 맞는 명상은 준비 중이에요. 명상 탭에서 다른 명상을 만나보세요.',
                               textAlign: TextAlign.center,
                               style: bodyFont(
                                 fontSize: 13,

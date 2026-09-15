@@ -20,6 +20,10 @@ class _MeditationPickerState extends State<MeditationPicker> {
 
   @override
   Widget build(BuildContext context) {
+    final matchingKeys = publishedGuides(widget.guideKeys);
+    final visibleKeys = matchingKeys.isNotEmpty
+        ? matchingKeys
+        : publishedGuides(publishedMeditationKeys);
     return GlassBlob(
       accent: AppColors.blobButterAccent,
       background: AppColors.blobButter,
@@ -28,7 +32,7 @@ class _MeditationPickerState extends State<MeditationPicker> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '🧘 추천 명상 · 움직임',
+            '🧘 오디오 · 영상 명상',
             style: pathLabelFont(
               fontSize: 15,
               fontWeight: FontWeight.w700,
@@ -44,7 +48,7 @@ class _MeditationPickerState extends State<MeditationPicker> {
           Wrap(
             spacing: 8,
             runSpacing: 8,
-            children: widget.guideKeys.map((key) {
+            children: visibleKeys.map((key) {
               final guide = breathingGuide[key]!;
               final active = selectedKey == key;
               return GestureDetector(
@@ -78,6 +82,18 @@ class _MeditationPickerState extends State<MeditationPicker> {
                   child: Column(
                     children: [
                       Text(guide.icon, style: const TextStyle(fontSize: 18)),
+                      if (meditationMedia[key] != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Text(
+                            meditationMedia[key]!.label,
+                            textAlign: TextAlign.center,
+                            style: bodyFont(
+                              fontSize: 10.5,
+                              color: active ? Colors.white : AppColors.inkSoft,
+                            ),
+                          ),
+                        ),
                       const SizedBox(height: 4),
                       Text(
                         guide.title,
@@ -96,7 +112,7 @@ class _MeditationPickerState extends State<MeditationPicker> {
               );
             }).toList(),
           ),
-          if (selectedKey != null) ...[
+          if (selectedKey != null && visibleKeys.contains(selectedKey)) ...[
             const SizedBox(height: 16),
             GuideSteps(
               guide: breathingGuide[selectedKey]!,

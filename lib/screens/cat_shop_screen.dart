@@ -198,7 +198,7 @@ class _ConsumableRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 128,
+      height: 160 + (MediaQuery.textScalerOf(context).scale(14) - 14) * 6,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: items.length,
@@ -268,7 +268,7 @@ class _ConsumableCard extends StatelessWidget {
     final accent = AppColors.blobPeachAccent;
     final background = AppColors.blobPeach;
     return Container(
-      width: 116,
+      width: 140,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),

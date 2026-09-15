@@ -374,6 +374,8 @@ class _MeditationStageState extends State<_MeditationStage> {
           } catch (_) {}
         }());
       }
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('돌봄 보상을 저장하지 못했어요. 다시 완료해 주세요.')));
     } finally {
       if (mounted) setState(() => _busy = false);
     }

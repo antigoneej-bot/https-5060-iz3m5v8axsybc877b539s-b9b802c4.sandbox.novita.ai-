@@ -1,3 +1,4 @@
+export 'meditation_media_data.dart';
 /// 카테고리별 대처 가이드 (솔루션 탭 콘텐츠)
 class SolutionGuide {
   final String title;
@@ -30,6 +31,62 @@ String meditationVideoAssetPath(String guideKey) =>
     'assets/video/meditation/$guideKey.mp4';
 
 final Map<String, SolutionGuide> breathingGuide = {
+  'singingBowlRest': const SolutionGuide(
+    title: '싱잉볼의 깊은 울림 · 5분',
+    icon: '🔔',
+    subtitle: '시작과 마무리 안내 · 싱잉볼 3종의 울림',
+    steps: [
+      '편하게 앉거나 누워 작은 볼륨으로 시작해 주세요.',
+      '처음 목소리 안내를 따라 자세를 잡고 평소처럼 자연스럽게 숨 쉬세요.',
+      '중간 약 4분은 목소리 없이 싱잉볼의 소리와 여운을 듣는 시간이에요.',
+      '마지막 안내가 들리면 손발을 천천히 움직이고 자신의 속도로 돌아오세요.',
+    ],
+  ),
+  'fireplaceRest': const SolutionGuide(
+    title: '불멍 · 3분',
+    icon: '🔥',
+    subtitle: '장작 이미지와 실제 장작 타는 소리',
+    steps: [
+      '편하게 앉거나 누워 작은 볼륨으로 재생해 주세요.',
+      '따뜻한 장작 이미지를 바라보거나 눈을 감고 소리에 귀를 기울여 보세요.',
+      '숨은 평소처럼 쉬세요. 생각이 떠오르면 다시 장작 소리로 돌아와도 좋아요.',
+    ],
+  ),
+  'rainThunderRest': const SolutionGuide(
+    title: '빗소리와 먼 천둥 · 3분',
+    icon: '🌧️',
+    subtitle: '목소리 안내 없이 듣는 자연음 명상',
+    steps: [
+      '편하게 앉거나 누워 소리를 작게 맞춰 주세요.',
+      '이어지는 빗소리와 가끔 들리는 천둥에 가볍게 귀를 기울여 보세요.',
+      '무언가를 해내려 하지 않아도 괜찮아요. 편하게 숨 쉬며 잠시 쉬어보세요.',
+    ],
+  ),
+  'busyMindRest': const SolutionGuide(
+    title: '생각이 복잡한 날 · 3분 15초',
+    icon: '💧',
+    subtitle: '목소리 안내와 잔잔한 물소리',
+    steps: [
+      '편하게 앉아 등을 기대고 두 손을 편한 곳에 놓아주세요. 눈은 뜨고 있어도 괜찮아요.',
+      '발바닥을 바닥에 가볍게 붙이고, 발이 바닥을 누르는 느낌을 살펴보세요.',
+      '음악이나 주변의 작은 소리에 잠시 귀를 기울여보세요.',
+      '생각이 떠오르면 억지로 멈추지 않아도 괜찮아요. 알아차렸다면 다시 소리를 들어보세요.',
+      '턱과 어깨의 힘을 조금 풀고 평소처럼 숨 쉬며 쉬어보세요.',
+      '마지막 안내에 따라 손발을 움직이고 주변을 둘러보세요. 준비가 되면 하던 일을 천천히 이어가세요.',
+    ],
+  ),
+  'forestRest': const SolutionGuide(
+    title: '숲에서 쉬는 2분',
+    icon: '🌿',
+    subtitle: '2분 · 목소리 안내와 잔잔한 새소리',
+    steps: [
+      '편하게 앉아 두 손을 무릎 위에 놓아주세요. 눈은 뜨고 있어도 괜찮아요.',
+      '어깨를 가볍게 올렸다가 내려놓고, 턱의 힘도 조금 풀어주세요.',
+      '숨은 평소처럼 편하게 쉬세요. 생각을 억지로 멈추지 않아도 괜찮아요.',
+      '안내가 쉬는 동안 작은 새소리와 음악을 들으며 잠시 쉬어보세요.',
+      '마지막 안내에 따라 손가락을 움직이고, 준비가 되면 하던 일로 돌아가세요.',
+    ],
+  ),
   'breathing': const SolutionGuide(
     title: '4-4-6 호흡법',
     icon: '🌬️',
@@ -80,15 +137,16 @@ final Map<String, SolutionGuide> breathingGuide = {
     ],
   ),
   'mindfulThought': const SolutionGuide(
-    title: '생각 구름 흘려보내기',
+    title: '생각 구름 흘려보내기 · 7분',
     icon: '☁️',
-    subtitle: '알아차림',
+    subtitle: '목소리 안내와 부드러운 기타 반주',
     steps: [
-      '지금 떠오르는 생각을 하나 골라보세요.',
-      '그 생각을 하늘에 떠 있는 구름이라고 상상해보세요.',
-      '구름을 붙잡지도, 밀어내지도 말고 그저 바라보세요.',
-      '구름이 천천히 흘러가며 멀어지는 모습을 지켜보세요.',
-      '"나는 생각이 아니라, 생각을 바라보는 사람"임을 떠올려보세요.',
+      '편하게 앉거나 누워주세요. 눈은 감거나 편한 곳을 바라봐도 괜찮아요.',
+      '맑고 밝은 하늘과 천천히 움직이는 하얀 구름을 떠올려보세요.',
+      '생각이 떠오르면 구름 하나에 할 일, 지난 일, 걱정처럼 짧은 이름을 붙여보세요.',
+      '구름이 지나가는 모습을 바라보세요. 움직이지 않아도 억지로 밀어내지 않아도 괜찮아요.',
+      '생각을 따라가고 있었다면 알아차리고 다시 하늘과 구름을 떠올려보세요.',
+      '마지막 안내에 따라 손발을 움직여보세요. 누워 있었다면 준비가 되었을 때 천천히 일어나세요.',
     ],
   ),
   'taichi': const SolutionGuide(
@@ -187,27 +245,29 @@ final Map<String, SolutionGuide> breathingGuide = {
     ],
   ),
   'angerCooling': const SolutionGuide(
-    title: '감정 진정 호흡',
-    icon: '🔥',
-    subtitle: '감정 진정',
+    title: '감정 진정 호흡 · 4분 48초',
+    icon: '🌊',
+    subtitle: '목소리 안내와 부드러운 파도 소리',
     steps: [
-      '잠시 하던 일을 멈추고, 발바닥이 바닥에 닿는 감각에 집중해보세요.',
-      '코로 4초간 숨을 들이마시며 뜨거운 감정을 알아차려보세요.',
-      '7초간 숨을 참으며, 그 감정을 판단 없이 그대로 바라봐요.',
-      '8초간 아주 천천히 숨을 내쉬며 마음의 온도를 낮춰보세요.',
-      '"지금 이 감정은 지나갈 것이다"라고 마음속으로 말해보세요.',
+      '편하게 앉거나 누워 두 손을 놓고 턱과 어깨의 힘을 조금 풀어주세요.',
+      '평소처럼 숨 쉬며 공기가 들어오고 나가는 것을 느껴보세요.',
+      '편하다면 내쉬는 숨을 조금 여유 있게 보내세요. 숨을 참거나 끝까지 내뱉으려고 하지 않아도 돼요.',
+      '답답하거나 어지러우면 호흡 조절을 멈추고 평소처럼 쉬세요.',
+      '속상한 생각이 떠오르면 억지로 밀어내지 않고 다음 숨을 느껴보세요.',
+      '마지막 안내에 따라 주변을 살펴보고, 준비가 되면 천천히 움직이세요.',
     ],
   ),
   'sleepMeditation': const SolutionGuide(
-    title: '잠들기 전 이완 명상',
+    title: '잠들기 전, 하루를 내려놓기 · 7분 14초',
     icon: '🌙',
-    subtitle: '수면 명상',
+    subtitle: '목소리 안내와 작은 벽난로 소리',
     steps: [
-      '조명을 낮추고 편안한 자세로 누워보세요.',
-      '오늘 하루 애써온 몸에게 "고생했어"라고 마음속으로 말해보세요.',
-      '발끝부터 정수리까지, 천천히 힘을 빼며 몸을 가라앉혀보세요.',
-      '숨을 들이마실 때보다 내쉴 때를 조금 더 길게 가져가보세요.',
-      '떠오르는 생각들은 붙잡지 말고 밤하늘로 흘려보내듯 놓아주세요.',
+      '편하게 눕거나 등을 기대고 앉아주세요. 이불과 베개를 편한 위치로 바꿔도 괜찮아요.',
+      '턱과 어깨, 손가락의 힘을 조금 풀어주세요. 꼭 잠들려고 애쓰지 않아도 돼요.',
+      '숨은 평소처럼 쉬세요. 호흡이 불편하면 이불이 닿는 느낌을 살펴보세요.',
+      '오늘의 일이나 내일의 걱정이 떠오르면 내일 다시 살펴보자고 말하고 잠시 쉬어주세요.',
+      '몸이 불편하면 언제든 자세를 바꿔도 좋아요. 지금 편해질 수 있는 만큼만 편하게 있어주세요.',
+      '안내를 끝까지 듣지 않아도 괜찮아요. 졸음이 오면 그대로 잠들고, 잠이 오지 않아도 잠시 쉬어주세요.',
     ],
   ),
   'deepRestMeditation': const SolutionGuide(
@@ -223,7 +283,7 @@ final Map<String, SolutionGuide> breathingGuide = {
     ],
   ),
   '478Breathing': const SolutionGuide(
-    title: '4-7-8 호흡법',
+    title: '4-7-8 호흡법 · 구 영상',
     icon: '🌊',
     subtitle: '호흡 명상',
     steps: [
@@ -231,7 +291,8 @@ final Map<String, SolutionGuide> breathingGuide = {
       '4초 동안 코로 조용히 숨을 들이마셔요.',
       '7초 동안 숨을 참아요.',
       '8초 동안 "후~" 소리를 내며 입으로 길게 내쉬어요.',
-      '이 호흡을 4회 반복하며 몸이 점점 무거워지는 걸 느껴보세요.',
+      '영상의 구와 초 표시를 보며 4회 따라 해보세요. 준비와 마무리를 포함해 1분 28초입니다.',
+      '답답하거나 어지러우면 멈추고 평소처럼 쉬세요.',
     ],
   ),
   'humBreathing': const SolutionGuide(
@@ -376,7 +437,7 @@ class SolutionCategory {
   });
 }
 
-const List<SolutionCategory> solutionCategories = [
+const List<SolutionCategory> _allSolutionCategories = [
   SolutionCategory(
     key: 'depressed',
     label: '우울할 때',
@@ -408,6 +469,11 @@ const List<SolutionCategory> solutionCategories = [
     label: '피곤할 때',
     icon: '🌙',
     guideKeys: [
+      'forestRest',
+      'fireplaceRest',
+      'rainThunderRest',
+      'singingBowlRest',
+      'busyMindRest',
       'breathing',
       'bodyScan',
       'sleepMeditation',
@@ -441,6 +507,41 @@ const List<SolutionCategory> solutionCategories = [
     ],
   ),
 ];
+
+/// 공개할 미디어가 준비된 가이드만 등록합니다. 원래 가이드와 분류는 보존합니다.
+/// 새 오디오/영상을 에셋에 추가하고 이 목록에 키를 넣으면 공개됩니다.
+const publishedMeditationKeys = <String>{
+  'singingBowlRest',
+  'forestRest',
+  'busyMindRest',
+  'mindfulThought',
+  'angerCooling',
+  'sleepMeditation',
+  'rainThunderRest',
+  'fireplaceRest',
+  'breathing',
+  '478Breathing',
+};
+
+List<String> publishedGuides(Iterable<String> keys) => keys
+    .where(
+      (key) =>
+          publishedMeditationKeys.contains(key) &&
+          breathingGuide.containsKey(key),
+    )
+    .toList(growable: false);
+
+final List<SolutionCategory> solutionCategories = _allSolutionCategories
+    .map(
+      (category) => SolutionCategory(
+        key: category.key,
+        label: category.label,
+        icon: category.icon,
+        guideKeys: publishedGuides(category.guideKeys),
+      ),
+    )
+    .where((category) => category.guideKeys.isNotEmpty)
+    .toList(growable: false);
 
 /// 카테고리 key로 [SolutionCategory]를 찾습니다.
 SolutionCategory? solutionCategoryByKey(String key) {

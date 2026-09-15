@@ -1,4 +1,5 @@
 import 'dart:async';
+import '../mongi/integration/mongi_garden_store.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../models/special_letter_entry.dart';
 import 'personal_reply_service.dart';
@@ -47,6 +48,7 @@ class SpecialLetterService {
       final saved = SpecialLetterEntry.fromMap(Map<dynamic, dynamic>.from(existing as Map));
       if (saved.letterText != letterText || saved.type != type || saved.replyStyle != replyStyle) throw StateError('편지 ID가 겹쳤어요.');
       await _b.flush();
+      if (saved.letterText.trim().isNotEmpty) await MongiGardenStore.instance.claimCompletedCare(now: saved.createdAt.toLocal());
       unawaited(ensureReply(saved).then<void>((_) {}, onError: (Object _, StackTrace __) {}));
       return saved;
     }
@@ -56,6 +58,7 @@ class SpecialLetterService {
     );
     await _b.put(entry.id, entry.toMap());
     await _b.flush();
+    if (entry.letterText.trim().isNotEmpty) await MongiGardenStore.instance.claimCompletedCare(now: entry.createdAt.toLocal());
     unawaited(ensureReply(entry).then<void>((_) {}, onError: (Object _, StackTrace __) {}));
     return entry;
   }
