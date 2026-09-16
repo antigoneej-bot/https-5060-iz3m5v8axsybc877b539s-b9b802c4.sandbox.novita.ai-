@@ -2,7 +2,7 @@ name: flutter_app
 description: "Mystic Cat Journal - ??? ??"
 publish_to: 'none'
 
-version: 1.0.7+8
+version: 1.0.7+9
 
 environment:
   sdk: ^3.9.2
@@ -55,8 +55,12 @@ dev_dependencies:
 
 dependency_overrides:
   # Google Play Billing Library 8.0.0 요구사항 충족 (2026-08-31 시행).
-  # 상세 이유는 위 in_app_purchase_android 주석 참고.
-  in_app_purchase_android: 0.4.0+10
+  # pub.dev의 in_app_purchase_android 0.5.x는 Dart 3.10+/Flutter 3.44+를
+  # 요구해 현재 고정 환경(Flutter 3.35.4 / Dart 3.9.2)과 맞지 않아, 0.5.0
+  # 소스를 그대로 가져와 environment 제약만 낮춘 로컬 포크를 사용합니다.
+  # Dart 코드 자체에는 3.10 전용 문법이 없어 안전합니다.
+  in_app_purchase_android:
+    path: third_party/in_app_purchase_android_billing8
 
 flutter:
   uses-material-design: true
