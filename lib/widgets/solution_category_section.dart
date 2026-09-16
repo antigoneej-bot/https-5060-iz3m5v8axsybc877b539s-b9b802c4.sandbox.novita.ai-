@@ -1,3 +1,6 @@
+import '../services/access_policy.dart';
+import '../services/subscription_service.dart';
+import 'subscription_gate.dart';
 import 'package:flutter/material.dart';
 import '../theme.dart';
 import '../data/solutions_data.dart';
@@ -75,6 +78,19 @@ class _GuideTile extends StatefulWidget {
 class _GuideTileState extends State<_GuideTile> {
   late bool _expanded = widget.startExpanded;
   bool _hovering = false;
+  bool _premium = false;
+  bool get _locked =>
+      !_premium && !AccessPolicy.freeMeditations.contains(widget.guideKey);
+  @override
+  void initState() {
+    super.initState();
+    _refresh();
+  }
+
+  Future<void> _refresh() async {
+    final premium = await SubscriptionService().isPremium();
+    if (mounted) setState(() => _premium = premium);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -88,7 +104,13 @@ class _GuideTileState extends State<_GuideTile> {
             onExit: (_) => setState(() => _hovering = false),
             cursor: SystemMouseCursors.click,
             child: GestureDetector(
-              onTap: () => setState(() => _expanded = !_expanded),
+              onTap: () async {
+                if (_locked) {
+                  if (!await requestSubscription(context)) return;
+                  await _refresh();
+                }
+                if (mounted) setState(() => _expanded = !_expanded);
+              },
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
                 padding: const EdgeInsets.symmetric(
@@ -113,7 +135,7 @@ class _GuideTileState extends State<_GuideTile> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            guide.title,
+                            '${guide.title}${AccessPolicy.freeMeditations.contains(widget.guideKey) ? ' · 무료' : ''}',
                             style: bodyFont(
                               fontSize: 13.5,
                               color: AppColors.ink,
@@ -133,7 +155,9 @@ class _GuideTileState extends State<_GuideTile> {
                       ),
                     ),
                     Icon(
-                      _expanded
+                      _locked
+                          ? Icons.lock_outline
+                          : _expanded
                           ? Icons.keyboard_arrow_up
                           : Icons.keyboard_arrow_down,
                       color: widget.accent,

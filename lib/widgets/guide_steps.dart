@@ -1,4 +1,6 @@
 import 'meditation_check_in.dart';
+import '../services/access_policy.dart';
+import 'subscription_gate.dart';
 import 'meditation_favorite.dart';
 import 'meditation_audio_player.dart';
 import 'package:flutter/material.dart';
@@ -22,6 +24,14 @@ class GuideSteps extends StatelessWidget {
     if (guideKey == null || !publishedMeditationKeys.contains(guideKey)) {
       return const SizedBox.shrink();
     }
+    return SubscriptionGate(
+      free: AccessPolicy.freeMeditations.contains(guideKey),
+      message: '이 명상은 마음냥 구독으로 들을 수 있어요. 숲 명상과 빗소리는 언제든 무료예요.',
+      builder: (_) => _content(context),
+    );
+  }
+
+  Widget _content(BuildContext context) {
     return Container(
       key: ValueKey(guide.title),
       padding: const EdgeInsets.all(16),

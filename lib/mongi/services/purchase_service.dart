@@ -1,14 +1,5 @@
-import 'dart:async';
+import '../../services/subscription_service.dart';
 
-import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb, debugPrint;
-import 'package:in_app_purchase/in_app_purchase.dart';
-
-/// [PurchaseService]가 사용자에게 안내해야 하는 상황의 종류(언어 중립).
-/// 이 서비스는 위젯/BuildContext에 접근할 수 없으므로 실제 문자열이 아니라
-/// 이 종류값만 [PurchaseService.onPurchaseMessage] 콜백으로 전달하고, 화면
-/// 쪽(BuildContext가 있는 곳)에서 lib/l10n/purchase_l10n.dart의
-/// purchaseMessageText()를 통해 [AppLocalizations] 기반 문자열로 바꿔
-/// 스낵바 등에 표시한다 (다른 서비스들의 l10n "Kind" 패턴과 동일).
 enum PurchaseMessageKind {
   /// 웹 프리뷰에서는 인앱 결제를 테스트할 수 없음.
   webNotSupported,
@@ -73,185 +64,15 @@ const String kLightEssence1000ProductId = 'light_essence_1000';
 ///   "내부 테스트" 트랙에 업로드되어 있어야 한다. (자세한 절차는 채팅 안내 참고)
 class PurchaseService {
   PurchaseService._();
-  static final PurchaseService instance = PurchaseService._();
-
-  bool get billingConfigured => false; // Enable only after integrated receipt verification.
-
-  late final InAppPurchase _iap = InAppPurchase.instance;
-  StreamSubscription<List<PurchaseDetails>>? _subscription;
-  bool _initialized = false;
-
-  /// 상품 ID -> 구매/복원 확인 시 호출할 잠금 해제 콜백.
-  final Map<String, void Function()> _unlockCallbacks = {};
-
-  /// 구매 실패/취소/스토어 미가용 등 사용자에게 안내가 필요한 상황에 호출된다.
-  /// 실제 문자열이 아니라 [PurchaseMessage](언어 중립 kind)를 전달하므로,
-  /// 호출부(BuildContext가 있는 화면)에서 purchaseMessageText()로 번역해
-  /// 표시해야 한다.
-  void Function(PurchaseMessage message)? onPurchaseMessage;
-
-  /// 결제가 진행 중(pending)임을 UI에 알리기 위한 콜백.
+  static final instance = PurchaseService._();
+  bool get billingConfigured => false;
+  void Function(PurchaseMessage)? onPurchaseMessage;
   void Function()? onPurchasePending;
-
-  /// 특정 상품이 구매/복원되었을 때 실행할 콜백을 등록한다.
-  /// GardenProvider.init()에서 앱 시작 시 한 번 등록해두면, 이후 구매 완료 시
-  /// [purchaseStream]을 통해 비동기로 이 콜백이 호출되어 로컬 저장소를 갱신한다.
-  void registerProduct(String productId, void Function() onUnlocked) {
-    _unlockCallbacks[productId] = onUnlocked;
-  }
-
-  Future<void> init() async {
-    if (kIsWeb || _initialized || !billingConfigured) return;
-    try {
-      final available = await _iap.isAvailable();
-      if (!available) return;
-      _subscription = _iap.purchaseStream.listen(
-        _handlePurchaseUpdates,
-        onDone: () => _subscription?.cancel(),
-        onError: (Object e) {
-          if (kDebugMode) debugPrint('IAP stream error: $e');
-        },
-      );
-      _initialized = true;
-    } catch (e) {
-      if (kDebugMode) debugPrint('PurchaseService init failed: $e');
-    }
-  }
-
-  void dispose() {
-    _subscription?.cancel();
-  }
-
-  /// [productId] 상품 구매를 시작한다. 결과는 [purchaseStream]을 통해 비동기로
-  /// 전달되며, 여기서는 "구매 요청이 정상적으로 접수되었는지"만 반환한다.
-  Future<bool> buyProduct(String productId) async {
-    if (kIsWeb) {
-      onPurchaseMessage?.call(
-        const PurchaseMessage(PurchaseMessageKind.webNotSupported),
-      );
-      return false;
-    }
-    await init();
-    if (!_initialized) {
-      onPurchaseMessage?.call(
-        const PurchaseMessage(PurchaseMessageKind.serviceUnavailable),
-      );
-      return false;
-    }
-    try {
-      final response = await _iap.queryProductDetails({productId});
-      if (response.error != null || response.productDetails.isEmpty) {
-        onPurchaseMessage?.call(
-          const PurchaseMessage(PurchaseMessageKind.productNotFound),
-        );
-        return false;
-      }
-      final purchaseParam = PurchaseParam(
-        productDetails: response.productDetails.first,
-      );
-      return await _iap.buyNonConsumable(purchaseParam: purchaseParam);
-    } catch (e) {
-      if (kDebugMode) debugPrint('buyProduct($productId) failed: $e');
-      onPurchaseMessage?.call(
-        const PurchaseMessage(PurchaseMessageKind.requestFailed),
-      );
-      return false;
-    }
-  }
-
-  /// [productId] 소모성(consumable) 상품 구매를 시작한다. 빛의 정수 충전팩처럼
-  /// 여러 번 반복 구매가 가능해야 하는 상품은 [buyProduct](비소모성)이 아니라
-  /// 반드시 이 메서드를 사용해야 하며, Play Console에도 "소모성"으로 등록해야
-  /// 두 번째 구매부터 정상 동작한다. 결과는 [buyProduct]와 동일하게
-  /// [purchaseStream]을 통해 비동기로 전달된다.
-  Future<bool> buyConsumable(String productId) async {
-    if (kIsWeb) {
-      onPurchaseMessage?.call(
-        const PurchaseMessage(PurchaseMessageKind.webNotSupported),
-      );
-      return false;
-    }
-    await init();
-    if (!_initialized) {
-      onPurchaseMessage?.call(
-        const PurchaseMessage(PurchaseMessageKind.serviceUnavailable),
-      );
-      return false;
-    }
-    try {
-      final response = await _iap.queryProductDetails({productId});
-      if (response.error != null || response.productDetails.isEmpty) {
-        onPurchaseMessage?.call(
-          const PurchaseMessage(PurchaseMessageKind.productNotFound),
-        );
-        return false;
-      }
-      final purchaseParam = PurchaseParam(
-        productDetails: response.productDetails.first,
-      );
-      return await _iap.buyConsumable(
-        purchaseParam: purchaseParam,
-        autoConsume: true,
-      );
-    } catch (e) {
-      if (kDebugMode) debugPrint('buyConsumable($productId) failed: $e');
-      onPurchaseMessage?.call(
-        const PurchaseMessage(PurchaseMessageKind.requestFailed),
-      );
-      return false;
-    }
-  }
-
-  /// 이전에 구매한 내역을 모두 다시 불러온다(기기 변경/재설치 시 사용).
-  /// 등록된 모든 상품에 대해 [purchaseStream]으로 restored 이벤트가 전달된다.
+  void registerProduct(String id, void Function() unlock) {}
+  Future<void> init() async {}
+  Future<bool> buyProduct(String id) async => false;
+  Future<bool> buyConsumable(String id) async => false;
   Future<void> restorePurchases() async {
-    if (kIsWeb) {
-      onPurchaseMessage?.call(
-        const PurchaseMessage(PurchaseMessageKind.webRestoreNotSupported),
-      );
-      return;
-    }
-    await init();
-    if (!_initialized) return;
-    try {
-      await _iap.restorePurchases();
-    } catch (e) {
-      if (kDebugMode) debugPrint('restorePurchases failed: $e');
-    }
-  }
-
-  void _handlePurchaseUpdates(List<PurchaseDetails> purchases) {
-    for (final purchase in purchases) {
-      final unlock = _unlockCallbacks[purchase.productID];
-      if (unlock == null) continue; // 등록되지 않은(모르는) 상품 ID는 무시.
-      switch (purchase.status) {
-        case PurchaseStatus.pending:
-          onPurchasePending?.call();
-          break;
-        case PurchaseStatus.purchased:
-        case PurchaseStatus.restored:
-          unlock();
-          if (purchase.pendingCompletePurchase) {
-            _iap.completePurchase(purchase);
-          }
-          break;
-        case PurchaseStatus.error:
-          onPurchaseMessage?.call(
-            PurchaseMessage(
-              PurchaseMessageKind.storeError,
-              detail: purchase.error?.message,
-            ),
-          );
-          if (purchase.pendingCompletePurchase) {
-            _iap.completePurchase(purchase);
-          }
-          break;
-        case PurchaseStatus.canceled:
-          if (purchase.pendingCompletePurchase) {
-            _iap.completePurchase(purchase);
-          }
-          break;
-      }
-    }
+    await SubscriptionService().restorePurchases();
   }
 }

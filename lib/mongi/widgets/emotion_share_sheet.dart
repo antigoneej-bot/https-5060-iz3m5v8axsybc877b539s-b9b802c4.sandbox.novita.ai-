@@ -1,3 +1,4 @@
+import '../../widgets/subscription_gate.dart';
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
@@ -139,6 +140,13 @@ class _EmotionShareSheetState extends State<EmotionShareSheet> {
 
   Future<void> _share() async {
     if (_sharing) return;
+    final garden = context.read<GardenProvider>();
+    await garden.refreshSubscription();
+    if (!mounted) return;
+    if (_selectedFrame.isPremium && !garden.premiumFramesUnlocked) {
+      await _showPurchaseSheet();
+      return;
+    }
     final l10n = AppLocalizations.of(context);
     setState(() => _sharing = true);
     try {
@@ -186,61 +194,9 @@ class _EmotionShareSheetState extends State<EmotionShareSheet> {
   /// 구매 성공/복원 여부는 [GardenProvider.premiumFramesUnlocked]가 콜백을 통해
   /// 비동기로 갱신되며, 이 위젯은 [context.watch]로 그 값을 구독하고 있어 자동으로 반영된다.
   Future<void> _showPurchaseSheet() async {
-    final garden = context.read<GardenProvider>();
-    // 출시 전 "관심 등록" 실험은 이제 실제 구매 퍼널 최상단 클릭(노출)으로 대체해서 계속 집계한다.
-    await garden.registerPremiumFrameInterest();
+    await requestSubscription(context);
     if (!mounted) return;
-
-    final l10n = AppLocalizations.of(context);
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l10n.sharePremiumDialogTitle),
-        content: Text(l10n.sharePremiumDialogBody),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(l10n.sharePremiumDialogLater),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: widget.emotion.color,
-              foregroundColor: Colors.white,
-            ),
-            child: Text(l10n.sharePremiumDialogBuy),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true || !mounted) return;
-
-    setState(() => _purchasing = true);
-    PurchaseService.instance.onPurchaseMessage = (message) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(purchaseMessageText(l10n, message))),
-      );
-      setState(() => _purchasing = false);
-    };
-    PurchaseService.instance.onPurchasePending = () {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.sharePurchaseProcessingSnackbar)),
-      );
-    };
-
-    final submitted = await garden.buyPremiumFrames();
-    if (!mounted) return;
-    if (!submitted) {
-      setState(() => _purchasing = false);
-    } else {
-      // 실제 구매 확정/복원은 purchaseStream을 통해 비동기로 들어오므로,
-      // 잠시 대기 상태만 유지하다가 구매 완료 콜백(위)에서 스낵바로 안내되면 풀어준다.
-      Future<void>.delayed(const Duration(seconds: 6), () {
-        if (mounted) setState(() => _purchasing = false);
-      });
-    }
+    await context.read<GardenProvider>().refreshSubscription();
   }
 
   @override
@@ -306,7 +262,7 @@ class _EmotionShareSheetState extends State<EmotionShareSheet> {
                   isLocked
                       ? (_purchasing
                             ? l10n.sharePurchaseConfirming
-                            : l10n.sharePurchasePremiumButton)
+                            : '마음냥 구독 알아보기')
                       : (_sharing
                             ? l10n.shareCreatingCard
                             : l10n.shareCardButton),

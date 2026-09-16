@@ -1,50 +1,125 @@
+import 'dart:async';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
-
+import '../../services/cloud_service.dart';
 import '../services/ad_service.dart';
+import '../services/consent_service.dart';
 
-/// 홈 화면 등에 상시 배치하는 작은 배너 광고 슬롯.
-///
-/// 광고가 아직 로드되지 않았거나(웹/로딩 실패 포함) 로드에 실패한 동안에는
-/// 화면에 아무 공간도 차지하지 않는다(SizedBox.shrink) - 로딩 중 빈 회색
-/// 박스가 힐링 게임의 따뜻한 톤을 방해하지 않도록 하기 위함이다.
 class BannerAdSlot extends StatefulWidget {
   const BannerAdSlot({super.key});
-
   @override
   State<BannerAdSlot> createState() => _BannerAdSlotState();
 }
 
-class _BannerAdSlotState extends State<BannerAdSlot> {
-  BannerAd? _bannerAd;
+class _BannerAdSlotState extends State<BannerAdSlot>
+    with WidgetsBindingObserver {
+  BannerAd? _banner;
   bool _loaded = false;
+  int _generation = 0;
+  Timer? _timer;
+  StreamSubscription<User?>? _authChanges;
 
   @override
   void initState() {
     super.initState();
-    _bannerAd = AdService.instance.createBannerAd(
-      onLoaded: () {
-        if (mounted) setState(() => _loaded = true);
+    WidgetsBinding.instance.addObserver(this);
+    CloudService.entitlementChanges.addListener(_changed);
+    ConsentService.instance.changes.addListener(_changed);
+    if (CloudService.enabled) {
+      _authChanges = FirebaseAuth.instance.authStateChanges().listen(
+        (_) => _changed(),
+      );
+    }
+    _refresh();
+    _timer = Timer.periodic(const Duration(seconds: 30), (_) => _refresh());
+  }
+
+  void _clear() {
+    final previous = _banner;
+    _banner = null;
+    _loaded = false;
+    if (mounted) setState(() {});
+    // Remove AdWidget before releasing its native view.
+    WidgetsBinding.instance.addPostFrameCallback((_) => previous?.dispose());
+  }
+
+  void _changed() {
+    _generation++;
+    _clear();
+    _refresh();
+  }
+
+  Future<void> _refresh() async {
+    final generation = ++_generation;
+    final allowed = await AdService.instance.allowed();
+    if (!mounted || generation != _generation) return;
+    if (!allowed) {
+      _clear();
+      return;
+    }
+    if (_banner != null) return;
+    BannerAd? candidate;
+    candidate = await AdService.instance.createBannerAd(
+      onLoaded: () async {
+        final allowed = await AdService.instance.allowed();
+        if (!mounted || candidate != _banner) return;
+        if (!allowed) {
+          _clear();
+          return;
+        }
+        setState(() => _loaded = true);
+      },
+      onFailed: () {
+        if (mounted && candidate == _banner) _clear();
       },
     );
+    if (!mounted || generation != _generation) {
+      candidate?.dispose();
+      return;
+    }
+    _banner = candidate;
+    try {
+      await candidate?.load();
+    } catch (_) {
+      if (mounted && candidate == _banner) _clear();
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _changed();
   }
 
   @override
   void dispose() {
-    _bannerAd?.dispose();
+    _generation++;
+    _timer?.cancel();
+    _authChanges?.cancel();
+    CloudService.entitlementChanges.removeListener(_changed);
+    ConsentService.instance.changes.removeListener(_changed);
+    WidgetsBinding.instance.removeObserver(this);
+    _banner?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final ad = _bannerAd;
-    if (ad == null || !_loaded) return const SizedBox.shrink();
-    return Container(
-      alignment: Alignment.center,
-      width: ad.size.width.toDouble(),
-      height: ad.size.height.toDouble(),
-      margin: const EdgeInsets.only(top: 6),
-      child: AdWidget(ad: ad),
+    final ad = _banner;
+    if (!_loaded || ad == null) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text('광고', style: TextStyle(fontSize: 10, color: Colors.grey)),
+          SizedBox(
+            width: ad.size.width.toDouble(),
+            height: ad.size.height.toDouble(),
+            child: AdWidget(ad: ad),
+          ),
+        ],
+      ),
     );
   }
 }

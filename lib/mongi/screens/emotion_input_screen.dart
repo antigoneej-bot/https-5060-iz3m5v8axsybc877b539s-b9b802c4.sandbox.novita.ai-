@@ -1,3 +1,4 @@
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../theme.dart' show AppColors;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -53,6 +54,21 @@ class EmotionInputScreen extends StatefulWidget {
 }
 
 class _EmotionInputScreenState extends State<EmotionInputScreen> {
+  bool _starting = false;
+  Future<void> _restoreSelection() async {
+    final prefs = await SharedPreferences.getInstance();
+    final names = prefs.getStringList('mongi_last_emotions') ?? [];
+    if (!mounted || _selected.isNotEmpty) return;
+    setState(() {
+      _selected.addAll(
+        Emotion.all.where((e) => names.contains(e.type.name)).take(3),
+      );
+      _intensity = (prefs.getDouble('mongi_last_intensity') ?? 3)
+          .clamp(1, 5)
+          .toDouble();
+    });
+  }
+
   static const int _maxSelectable = 3;
   final TextEditingController _nameController = TextEditingController();
   final List<Emotion> _selected = [];
@@ -69,7 +85,7 @@ class _EmotionInputScreenState extends State<EmotionInputScreen> {
     super.initState();
     // 화면에 처음 들어왔을 때(하루에 한 번), 몽이가 먼저 "오늘 기분은 어때?"를 묻는다.
     // 이미 오늘 체크인했다면 DailyCheckInSheet.showIfNeeded가 조용히 아무것도 하지 않는다.
-    WidgetsBinding.instance.addPostFrameCallback((_) => _maybeShowCheckIn());
+    WidgetsBinding.instance.addPostFrameCallback((_) => _restoreSelection());
     // "몽이의 하루" - 오늘의 이스터에그 대사를 준비한다(하루 한 번만 새로 뽑힘).
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) context.read<GardenProvider>().ensureTodayEasterEgg();
@@ -147,9 +163,30 @@ class _EmotionInputScreenState extends State<EmotionInputScreen> {
   }
 
   Future<void> _start({bool practice = false}) async {
-    if (_selected.isEmpty) return;
+    if (_starting) return;
+    setState(() => _starting = true);
+    try {
+      await _startRun(practice: practice);
+    } catch (_) {
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('게임을 시작하지 못했어요. 다시 시도해 주세요.')),
+        );
+    } finally {
+      if (mounted) setState(() => _starting = false);
+    }
+  }
+
+  Future<void> _startRun({bool practice = false}) async {
+    if (_selected.isEmpty)
+      _selected.add(Emotion.all.firstWhere((e) => e.type == EmotionType.calm));
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(
+      'mongi_last_emotions',
+      _selected.map((e) => e.type.name).toList(),
+    );
+    await prefs.setDouble('mongi_last_intensity', _intensity);
     if (!mounted) return;
-    if (!practice) await _maybeOfferBreathing();
     if (!mounted) return;
     final name = _nameController.text.trim();
     await Navigator.of(context).push(
@@ -162,12 +199,10 @@ class _EmotionInputScreenState extends State<EmotionInputScreen> {
         ),
       ),
     );
-    // 게임에서 돌아오면 선택 초기화 (다음 판을 위해)
+    // Preserve the last selected emotions for one-tap continuation.
     if (mounted) {
       setState(() {
-        _selected.clear();
         _nameController.clear();
-        _intensity = 3;
       });
     }
     // 종료 버튼으로 나온 경우 SoundManager.stopEverything()이 새소리/
@@ -223,9 +258,7 @@ class _EmotionInputScreenState extends State<EmotionInputScreen> {
     SoundManager.instance.startAmbientNature();
     if (mounted) {
       setState(() {
-        _selected.clear();
         _nameController.clear();
-        _intensity = 3;
       });
     }
   }
@@ -249,9 +282,7 @@ class _EmotionInputScreenState extends State<EmotionInputScreen> {
     );
     if (mounted) {
       setState(() {
-        _selected.clear();
         _nameController.clear();
-        _intensity = 3;
       });
     }
   }
@@ -349,22 +380,34 @@ class _EmotionInputScreenState extends State<EmotionInputScreen> {
                       ),
                     ),
                     const SizedBox(height: 24),
-                    _buildNameField(),
-                    const SizedBox(height: 18),
-                    _buildHowToUseCard(),
-                    const SizedBox(height: 18),
-                    _buildEmotionGrid(),
-                    if (_selected.isNotEmpty) ...[
-                      const SizedBox(height: 14),
-                      _buildIntensitySlider(),
-                    ],
-                    const SizedBox(height: 10),
-                    _buildFriendlyCaption(),
-                    const SizedBox(height: 18),
                     _buildStartButton(),
+                    const SizedBox(height: 6),
+                    const Text(
+                      '선택 없이도 시작할 수 있어요. 게임 속 감정은 아래에서 바꿀 수 있어요.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 12),
+                    ),
+                    const SizedBox(height: 12),
+                    ExpansionTile(
+                      title: const Text('감정과 난이도 바꾸기 · 선택'),
+                      children: [
+                        _buildNameField(),
+                        const SizedBox(height: 18),
+                        _buildHowToUseCard(),
+                        const SizedBox(height: 18),
+                        _buildEmotionGrid(),
+                        if (_selected.isNotEmpty) ...[
+                          const SizedBox(height: 14),
+                          _buildIntensitySlider(),
+                        ],
+                        const SizedBox(height: 10),
+                        _buildFriendlyCaption(),
+                        const SizedBox(height: 18),
+                      ],
+                    ),
                     const SizedBox(height: 8),
                     OutlinedButton.icon(
-                      onPressed: _selected.isEmpty
+                      onPressed: _starting
                           ? null
                           : () => _start(practice: true),
                       icon: const Icon(Icons.spa_outlined),
@@ -2090,10 +2133,8 @@ class _EmotionInputScreenState extends State<EmotionInputScreen> {
 
   Widget _buildStartButton() {
     final l10n = AppLocalizations.of(context);
-    final enabled = _selected.isNotEmpty;
-    final label = enabled
-        ? l10n.homeStartButtonEnabled(_selected.length, _maxSelectable)
-        : l10n.homeStartButtonDisabled(_maxSelectable);
+    final enabled = !_starting;
+    const label = '이어 달리기';
     return SizedBox(
       width: double.infinity,
       height: 56,

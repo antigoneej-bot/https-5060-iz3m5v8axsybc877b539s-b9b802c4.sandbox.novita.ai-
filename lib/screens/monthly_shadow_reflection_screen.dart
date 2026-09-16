@@ -1,3 +1,4 @@
+import '../widgets/subscription_gate.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_state_provider.dart';
@@ -39,10 +40,16 @@ class _MonthlyShadowReflectionScreenState
 
   @override
   Widget build(BuildContext context) {
+    return SubscriptionGate(
+      message: '월간 감정 분석은 마음냥 구독에 포함돼요.',
+      builder: (_) => _content(context),
+    );
+  }
+
+  Widget _content(BuildContext context) {
     final app = context.watch<AppStateProvider>();
     final hasData = app.hasAnyEntryThisMonth();
     final (firstHalf, secondHalf) = app.monthlyHalvesDominantCatIds();
-
     return Scaffold(
       body: GardenScaffoldBackground(
         child: SafeArea(

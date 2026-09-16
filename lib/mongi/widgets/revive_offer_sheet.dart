@@ -1,10 +1,10 @@
 import '../../theme.dart' show AppColors;
+import '../../widgets/subscription_gate.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../l10n/gen/app_localizations.dart';
 import '../providers/garden_provider.dart';
-import '../services/ad_service.dart';
 import '../services/revive_service.dart';
 
 /// "이어하기" 제안 시트.
@@ -70,22 +70,15 @@ class _ReviveOfferSheetState extends State<ReviveOfferSheet> {
   bool _insufficientFunds = false;
 
   Future<void> _watchAd() async {
-    setState(() => _watchingAd = true);
-    await AdService.instance.showRewarded(
-      onResult: (rewarded) {
-        if (!mounted) return;
-        Navigator.of(context).pop(rewarded);
-      },
-    );
-    // 혹시 onResult가 어떤 이유로든 못 불렸을 때를 대비한 안전장치.
-    if (mounted && _watchingAd) {
-      setState(() => _watchingAd = false);
-    }
+    await _buyRevive();
   }
 
   /// "생명의 물"로 광고 없이 즉시 부활한다. 화폐가 모자라면 안내만 하고
   /// 시트는 그대로 유지한다(다른 선택지를 고를 수 있도록).
   Future<void> _buyRevive() async {
+    if (!await requestSubscription(context, message: '생명의 물 사용은 마음냥 구독에 포함돼요.'))
+      return;
+    if (!mounted) return;
     setState(() {
       _buyingRevive = true;
       _insufficientFunds = false;
@@ -234,9 +227,7 @@ class _ReviveOfferSheetState extends State<ReviveOfferSheet> {
       Image.asset('assets/mongi/images/cat_cry.png', height: 84),
       const SizedBox(height: 12),
       Text(
-        isSecondTime
-            ? l10n.reviveAdOfferSubtitleSecondTime
-            : l10n.reviveAdOfferSubtitleFirstTime,
+        '이번 판의 무료 이어하기를 모두 사용했어요.',
         style: const TextStyle(
           fontSize: 13,
           fontWeight: FontWeight.w700,
@@ -254,7 +245,7 @@ class _ReviveOfferSheetState extends State<ReviveOfferSheet> {
       ),
       const SizedBox(height: 8),
       Text(
-        l10n.reviveAdOfferBody,
+        '여기서 마쳐도 플레이 기록은 남아요. 구독 중에는 모은 빛의 정수로 생명의 물을 사용할 수 있어요.',
         textAlign: TextAlign.center,
         style: const TextStyle(
           fontSize: 13,
@@ -307,10 +298,10 @@ class _ReviveOfferSheetState extends State<ReviveOfferSheet> {
       SizedBox(
         width: double.infinity,
         child: OutlinedButton.icon(
-          onPressed: _buyingRevive ? null : _watchAd,
+          onPressed: _buyingRevive ? null : () => requestSubscription(context),
           icon: const Icon(Icons.play_circle_fill),
           label: Text(
-            l10n.reviveWatchAdButton,
+            '마음냥 구독 알아보기',
             style: const TextStyle(fontWeight: FontWeight.w800),
           ),
           style: OutlinedButton.styleFrom(

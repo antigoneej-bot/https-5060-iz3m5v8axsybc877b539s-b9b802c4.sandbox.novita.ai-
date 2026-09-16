@@ -1,3 +1,4 @@
+import '../../services/subscription_service.dart';
 import '../integration/session_transaction.dart';
 import '../../services/hive_encryption.dart';
 import '../integration/mongi_garden_store.dart';
@@ -424,9 +425,11 @@ class GardenStorage {
 
   /// 씨앗 종류(id)별로 지금까지 물을 준(=심은) 누적 횟수. 이 숫자가 쌓일수록
   /// "몽이의 작은 정원" 화면에서 해당 씨앗이 눈에 보이게 성장한다.
-  Map<String, int> get seedCounts => Map.of(MongiGardenStore.instance.value.seeds);
+  Map<String, int> get seedCounts =>
+      Map.of(MongiGardenStore.instance.value.seeds);
 
-  Future<void> plantSeed(String seedId) => MongiGardenStore.instance.plantOriginalReward(seedId);
+  Future<void> plantSeed(String seedId) =>
+      MongiGardenStore.instance.plantOriginalReward(seedId);
 
   /// 처음 실행 시 보여주는 튜토리얼(온보딩)을 이미 봤는지 여부.
   bool get hasSeenOnboarding =>
@@ -487,9 +490,11 @@ class GardenStorage {
   }
 
   /// 지금 정원에 배치해서 보여주고 있는 장식 아이템 id 목록.
-  List<String> get equippedDecorations => MongiGardenStore.instance.value.placed.toList();
+  List<String> get equippedDecorations =>
+      MongiGardenStore.instance.value.placed.toList();
 
-  Future<void> setEquippedDecorations(List<String> ids) => MongiGardenStore.instance.placeOriginalDecorations(ids);
+  Future<void> setEquippedDecorations(List<String> ids) =>
+      MongiGardenStore.instance.placeOriginalDecorations(ids);
 
   /// 프리미엄 정원 장식팩(종이등/무지개 울타리/반짝이는 별빛)을 실제로 구매해서
   /// 잠금 해제했는지 여부. [PurchaseService]가 구매 확인 시 이 값을 true로 저장한다.
@@ -747,8 +752,10 @@ class GardenStorage {
   /// 지금까지 쌓인 "빛의 정수"(소프트 화폐) 잔액.
   int get lightEssence => MongiGardenStore.instance.value.essence;
 
-  Future<void> addLightEssence(int amount) => MongiGardenStore.instance.addOriginalEssence(amount);
-  Future<bool> spendLightEssence(int amount) => MongiGardenStore.instance.spendOriginalEssence(amount);
+  Future<void> addLightEssence(int amount) =>
+      MongiGardenStore.instance.addOriginalEssence(amount);
+  Future<bool> spendLightEssence(int amount) =>
+      MongiGardenStore.instance.spendOriginalEssence(amount);
 
   /// 지금까지 쌓인 "별조각"(하드 화폐) 잔액.
   int get starShard => _box.get(_keyStarShard, defaultValue: 0) as int;
@@ -783,6 +790,7 @@ class GardenStorage {
   /// 파워 부적 1개를 사용한다. 보유 개수가 0이면 false를 반환하고 아무
   /// 것도 차감하지 않는다.
   Future<bool> consumePowerCharm() async {
+    if (!await SubscriptionService().isPremium()) return false;
     if (powerCharmCount <= 0) return false;
     await _box.put(_keyPowerCharmCount, powerCharmCount - 1);
     return true;

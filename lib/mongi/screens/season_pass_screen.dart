@@ -1,3 +1,4 @@
+import '../../widgets/subscription_gate.dart';
 import '../../theme.dart' show AppColors;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -75,54 +76,9 @@ class _SeasonPassScreenState extends State<SeasonPassScreen> {
   }
 
   Future<void> _showPurchaseConfirm() async {
-    final l10n = AppLocalizations.of(context);
-    final garden = context.read<GardenProvider>();
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l10n.seasonPassPurchaseDialogTitle),
-        content: Text(l10n.seasonPassPurchaseDialogBody),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(l10n.sharePremiumDialogLater),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFFA36BE0),
-            ),
-            child: Text(l10n.sharePremiumDialogBuy),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true || !mounted) return;
-
-    setState(() => _purchasing = true);
-    PurchaseService.instance.onPurchaseMessage = (message) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(purchaseMessageText(l10n, message))),
-      );
-      setState(() => _purchasing = false);
-    };
-    PurchaseService.instance.onPurchasePending = () {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.sharePurchaseProcessingSnackbar)),
-      );
-    };
-
-    final submitted = await garden.buySeasonPassPremium();
+    await requestSubscription(context);
     if (!mounted) return;
-    if (!submitted) {
-      setState(() => _purchasing = false);
-    } else {
-      Future<void>.delayed(const Duration(seconds: 6), () {
-        if (mounted) setState(() => _purchasing = false);
-      });
-    }
+    await context.read<GardenProvider>().refreshSubscription();
   }
 
   Future<void> _onRestore() async {
@@ -557,7 +513,7 @@ class _SeasonPassScreenState extends State<SeasonPassScreen> {
                       ),
                     )
                   : Text(
-                      l10n.seasonPassUpgradeButton,
+                      '마음냥 구독에 포함돼요',
                       style: const TextStyle(fontWeight: FontWeight.w800),
                     ),
             ),

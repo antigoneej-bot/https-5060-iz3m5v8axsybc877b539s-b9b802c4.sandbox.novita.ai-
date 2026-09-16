@@ -1,3 +1,4 @@
+import '../../widgets/subscription_gate.dart';
 import '../../theme.dart' show AppColors;
 import 'dart:async';
 
@@ -128,19 +129,29 @@ class _RunnerGameScreenState extends State<RunnerGameScreen> {
   /// "파워 부적" 사용 - 보유한 부적이 있으면 즉시 하나를 소비해 [RunnerGame.
   /// activatePowerMode]를 발동한다(우연히 만나는 파워빛볼과 완전히 동일한
   /// 효과 - 10초 무적). 보유 개수가 0이면 대신 구매 시트를 열어준다.
+  bool _usingPowerCharm = false;
   Future<void> _usePowerCharm() async {
     if (widget.practice) return;
-    final garden = context.read<GardenProvider>();
-    if (garden.powerCharmCount <= 0) {
-      _game.pauseEngine();
-      await PowerCharmShopSheet.show(context);
-      if (!mounted) return;
-      _game.resumeEngine();
-      return;
+    if (_usingPowerCharm) return;
+    _usingPowerCharm = true;
+    _game.pauseEngine();
+    try {
+      final allowed = await requestSubscription(
+        context,
+        message: '모아둔 아이템을 사용하려면 마음냥 구독이 필요해요.',
+      );
+      if (!mounted || !allowed) return;
+      final garden = context.read<GardenProvider>();
+      if (garden.powerCharmCount <= 0) {
+        await PowerCharmShopSheet.show(context);
+        return;
+      }
+      final consumed = await garden.consumePowerCharm();
+      if (consumed && mounted) _game.activatePowerMode();
+    } finally {
+      _usingPowerCharm = false;
+      if (mounted) _game.resumeEngine();
     }
-    final consumed = await garden.consumePowerCharm();
-    if (!consumed || !mounted) return;
-    _game.activatePowerMode();
   }
 
   /// 6번(호흡 미니게임): "숨결 구슬"에 닿아 [RunnerGame.startBreathingMoment]가

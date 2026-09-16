@@ -69,7 +69,7 @@ async function status(uid, refresh = false) {
   const now = Date.now();
   const active = records.docs.map(d => d.data()).filter(e => e.active && Date.parse(e.expiresAt) > now)
     .sort((a,b) => Date.parse(b.expiresAt)-Date.parse(a.expiresAt));
-  return active[0] ?? {active:false, expiresAt:null, productId:null, checkedAt:new Date(now).toISOString()};
+  return active[0] ?? {active:false, state: records.empty ? 'free' : 'expired', expiresAt:null, productId:null, checkedAt:new Date(now).toISOString()};
 }
 async function rateLimit(uid, action) {
   const ref = db.doc(`users/${uid}/limits/${action}`);

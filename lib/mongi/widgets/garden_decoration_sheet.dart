@@ -1,3 +1,4 @@
+import '../../widgets/subscription_gate.dart';
 import '../../theme.dart' show AppColors;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -49,6 +50,8 @@ class _GardenDecorationSheetState extends State<GardenDecorationSheet> {
   Future<void> _onTapDecoration(GardenDecoration deco) async {
     final l10n = AppLocalizations.of(context);
     final garden = context.read<GardenProvider>();
+    await garden.refreshSubscription();
+    if (!mounted) return;
     if (garden.isDecorationUnlocked(deco)) {
       await garden.toggleDecorationEquipped(deco);
       return;
@@ -67,34 +70,9 @@ class _GardenDecorationSheetState extends State<GardenDecorationSheet> {
   }
 
   Future<void> _showPurchaseConfirm() async {
-    final l10n = AppLocalizations.of(context);
-    final garden = context.read<GardenProvider>();
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l10n.gardenDecoPurchaseDialogTitle),
-        content: Text(l10n.gardenDecoPurchaseDialogBody),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(l10n.sharePremiumDialogLater),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text(l10n.sharePremiumDialogBuy),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true) return;
+    await requestSubscription(context);
     if (!mounted) return;
-    setState(() => _purchasing = true);
-    final ok = await garden.buyDecorationPack();
-    if (!mounted) return;
-    setState(() => _purchasing = false);
-    if (!ok) {
-      _showSnack(l10n.gardenDecoPurchaseFailedSnackbar);
-    }
+    await context.read<GardenProvider>().refreshSubscription();
   }
 
   Future<void> _onRestore() async {

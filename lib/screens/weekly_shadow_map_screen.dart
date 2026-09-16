@@ -1,3 +1,4 @@
+import '../widgets/subscription_gate.dart';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -47,7 +48,12 @@ class _WeeklyShadowMapScreenState extends State<WeeklyShadowMapScreen> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => SubscriptionGate(
+    message: '상세 주간 분석은 마음냥 구독으로 이용해요. 기본 주간 통계는 무료예요.',
+    builder: (_) => _content(context),
+  );
+
+  Widget _content(BuildContext context) {
     final app = context.watch<AppStateProvider>();
     final hasData = app.weeklyEntryCount > 0;
 
@@ -99,8 +105,8 @@ class _WeeklyShadowMapScreenState extends State<WeeklyShadowMapScreen> {
                                 ),
                                 const SizedBox(height: 22),
                                 _DeeperInsightSection(
-                                  isPremium: _isPremium,
-                                  loading: _loadingPremium,
+                                  isPremium: true,
+                                  loading: false,
                                 ),
                               ],
                             ),
@@ -165,7 +171,11 @@ class _TopEmotionsCard extends StatelessWidget {
   final List<(String, int)> topEmotions;
   final int total;
   final List<MapEntry<DateTime, String?>> last7Days;
-  const _TopEmotionsCard({required this.topEmotions, required this.total, required this.last7Days});
+  const _TopEmotionsCard({
+    required this.topEmotions,
+    required this.total,
+    required this.last7Days,
+  });
 
   @override
   Widget build(BuildContext context) {

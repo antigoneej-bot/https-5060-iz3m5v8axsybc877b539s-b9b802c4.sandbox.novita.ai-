@@ -8,7 +8,13 @@ export function entitlement(purchase, now = Date.now()) {
   const items = (purchase.lineItems ?? []).filter(item => PRODUCTS.has(item.productId) && Number.isFinite(Date.parse(item.expiryTime)));
   items.sort((a,b) => Date.parse(b.expiryTime) - Date.parse(a.expiryTime));
   const item = items.find(item => Date.parse(item.expiryTime) > now);
-  return {active: allowed.has(purchase.subscriptionState) && !!item,
+  const active = allowed.has(purchase.subscriptionState) && !!item;
+  const trial = !!item?.offerPhase && Object.hasOwn(item.offerPhase, 'freeTrial');
+  const canceled = purchase.subscriptionState === 'SUBSCRIPTION_STATE_CANCELED' || item?.autoRenewingPlan?.autoRenewEnabled === false;
+  const state = !active ? (items.length ? 'expired' : 'free')
+    : canceled ? 'cancelScheduled' : trial ? 'trial' : 'active';
+  return {active, state, isTrial: active && trial,
+    autoRenewEnabled: item?.autoRenewingPlan?.autoRenewEnabled ?? null,
     productId: item?.productId ?? null, expiresAt: item?.expiryTime ?? null,
     checkedAt: new Date(now).toISOString()};
 }

@@ -1,6 +1,7 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb, debugPrint;
+import 'package:flutter/foundation.dart'
+    show kDebugMode, kIsWeb, debugPrint, ValueNotifier;
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 /// Google UMP(User Messaging Platform) 동의 관리 서비스.
@@ -18,6 +19,7 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 /// 웹(kIsWeb)에서는 google_mobile_ads 자체가 동작하지 않으므로 전부 no-op.
 class ConsentService {
   ConsentService._();
+  final changes = ValueNotifier<int>(0);
   static final ConsentService instance = ConsentService._();
 
   /// 진행 중인 동의 절차가 있으면 그 결과를 공유한다 - 여러 화면
@@ -102,6 +104,7 @@ class ConsentService {
           debugPrint('UMP privacy options form error: ${error.message}');
         }
         completed = true;
+        changes.value++;
       });
       return completed;
     } catch (e) {

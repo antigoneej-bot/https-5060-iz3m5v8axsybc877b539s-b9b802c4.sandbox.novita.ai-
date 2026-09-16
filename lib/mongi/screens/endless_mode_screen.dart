@@ -1,3 +1,4 @@
+import '../../widgets/subscription_gate.dart';
 import '../../theme.dart' show AppColors;
 import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
@@ -100,18 +101,28 @@ class _EndlessModeScreenState extends State<EndlessModeScreen> {
   /// "파워 부적" 사용 - 스테이지 모드(runner_game_screen.dart)와 동일한
   /// 로직. 보유한 부적이 있으면 즉시 소비해 무적 모드를 발동하고, 없으면
   /// 구매 시트를 열어준다.
+  bool _usingPowerCharm = false;
   Future<void> _usePowerCharm() async {
-    final garden = context.read<GardenProvider>();
-    if (garden.powerCharmCount <= 0) {
-      _game.pauseEngine();
-      await PowerCharmShopSheet.show(context);
-      if (!mounted) return;
-      _game.resumeEngine();
-      return;
+    if (_usingPowerCharm) return;
+    _usingPowerCharm = true;
+    _game.pauseEngine();
+    try {
+      final allowed = await requestSubscription(
+        context,
+        message: '모아둔 아이템을 사용하려면 마음냥 구독이 필요해요.',
+      );
+      if (!mounted || !allowed) return;
+      final garden = context.read<GardenProvider>();
+      if (garden.powerCharmCount <= 0) {
+        await PowerCharmShopSheet.show(context);
+        return;
+      }
+      final consumed = await garden.consumePowerCharm();
+      if (consumed && mounted) _game.activatePowerMode();
+    } finally {
+      _usingPowerCharm = false;
+      if (mounted) _game.resumeEngine();
     }
-    final consumed = await garden.consumePowerCharm();
-    if (!consumed || !mounted) return;
-    _game.activatePowerMode();
   }
 
   /// HUD에 흐른 시간을 실시간으로 보여주기 위한 1초 간격 갱신 루프.

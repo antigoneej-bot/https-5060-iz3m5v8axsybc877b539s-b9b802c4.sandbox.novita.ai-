@@ -8,6 +8,7 @@ import 'package:audioplayers_platform_interface/audioplayers_platform_interface.
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_app/widgets/meditation_video_player.dart';
+import 'package:flutter_app/services/subscription_service.dart';
 import 'package:flutter_app/mongi/integration/mongi_garden_store.dart';
 import 'support/fake_audioplayers_platform.dart';
 import 'support/fake_global_audioplayers_platform.dart';
@@ -63,6 +64,10 @@ void main() {
   ) async {
     GoogleFonts.config.allowRuntimeFetching = false;
     SharedPreferences.setMockInitialValues({});
+    // This test exercises the video playback/completion engine, not the
+    // subscription paywall, so simulate an active subscription.
+    SubscriptionService.debugIsPremiumOverride = true;
+    addTearDown(() => SubscriptionService.debugIsPremiumOverride = null);
     AudioplayersPlatformInterface.instance = FakeAudioplayersPlatform();
     GlobalAudioplayersPlatformInterface.instance =
         FakeGlobalAudioplayersPlatform();

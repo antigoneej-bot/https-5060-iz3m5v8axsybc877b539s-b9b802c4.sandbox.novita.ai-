@@ -22,6 +22,8 @@ void main() {
                 ? base64Encode(List<int>.filled(32, 7))
                 : null,
           );
+      PersonalReplyService.clock = () => DateTime(2026, 9, 16);
+      addTearDown(() => PersonalReplyService.clock = DateTime.now);
       final first = await PersonalReplyService.create(
         id: 'first',
         letterText: '나는 오늘 외로워.',
@@ -29,6 +31,7 @@ void main() {
         catName: '몽이',
       );
       await PersonalReplyService.setFeedback('first', 'off_topic');
+      PersonalReplyService.clock = () => DateTime(2026, 9, 17);
       await PersonalReplyService.create(
         id: 'second',
         letterText: '나는 오늘 외로워.',

@@ -1,3 +1,5 @@
+import '../services/access_policy.dart';
+import '../widgets/subscription_gate.dart';
 import '../widgets/reply_feedback.dart';
 import 'emotion_statistics_screen.dart';
 import 'package:flutter/material.dart';
@@ -203,7 +205,9 @@ class _CatMeetingSummaryTable extends StatelessWidget {
                         height: 10,
                         child: Stack(
                           children: [
-                            Container(color: Colors.white.withValues(alpha: 0.5)),
+                            Container(
+                              color: Colors.white.withValues(alpha: 0.5),
+                            ),
                             FractionallySizedBox(
                               widthFactor: ratio.clamp(0.03, 1.0),
                               child: Container(
@@ -272,7 +276,6 @@ class _ReflectionEntryRow extends StatelessWidget {
             MaterialPageRoute(builder: (_) => const EmotionStatisticsScreen()),
           ),
         ),
-
       ],
     );
   }
@@ -664,10 +667,21 @@ class _CatReplySectionState extends State<_CatReplySection> {
       future: _replyFuture,
       builder: (context, snapshot) {
         final reply = snapshot.data ?? '';
-        if (snapshot.hasError) return Column(children:[
-          const Text('답장을 준비하지 못했어요. 편지는 보관되어 있어요.'),
-          TextButton(onPressed:()=>setState(()=>_replyFuture=_loadReply()),child:const Text('다시 준비하기')),
-        ]);
+        if (snapshot.error is SubscriptionRequired)
+          return SubscriptionNotice(
+            message: snapshot.error.toString(),
+            onReturn: () => setState(() => _replyFuture = _loadReply()),
+          );
+        if (snapshot.hasError)
+          return Column(
+            children: [
+              const Text('답장을 준비하지 못했어요. 편지는 보관되어 있어요.'),
+              TextButton(
+                onPressed: () => setState(() => _replyFuture = _loadReply()),
+                child: const Text('다시 준비하기'),
+              ),
+            ],
+          );
         return Container(
           width: double.infinity,
           padding: const EdgeInsets.all(16),
@@ -719,8 +733,11 @@ class _CatReplySectionState extends State<_CatReplySection> {
                     height: 1.7,
                   ),
                 ),
-              if(snapshot.hasData) ReplyFeedback(key:ValueKey('letter:${entry.id}'),replyId:'letter:${entry.id}'),
-
+              if (snapshot.hasData)
+                ReplyFeedback(
+                  key: ValueKey('letter:${entry.id}'),
+                  replyId: 'letter:${entry.id}',
+                ),
             ],
           ),
         );
@@ -728,4 +745,3 @@ class _CatReplySectionState extends State<_CatReplySection> {
     );
   }
 }
-

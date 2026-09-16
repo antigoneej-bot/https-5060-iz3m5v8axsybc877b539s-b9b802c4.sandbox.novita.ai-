@@ -37,6 +37,7 @@ class _MongiExperienceState extends State<MongiExperience>
     await NotificationService.instance.init();
     if (!mounted) return;
     await context.read<GardenProvider>().ensureInitialized();
+    if (mounted) await context.read<GardenProvider>().refreshSubscription();
   }
 
   @override

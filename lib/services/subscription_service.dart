@@ -1,4 +1,7 @@
+import 'access_policy.dart';
 import 'cloud_service.dart';
+import 'package:in_app_purchase_android/billing_client_wrappers.dart'
+    show PricingPhaseWrapper;
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
@@ -33,10 +36,10 @@ class SubscriptionService {
   static const String displayPrice = '월 4,900원';
   static const String displayYearlyPrice = '연 29,000원';
   static const String displayYearlyMonthlyEquivalent = '월 2,417원 상당';
-  static const String yearlyDiscountLabel = '51% 할인';
+  static const String yearlyDiscountLabel = '약 51% 할인';
   static const String displayYearlyOriginalPrice = '58,800원';
   static const String yearlySavingsLabel = '29,800원 절약';
-  static const String earlybirdLabel = '정원 플러스 멤버십';
+  static const String earlybirdLabel = '마음냥 통합 구독';
   static const String earlybirdCaption = '구독은 언제든 해지할 수 있어요';
   static const String billingComingSoonLabel = '곧 스토어에서 만나요';
   static const String billingComingSoonCaption =
@@ -63,21 +66,56 @@ class SubscriptionService {
       await init();
       await _queryProducts();
     } catch (e) {
-      if (kDebugMode) debugPrint('SubscriptionService products unavailable: $e');
+      if (kDebugMode)
+        debugPrint('SubscriptionService products unavailable: $e');
     }
   }
 
   String productIdFor(SubscriptionPlan plan) =>
       plan == SubscriptionPlan.yearly ? yearlyProductId : monthlyProductId;
 
-  String priceLabelFor(SubscriptionPlan plan) {
-    final id = productIdFor(plan);
-    final store = _products[id];
-    if (store != null && store.price.isNotEmpty) {
-      return '${plan == SubscriptionPlan.yearly ? '연' : '월'} ${store.price}';
-    }
-    return '가격 확인 중';
+  List<PricingPhaseWrapper> _phases(ProductDetails? product) {
+    if (product is! GooglePlayProductDetails) return const [];
+    final index = product.subscriptionIndex;
+    final offers = product.productDetails.subscriptionOfferDetails;
+    if (index == null || offers == null || index < 0 || index >= offers.length)
+      return const [];
+    return offers[index].pricingPhases;
   }
+
+  List<StorePhase> _policyPhases(ProductDetails? product) => _phases(product)
+      .map(
+        (p) => StorePhase(
+          p.billingPeriod,
+          p.priceCurrencyCode,
+          p.priceAmountMicros,
+          p.billingCycleCount,
+        ),
+      )
+      .toList();
+
+  bool _trial(ProductDetails? product) =>
+      SubscriptionOfferPolicy.hasTrial(_policyPhases(product));
+  bool hasTrialFor(SubscriptionPlan plan) =>
+      _trial(_products[productIdFor(plan)]);
+  bool _matchesPolicy(ProductDetails product) =>
+      SubscriptionOfferPolicy.accepts(
+        _policyPhases(product),
+        yearly: product.id == yearlyProductId,
+      );
+
+  String priceLabelFor(SubscriptionPlan plan) {
+    final store = _products[productIdFor(plan)];
+    final phases = _phases(store);
+    if (phases.isNotEmpty) {
+      return '${plan == SubscriptionPlan.yearly ? '연' : '월'} ${phases.last.formattedPrice}';
+    }
+    return '${plan == SubscriptionPlan.yearly ? displayYearlyPrice : displayPrice} · 스토어 확인 중';
+  }
+
+  String offerLabelFor(SubscriptionPlan plan) => hasTrialFor(plan)
+      ? '15일 무료체험 후 ${priceLabelFor(plan)} 자동 결제 · 시작은 직접 선택해요'
+      : '무료체험이 확인되지 않았어요. 결제 전 스토어의 가격과 조건을 확인해 주세요.';
 
   /// 앱 시작 시 한 번 호출: 스토어 연결 + 미완료 구매 처리 + 상품 조회.
   Future<void> init() async {
@@ -122,7 +160,11 @@ class SubscriptionService {
     }
     _products.clear();
     for (final p in resp.productDetails) {
-      _products[p.id] = p;
+      if (!_matchesPolicy(p)) continue;
+      final previous = _products[p.id];
+      // Only offers returned by the store are considered; prefer the eligible
+      // 15-day offer, otherwise use the matching regular recurring plan.
+      if (previous == null || _trial(p)) _products[p.id] = p;
     }
     if (kDebugMode) {
       debugPrint(
@@ -134,50 +176,57 @@ class SubscriptionService {
 
   Future<void> _purchaseUpdates = Future.value();
   void _onPurchaseUpdates(List<PurchaseDetails> purchases) {
-    _purchaseUpdates = _purchaseUpdates.catchError((Object _) {}).then((_) => _processPurchaseUpdates(purchases));
+    _purchaseUpdates = _purchaseUpdates
+        .catchError((Object _) {})
+        .then((_) => _processPurchaseUpdates(purchases));
   }
+
   Future<void> _processPurchaseUpdates(List<PurchaseDetails> purchases) async {
     for (final purchase in purchases) {
       if (purchase.productID != monthlyProductId &&
-          purchase.productID != yearlyProductId) continue;
+          purchase.productID != yearlyProductId)
+        continue;
       try {
-      switch (purchase.status) {
-        case PurchaseStatus.pending:
-          break;
-        case PurchaseStatus.purchased:
-        case PurchaseStatus.restored:
-          final ok = CloudService.enabled
-              ? (await CloudService.verify(purchase.verificationData.serverVerificationData))['active'] == true
-              : _isActiveSubscription(purchase);
-          if (ok) {
-            _sawActiveEntitlement = true;
-            final plan = purchase.productID == yearlyProductId
-                ? SubscriptionPlan.yearly
-                : SubscriptionPlan.monthly;
-            await setPremium(true);
-            await setPlan(plan);
-          }
-          if (purchase.pendingCompletePurchase) {
-            await _iap.completePurchase(purchase);
-          }
-          _completePurchaseWait(ok);
-          break;
-        case PurchaseStatus.error:
-          if (kDebugMode) {
-            debugPrint('SubscriptionService error: ${purchase.error}');
-          }
-          if (purchase.pendingCompletePurchase) {
-            await _iap.completePurchase(purchase);
-          }
-          _completePurchaseWait(false);
-          break;
-        case PurchaseStatus.canceled:
-          if (purchase.pendingCompletePurchase) {
-            await _iap.completePurchase(purchase);
-          }
-          _completePurchaseWait(false);
-          break;
-      }
+        switch (purchase.status) {
+          case PurchaseStatus.pending:
+            break;
+          case PurchaseStatus.purchased:
+          case PurchaseStatus.restored:
+            final ok = CloudService.enabled
+                ? (await CloudService.verify(
+                        purchase.verificationData.serverVerificationData,
+                      ))['active'] ==
+                      true
+                : false;
+            if (ok) {
+              _sawActiveEntitlement = true;
+              final plan = purchase.productID == yearlyProductId
+                  ? SubscriptionPlan.yearly
+                  : SubscriptionPlan.monthly;
+              await setPremium(true);
+              await setPlan(plan);
+            }
+            if (purchase.pendingCompletePurchase) {
+              await _iap.completePurchase(purchase);
+            }
+            _completePurchaseWait(ok);
+            break;
+          case PurchaseStatus.error:
+            if (kDebugMode) {
+              debugPrint('SubscriptionService error: ${purchase.error}');
+            }
+            if (purchase.pendingCompletePurchase) {
+              await _iap.completePurchase(purchase);
+            }
+            _completePurchaseWait(false);
+            break;
+          case PurchaseStatus.canceled:
+            if (purchase.pendingCompletePurchase) {
+              await _iap.completePurchase(purchase);
+            }
+            _completePurchaseWait(false);
+            break;
+        }
       } catch (_) {
         // Leave incomplete purchases pending for a later verified retry.
         _completePurchaseWait(false);
@@ -201,14 +250,22 @@ class SubscriptionService {
     if (c != null && !c.isCompleted) c.complete(ok);
   }
 
+  /// Test-only override so widget/unit tests can simulate an active
+  /// subscription without a real server or store connection. Must stay
+  /// null in production; only ever set from test setUp/tearDown.
+  @visibleForTesting
+  static bool? debugIsPremiumOverride;
+
   Future<bool> isPremium() async {
+    final override = debugIsPremiumOverride;
+    if (override != null) return override;
     if (CloudService.enabled) return CloudService.cachedPremium();
     if (!storeBillingEnabled) {
       await _clearLocalPremiumFlag();
       return false;
     }
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_premiumKey) ?? false;
+    // Never grant access from an editable legacy preference alone.
+    return false;
   }
 
   Future<SubscriptionPlan> currentPlan() async {
@@ -245,7 +302,10 @@ class SubscriptionService {
     await prefs.setBool(_premiumKey, v);
     if (v) {
       if (!prefs.containsKey(_premiumSinceKey)) {
-        await prefs.setString(_premiumSinceKey, DateTime.now().toIso8601String());
+        await prefs.setString(
+          _premiumSinceKey,
+          DateTime.now().toIso8601String(),
+        );
       }
     } else {
       await prefs.remove(_premiumSinceKey);
@@ -260,9 +320,7 @@ class SubscriptionService {
     if (!CloudService.enabled) throw StateError('서버 결제 확인 준비 후 구매할 수 있어요.');
     if (!storeBillingEnabled) {
       if (kDebugMode) {
-        debugPrint(
-          'SubscriptionService: 스토어 결제 미연동 — purchasePremium 차단',
-        );
+        debugPrint('SubscriptionService: 스토어 결제 미연동 — purchasePremium 차단');
       }
       return false;
     }
@@ -281,7 +339,9 @@ class SubscriptionService {
       return false;
     }
 
-    final accountId = CloudService.enabled ? await CloudService.accountId() : null;
+    final accountId = CloudService.enabled
+        ? await CloudService.accountId()
+        : null;
     if (_purchaseCompleter != null) return false;
     _purchaseCompleter = Completer<bool>();
     late final PurchaseParam purchaseParam;
@@ -293,7 +353,10 @@ class SubscriptionService {
         applicationUserName: accountId,
       );
     } else {
-      purchaseParam = PurchaseParam(productDetails: product, applicationUserName: accountId);
+      purchaseParam = PurchaseParam(
+        productDetails: product,
+        applicationUserName: accountId,
+      );
     }
 
     try {
@@ -361,43 +424,34 @@ class SubscriptionService {
         return isPremium();
       }
       if (CloudService.enabled) {
-        for (final purchase in response.pastPurchases.where(_isActiveSubscription)) {
+        for (final purchase in response.pastPurchases.where(
+          _isActiveSubscription,
+        )) {
           try {
-            await CloudService.verify(purchase.verificationData.serverVerificationData);
+            await CloudService.verify(
+              purchase.verificationData.serverVerificationData,
+            );
           } on CloudException catch (error) {
-            if (error.code == 'purchase-owner-mismatch' || error.code == 'purchase-migration-required') continue;
+            if (error.code == 'purchase-owner-mismatch' ||
+                error.code == 'purchase-migration-required')
+              continue;
             rethrow;
           }
-          if (purchase.pendingCompletePurchase) await _iap.completePurchase(purchase);
+          if (purchase.pendingCompletePurchase)
+            await _iap.completePurchase(purchase);
         }
         final result = await CloudService.refreshEntitlement();
         if (result['active'] == true) {
-          await setPlan(result['productId'] == yearlyProductId ? SubscriptionPlan.yearly : SubscriptionPlan.monthly);
+          await setPlan(
+            result['productId'] == yearlyProductId
+                ? SubscriptionPlan.yearly
+                : SubscriptionPlan.monthly,
+          );
         }
         return result['active'] == true;
       }
-      final active = response.pastPurchases
-          .where(_isActiveSubscription).toList();
-      if (active.isEmpty) {
-        // A purchase update received during the query takes precedence.
-        if (!_sawActiveEntitlement && _purchaseCompleter == null) {
-          await _clearLocalPremiumFlag();
-        }
-        return isPremium();
-      }
-      final purchase = active.firstWhere(
-        (p) => p.productID == yearlyProductId,
-        orElse: () => active.first,
-      );
-      await setPremium(true);
-      await setPlan(purchase.productID == yearlyProductId
-          ? SubscriptionPlan.yearly : SubscriptionPlan.monthly);
-      for (final item in active) {
-        if (item.pendingCompletePurchase) {
-          await _iap.completePurchase(item);
-        }
-      }
-      return true;
+      restoreUnavailable = true;
+      return false;
     } catch (e) {
       restoreUnavailable = true;
       if (kDebugMode) debugPrint('SubscriptionService restore: $e');

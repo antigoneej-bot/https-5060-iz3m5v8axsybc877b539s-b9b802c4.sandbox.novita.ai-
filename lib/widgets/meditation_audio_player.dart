@@ -1,3 +1,5 @@
+import '../services/access_policy.dart';
+import 'subscription_gate.dart';
 import 'meditation_sleep_controls.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
@@ -52,6 +54,8 @@ class _MeditationAudioPlayerState extends State<MeditationAudioPlayer> {
     setState(() => _busy = true);
     try {
       await action();
+    } on SubscriptionRequired catch (error) {
+      if (mounted) await requestSubscription(context, message: error.message);
     } catch (_) {
       if (mounted)
         ScaffoldMessenger.of(context).showSnackBar(

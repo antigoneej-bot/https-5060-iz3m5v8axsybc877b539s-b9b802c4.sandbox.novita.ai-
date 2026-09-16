@@ -1,4 +1,6 @@
 import '../data/solutions_data.dart';
+import 'access_policy.dart';
+import 'subscription_service.dart';
 import 'meditation_library_store.dart';
 import 'meditation_sleep_service.dart';
 import 'dart:async';
@@ -52,6 +54,10 @@ class MeditationAudioService with WidgetsBindingObserver {
           if (key == 'rainThunderRest' &&
               identical(sleep.owner, this) &&
               sleep.repeat &&
+              AccessPolicy.meditationAllowed(
+                key,
+                await SubscriptionService().isPremium(),
+              ) &&
               (sleep.deadline == null || sleep.remaining > Duration.zero)) {
             await _player.seek(Duration.zero);
             position = Duration.zero;
@@ -128,6 +134,12 @@ class MeditationAudioService with WidgetsBindingObserver {
           MediaCoordinator.instance.release(this);
           return;
         }
+        final key = asset.split('/').last.split('.').first;
+        if (!AccessPolicy.meditationAllowed(
+          key,
+          await SubscriptionService().isPremium(),
+        ))
+          throw const SubscriptionRequired('전체 명상은 마음냥 구독으로 이용할 수 있어요.');
         await MediaCoordinator.instance.claim(this, _pauseDirect);
         await _player.setAudioContext(
           AudioContext(
@@ -193,7 +205,7 @@ class MeditationAudioService with WidgetsBindingObserver {
 
   /// A course must start a fresh run even if this same file was paused earlier.
   Future<void> stopForNewSession() => _queue(() async {
-    if(_asset==null)return;
+    if (_asset == null) return;
     await _pauseDirect();
     await _player.stop();
     _asset = null;

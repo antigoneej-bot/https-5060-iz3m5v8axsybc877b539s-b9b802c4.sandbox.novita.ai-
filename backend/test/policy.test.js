@@ -29,3 +29,18 @@ test('backup accepts only bounded encrypted envelope',()=>{
  assert.equal(validEnvelope({...envelope(),version:2}),false);
  assert.equal(validEnvelope({...envelope(),ciphertext:'a'.repeat(6*1024*1024+1)}),false);
 });
+
+test('verified current free-trial phase is distinguished from paid active',()=>{
+ const p=active(); p.lineItems[0].offerPhase={freeTrial:{}};
+ assert.equal(entitlement(p,now).state,'trial');
+ assert.equal(entitlement(p,now).isTrial,true);
+ assert.equal(entitlement(active(),now).state,'active');
+});
+test('trial with renewal cancelled remains accessible until expiry',()=>{
+ const p=active('SUBSCRIPTION_STATE_CANCELED'); p.lineItems[0].offerPhase={freeTrial:{}};
+ const result=entitlement(p,now);
+ assert.equal(result.state,'cancelScheduled'); assert.equal(result.active,true); assert.equal(result.isTrial,true);
+});
+test('past known subscription is reported expired',()=>{
+ assert.equal(entitlement(active('SUBSCRIPTION_STATE_EXPIRED','2026-09-12T00:00:00Z'),now).state,'expired');
+});

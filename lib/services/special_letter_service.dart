@@ -1,4 +1,3 @@
-import 'dart:async';
 import '../mongi/integration/mongi_garden_store.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../models/special_letter_entry.dart';
@@ -28,7 +27,9 @@ class SpecialLetterService {
 
   static Box get _b {
     if (_box == null || !_box!.isOpen) {
-      throw Exception('SpecialLetterService: 사용자가 설정되지 않았습니다 (setCurrentUser 먼저 호출)');
+      throw Exception(
+        'SpecialLetterService: 사용자가 설정되지 않았습니다 (setCurrentUser 먼저 호출)',
+      );
     }
     return _box!;
   }
@@ -42,37 +43,55 @@ class SpecialLetterService {
     String? submissionId,
   }) async {
     final now = DateTime.now();
-    final id = submissionId ?? '${now.microsecondsSinceEpoch}_${type.storageKey}';
+    final id =
+        submissionId ?? '${now.microsecondsSinceEpoch}_${type.storageKey}';
     final existing = _b.get(id);
     if (existing != null) {
-      final saved = SpecialLetterEntry.fromMap(Map<dynamic, dynamic>.from(existing as Map));
-      if (saved.letterText != letterText || saved.type != type || saved.replyStyle != replyStyle) throw StateError('편지 ID가 겹쳤어요.');
+      final saved = SpecialLetterEntry.fromMap(
+        Map<dynamic, dynamic>.from(existing as Map),
+      );
+      if (saved.letterText != letterText ||
+          saved.type != type ||
+          saved.replyStyle != replyStyle)
+        throw StateError('편지 ID가 겹쳤어요.');
       await _b.flush();
-      if (saved.letterText.trim().isNotEmpty) await MongiGardenStore.instance.claimCompletedCare(now: saved.createdAt.toLocal());
-      unawaited(ensureReply(saved).then<void>((_) {}, onError: (Object _, StackTrace __) {}));
+      if (saved.letterText.trim().isNotEmpty)
+        await MongiGardenStore.instance.claimCompletedCare(
+          now: saved.createdAt.toLocal(),
+        );
       return saved;
     }
     final entry = SpecialLetterEntry(
-      id: id, type: type, letterText: letterText, replyText: '',
-      createdAt: now, replyStyle: replyStyle,
+      id: id,
+      type: type,
+      letterText: letterText,
+      replyText: '',
+      createdAt: now,
+      replyStyle: replyStyle,
     );
     await _b.put(entry.id, entry.toMap());
     await _b.flush();
-    if (entry.letterText.trim().isNotEmpty) await MongiGardenStore.instance.claimCompletedCare(now: entry.createdAt.toLocal());
-    unawaited(ensureReply(entry).then<void>((_) {}, onError: (Object _, StackTrace __) {}));
+    if (entry.letterText.trim().isNotEmpty)
+      await MongiGardenStore.instance.claimCompletedCare(
+        now: entry.createdAt.toLocal(),
+      );
     return entry;
   }
 
   static Future<String> ensureReply(SpecialLetterEntry entry) async {
     if (entry.replyText.isNotEmpty) return entry.replyText;
     final reply = await PersonalReplyService.create(
-      id: 'heart:${entry.id}', letterText: entry.letterText, style: entry.replyStyle,
+      id: 'heart:${entry.id}',
+      letterText: entry.letterText,
+      style: entry.replyStyle,
       catName: '마음편지 고양이',
       legacyReplies: getAllEntries().take(20).map((e) => e.replyText).toList(),
     );
     final raw = _b.get(entry.id);
     if (raw == null) throw StateError('삭제된 편지예요.');
-    final current = SpecialLetterEntry.fromMap(Map<dynamic, dynamic>.from(raw as Map));
+    final current = SpecialLetterEntry.fromMap(
+      Map<dynamic, dynamic>.from(raw as Map),
+    );
     if (current.replyText.isNotEmpty) return current.replyText;
     await _b.put(entry.id, current.withReplyText(reply).toMap());
     await _b.flush();
@@ -82,7 +101,10 @@ class SpecialLetterService {
   /// 특정 종류의 마음편지를 최신순으로 모두 가져옵니다.
   static List<SpecialLetterEntry> getEntriesOfType(SpecialLetterType type) {
     final all = _b.values
-        .map((e) => SpecialLetterEntry.fromMap(Map<dynamic, dynamic>.from(e as Map)))
+        .map(
+          (e) =>
+              SpecialLetterEntry.fromMap(Map<dynamic, dynamic>.from(e as Map)),
+        )
         .where((e) => e.type == type)
         .toList();
     all.sort((a, b) => b.createdAt.compareTo(a.createdAt));
@@ -92,7 +114,10 @@ class SpecialLetterService {
   /// 모든 마음편지를 최신순으로 가져옵니다.
   static List<SpecialLetterEntry> getAllEntries() {
     final all = _b.values
-        .map((e) => SpecialLetterEntry.fromMap(Map<dynamic, dynamic>.from(e as Map)))
+        .map(
+          (e) =>
+              SpecialLetterEntry.fromMap(Map<dynamic, dynamic>.from(e as Map)),
+        )
         .toList();
     all.sort((a, b) => b.createdAt.compareTo(a.createdAt));
     return all;
@@ -108,7 +133,9 @@ class SpecialLetterService {
   static Future<void> markReplySeen(String id) async {
     final raw = _b.get(id);
     if (raw == null) return;
-    final entry = SpecialLetterEntry.fromMap(Map<dynamic, dynamic>.from(raw as Map));
+    final entry = SpecialLetterEntry.fromMap(
+      Map<dynamic, dynamic>.from(raw as Map),
+    );
     await _b.put(id, entry.withReplySeen().toMap());
   }
 

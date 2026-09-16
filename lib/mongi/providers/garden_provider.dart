@@ -16,6 +16,8 @@ import '../models/mongi_care_item.dart';
 import '../models/mongi_cheer.dart';
 import '../models/mongi_costume.dart';
 import '../models/power_item.dart';
+import '../../services/subscription_service.dart';
+import '../../services/access_policy.dart';
 import '../models/season_pass.dart';
 import '../models/tree_growth.dart';
 import '../services/emotion_evolution_service.dart';
@@ -37,11 +39,18 @@ const String _kWidgetStreak = 'garden_streak';
 /// 게임 자체의 실시간 로직(달리기/점프/충돌)은 RunnerGame(Flame)이 담당하고,
 /// 이 Provider는 "한 판이 끝난 뒤의 결과"만 저장/반영한다.
 class GardenProvider extends ChangeNotifier {
+  bool _subscriptionActive = false;
+  Future<void> refreshSubscription() async {
+    _subscriptionActive = await SubscriptionService().isPremium();
+    notifyListeners();
+  }
+
   Future<void>? _initializing;
-  Future<void> ensureInitialized() => _initializing ??= init().catchError((Object error) {
-    _initializing = null;
-    throw error;
-  });
+  Future<void> ensureInitialized() =>
+      _initializing ??= init().catchError((Object error) {
+        _initializing = null;
+        throw error;
+      });
   void _sharedChanged() {
     if (!_initialized) return;
     stage = _storage.stage;
@@ -50,6 +59,7 @@ class GardenProvider extends ChangeNotifier {
     equippedDecorationIds = _storage.equippedDecorations;
     notifyListeners();
   }
+
   @override
   void dispose() {
     MongiGardenStore.instance.removeListener(_sharedChanged);
@@ -73,10 +83,18 @@ class GardenProvider extends ChangeNotifier {
 
   /// 사용자가 직접 고른 언어('ko'/'en'). null이면 시스템 언어를 따라간다.
   String? languageCode;
-  bool premiumFramesUnlocked = false;
+  bool _legacy_premiumFramesUnlocked = false;
+  bool get premiumFramesUnlocked =>
+      _legacy_premiumFramesUnlocked || _subscriptionActive;
+  set premiumFramesUnlocked(bool value) =>
+      _legacy_premiumFramesUnlocked = value;
   bool hasBloomedOnce = false;
   List<String> equippedDecorationIds = [];
-  bool decorationPackUnlocked = false;
+  bool _legacy_decorationPackUnlocked = false;
+  bool get decorationPackUnlocked =>
+      _legacy_decorationPackUnlocked || _subscriptionActive;
+  set decorationPackUnlocked(bool value) =>
+      _legacy_decorationPackUnlocked = value;
   int score = 0;
   bool hasCheckedInToday = false;
   String? todayCheckInEmotionName;
@@ -327,7 +345,11 @@ class GardenProvider extends ChangeNotifier {
   int seasonNumber = 1;
   int seasonSecondsRemaining = 0;
   int seasonXp = 0;
-  bool seasonPremiumPurchased = false;
+  bool _legacy_seasonPremiumPurchased = false;
+  bool get seasonPremiumPurchased =>
+      _legacy_seasonPremiumPurchased || _subscriptionActive;
+  set seasonPremiumPurchased(bool value) =>
+      _legacy_seasonPremiumPurchased = value;
   Set<int> seasonClaimedFreeLevels = {};
   Set<int> seasonClaimedPremiumLevels = {};
 
@@ -423,7 +445,8 @@ class GardenProvider extends ChangeNotifier {
   /// - 프리미엄 아이템: 정원 장식팩 구매 여부로 판단
   /// - 무료 아이템: 각자의 마일스톤 달성 여부로 판단
   bool isDecorationUnlocked(GardenDecoration decoration) {
-    if (MongiGardenStore.instance.value.owned.contains(decoration.id)) return true;
+    if (MongiGardenStore.instance.value.owned.contains(decoration.id))
+      return true;
     if (decoration.isPremium) return decorationPackUnlocked;
     switch (decoration.id) {
       case 'bench':
@@ -603,6 +626,7 @@ class GardenProvider extends ChangeNotifier {
   /// 않으면 [NotificationService]의 한국어 기본값이 그대로 쓰인다(하위 호환).
   Future<void> init({NotificationContent? notificationContent}) async {
     await _storage.init();
+    await refreshSubscription();
     await _storage.refreshDailyMissionsIfNeeded();
     _loadFromStorage();
     _initialized = true;
@@ -696,18 +720,28 @@ class GardenProvider extends ChangeNotifier {
   /// 여기서도 갱신되므로 도감 진화 자체는 계속 정상적으로 진행되고, 다음
   /// 스테이지 세션에서 문턱을 넘으면 그때 축하 팝업이 뜬다 - "몰래 채워지다
   /// 어느 날 발견"이라는 히든 요소의 취지와도 자연스럽게 맞는다.)
-  Future<bool> recordEndlessSession(Map<EmotionType, int> eatenByType, {
-    required int survivedSeconds, String? sessionId,
+  Future<bool> recordEndlessSession(
+    Map<EmotionType, int> eatenByType, {
+    required int survivedSeconds,
+    String? sessionId,
   }) async {
     final result = await MongiGardenStore.instance.commitSession(
-      sessionId ?? SessionTransaction.newId(), () async {
+      sessionId ?? SessionTransaction.newId(),
+      () async {
         _loadFromStorage();
-        final isNew = await _recordEndlessDraft(eatenByType, survivedSeconds: survivedSeconds);
+        final isNew = await _recordEndlessDraft(
+          eatenByType,
+          survivedSeconds: survivedSeconds,
+        );
         return {'isNew': isNew};
-      });
+      },
+    );
     _loadFromStorage();
-    lastEarnedScore = 0; lastEarnedLightEssence = 0; lastEarnedStarShard = 0;
-    notifyListeners(); await _syncHomeWidget();
+    lastEarnedScore = 0;
+    lastEarnedLightEssence = 0;
+    lastEarnedStarShard = 0;
+    notifyListeners();
+    await _syncHomeWidget();
     return result['isNew'] as bool;
   }
 
@@ -750,17 +784,29 @@ class GardenProvider extends ChangeNotifier {
   /// 아무 이득이 없으므로, "빨리 여러 번 돌리기" 유인이 원천적으로 없다.
   Future<void> recordQuietSession(
     List<EmotionType> emotionTypes, {
-    String? targetName, String? note, int? intensity, String? sessionId,
+    String? targetName,
+    String? note,
+    int? intensity,
+    String? sessionId,
   }) async {
     if (emotionTypes.isEmpty) return;
     await MongiGardenStore.instance.commitSession(
-      sessionId ?? SessionTransaction.newId(), () async {
-        for (final type in emotionTypes) { await _storage.plantFlower(type.name, 1); }
-        await _storage.addDiaryEntry(emotionTypeName: emotionTypes.first.name,
-          targetName: targetName, eatenCount: emotionTypes.length, note: note, intensity: intensity);
+      sessionId ?? SessionTransaction.newId(),
+      () async {
+        for (final type in emotionTypes) {
+          await _storage.plantFlower(type.name, 1);
+        }
+        await _storage.addDiaryEntry(
+          emotionTypeName: emotionTypes.first.name,
+          targetName: targetName,
+          eatenCount: emotionTypes.length,
+          note: note,
+          intensity: intensity,
+        );
         await MongiGardenStore.instance.claimCompletedCare();
         return {'quiet': true};
-      });
+      },
+    );
     _loadFromStorage();
     notifyListeners();
     await _syncHomeWidget();
@@ -788,29 +834,49 @@ class GardenProvider extends ChangeNotifier {
     if (SessionTransaction.draft == null) super.notifyListeners();
   }
 
-  Future<bool> recordSession(Map<EmotionType, int> eatenByType, {
-    required bool choseLove, String? seedType, bool earlyStop = false,
-    int? target, int? playedStage, String? sessionId,
+  Future<bool> recordSession(
+    Map<EmotionType, int> eatenByType, {
+    required bool choseLove,
+    String? seedType,
+    bool earlyStop = false,
+    int? target,
+    int? playedStage,
+    String? sessionId,
   }) async {
     try {
       final result = await MongiGardenStore.instance.commitSession(
-        sessionId ?? SessionTransaction.newId(), () async {
+        sessionId ?? SessionTransaction.newId(),
+        () async {
           _loadFromStorage();
-          final bloomed = await _recordSessionDraft(eatenByType,
-            choseLove: choseLove, seedType: seedType, earlyStop: earlyStop,
-            target: target, playedStage: playedStage);
-          return {'bloomed': bloomed, 'score': lastEarnedScore,
-            'light': lastEarnedLightEssence, 'treeBonus': lastTreeMilestoneBonusLight,
+          final bloomed = await _recordSessionDraft(
+            eatenByType,
+            choseLove: choseLove,
+            seedType: seedType,
+            earlyStop: earlyStop,
+            target: target,
+            playedStage: playedStage,
+          );
+          return {
+            'bloomed': bloomed,
+            'score': lastEarnedScore,
+            'light': lastEarnedLightEssence,
+            'treeBonus': lastTreeMilestoneBonusLight,
             'golden': lastGoldenFrameUnlocked?.type.name,
             'transcended': lastTranscendedEmotion?.type.name,
-            'season': lastSeasonMilestoneLevel};
-        });
+            'season': lastSeasonMilestoneLevel,
+          };
+        },
+      );
       _loadFromStorage();
       lastEarnedScore = result['score'] as int;
       lastEarnedLightEssence = result['light'] as int;
       lastTreeMilestoneBonusLight = result['treeBonus'] as int;
-      lastGoldenFrameUnlocked = result['golden'] == null ? null : Emotion.byTypeName(result['golden'] as String);
-      lastTranscendedEmotion = result['transcended'] == null ? null : Emotion.byTypeName(result['transcended'] as String);
+      lastGoldenFrameUnlocked = result['golden'] == null
+          ? null
+          : Emotion.byTypeName(result['golden'] as String);
+      lastTranscendedEmotion = result['transcended'] == null
+          ? null
+          : Emotion.byTypeName(result['transcended'] as String);
       lastSeasonMilestoneLevel = result['season'] as int?;
       notifyListeners();
       await _syncHomeWidget();
@@ -860,7 +926,8 @@ class GardenProvider extends ChangeNotifier {
     }
     // 스테이지 완료 점수 부여: 감정을 먹을 때마다 2점 + 목표를 끝까지 채우면 완료 보너스.
     final fullyCompleted = !earlyStop && totalEaten >= safeTarget;
-    final earnedScore = totalEaten * 2 + (fullyCompleted ? 10 + rewardStage * 5 : 0);
+    final earnedScore =
+        totalEaten * 2 + (fullyCompleted ? 10 + rewardStage * 5 : 0);
     lastEarnedScore = earnedScore;
     if (earnedScore > 0) {
       await _storage.addScore(earnedScore);
@@ -905,10 +972,12 @@ class GardenProvider extends ChangeNotifier {
   /// 경로가 된다. 돌멩이 크기/속도 등 난이도도 이 시점에만 올라간다.
   Future<void> advanceToNextStage({String? sessionId}) async {
     await MongiGardenStore.instance.commitSession(
-      sessionId ?? SessionTransaction.newId(), () async {
+      sessionId ?? SessionTransaction.newId(),
+      () async {
         await _storage.advanceStage();
         return {'stage': _storage.stage};
-      });
+      },
+    );
     stage = _storage.stage;
     notifyListeners();
     await _syncHomeWidget();
@@ -1120,17 +1189,19 @@ class GardenProvider extends ChangeNotifier {
     String? sessionId,
   }) async {
     await MongiGardenStore.instance.commitSession(
-      sessionId ?? SessionTransaction.newId(), () async {
-      await _storage.addDiaryEntry(
-      emotionTypeName: emotionType.name,
-      targetName: targetName,
-      eatenCount: eatenCount,
-      note: note,
-      intensity: intensity,
-      triggers: triggers,
+      sessionId ?? SessionTransaction.newId(),
+      () async {
+        await _storage.addDiaryEntry(
+          emotionTypeName: emotionType.name,
+          targetName: targetName,
+          eatenCount: eatenCount,
+          note: note,
+          intensity: intensity,
+          triggers: triggers,
+        );
+        return <String, dynamic>{};
+      },
     );
-      return <String, dynamic>{};
-    });
     diaryEntries = _storage.diaryEntries;
     notifyListeners();
   }
@@ -1209,8 +1280,10 @@ class GardenProvider extends ChangeNotifier {
       PurchaseService.instance.buyProduct(kPremiumFramesProductId);
 
   /// 재설치/기기 변경 후 이전 구매 내역을 복원한다 (카드 프레임 + 정원 장식팩 공통).
-  Future<void> restorePremiumFramesPurchase() =>
-      PurchaseService.instance.restorePurchases();
+  Future<void> restorePremiumFramesPurchase() async {
+    await SubscriptionService().restorePurchases();
+    await refreshSubscription();
+  }
 
   /// 프리미엄 정원 장식팩 구매를 시작한다. 실제 잠금 해제는 구매가 확인된 뒤
   /// [PurchaseService]에 등록해둔 콜백을 통해 비동기로 반영된다.
@@ -1218,8 +1291,10 @@ class GardenProvider extends ChangeNotifier {
       PurchaseService.instance.buyProduct(kGardenDecorationPackProductId);
 
   /// 재설치/기기 변경 후 정원 장식팩 구매 내역을 복원한다.
-  Future<void> restoreDecorationPackPurchase() =>
-      PurchaseService.instance.restorePurchases();
+  Future<void> restoreDecorationPackPurchase() async {
+    await SubscriptionService().restorePurchases();
+    await refreshSubscription();
+  }
 
   // ── 시즌 패스("몽이의 마음여정") ─────────────────────────
 
@@ -1274,8 +1349,10 @@ class GardenProvider extends ChangeNotifier {
       PurchaseService.instance.buyProduct(kSeasonPassProductId);
 
   /// 재설치/기기 변경 후 시즌 패스 프리미엄 구매 내역을 복원한다.
-  Future<void> restoreSeasonPassPurchase() =>
-      PurchaseService.instance.restorePurchases();
+  Future<void> restoreSeasonPassPurchase() async {
+    await SubscriptionService().restorePurchases();
+    await refreshSubscription();
+  }
 
   Future<void> _grantSeasonPassPremium() async {
     if (seasonPremiumPurchased) return;
@@ -1306,6 +1383,7 @@ class GardenProvider extends ChangeNotifier {
   /// [level] 프리미엄 보상을 수령한다. 프리미엄 패스를 구매하지 않았거나,
   /// 아직 그 레벨에 도달하지 못했거나, 이미 수령했으면 false를 반환한다.
   Future<bool> claimSeasonPremiumReward(int level) async {
+    await refreshSubscription();
     if (!seasonPremiumPurchased || level > seasonLevel) return false;
     final claimed = await _storage.claimSeasonPremiumLevel(level);
     if (!claimed) return false;
@@ -1414,6 +1492,7 @@ class GardenProvider extends ChangeNotifier {
 
   /// 꾸미기 화면에서 장식 아이템을 탭했을 때 호출. 잠금 해제된 아이템만 장착/해제할 수 있다.
   Future<void> toggleDecorationEquipped(GardenDecoration decoration) async {
+    await refreshSubscription();
     if (!isDecorationUnlocked(decoration)) return;
     final current = List<String>.from(equippedDecorationIds);
     if (current.contains(decoration.id)) {
@@ -1490,6 +1569,8 @@ class GardenProvider extends ChangeNotifier {
   /// 반환하고 아무 것도 차감하지 않는다(호출부에서 "화폐가 모자라요" 안내로
   /// 처리).
   Future<bool> buyReviveWithLightEssence() async {
+    if (!AccessPolicy.itemAllowed(await SubscriptionService().isPremium()))
+      return false;
     final spent = await _storage.spendLightEssence(
       ReviveService.lightEssenceCost,
     );
@@ -1535,6 +1616,8 @@ class GardenProvider extends ChangeNotifier {
   /// 실제 무적 모드 발동([RunnerGame.activatePowerMode] 호출)은 호출부의
   /// 책임이다 - 이 메서드는 순수하게 인벤토리 차감만 담당한다.
   Future<bool> consumePowerCharm() async {
+    if (!AccessPolicy.itemAllowed(await SubscriptionService().isPremium()))
+      return false;
     final consumed = await _storage.consumePowerCharm();
     if (!consumed) return false;
     powerCharmCount = _storage.powerCharmCount;

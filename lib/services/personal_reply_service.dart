@@ -1,4 +1,6 @@
 import 'reply_situation.dart';
+import 'access_policy.dart';
+import 'subscription_service.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:convert';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -9,6 +11,8 @@ import 'personal_reply_engine.dart';
 /// One queue across cats and heart letters; duplicate opens cannot race the
 /// anti-repetition history. Once saved, a reply is never regenerated.
 class PersonalReplyService {
+  @visibleForTesting
+  static DateTime Function() clock = DateTime.now;
   static Future<void> _tail = Future.value();
   static Future<Box> _history() =>
       HiveEncryption.openBox('personal_replies_local_user');
@@ -26,6 +30,15 @@ class PersonalReplyService {
       final existing = box.get(id);
       if (existing is String)
         return (jsonDecode(existing) as Map)['reply'] as String;
+      final premium = await SubscriptionService().isPremium();
+      final day = AccessPolicy.dayKey(clock());
+      final quotaKey = 'quota:$day';
+      final used = box.get(quotaKey, defaultValue: 0) as int;
+      if (!AccessPolicy.newReplyAllowed(premium: premium, used: used)) {
+        throw const SubscriptionRequired(
+          '편지는 저장되어 있어요. 무료 답장은 하루 1회 제공돼요. 추가 답장은 마음냥 구독으로 만나보세요.',
+        );
+      }
       final rows = box.values
           .whereType<String>()
           .toList()
@@ -78,9 +91,9 @@ class PersonalReplyService {
         'preferredParts': preferredParts,
         'repetitionWindow': disliked.isEmpty ? 3 : 6,
       });
-      await box.put(
-        id,
-        jsonEncode({
+      await box.putAll({
+        if (!premium) quotaKey: used + 1,
+        id: jsonEncode({
           'version': 1,
           'id': id,
           'reply': generated.text,
@@ -89,7 +102,7 @@ class PersonalReplyService {
           'style': style.name,
           'situation': ReplySituation.detect(letterText)?.id,
         }),
-      );
+      });
       await box.flush();
       return generated.text;
     });

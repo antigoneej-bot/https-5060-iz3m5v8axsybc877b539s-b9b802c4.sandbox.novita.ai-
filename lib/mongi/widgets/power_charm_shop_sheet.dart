@@ -104,6 +104,10 @@ class _PowerCharmShopSheetState extends State<PowerCharmShopSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            const Padding(
+              padding: EdgeInsets.all(8),
+              child: Text('아이템 획득·보관은 무료 · 게임에서 사용하려면 마음냥 구독이 필요해요.'),
+            ),
             Center(
               child: Container(
                 width: 44,

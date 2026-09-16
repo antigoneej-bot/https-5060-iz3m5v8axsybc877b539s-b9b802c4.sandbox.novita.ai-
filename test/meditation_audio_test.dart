@@ -9,6 +9,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_app/services/meditation_audio_service.dart';
+import 'package:flutter_app/services/subscription_service.dart';
 import 'package:flutter_app/services/sound_service.dart';
 import 'package:flutter_app/services/media_coordinator.dart';
 import 'package:flutter_app/services/meditation_completion_service.dart';
@@ -26,6 +27,10 @@ void main() {
       GlobalAudioplayersPlatformInterface.instance =
           FakeGlobalAudioplayersPlatform();
       SharedPreferences.setMockInitialValues({});
+      // This test exercises the playback engine itself, not the
+      // subscription paywall, so simulate an active subscription.
+      SubscriptionService.debugIsPremiumOverride = true;
+      addTearDown(() => SubscriptionService.debugIsPremiumOverride = null);
       final temp = Directory.systemTemp.createTempSync('audio-test-');
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(

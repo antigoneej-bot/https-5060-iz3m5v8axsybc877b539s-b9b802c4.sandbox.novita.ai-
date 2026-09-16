@@ -1,3 +1,6 @@
+import '../services/access_policy.dart';
+import '../services/subscription_service.dart';
+import 'subscription_gate.dart';
 import '../services/meditation_sleep_service.dart';
 import '../services/meditation_library_store.dart';
 import 'meditation_sleep_controls.dart';
@@ -77,6 +80,14 @@ class _MeditationVideoPlayerState extends State<MeditationVideoPlayer>
   Future<void> _play(VideoPlayerController controller) =>
       MediaCoordinator.instance.run(() async {
         if (!mounted || !_expanded || !_foreground) return;
+        final key = widget.assetPath.split('/').last.split('.').first;
+        if (!AccessPolicy.meditationAllowed(
+          key,
+          await SubscriptionService().isPremium(),
+        )) {
+          if (mounted) await requestSubscription(context);
+          return;
+        }
         await MediaCoordinator.instance.claim(this, _pauseDirect);
         await controller.setVolume(1);
         await controller.play();
@@ -119,6 +130,11 @@ class _MeditationVideoPlayerState extends State<MeditationVideoPlayer>
             if (!mounted || !_foreground || !identical(sleep.owner, this))
               return;
             await _controller!.seekTo(Duration.zero);
+            if (!AccessPolicy.meditationAllowed(
+              key,
+              await SubscriptionService().isPremium(),
+            ))
+              return;
             await _controller!.play();
             _completionRecorded = false;
           }),

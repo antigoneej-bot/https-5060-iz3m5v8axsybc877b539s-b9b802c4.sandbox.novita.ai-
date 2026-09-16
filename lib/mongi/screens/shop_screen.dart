@@ -82,8 +82,8 @@ class ShopScreen extends StatelessWidget {
           _shopCard(
             emoji: '💡',
             iconBg: const Color(0xFFFFE9A3),
-            title: l10n.shopLightEssenceTitle,
-            subtitle: l10n.shopLightEssenceSubtitle,
+            title: '빛의 정수 모으기',
+            subtitle: '현금 충전 없이 플레이 보상으로 모아요',
             onTap: () => LightEssenceShopSheet.show(context),
           ),
           const SizedBox(height: 20),

@@ -13,7 +13,7 @@ import '../providers/app_state_provider.dart';
 import '../providers/cat_care_provider.dart';
 import '../providers/promise_provider.dart';
 
-/// '정원 플러스' 구독 안내 및 구매 화면 (페이월).
+/// '마음냥 구독' 구독 안내 및 구매 화면 (페이월).
 ///
 /// [SubscriptionService.storeBillingEnabled]가 false인 동안에는 혜택·가격은
 /// 보여 주되, 구매 버튼은 비활성(준비 중)으로 두어 무료 잠금 해제를 막습니다.
@@ -28,12 +28,14 @@ class PremiumScreen extends StatefulWidget {
 class _PremiumScreenState extends State<PremiumScreen> {
   final _sub = SubscriptionService();
   bool _isPremium = false;
+  String _statusLabel = '무료 이용 중';
   bool _loading = true;
   bool _purchasing = false;
   SubscriptionPlan _selectedPlan = SubscriptionPlan.yearly;
   SubscriptionPlan _activePlan = SubscriptionPlan.monthly;
 
-  bool get _billingReady => SubscriptionService.storeBillingEnabled && CloudService.enabled;
+  bool get _billingReady =>
+      SubscriptionService.storeBillingEnabled && CloudService.enabled;
 
   @override
   void initState() {
@@ -46,10 +48,12 @@ class _PremiumScreenState extends State<PremiumScreen> {
     await _sub.refreshProducts();
     final premium = await _sub.isPremium();
     final plan = await _sub.currentPlan();
+    final statusLabel = await CloudService.subscriptionStatusLabel();
     if (!mounted) return;
     setState(() {
       _isPremium = premium;
       _activePlan = plan;
+      _statusLabel = statusLabel;
       _loading = false;
     });
   }
@@ -87,11 +91,15 @@ class _PremiumScreenState extends State<PremiumScreen> {
       );
     }
     if (ok) {
+      final statusLabel = await CloudService.subscriptionStatusLabel();
+      if (!mounted) return;
+      setState(() => _statusLabel = statusLabel);
       final app = context.read<AppStateProvider>();
       final care = context.read<CatCareProvider>();
       final promise = context.read<PromiseProvider>();
-      final planLabel =
-          _selectedPlan == SubscriptionPlan.yearly ? 'yearly' : 'monthly';
+      final planLabel = _selectedPlan == SubscriptionPlan.yearly
+          ? 'yearly'
+          : 'monthly';
       unawaited(() async {
         try {
           await AnalyticsService().logEvent(AnalyticsEvents.premiumPurchase, {
@@ -105,7 +113,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
       }());
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('정원 플러스 멤버십이 시작되었어요 🌷')));
+      ).showSnackBar(const SnackBar(content: Text('마음냥 구독 멤버십이 시작되었어요 🌷')));
     }
   }
 
@@ -113,9 +121,9 @@ class _PremiumScreenState extends State<PremiumScreen> {
     if (!SubscriptionService.storeBillingEnabled) return;
     await _sub.cancelPremium();
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Play 구독 관리 화면으로 이동합니다')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Play 구독 관리 화면으로 이동합니다')));
   }
 
   Future<void> _restore() async {
@@ -149,9 +157,13 @@ class _PremiumScreenState extends State<PremiumScreen> {
     }
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(_sub.restoreUnavailable
-            ? '스토어에 연결하지 못했어요. 기존 이용 상태를 유지했으니 잠시 후 다시 시도해 주세요.'
-            : ok ? '구매 내역을 복원했어요' : '복원할 구독이 없어요'),
+        content: Text(
+          _sub.restoreUnavailable
+              ? '스토어에 연결하지 못했어요. 기존 이용 상태를 유지했으니 잠시 후 다시 시도해 주세요.'
+              : ok
+              ? '구매 내역을 복원했어요'
+              : '복원할 구독이 없어요',
+        ),
       ),
     );
   }
@@ -180,7 +192,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          '정원 플러스',
+                          '마음냥 구독',
                           style: titleFont(
                             fontSize: 20,
                             color: AppColors.titlePastelGreen,
@@ -203,10 +215,18 @@ class _PremiumScreenState extends State<PremiumScreen> {
                                 ),
                                 const SizedBox(height: 18),
                                 if (CloudService.enabled)
-                                  TextButton(onPressed: () async {
-                                    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const DataSafetyScreen()));
-                                    await _load();
-                                  }, child: const Text('구매 계정 로그인·인증')),
+                                  TextButton(
+                                    onPressed: () async {
+                                      await Navigator.of(context).push(
+                                        MaterialPageRoute(
+                                          builder: (_) =>
+                                              const DataSafetyScreen(),
+                                        ),
+                                      );
+                                      await _load();
+                                    },
+                                    child: const Text('구매 계정 로그인·인증'),
+                                  ),
                                 if (!_isPremium) ...[
                                   _PlanSelector(
                                     selected: _selectedPlan,
@@ -215,12 +235,23 @@ class _PremiumScreenState extends State<PremiumScreen> {
                                   ),
                                   const SizedBox(height: 18),
                                 ],
+                                if (!_isPremium)
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 16),
+                                    child: Text(
+                                      _sub.offerLabelFor(_selectedPlan),
+                                    ),
+                                  ),
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 12),
+                                  child: Text(_statusLabel),
+                                ),
                                 const _FeatureList(),
                                 const SizedBox(height: 24),
                                 if (_isPremium) ...[
                                   Center(
                                     child: Text(
-                                      '이미 정원 플러스 멤버십을 이용 중이에요 🌿',
+                                      '이미 마음냥 구독 멤버십을 이용 중이에요 🌿',
                                       textAlign: TextAlign.center,
                                       style: bodyFont(
                                         fontSize: 13,
@@ -239,7 +270,8 @@ class _PremiumScreenState extends State<PremiumScreen> {
                                     enabled: _billingReady,
                                     onTap: _purchase,
                                   ),
-                                  if (SubscriptionService.storeBillingEnabled) ...[
+                                  if (SubscriptionService
+                                      .storeBillingEnabled) ...[
                                     const SizedBox(height: 10),
                                     _SecondaryButton(
                                       label: '구매 복원',
@@ -252,7 +284,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
                                       _billingReady
                                           ? '언제든 해지할 수 있어요 · 구독은 자동 갱신됩니다'
                                           : SubscriptionService
-                                              .billingComingSoonCaption,
+                                                .billingComingSoonCaption,
                                       textAlign: TextAlign.center,
                                       style: bodyFont(
                                         fontSize: 11,
@@ -312,10 +344,7 @@ class _HeroCard extends StatelessWidget {
           const SizedBox(height: 18),
           if (!isPremium) ...[
             Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 5,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
               decoration: BoxDecoration(
                 color: AppColors.gold,
                 borderRadius: BorderRadius.circular(999),
@@ -341,7 +370,9 @@ class _HeroCard extends StatelessWidget {
               ),
             ),
             child: Text(
-              isPremium ? activeLabel : sub.priceLabelFor(SubscriptionPlan.monthly),
+              isPremium
+                  ? activeLabel
+                  : sub.priceLabelFor(SubscriptionPlan.monthly),
               style: numberFont(
                 fontSize: 16,
                 color: AppColors.blobButterAccent,
@@ -376,7 +407,9 @@ class _PlanSelector extends StatelessWidget {
           child: _PlanCard(
             plan: SubscriptionPlan.monthly,
             title: '월간',
-            price: SubscriptionService().priceLabelFor(SubscriptionPlan.monthly),
+            price: SubscriptionService().priceLabelFor(
+              SubscriptionPlan.monthly,
+            ),
             caption: '언제든 부담 없이',
             selected: selected == SubscriptionPlan.monthly,
             onTap: () => onChanged(SubscriptionPlan.monthly),
@@ -431,9 +464,7 @@ class _PlanCard extends StatelessWidget {
               : Colors.white.withValues(alpha: 0.6),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: selected
-                ? AppColors.blobButterAccent
-                : AppColors.line,
+            color: selected ? AppColors.blobButterAccent : AppColors.line,
             width: selected ? 1.6 : 1,
           ),
         ),
@@ -473,9 +504,7 @@ class _PlanCard extends StatelessWidget {
                 ],
                 const Spacer(),
                 Icon(
-                  selected
-                      ? Icons.check_circle_rounded
-                      : Icons.circle_outlined,
+                  selected ? Icons.check_circle_rounded : Icons.circle_outlined,
                   size: 18,
                   color: selected
                       ? AppColors.blobButterAccent
@@ -487,20 +516,18 @@ class _PlanCard extends StatelessWidget {
             if (originalPrice != null) ...[
               Text(
                 originalPrice!,
-                style: bodyFont(
-                  fontSize: 11,
-                  color: AppColors.inkSoft.withValues(alpha: 0.6),
-                ).copyWith(
-                  decoration: TextDecoration.lineThrough,
-                  decorationColor: AppColors.inkSoft.withValues(alpha: 0.6),
-                ),
+                style:
+                    bodyFont(
+                      fontSize: 11,
+                      color: AppColors.inkSoft.withValues(alpha: 0.6),
+                    ).copyWith(
+                      decoration: TextDecoration.lineThrough,
+                      decorationColor: AppColors.inkSoft.withValues(alpha: 0.6),
+                    ),
               ),
               const SizedBox(height: 1),
             ],
-            Text(
-              price,
-              style: numberFont(fontSize: 16, color: AppColors.ink),
-            ),
+            Text(price, style: numberFont(fontSize: 16, color: AppColors.ink)),
             const SizedBox(height: 3),
             Text(
               caption,
@@ -517,8 +544,13 @@ class _FeatureList extends StatelessWidget {
   const _FeatureList();
 
   static const _features = [
+    ('🌿', '광고 없이 편안하게', '구독과 무료체험 기간에는 광고가 표시되지 않아요'),
+    ('💌', '고양이 답장 전체 이용', '기록은 무료 · 무료 답장 하루 1회 · 구독하면 추가 답장도 함께'),
+    ('📊', '상세 주간·월간 감정통계', '내 기록의 흐름과 감정별 빈도·패턴을 살펴봐요'),
+    ('🎧', '모든 공개 명상·리추얼', '숲 명상과 빗소리는 무료 · 구독하면 전체 콘텐츠 이용'),
+    ('🐾', '몽이 게임 아이템 사용', '무료로 모아둔 아이템을 게임에서 사용해요 · 별도 현금 결제 없음'),
     ('📖', '몽이의 정원 이야기', '공개된 이야기의 다음 장을 기록 3일·5일에 만나요. 첫 장은 무료예요'),
-    ('🎁', '정원 장식 선물', '구독 중 받은 장식은 구독이 끝나도 정원에 남아요'),
+    ('🎁', '정원 장식 선물', '이미 얻은 정원 보상과 배치한 장식은 보존돼요'),
     ('🔓', '모든 감정 고양이 만나기', '자주 찾는 고양이를 즐겨찾고 필요한 감정을 골라 기록해요'),
     ('📊', '기록 패턴 살펴보기', '지난달/분기 비교, 요일·시간대 패턴, 다시 떠오른 감정까지 살펴보기'),
     ('✨', '오늘의 카드와 내 마음', '내가 고른 감정과 무작위 카드를 나란히 보는 재미용 이야기'),
@@ -617,7 +649,7 @@ class _PrimaryPurchaseButton extends StatelessWidget {
               )
             : Text(
                 enabled
-                    ? '정원 플러스 시작하기'
+                    ? '마음냥 구독 시작하기'
                     : SubscriptionService.billingComingSoonLabel,
                 style: serifFont(
                   fontSize: 15.5,
