@@ -258,7 +258,7 @@ class SubscriptionService {
 
   Future<bool> isPremium() async {
     final override = debugIsPremiumOverride;
-    if (override != null) return override;
+    if (kDebugMode && override != null) return override;
     if (CloudService.enabled) return CloudService.cachedPremium();
     if (!storeBillingEnabled) {
       await _clearLocalPremiumFlag();
