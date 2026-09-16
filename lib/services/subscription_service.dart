@@ -30,12 +30,12 @@ class SubscriptionService {
   static const String _premiumSinceKey = 'premium_since';
   static const String _planKey = 'premium_plan_type';
 
-  static const String displayPrice = '월 3,900원';
-  static const String displayYearlyPrice = '연 29,000원';
-  static const String displayYearlyMonthlyEquivalent = '월 2,417원 상당';
-  static const String yearlyDiscountLabel = '38% 할인';
-  static const String displayYearlyOriginalPrice = '46,800원';
-  static const String yearlySavingsLabel = '17,800원 절약';
+  static const String displayPrice = '월 4,900원';
+  static const String displayYearlyPrice = '연 33,000원';
+  static const String displayYearlyMonthlyEquivalent = '월 2,750원 상당';
+  static const String yearlyDiscountLabel = '44% 할인';
+  static const String displayYearlyOriginalPrice = '58,800원';
+  static const String yearlySavingsLabel = '25,800원 절약';
   static const String earlybirdLabel = '정원 플러스 멤버십';
   static const String earlybirdCaption = '구독은 언제든 해지할 수 있어요';
   static const String billingComingSoonLabel = '곧 스토어에서 만나요';
