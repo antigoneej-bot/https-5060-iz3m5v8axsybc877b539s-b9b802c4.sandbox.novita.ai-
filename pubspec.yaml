@@ -53,6 +53,11 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^5.0.0
 
+dependency_overrides:
+  # Google Play Billing Library 8.0.0 요구사항 충족 (2026-08-31 시행).
+  # 상세 이유는 위 in_app_purchase_android 주석 참고.
+  in_app_purchase_android: 0.4.0+10
+
 flutter:
   uses-material-design: true
 
