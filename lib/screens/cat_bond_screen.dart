@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'package:share_plus/share_plus.dart';
 import '../data/shadow_cats_data.dart';
 import '../providers/app_state_provider.dart';
 import '../services/analytics_service.dart';
@@ -181,16 +180,18 @@ class _MyCodeCard extends StatelessWidget {
     ).showSnackBar(const SnackBar(content: Text('코드를 복사했어요')));
   }
 
+  /// 코드만 텍스트로 보내지 않고, 내 그림자 고양이 카드 이미지를 함께
+  /// 캡처해서 보냅니다(받는 사람이 어떤 고양이인지 바로 볼 수 있도록).
   void _shareCode(BuildContext context) {
     final cat = shadowCatById(catId);
-    SharePlus.instance.share(
-      ShareParams(
-        text:
-            '내 그림자 고양이는 \'${cat.nameKr}\'예요 🐾\n'
-            '내 묘연 코드: $code\n\n'
-            '"마음냥 정원" 앱에서 이 코드를 입력하고\n'
-            '네 그림자와 나란히 놓아볼래? #마음냥정원',
-      ),
+    showShareReflectionCard(
+      context,
+      cardContent: _MyCodeShareCardContent(catId: catId, code: code),
+      shareText:
+          '내 그림자 고양이는 \'${cat.nameKr}\'예요 🐾\n'
+          '내 묘연 코드: $code\n\n'
+          '"마음냥 정원" 앱에서 이 코드를 입력하고\n'
+          '네 그림자와 나란히 놓아볼래? #마음냥정원',
     );
     AnalyticsService().logEvent(AnalyticsEvents.bondCodeGenerated, {
       'cat_id': catId,
@@ -268,6 +269,104 @@ class _MyCodeCard extends StatelessWidget {
             label: '친구에게 코드 보내기',
             accent: accent,
             onTap: () => _shareCode(context),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 내 묘연 코드를 공유할 때 함께 캡처되는 카드(그림자 고양이 이미지 +
+/// 이름 + 코드를 한 장에 담아, 받는 사람이 코드만이 아니라 내 고양이가
+/// 어떤 모습인지도 바로 볼 수 있게 합니다).
+class _MyCodeShareCardContent extends StatelessWidget {
+  final String catId;
+  final String code;
+  const _MyCodeShareCardContent({required this.catId, required this.code});
+
+  @override
+  Widget build(BuildContext context) {
+    final cat = shadowCatById(catId);
+    final accent = CatPalette.accentFor(catId);
+    final background = CatPalette.backgroundFor(catId);
+    return Container(
+      width: 300,
+      padding: const EdgeInsets.fromLTRB(22, 28, 22, 24),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(32),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Colors.white, background.withValues(alpha: 0.9)],
+        ),
+        border: Border.all(color: Colors.white, width: 3),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'MIND CAT GARDEN',
+            textAlign: TextAlign.center,
+            style: bodyFont(
+              fontSize: 10,
+              color: AppColors.titlePastelGreenSoft,
+              letterSpacing: 3,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            '내 그림자 고양이',
+            textAlign: TextAlign.center,
+            style: titleFont(fontSize: 18, color: AppColors.ink),
+          ),
+          const SizedBox(height: 18),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(24),
+            child: Image.asset(
+              cat.imageAsset,
+              width: 140,
+              height: 140,
+              fit: BoxFit.cover,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            cat.nameKr,
+            textAlign: TextAlign.center,
+            style: titleFont(fontSize: 17, color: AppColors.ink),
+          ),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 10),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.85),
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(color: accent.withValues(alpha: 0.4)),
+            ),
+            child: Text(
+              code,
+              textAlign: TextAlign.center,
+              style: numberFont(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: accent,
+                letterSpacing: 2,
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            '이 코드를 입력하고\n내 그림자와 나란히 놓아보세요',
+            textAlign: TextAlign.center,
+            style: bodyFont(fontSize: 11.5, color: accent, height: 1.5),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            '🐈‍⬛  마음냥 정원',
+            textAlign: TextAlign.center,
+            style: brandFont(fontSize: 15, color: AppColors.inkSoft),
           ),
         ],
       ),
