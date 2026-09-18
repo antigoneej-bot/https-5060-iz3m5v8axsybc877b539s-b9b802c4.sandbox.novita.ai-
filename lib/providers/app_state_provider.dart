@@ -226,7 +226,12 @@ class AppStateProvider extends ChangeNotifier {
 
   PersistedSubmission<LetterEntry>? _letterSubmission;
   PersistedSubmission<LetterEntry>? _onboardingSubmission;
-  String _newLetterId() => '${DateTime.now().microsecondsSinceEpoch}_${Random.secure().nextInt(1 << 32)}';
+  // ⚠️ 웹(dart2js/JS)에서는 정수 비트연산이 32비트 규칙을 따르므로
+  // `1 << 32`가 0으로 오버플로우되어 `Random.nextInt(0)`이
+  // RangeError를 던집니다(네이티브 VM에서는 문제 없어 flutter test로는
+  // 잡히지 않았던 웹 전용 버그). `1 << 31`(2^31)은 모든 플랫폼에서
+  // 안전한 양수 범위입니다.
+  String _newLetterId() => '${DateTime.now().microsecondsSinceEpoch}_${Random.secure().nextInt(1 << 31)}';
   bool _sameLetter(LetterEntry entry,String text,String catId,String? mood,ReplyStyle style) =>
       entry.letterText == text && entry.catId == catId && entry.moodEmoji == mood && entry.replyStyle == style;
 
