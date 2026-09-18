@@ -4,6 +4,7 @@ import '../models/special_letter_entry.dart';
 import 'personal_reply_service.dart';
 import '../models/reply_style.dart';
 import 'hive_encryption.dart';
+import 'notification_service.dart';
 
 /// 감사·용서·미안함·사랑, 네 가지 마음편지의 저장을 담당하는 서비스.
 ///
@@ -75,6 +76,12 @@ class SpecialLetterService {
       await MongiGardenStore.instance.claimCompletedCare(
         now: entry.createdAt.toLocal(),
       );
+    try {
+      await NotificationService().scheduleHeartLetterReplyNotification(
+        typeLabel: type.label,
+        scheduledAt: entry.replyAvailableAt,
+      );
+    } catch (_) {}
     return entry;
   }
 

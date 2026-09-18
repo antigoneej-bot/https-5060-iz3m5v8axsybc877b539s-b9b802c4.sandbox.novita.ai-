@@ -23,10 +23,8 @@ import 'cat_achievements_screen.dart';
 import 'cat_shop_screen.dart';
 
 /// 🐛 모찌 결석 감정 디버그 패널을 노출할지 여부.
-/// ⚠️ 실제 스토어 출시 전에는 반드시 false로 바꿔주세요(또는 이 패널과
-/// [_MochiEmotionDebugPanel] 위젯을 통째로 제거해주세요). release 빌드에서도
-/// (테스트 목적상) 항상 true로 노출되도록 [kDebugMode]를 쓰지 않았습니다.
-const bool kShowMochiDebugPanel = true;
+/// ⚠️ 실제 출시 버전에서는 반드시 false로 유지하세요.
+const bool kShowMochiDebugPanel = false;
 
 /// 마음 돌보기 (다마고치식) - 매일 몸(밥/물/목욕/청소)과 마음(호흡명상/걷기명상/
 /// 마음기록/감사쓰기)을 함께 돌보며 나의 그림자 고양이를 키우고 마음 온도를

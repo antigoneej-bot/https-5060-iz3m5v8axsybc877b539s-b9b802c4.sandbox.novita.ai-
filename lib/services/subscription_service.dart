@@ -4,6 +4,7 @@ import 'package:in_app_purchase_android/billing_client_wrappers.dart'
     show PricingPhaseWrapper;
 import 'dart:async';
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:in_app_purchase_android/in_app_purchase_android.dart';
@@ -32,6 +33,18 @@ class SubscriptionService {
   static const String _premiumKey = 'is_premium_subscriber';
   static const String _premiumSinceKey = 'premium_since';
   static const String _planKey = 'premium_plan_type';
+
+  /// 관리자 계정(구독 없이 전체 이용). Firebase Auth 로그인 이메일이 여기
+  /// 포함되면 [isPremium]이 항상 true를 반환합니다. 배포 전 실제 관리자
+  /// 이메일로 바꿔주세요.
+  static const Set<String> adminEmails = {
+    'healinggarden.mongi@gmail.com',
+  };
+
+  static bool get _isAdminUser {
+    final email = FirebaseAuth.instance.currentUser?.email?.toLowerCase();
+    return email != null && adminEmails.contains(email);
+  }
 
   static const String displayPrice = '월 4,900원';
   static const String displayYearlyPrice = '연 29,000원';
@@ -257,6 +270,7 @@ class SubscriptionService {
   static bool? debugIsPremiumOverride;
 
   Future<bool> isPremium() async {
+    if (_isAdminUser) return true;
     final override = debugIsPremiumOverride;
     if (kDebugMode && override != null) return override;
     if (CloudService.enabled) return CloudService.cachedPremium();

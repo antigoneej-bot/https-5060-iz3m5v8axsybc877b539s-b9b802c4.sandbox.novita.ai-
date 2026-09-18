@@ -96,6 +96,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         setState(() => _navIndex = 1);
         break;
       case 'catReply':
+      case 'heartLetterReply':
         // 답장 도착 알림 → 기록 탭으로 이동해 바로 열어볼 수 있게 함
         setState(() => _navIndex = 3);
         break;

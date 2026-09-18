@@ -30,6 +30,7 @@ class NotificationService {
   static const int _crisisId = 1004;
   static const int _streakId = 1005;
   static const int _catReplyId = 1006;
+  static const int _heartLetterReplyId = 1007;
 
   static const int _crisisAbsenceDays = 3;
   static const int _streakHour = 21;
@@ -521,6 +522,44 @@ class NotificationService {
       );
     } catch (e) {
       if (kDebugMode) debugPrint('NotificationService 답장 알림 예약 실패: $e');
+    }
+  }
+
+  /// 마음편지(감사·용서·미안함·사랑)를 쓰면, 다음날 아침 답장이 도착했다는
+  /// 알림을 예약합니다. 그림자 고양이 답장 알림과는 별개의 ID를 사용해
+  /// 같은 날 두 종류의 답장이 겹쳐도 서로 취소되지 않습니다.
+  Future<void> scheduleHeartLetterReplyNotification({
+    required String typeLabel,
+    required DateTime scheduledAt,
+  }) async {
+    if (kIsWeb) return;
+    await init();
+    try {
+      await _plugin.cancel(_heartLetterReplyId);
+      if (scheduledAt.isBefore(DateTime.now())) return;
+      final scheduled = tz.TZDateTime.from(scheduledAt, tz.local);
+      await _plugin.zonedSchedule(
+        _heartLetterReplyId,
+        '마음냥 정원 💌',
+        '$typeLabel의 답장이 도착했어요',
+        scheduled,
+        const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'heart_letter_reply',
+            '마음편지 답장 알림',
+            channelDescription: '어제 쓴 마음편지에 대한 답장이 도착했음을 알려드립니다.',
+            importance: Importance.defaultImportance,
+            priority: Priority.defaultPriority,
+          ),
+          iOS: DarwinNotificationDetails(),
+        ),
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+        payload: 'heartLetterReply',
+      );
+    } catch (e) {
+      if (kDebugMode) debugPrint('NotificationService 마음편지 답장 알림 예약 실패: $e');
     }
   }
 
