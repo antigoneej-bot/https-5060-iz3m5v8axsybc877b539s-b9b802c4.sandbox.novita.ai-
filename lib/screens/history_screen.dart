@@ -14,6 +14,7 @@ import '../theme.dart';
 import '../widgets/lively_cat_image.dart';
 import '../widgets/garden_path_card.dart';
 import '../widgets/feature_scaffold.dart';
+import '../widgets/mood_picker.dart';
 import 'mind_temperature_history_screen.dart';
 
 class HistoryScreen extends StatefulWidget {
@@ -541,6 +542,42 @@ class _HistoryItemState extends State<_HistoryItem>
                       color: AppColors.blobPeachAccent,
                     ),
                   ),
+                  if (entry.moodEmoji != null) ...[
+                    const SizedBox(height: 10),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.blobButter.withValues(alpha: 0.6),
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(
+                          color: AppColors.blobButterAccent.withValues(
+                            alpha: 0.35,
+                          ),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            entry.moodEmoji!,
+                            style: const TextStyle(fontSize: 18),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            '오늘 기분: ${moodLabelFor(entry.moodEmoji!)}',
+                            style: bodyFont(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.ink,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 10),
                   Container(
                     width: double.infinity,
@@ -551,7 +588,9 @@ class _HistoryItemState extends State<_HistoryItem>
                     ),
                     child: Text(
                       entry.letterText.isEmpty
-                          ? '(기록된 내용이 없어요)'
+                          ? (entry.moodEmoji != null
+                                ? '(오늘은 이모티콘으로만 마음을 남겼어요)'
+                                : '(기록된 내용이 없어요)')
                           : entry.letterText,
                       style: bodyFont(
                         fontSize: 13.5,
