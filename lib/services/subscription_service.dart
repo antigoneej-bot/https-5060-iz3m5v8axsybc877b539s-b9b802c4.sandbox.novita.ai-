@@ -41,9 +41,18 @@ class SubscriptionService {
     'healinggarden.mongi@gmail.com',
   };
 
+  /// Firebase가 아직 초기화되지 않았거나(예: 시작 직후, 오프라인) 접근에
+  /// 실패하는 경우에도 절대 예외를 밖으로 던지지 않습니다. 이 값은 매우
+  /// 자주(앱 부트스트랩, 편지 저장 등 거의 모든 진입점에서) 호출되므로,
+  /// 여기서 예외가 새어나가면 관리자와 무관한 일반 사용자의 편지 저장까지
+  /// 함께 실패하게 됩니다.
   static bool get _isAdminUser {
-    final email = FirebaseAuth.instance.currentUser?.email?.toLowerCase();
-    return email != null && adminEmails.contains(email);
+    try {
+      final email = FirebaseAuth.instance.currentUser?.email?.toLowerCase();
+      return email != null && adminEmails.contains(email);
+    } catch (_) {
+      return false;
+    }
   }
 
   static const String displayPrice = '월 4,900원';
