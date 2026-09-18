@@ -127,8 +127,9 @@ class _MyScreenState extends State<MyScreen> {
             );
           },
         ),
-        // 개발/운영 확인용 - 사용자에게는 노출하지 않고 디버그 빌드에서만 표시
-        if (kDebugMode) ...[
+        // 개발/운영 확인용 - 일반 사용자에게는 노출하지 않고 디버그 빌드
+        // 또는 관리자 계정(로그인) 상태에서만 표시합니다.
+        if (kDebugMode || SubscriptionService.isAdminUser) ...[
           const SizedBox(height: 4),
           _InfoLinkRow(
             icon: Icons.query_stats_rounded,

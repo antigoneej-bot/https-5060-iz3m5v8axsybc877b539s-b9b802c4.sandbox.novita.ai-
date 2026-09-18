@@ -46,7 +46,10 @@ class SubscriptionService {
   /// 자주(앱 부트스트랩, 편지 저장 등 거의 모든 진입점에서) 호출되므로,
   /// 여기서 예외가 새어나가면 관리자와 무관한 일반 사용자의 편지 저장까지
   /// 함께 실패하게 됩니다.
-  static bool get _isAdminUser {
+  ///
+  /// public으로 노출해, [isPremium] 경로를 타지 않는 다른 "전체 공개"
+  /// 판단(예: 디버그/운영 확인용 화면 노출)에서도 재사용할 수 있게 합니다.
+  static bool get isAdminUser {
     try {
       final email = FirebaseAuth.instance.currentUser?.email?.toLowerCase();
       return email != null && adminEmails.contains(email);
@@ -279,7 +282,7 @@ class SubscriptionService {
   static bool? debugIsPremiumOverride;
 
   Future<bool> isPremium() async {
-    if (_isAdminUser) return true;
+    if (isAdminUser) return true;
     final override = debugIsPremiumOverride;
     if (kDebugMode && override != null) return override;
     if (CloudService.enabled) return CloudService.cachedPremium();

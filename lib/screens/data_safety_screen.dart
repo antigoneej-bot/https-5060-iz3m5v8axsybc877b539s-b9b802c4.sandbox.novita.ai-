@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../providers/app_state_provider.dart';
 import '../providers/cat_care_provider.dart';
 import '../providers/promise_provider.dart';
+import '../mongi/providers/garden_provider.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -60,10 +61,14 @@ class _DataSafetyScreenState extends State<DataSafetyScreen> {
           final app = context.read<AppStateProvider>();
           final care = context.read<CatCareProvider>();
           final promise = context.read<PromiseProvider>();
+          final garden = context.read<GardenProvider>();
           try {
             await app.refreshPremiumStatus();
             await care.load();
             await promise.load();
+            // 관리자/구독 계정으로 로그인한 즉시 몽이의 정원(장식·시즌패스·
+            // 스토리·파워부적 등)의 잠금도 함께 풀리도록 갱신합니다.
+            await garden.refreshSubscription();
           } catch (_) {}
         }
         if (mounted) setState(() => _busy = false);
