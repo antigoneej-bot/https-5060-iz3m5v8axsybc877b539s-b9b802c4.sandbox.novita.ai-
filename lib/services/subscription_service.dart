@@ -35,10 +35,9 @@ class SubscriptionService {
   static const String _planKey = 'premium_plan_type';
 
   /// 관리자 계정(구독 없이 전체 이용). Firebase Auth 로그인 이메일이 여기
-  /// 포함되면 [isPremium]이 항상 true를 반환합니다. 배포 전 실제 관리자
-  /// 이메일로 바꿔주세요.
+  /// 포함되면 [isPremium]이 항상 true를 반환합니다.
   static const Set<String> adminEmails = {
-    'healinggarden.mongi@gmail.com',
+    'antigone.ej@gmail.com',
   };
 
   /// Firebase가 아직 초기화되지 않았거나(예: 시작 직후, 오프라인) 접근에
