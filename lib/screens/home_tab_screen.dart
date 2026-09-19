@@ -32,6 +32,7 @@ import '../models/special_letter_entry.dart';
 import '../widgets/category_list_screen.dart';
 import 'premium_screen.dart';
 import 'my_garden_screen.dart';
+import '../services/notification_service.dart';
 
 /// 홈페이지 탭 - '힐링 정원 산책로' 컨셉의 대시보드.
 /// 딱딱한 흰 사각 카드를 모두 걷어내고, 오솔길을 걷듯 좌우로 살짝씩 흔들리며
@@ -50,7 +51,10 @@ class HomeTabScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final app = context.watch<AppStateProvider>();
-    final unseenReply = app.letterWithUnseenReadyReply;
+    // 안 읽은 답장이 없어도, 가장 최근에 도착한 답장은 "다시 보기" 카드로
+    // 계속 남겨둡니다(한 번 읽고 나면 다시 찾아보기 어려웠던 문제 개선).
+    final unseenReply =
+        app.letterWithUnseenReadyReply ?? app.latestReadyReply;
     final unseenHeartReply = SpecialLetterService.unseenReadyReply;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -68,6 +72,7 @@ class HomeTabScreen extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 16),
+        const _ReplyNotificationSettingsButton(),
         if (unseenReply != null) ...[
           _CatReplyBanner(entry: unseenReply, onTap: onGoToRecords),
           const SizedBox(height: 16),
@@ -518,6 +523,85 @@ class _PathSignpost extends StatelessWidget {
   }
 }
 
+/// 답장 도착 알림을 켜고 끌 수 있는 작은 설정 버튼. 홈 화면 상단, 답장
+/// 배너 바로 위에 은은하게 자리해 눈에 거슬리지 않으면서도 원할 때 바로
+/// 접근할 수 있게 합니다.
+class _ReplyNotificationSettingsButton extends StatefulWidget {
+  const _ReplyNotificationSettingsButton();
+
+  @override
+  State<_ReplyNotificationSettingsButton> createState() =>
+      _ReplyNotificationSettingsButtonState();
+}
+
+class _ReplyNotificationSettingsButtonState
+    extends State<_ReplyNotificationSettingsButton> {
+  Future<void> _openDialog() async {
+    final enabled = await NotificationService().replyNotificationsEnabled();
+    if (!mounted) return;
+    bool current = enabled;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: const Text('답장 도착 알림'),
+          content: Text(
+            current
+                ? '고양이와 마음편지의 답장이 도착하면 알림으로 알려드려요.'
+                : '답장이 도착해도 알림을 보내지 않아요. 앱에 들어와서 직접 확인해주세요.',
+            style: bodyFont(fontSize: 13, color: AppColors.inkSoft, height: 1.5),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('닫기'),
+            ),
+            TextButton(
+              onPressed: () async {
+                final next = !current;
+                final ok = await NotificationService()
+                    .setReplyNotificationsEnabled(next);
+                if (ok) {
+                  setDialogState(() => current = next);
+                }
+              },
+              child: Text(current ? '알림 끄기' : '알림 켜기'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (mounted) setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Align(
+        alignment: Alignment.centerRight,
+        child: TextButton.icon(
+          onPressed: _openDialog,
+          icon: const Icon(
+            Icons.notifications_none_rounded,
+            size: 16,
+            color: AppColors.inkSoft,
+          ),
+          label: Text(
+            '답장 도착 알림 설정',
+            style: bodyFont(fontSize: 11.5, color: AppColors.inkSoft),
+          ),
+          style: TextButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            minimumSize: Size.zero,
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// 저녁에 쓴 편지에 대해 다음날 아침 고양이의 답장이 도착했음을 알려주는
 /// 배너. 아직 열어보지 않은 답장이 있을 때만 홈 화면 최상단 근처에
 /// 나타나며, 탭하면 기록 탭으로 이동해 바로 열어볼 수 있습니다.
@@ -577,7 +661,9 @@ class _CatReplyBanner extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '${cat.nameKr}에게서 답장이 도착했어요',
+                      entry.replySeen
+                          ? '${cat.nameKr}의 답장 다시 보기'
+                          : '${cat.nameKr}에게서 답장이 도착했어요',
                       style: pathLabelFont(
                         fontSize: 14.5,
                         fontWeight: FontWeight.w700,
@@ -586,7 +672,9 @@ class _CatReplyBanner extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '어제 보낸 편지에 대한 답장을 열어보세요',
+                      entry.replySeen
+                          ? '받은 답장은 기록에 계속 보관돼요'
+                          : '어제 보낸 편지에 대한 답장을 열어보세요',
                       style: bodyFont(fontSize: 11.5, color: AppColors.inkSoft),
                     ),
                   ],

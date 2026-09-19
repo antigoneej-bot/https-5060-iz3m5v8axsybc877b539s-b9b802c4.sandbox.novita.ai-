@@ -17,7 +17,12 @@ class _SavedHeartReplyState extends State<SavedHeartReply> {
   @override
   void initState() {
     super.initState();
-    _reply = SpecialLetterService.ensureReply(widget.entry);
+    // 답장 생성 파이프라인(구독 확인·조합 연산)이 멈추더라도 이 화면이
+    // 무한정 로딩 상태로 남지 않도록, 개인편지 답장에도 고양이 답장과
+    // 동일하게 30초 타임아웃을 둡니다.
+    _reply = SpecialLetterService.ensureReply(
+      widget.entry,
+    ).timeout(const Duration(seconds: 30));
   }
 
   @override
@@ -28,7 +33,9 @@ class _SavedHeartReplyState extends State<SavedHeartReply> {
         return SubscriptionNotice(
           message: snapshot.error.toString(),
           onReturn: () => setState(
-            () => _reply = SpecialLetterService.ensureReply(widget.entry),
+            () => _reply = SpecialLetterService.ensureReply(
+              widget.entry,
+            ).timeout(const Duration(seconds: 30)),
           ),
         );
       if (snapshot.hasError)
@@ -38,7 +45,9 @@ class _SavedHeartReplyState extends State<SavedHeartReply> {
             const Text('편지는 저장되어 있어요. 답장 준비를 다시 시도해 주세요.'),
             TextButton(
               onPressed: () => setState(
-                () => _reply = SpecialLetterService.ensureReply(widget.entry),
+                () => _reply = SpecialLetterService.ensureReply(
+                  widget.entry,
+                ).timeout(const Duration(seconds: 30)),
               ),
               child: const Text('답장 다시 준비'),
             ),

@@ -1,4 +1,5 @@
 import 'dart:ui';
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import '../services/media_coordinator.dart';
@@ -32,6 +33,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   int _navIndex = 0;
+  Timer? _replyRefresh;
   bool _closed = false;
   bool _exiting = false;
   Future<void> _exitGarden() async {
@@ -61,11 +63,20 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // 앱이 이미 실행 중(warm)일 때 알림을 탭해도 즉시 따라가도록, 그리고
+    // 홍면을 열어둔 채 자정을 넘어 답장이 도착하는 경우에도 배너가 자동으로
+    // 갱신되도록, 주기적으로 화면을 갱신합니다.
+    NotificationService().deepLinkChanges.addListener(_handleDeepLink);
+    _replyRefresh = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted) setState(() {});
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) => _handleDeepLink());
   }
 
   @override
   void dispose() {
+    _replyRefresh?.cancel();
+    NotificationService().deepLinkChanges.removeListener(_handleDeepLink);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'reply_situation.dart';
 import 'access_policy.dart';
 import 'subscription_service.dart';
@@ -31,7 +32,12 @@ class PersonalReplyService {
       if (existing is String) {
         return (jsonDecode(existing) as Map)['reply'] as String;
       }
-      final premium = await SubscriptionService().isPremium();
+      // 구독 확인이 네트워크/캐시 문제로 멈추면 답장 전체가 무한정 멈추는
+      // 것을 막기 위해 타임아웃을 둡니다(8초 지나면 실패로 처리해 재시도
+      // 버튼이 뜨도록 함).
+      final premium = await SubscriptionService().isPremium().timeout(
+        const Duration(seconds: 8),
+      );
       final day = AccessPolicy.dayKey(clock());
       final quotaKey = 'quota:$day';
       final used = box.get(quotaKey, defaultValue: 0) as int;
@@ -40,12 +46,17 @@ class PersonalReplyService {
           '편지는 저장되어 있어요. 무료 답장은 하루 1회 제공돼요. 추가 답장은 마음냥 구독으로 만나보세요.',
         );
       }
+      // 과거 답장 이력 중 일부가 손상된 JSON이거나 parts가 누락되어 있어도
+      // (예: 이전 버전에서 저장된 데이터) 전체 조회가 실패해 새 답장 생성을
+      // 막지 않도록, 개별 행 파싱 실패는 건너뜁니다. 원본 저장 데이터는
+      // 건드리지 않습니다.
       final rows = box.values
           .whereType<String>()
           .toList()
           .reversed
           .take(20)
-          .map((value) => Map<String, dynamic>.from(jsonDecode(value) as Map))
+          .map(_historyRow)
+          .whereType<Map<String, dynamic>>()
           .toList();
       final feedback = await _feedback();
       final disliked = [
@@ -62,7 +73,9 @@ class PersonalReplyService {
           matchedCounts[topic] = (matchedCounts[topic] ?? 0) + 1;
           if (topic == PersonalReplyEngine.topicFor(letterText) &&
               row['style'] == style.name)
-            preferredParts.addAll(List<String>.from(row['parts'] as List));
+            preferredParts.addAll(
+              (row['parts'] as List? ?? const []).whereType<String>().toList(),
+            );
         }
         if (feedback.get(row['id']) == 'off_topic' &&
             row['situation'] is String)
@@ -77,7 +90,8 @@ class PersonalReplyService {
         'style': style.name,
         'catName': catName,
         'recentParts': [
-          for (final row in rows) List<String>.from(row['parts'] as List),
+          for (final row in rows)
+            (row['parts'] as List? ?? const []).whereType<String>().toList(),
         ],
         'recentTexts': [
           ...rows.map((r) => r['reply'] as String),
@@ -91,7 +105,7 @@ class PersonalReplyService {
         'avoidedSituations': avoidedSituations.toList(),
         'preferredParts': preferredParts,
         'repetitionWindow': disliked.isEmpty ? 3 : 6,
-      });
+      }).timeout(const Duration(seconds: 15));
       await box.putAll({
         if (!premium) quotaKey: used + 1,
         id: jsonEncode({
@@ -109,6 +123,22 @@ class PersonalReplyService {
     });
     _tail = result.then<void>((_) {}, onError: (Object _, StackTrace __) {});
     return result;
+  }
+
+  /// 저장된 답장 이력 한 줄(JSON 문자열)을 파싱합니다. 손상됐거나 형식이
+  /// 맞지 않으면 null을 반환해 호출부에서 건너뛸 수 있게 합니다(원본
+  /// 데이터는 삭제하지 않고 그대로 둠).
+  static Map<String, dynamic>? _historyRow(String value) {
+    try {
+      final row = Map<String, dynamic>.from(jsonDecode(value) as Map);
+      if (row['reply'] is! String) return null;
+      row['parts'] = (row['parts'] is List)
+          ? (row['parts'] as List).whereType<String>().toList()
+          : <String>[];
+      return row;
+    } catch (_) {
+      return null;
+    }
   }
 
   static Future<String?> feedback(String id) async =>

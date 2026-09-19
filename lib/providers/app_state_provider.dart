@@ -426,6 +426,15 @@ class AppStateProvider extends ChangeNotifier {
     return null;
   }
 
+  /// 답장이 도착한 편지 중 가장 최근 것을 반환합니다(이미 읽었어도 포함).
+  /// 안 읽은 답장이 없을 때, 홈 화면에 "답장 다시 보기" 카드를 계속
+  /// 남겨두기 위한 용도입니다.
+  LetterEntry? get latestReadyReply {
+    final ready = history.where((entry) => entry.isReplyReady).toList()
+      ..sort((a, b) => b.date.compareTo(a.date));
+    return ready.isEmpty ? null : ready.first;
+  }
+
   /// 지금까지 편지를 써서 만난 그림자 고양이들의 id 집합.
   /// '42 그림자 고양이 여정'의 수집 진행 상황(도감)을 계산하는 기준입니다.
   Set<String> get metCatIds => history.map((e) => e.catId).toSet();

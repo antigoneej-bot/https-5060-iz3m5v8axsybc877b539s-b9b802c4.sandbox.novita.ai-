@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest_all.dart' as tz_data;
@@ -45,6 +46,12 @@ class NotificationService {
   /// 'morning' | 'evening' | 'crisis' | 'streak' 중 하나이며, 소비하면
   /// [consumePendingDeepLink]로 비웁니다.
   String? pendingDeepLink;
+
+  /// 앱이 이미 실행 중(warm)일 때 알림을 탭하면, 콜드 스타트처럼
+  /// [pendingDeepLink]를 나중에 소비하는 방식만으로는 화면 전환이 즉시
+  /// 일어나지 않을 수 있습니다. 이 알림을 구독해두면 그 순간 즉시 반응할
+  /// 수 있습니다.
+  final deepLinkChanges = _DeepLinkNotifier();
 
   static const List<String> _morningMessages = [
     '오늘 아침, 마음은 어떤가요? 🌤️',
@@ -133,6 +140,7 @@ class NotificationService {
 
   void _onNotificationTap(NotificationResponse response) {
     pendingDeepLink = response.payload;
+    deepLinkChanges.fire();
   }
 
   /// 대기 중인 딥링크 payload를 읽고 비웁니다. 홈 화면 진입 시 1회 소비합니다.
@@ -243,6 +251,7 @@ class NotificationService {
     }
     await _refreshCrisisReminder();
     await _refreshStreakReminder();
+    await restoreReplyNotification();
   }
 
   /// 오늘의 미션(편지 쓰기 등)을 완수했을 때 호출합니다. 오늘 예약된
@@ -486,6 +495,61 @@ class NotificationService {
     }
   }
 
+  // ───────────────────────── 답장 도착 알림 on/off ─────────────────────────
+  /// 그림자 고양이/마음편지 답장 도착 알림이 켜져 있는지 여부. 사용자가
+  /// 마이 탭에서 명시적으로 설정한 값이 있으면 그 값을 따르고, 아직
+  /// 설정한 적이 없다면 온보딩에서 알림에 동의했는지(notification_opt_in)를
+  /// 기본값으로 사용합니다.
+  Future<bool> replyNotificationsEnabled() async {
+    final prefs = await SharedPreferences.getInstance();
+    final explicit = prefs.getBool('cat_reply_notifications');
+    if (explicit != null) return explicit;
+    return prefs.getBool('notification_opt_in') ?? false;
+  }
+
+  /// 답장 도착 알림을 켜거나 끕니다. 켤 때는 알림 권한을 요청하고, 거부되면
+  /// 설정도 켜지지 않은 채 false를 반환합니다. 끌 때는 이미 예약된 답장
+  /// 알림을 모두 취소합니다.
+  Future<bool> setReplyNotificationsEnabled(bool enabled) async {
+    await init();
+    if (kIsWeb) return false;
+    if (enabled) {
+      final granted = await _requestPermission();
+      if (!granted) return false;
+    }
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('cat_reply_notifications', enabled);
+    if (enabled) {
+      await restoreReplyNotification();
+    } else {
+      await _plugin.cancel(_catReplyId);
+      await _plugin.cancel(_heartLetterReplyId);
+    }
+    return true;
+  }
+
+  /// 앱 시작/설정 변경 시, 아직 답장을 열어보지 않은 그림자 고양이 편지 중
+  /// 가장 이른 도착 시각을 기준으로 답장 알림을 다시 예약합니다(알림은
+  /// 한 번에 하나만 유지되므로 가장 가까운 답장을 기준으로 잡습니다).
+  Future<void> restoreReplyNotification() async {
+    if (kIsWeb || !await replyNotificationsEnabled()) return;
+    try {
+      final upcoming = StorageService.getAllLetters()
+          .where((entry) => !entry.replySeen)
+          .toList()
+        ..sort((a, b) => a.replyAvailableAt.compareTo(b.replyAvailableAt));
+      if (upcoming.isEmpty) return;
+      final next = upcoming.first;
+      final cat = shadowCatById(next.catId);
+      await scheduleCatReplyNotification(
+        catName: cat.nameKr,
+        scheduledAt: next.replyAvailableAt,
+      );
+    } catch (e) {
+      if (kDebugMode) debugPrint('NotificationService 답장 알림 복원 실패: $e');
+    }
+  }
+
   /// 오늘 편지를 쓰면, 다음날 아침 그 고양이에게서 답장이 도착했다는
   /// 알림을 예약합니다. [scheduledAt]은 [LetterEntry.replyAvailableAt]
   /// (다음날 오전 6시)을 그대로 전달받습니다. 같은 날 편지를 여러 번 써도
@@ -494,7 +558,7 @@ class NotificationService {
     required String catName,
     required DateTime scheduledAt,
   }) async {
-    if (kIsWeb) return;
+    if (kIsWeb || !await replyNotificationsEnabled()) return;
     await init();
     try {
       await _plugin.cancel(_catReplyId);
@@ -532,7 +596,7 @@ class NotificationService {
     required String typeLabel,
     required DateTime scheduledAt,
   }) async {
-    if (kIsWeb) return;
+    if (kIsWeb || !await replyNotificationsEnabled()) return;
     await init();
     try {
       await _plugin.cancel(_heartLetterReplyId);
@@ -578,4 +642,10 @@ class NotificationService {
     }
     return scheduled;
   }
+}
+
+/// [ChangeNotifier.notifyListeners]는 protected라 외부에서 바로 호출할 수
+/// 없으므로, 공개 메서드 [fire]로 감싸 딥링크 발생을 알립니다.
+class _DeepLinkNotifier extends ChangeNotifier {
+  void fire() => notifyListeners();
 }

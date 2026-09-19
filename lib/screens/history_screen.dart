@@ -1,3 +1,4 @@
+import 'dart:async';
 import '../services/access_policy.dart';
 import '../widgets/subscription_gate.dart';
 import '../widgets/reply_feedback.dart';
@@ -356,9 +357,10 @@ class _HistoryItemState extends State<_HistoryItem>
         cursor: SystemMouseCursors.click,
         child: GestureDetector(
           onTap: () {
-            if (entry.isReplyReady && !entry.replySeen) {
-              context.read<AppStateProvider>().markReplySeen(entry.id);
-            }
+            // 읽음 처리는 답장을 실제로 불러오는 데 성공한 뒤에만 수행합니다
+            // (_CatReplySectionState 참고). 여기서 미리 읽음 처리하면, 답장
+            // 로딩이 실패하거나 멈춰도 배너가 사라져버려 사용자가 다시 찾기
+            // 어려워지는 문제가 있었습니다.
             _showDetail(context, entry, cat.imageAsset, cat.nameKr);
           },
           child: AnimatedScale(
@@ -640,7 +642,10 @@ class _HistoryItemState extends State<_HistoryItem>
 /// 위젯이 그 완료 신호를 받지 못해 로딩 스피너에 무한정 머무는 현상이
 /// 관찰되었습니다. FutureBuilder의 내부 구독 메커니즘에 기대는 대신, 여기서는
 /// Future에 직접 콜백(.then/onError)을 붙이고 완료 즉시 setState를 호출하는
-/// 방식으로 이 문제를 원천 차단합니다.
+/// 방식으로 이 문제를 원천 차단합니다. 추가로, 답장 생성 파이프라인
+/// 자체(구독 확인·백그라운드 조합 연산)에도 각각 타임아웃을 걸어두었으므로
+/// (personal_reply_service.dart 참고), 여기서는 만약을 대비한 마지막
+/// 안전장치로 30초 타임아웃을 한 번 더 둡니다.
 class _CatReplySection extends StatefulWidget {
   final LetterEntry entry;
   final String catName;
@@ -654,12 +659,45 @@ class _CatReplySectionState extends State<_CatReplySection> {
   bool _loading = false;
   String? _reply;
   Object? _error;
+  Timer? _arrivalTimer;
+  bool _markedSeen = false;
 
   @override
   void initState() {
     super.initState();
+    _prepareWhenReady();
+  }
+
+  @override
+  void didUpdateWidget(covariant _CatReplySection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.entry.id != widget.entry.id) {
+      _markedSeen = false;
+      _prepareWhenReady();
+    }
+  }
+
+  @override
+  void dispose() {
+    _arrivalTimer?.cancel();
+    super.dispose();
+  }
+
+  /// 답장이 이미 도착했다면 바로 로딩을 시작하고, 아직 도착 전(다음날 오전
+  /// 6시 이전)이라면 도착 시각에 맞춰 타이머를 걸어둡니다. 상세 다이얼로그를
+  /// 열어둔 채로 자정을 넘기는 경우에도, 화면을 닫았다 여는 수고 없이
+  /// 자동으로 로딩이 시작되도록 하기 위함입니다.
+  void _prepareWhenReady() {
+    _arrivalTimer?.cancel();
     if (widget.entry.isReplyReady) {
       _startLoading();
+    } else {
+      final wait =
+          widget.entry.replyAvailableAt.difference(DateTime.now()) +
+          const Duration(milliseconds: 100);
+      _arrivalTimer = Timer(wait, () {
+        if (mounted) setState(_prepareWhenReady);
+      });
     }
   }
 
@@ -676,12 +714,27 @@ class _CatReplySectionState extends State<_CatReplySection> {
       history: app.history,
       growthStage: catCare.effectiveGrowthStage,
       visitStreak: app.streak,
-    ).then((value) {
+    ).timeout(const Duration(seconds: 30)).then((value) {
       if (!mounted) return;
       setState(() {
         _loading = false;
         _reply = value;
       });
+      // 답장을 실제로 불러오는 데 성공한 뒤에만 "읽음"으로 표시합니다. 로딩
+      // 실패/타임아웃 시 미리 읽음 처리해버리면 홈 배너가 사라져 사용자가
+      // 다시 찾기 어려워지는 문제를 막기 위함입니다.
+      if (!_markedSeen && value.isNotEmpty) {
+        _markedSeen = true;
+        final entryId = widget.entry.id;
+        WidgetsBinding.instance.addPostFrameCallback((_) async {
+          if (!mounted) return;
+          try {
+            await context.read<AppStateProvider>().markReplySeen(entryId);
+          } catch (_) {
+            _markedSeen = false;
+          }
+        });
+      }
     }, onError: (Object error, StackTrace stackTrace) {
       if (!mounted) return;
       setState(() {
