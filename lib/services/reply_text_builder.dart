@@ -23,26 +23,14 @@ Future<String> _buildReplyText({
   required CatGrowthStage growthStage,
   required int visitStreak,
 }) async {
-  // ignore: avoid_print
-  print('DEBUG_REPLY: start _buildReplyText entry=${entry.id}');
   final cache = await HiveEncryption.openBox('reply_cache_local_user');
-  // ignore: avoid_print
-  print('DEBUG_REPLY: opened cache box');
   final cached = cache.get(entry.id);
-  if (cached is String) {
-    // ignore: avoid_print
-    print('DEBUG_REPLY: cache hit');
-    return cached;
-  }
-  // ignore: avoid_print
-  print('DEBUG_REPLY: cache miss, calling PersonalReplyService.create');
+  if (cached is String) return cached;
   final reply = await PersonalReplyService.create(
     id: 'letter:${entry.id}', letterText: entry.letterText,
     style: entry.replyStyle, catName: cat.nameKr,
     legacyReplies: cache.values.whereType<String>().toList().reversed.take(20).toList(),
   );
-  // ignore: avoid_print
-  print('DEBUG_REPLY: create() resolved');
   // New replies are already durably cached by PersonalReplyService.
   return reply;
 }
