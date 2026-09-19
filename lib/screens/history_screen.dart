@@ -632,8 +632,15 @@ class _HistoryItemState extends State<_HistoryItem>
 /// - 다음날 아침이 지났다면: 고양이의 답장 전문을 편지지 톤으로 보여줌
 ///
 /// 답장 텍스트는 [buildReplyText]를 통해 조회하는데(신규 8모듈 조합 엔진은
-/// 반복방지 기록을 Hive에 남기기 위해 비동기로 동작), StatefulWidget +
-/// FutureBuilder로 로딩 상태를 보여줍니다.
+/// 반복방지 기록을 Hive에 남기기 위해 비동기로 동작), StatefulWidget으로
+/// 로딩 상태를 관리합니다.
+///
+/// 주의: 과거에는 FutureBuilder를 사용했으나, 일부 웹(dart2js) 빌드
+/// 환경에서 Future 자체는 정상적으로 완료되어 IndexedDB에 값까지 저장되는데도
+/// 위젯이 그 완료 신호를 받지 못해 로딩 스피너에 무한정 머무는 현상이
+/// 관찰되었습니다. FutureBuilder의 내부 구독 메커니즘에 기대는 대신, 여기서는
+/// Future에 직접 콜백(.then/onError)을 붙이고 완료 즉시 setState를 호출하는
+/// 방식으로 이 문제를 원천 차단합니다.
 class _CatReplySection extends StatefulWidget {
   final LetterEntry entry;
   final String catName;
@@ -644,27 +651,48 @@ class _CatReplySection extends StatefulWidget {
 }
 
 class _CatReplySectionState extends State<_CatReplySection> {
-  Future<String>? _replyFuture;
+  bool _loading = false;
+  String? _reply;
+  Object? _error;
 
   @override
   void initState() {
     super.initState();
     if (widget.entry.isReplyReady) {
-      _replyFuture = _loadReply();
+      _startLoading();
     }
   }
 
-  Future<String> _loadReply() {
+  void _startLoading() {
+    _loading = true;
+    _error = null;
+    _reply = null;
     final cat = shadowCatById(widget.entry.catId);
     final app = context.read<AppStateProvider>();
     final catCare = context.read<CatCareProvider>();
-    return buildReplyText(
+    buildReplyText(
       entry: widget.entry,
       cat: cat,
       history: app.history,
       growthStage: catCare.effectiveGrowthStage,
       visitStreak: app.streak,
-    );
+    ).then((value) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _reply = value;
+      });
+    }, onError: (Object error, StackTrace stackTrace) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = error;
+      });
+    });
+  }
+
+  void _retry() {
+    setState(_startLoading);
   }
 
   @override
@@ -702,85 +730,82 @@ class _CatReplySectionState extends State<_CatReplySection> {
       );
     }
 
-    return FutureBuilder<String>(
-      future: _replyFuture,
-      builder: (context, snapshot) {
-        final reply = snapshot.data ?? '';
-        if (snapshot.error is SubscriptionRequired)
-          return SubscriptionNotice(
-            message: snapshot.error.toString(),
-            onReturn: () => setState(() => _replyFuture = _loadReply()),
-          );
-        if (snapshot.hasError)
-          return Column(
+    if (_error is SubscriptionRequired) {
+      return SubscriptionNotice(
+        message: _error.toString(),
+        onReturn: _retry,
+      );
+    }
+    if (_error != null) {
+      return Column(
+        children: [
+          const Text('답장을 준비하지 못했어요. 편지는 보관되어 있어요.'),
+          TextButton(
+            onPressed: _retry,
+            child: const Text('다시 준비하기'),
+          ),
+        ],
+      );
+    }
+    final reply = _reply ?? '';
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(18),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppColors.blobButter.withValues(alpha: 0.85),
+            AppColors.blobButter.withValues(alpha: 0.55),
+          ],
+        ),
+        border: Border.all(
+          color: AppColors.blobButterAccent.withValues(alpha: 0.3),
+          width: 1.1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
-              const Text('답장을 준비하지 못했어요. 편지는 보관되어 있어요.'),
-              TextButton(
-                onPressed: () => setState(() => _replyFuture = _loadReply()),
-                child: const Text('다시 준비하기'),
+              const Text('💌', style: TextStyle(fontSize: 16)),
+              const SizedBox(width: 6),
+              Text(
+                '$catName의 답장',
+                style: pathLabelFont(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.ink,
+                ),
               ),
             ],
-          );
-        return Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(18),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                AppColors.blobButter.withValues(alpha: 0.85),
-                AppColors.blobButter.withValues(alpha: 0.55),
-              ],
-            ),
-            border: Border.all(
-              color: AppColors.blobButterAccent.withValues(alpha: 0.3),
-              width: 1.1,
-            ),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  const Text('💌', style: TextStyle(fontSize: 16)),
-                  const SizedBox(width: 6),
-                  Text(
-                    '$catName의 답장',
-                    style: pathLabelFont(
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.ink,
-                    ),
-                  ),
-                ],
+          const SizedBox(height: 10),
+          if (_loading)
+            const SizedBox(
+              height: 18,
+              width: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          else
+            Text(
+              reply,
+              style: bodyFont(
+                fontSize: 13,
+                color: AppColors.moon,
+                height: 1.7,
               ),
-              const SizedBox(height: 10),
-              if (snapshot.connectionState == ConnectionState.waiting)
-                const SizedBox(
-                  height: 18,
-                  width: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              else
-                Text(
-                  reply,
-                  style: bodyFont(
-                    fontSize: 13,
-                    color: AppColors.moon,
-                    height: 1.7,
-                  ),
-                ),
-              if (snapshot.hasData)
-                ReplyFeedback(
-                  key: ValueKey('letter:${entry.id}'),
-                  replyId: 'letter:${entry.id}',
-                ),
-            ],
-          ),
-        );
-      },
+            ),
+          if (!_loading && _error == null)
+            ReplyFeedback(
+              key: ValueKey('letter:${entry.id}'),
+              replyId: 'letter:${entry.id}',
+            ),
+        ],
+      ),
     );
   }
 }
