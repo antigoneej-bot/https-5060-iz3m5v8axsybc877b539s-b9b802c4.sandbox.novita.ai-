@@ -15,7 +15,7 @@ class FeatureFlags {
   /// 즉시 답장을 열어볼 수 있습니다. 새 편지 생성 엔진 결과를 빠르게
   /// 확인하기 위한 임시 스위치이며, 확인이 끝나면 반드시 false로 되돌려야
   /// 합니다(정식 배포 시에는 항상 false).
-  static const bool debugInstantReply = false;
+  static const bool debugInstantReply = true;
 
   /// true: 편지 몇몇 모듈(인사/고양이감정/마무리)에 태그 기반 이모지를
   /// 자동으로 붙입니다(문장 원본은 그대로 두고 조합 단계에서만 덧붙임).

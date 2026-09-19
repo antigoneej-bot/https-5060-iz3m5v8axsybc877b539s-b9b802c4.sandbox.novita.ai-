@@ -26,11 +26,22 @@ class PersonalReplyService {
     List<String> legacyReplies = const [],
   }) {
     final result = _tail.catchError((Object _) {}).then((_) async {
+      // ignore: avoid_print
+      print('DEBUG_REPLY: create() tail resolved, id=$id');
       final box = await _history();
+      // ignore: avoid_print
+      print('DEBUG_REPLY: opened history box');
       final existing = box.get(id);
-      if (existing is String)
+      if (existing is String) {
+        // ignore: avoid_print
+        print('DEBUG_REPLY: existing history hit');
         return (jsonDecode(existing) as Map)['reply'] as String;
+      }
+      // ignore: avoid_print
+      print('DEBUG_REPLY: calling isPremium()');
       final premium = await SubscriptionService().isPremium();
+      // ignore: avoid_print
+      print('DEBUG_REPLY: isPremium()=$premium');
       final day = AccessPolicy.dayKey(clock());
       final quotaKey = 'quota:$day';
       final used = box.get(quotaKey, defaultValue: 0) as int;
@@ -71,6 +82,8 @@ class PersonalReplyService {
           offTopicCounts[topic] = (offTopicCounts[topic] ?? 0) + 1;
         }
       }
+      // ignore: avoid_print
+      print('DEBUG_REPLY: about to call compute(_generateReply)');
       final generated = await compute(_generateReply, <String, dynamic>{
         'letterText': letterText,
         'style': style.name,
@@ -91,6 +104,8 @@ class PersonalReplyService {
         'preferredParts': preferredParts,
         'repetitionWindow': disliked.isEmpty ? 3 : 6,
       });
+      // ignore: avoid_print
+      print('DEBUG_REPLY: compute() resolved');
       await box.putAll({
         if (!premium) quotaKey: used + 1,
         id: jsonEncode({
