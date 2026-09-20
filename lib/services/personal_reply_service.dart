@@ -30,7 +30,19 @@ class PersonalReplyService {
       final box = await _history();
       final existing = box.get(id);
       if (existing is String) {
-        return (jsonDecode(existing) as Map)['reply'] as String;
+        // 과거(더 이전) 버전에서 답장 생성 도중 예외가 발생해, 완결된
+        // 문장이 아니라 특수문자 한두 글자만 저장된 손상 데이터가 드물게
+        // 남아있을 수 있습니다. 그런 값을 그대로 돌려주면 사용자는 몇 번을
+        // 다시 열어봐도 계속 깨진 답장만 보게 되므로, 사람이 쓴 문장으로
+        // 보기 어려운 극단적으로 짧은 값(공백 제외 4자 미만)은 손상된
+        // 것으로 간주하고 새로 생성해 덮어씁니다. 정상적인 짧은 레거시
+        // 답장(예: 10자 안팎)은 그대로 보존됩니다.
+        try {
+          final reply = (jsonDecode(existing) as Map)['reply'];
+          if (reply is String && reply.trim().length >= 4) return reply;
+        } catch (_) {
+          // 파싱 실패 시에도 아래로 내려가 재생성합니다.
+        }
       }
       // 구독 확인이 네트워크/캐시 문제로 멈추면 답장 전체가 무한정 멈추는
       // 것을 막기 위해 타임아웃을 둡니다(8초 지나면 실패로 처리해 재시도
