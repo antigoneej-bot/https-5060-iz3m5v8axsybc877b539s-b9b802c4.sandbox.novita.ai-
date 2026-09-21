@@ -154,40 +154,47 @@ class PersonalReplyService {
       // 현상이 실제로 재현되었습니다(Future 자체가 절대 끝나지 않음).
       // 답장 문장 조합은 순수 문자열 처리로 몇 밀리초 밖에 걸리지 않으므로,
       // 별도 워커 없이 메인 스레드에서 직접 계산합니다.
-      final generated = _generateReply(<String, dynamic>{
-        'letterText': letterText,
-        'style': style.name,
-        'catName': catName,
-        'recentParts': [
-          for (final row in rows)
-            (row['parts'] as List? ?? const []).whereType<String>().toList(),
-        ],
-        'recentTexts': [
-          ...rows.map((r) => r['reply'] as String),
-          ...legacyReplies,
-        ].take(20).toList(),
-        'dislikedTexts': disliked,
-        'avoidedTopics': offTopicCounts.entries
-            .where((e) => e.value >= 2 && e.value > (matchedCounts[e.key] ?? 0))
-            .map((e) => e.key)
-            .toList(),
-        'avoidedSituations': avoidedSituations.toList(),
-        'preferredParts': preferredParts,
-        'repetitionWindow': disliked.isEmpty ? 3 : 6,
-      });
-      await box.putAll({
-        if (!premium) quotaKey: used + 1,
-        id: jsonEncode({
-          'version': 1,
-          'id': id,
-          'reply': generated.text,
-          'parts': generated.parts,
-          'topic': generated.topic,
+      final generated = await ReplyFailure.step(
+        'GENERATE',
+        () async => _generateReply(<String, dynamic>{
+          'letterText': letterText,
           'style': style.name,
-          'situation': ReplySituation.detect(letterText)?.id,
+          'catName': catName,
+          'recentParts': [
+            for (final row in rows)
+              (row['parts'] as List? ?? const []).whereType<String>().toList(),
+          ],
+          'recentTexts': [
+            ...rows.map((r) => r['reply'] as String),
+            ...legacyReplies,
+          ].take(20).toList(),
+          'dislikedTexts': disliked,
+          'avoidedTopics': offTopicCounts.entries
+              .where((e) => e.value >= 2 && e.value > (matchedCounts[e.key] ?? 0))
+              .map((e) => e.key)
+              .toList(),
+          'avoidedSituations': avoidedSituations.toList(),
+          'preferredParts': preferredParts,
+          'repetitionWindow': disliked.isEmpty ? 3 : 6,
         }),
-      });
-      await box.flush();
+        timeout: const Duration(seconds: 15),
+      );
+      await ReplyFailure.step(
+        'SAVE',
+        () => box.putAll({
+          if (!premium) quotaKey: used + 1,
+          id: jsonEncode({
+            'version': 1,
+            'id': id,
+            'reply': generated.text,
+            'parts': generated.parts,
+            'topic': generated.topic,
+            'style': style.name,
+            'situation': ReplySituation.detect(letterText)?.id,
+          }),
+        }),
+      );
+      await ReplyFailure.step('FLUSH', box.flush);
       return generated.text;
     }();
   }

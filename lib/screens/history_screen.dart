@@ -11,6 +11,7 @@ import '../providers/cat_care_provider.dart';
 import '../models/letter_entry.dart';
 import '../data/shadow_cats_data.dart';
 import '../services/reply_text_builder.dart';
+import '../services/reply_failure.dart';
 import '../theme.dart';
 import '../widgets/lively_cat_image.dart';
 import '../widgets/garden_path_card.dart';
@@ -793,6 +794,10 @@ class _CatReplySectionState extends State<_CatReplySection> {
       return Column(
         children: [
           const Text('답장을 준비하지 못했어요. 편지는 보관되어 있어요.'),
+          SelectableText(
+            ReplyFailure.description(_error),
+            style: const TextStyle(fontSize: 12, color: Colors.grey),
+          ),
           TextButton(
             onPressed: _retry,
             child: const Text('다시 준비하기'),

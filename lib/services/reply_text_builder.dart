@@ -1,5 +1,6 @@
 import 'personal_reply_service.dart';
 import 'hive_encryption.dart';
+import 'reply_failure.dart';
 import '../models/letter_entry.dart';
 import '../models/shadow_cat.dart';
 import '../models/cat_care_state.dart';
@@ -23,7 +24,11 @@ Future<String> _buildReplyText({
   required CatGrowthStage growthStage,
   required int visitStreak,
 }) async {
-  final cache = await HiveEncryption.openBox('reply_cache_local_user');
+  final cache = await ReplyFailure.step(
+    'CACHE',
+    () => HiveEncryption.openBox('reply_cache_local_user'),
+    timeout: const Duration(seconds: 8),
+  );
   final cached = cache.get(entry.id);
   if (cached is String) return cached;
   final reply = await PersonalReplyService.create(

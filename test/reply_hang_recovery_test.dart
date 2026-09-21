@@ -23,6 +23,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:flutter_app/models/reply_style.dart';
 import 'package:flutter_app/services/personal_reply_service.dart';
+import 'package:flutter_app/services/reply_failure.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -65,6 +66,12 @@ void main() {
       // 1) 첫 번째 요청: secure storage read 가 멈춰있으므로 내부적으로
       //    멈추지만, create() 전체에 걸린 방어 타임아웃(25초) 덕분에
       //    무한정 걸리지 않고 스스로 실패로 끝나야 합니다.
+      // R11: HISTORY 단계(_history() 내부 secure storage read)에서 멈춘
+      //    타임아웃은 이제 ReplyFailure('HISTORY', 'TimeoutException')로
+      //    래핑되어, 사용자가 어느 단계에서 실패했는지 확인 번호로 구분할
+      //    수 있습니다. 원본 TimeoutException은 ReplyFailure.step 내부의
+      //    개별 타임아웃(8초)에서 먼저 발생하므로 더 이상 바깥으로
+      //    그대로 전파되지 않습니다.
       final first = PersonalReplyService.create(
         id: 'hang-1',
         letterText: '오늘 너무 화가 났어.',
@@ -72,7 +79,14 @@ void main() {
         catName: '몽이',
       );
 
-      await expectLater(first, throwsA(isA<TimeoutException>()));
+      await expectLater(
+        first,
+        throwsA(
+          isA<ReplyFailure>()
+              .having((e) => e.stage, 'stage', 'HISTORY')
+              .having((e) => e.kind, 'kind', 'TimeoutException'),
+        ),
+      );
 
       // 2) 첫 번째 요청이 여전히 내부적으로 secure storage 를 기다리며
       //    떠 있는 상태(neverResolves 는 아직 미완결)에서, 보안 저장소가

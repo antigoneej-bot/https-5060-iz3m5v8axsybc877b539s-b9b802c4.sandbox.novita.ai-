@@ -3,6 +3,7 @@ import '../widgets/subscription_gate.dart';
 import 'package:flutter/material.dart';
 import '../models/special_letter_entry.dart';
 import '../services/special_letter_service.dart';
+import '../services/reply_failure.dart';
 import 'reply_feedback.dart';
 
 class SavedHeartReply extends StatefulWidget {
@@ -43,6 +44,10 @@ class _SavedHeartReplyState extends State<SavedHeartReply> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text('편지는 저장되어 있어요. 답장 준비를 다시 시도해 주세요.'),
+            SelectableText(
+              ReplyFailure.description(snapshot.error),
+              style: const TextStyle(fontSize: 12, color: Colors.grey),
+            ),
             TextButton(
               onPressed: () => setState(
                 () => _reply = SpecialLetterService.ensureReply(
