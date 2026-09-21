@@ -34,12 +34,22 @@ class HiveEncryption {
   }
 
   static Future<HiveAesCipher> _loadCipher() async {
-
-    String? encoded = await _secureStorage.read(key: _secureKeyName);
+    // 웹의 flutter_secure_storage 는 브라우저 환경(확장 프로그램 충돌,
+    // storage 잠금 등)에 따라 read/write Promise 가 영원히 풀리지 않는
+    // 드문 경우가 실제로 관찰되었습니다(답장 생성이 30초 넘게 멈춘 채
+    // 끝나지 않던 버그의 근본 원인). 이 호출을 무한정 기다리지 않도록
+    // 타임아웃을 두고, 시간이 초과되면 예외를 던져 cipher() 쪽의
+    // catchError 가 캐시를 비우고 다음 시도 때 다시 시도할 수 있게
+    // 합니다.
+    String? encoded = await _secureStorage
+        .read(key: _secureKeyName)
+        .timeout(const Duration(seconds: 6));
     if (encoded == null || encoded.isEmpty) {
       final key = Hive.generateSecureKey();
       encoded = base64Encode(key);
-      await _secureStorage.write(key: _secureKeyName, value: encoded);
+      await _secureStorage
+          .write(key: _secureKeyName, value: encoded)
+          .timeout(const Duration(seconds: 6));
     }
 
     _cipher = HiveAesCipher(base64Decode(encoded));

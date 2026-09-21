@@ -1,6 +1,8 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -16,8 +18,27 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     final tempDir = Directory.systemTemp.createTempSync('flutter_app_test_');
     Hive.init(tempDir.path);
+    // flutter_secure_storage 는 테스트 환경에 플랫폼 구현이 없어 mock
+    // 핸들러를 등록하지 않으면 read() 호출이 응답을 영원히 받지 못한 채
+    // 멈춥니다. HiveEncryption 이 이 read 에 타임아웃을 두게 되면서(실제
+    // 기기/브라우저에서 이 호출이 멈추는 문제를 막기 위한 수정) 테스트에도
+    // 타이머가 생겨, 응답이 없으면 "Timer is still pending" 으로 테스트가
+    // 실패하게 되었습니다. 실제 서비스와 동일하게 mock 응답을 등록해
+    // read 가 즉시 끝나도록 합니다.
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+          const MethodChannel('plugins.it_nomads.com/flutter_secure_storage'),
+          (call) async => call.method == 'read'
+              ? base64Encode(List<int>.filled(32, 7))
+              : null,
+        );
     addTearDown(() {
       tempDir.deleteSync(recursive: true);
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+            const MethodChannel('plugins.it_nomads.com/flutter_secure_storage'),
+            null,
+          );
     });
 
     await tester.pumpWidget(const MysticCatApp());

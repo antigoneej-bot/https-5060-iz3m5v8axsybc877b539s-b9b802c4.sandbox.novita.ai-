@@ -26,7 +26,36 @@ class PersonalReplyService {
     required String catName,
     List<String> legacyReplies = const [],
   }) {
-    final result = _tail.catchError((Object _) {}).then((_) async {
+    // _tail 은 여러 편지의 답장 생성 요청이 서로 겹치지 않도록 순서를
+    // 매기는 전역 큐입니다. 만약 아래 본문이 내부적으로 어딘가에서
+    // (예: 보안 저장소 read, Hive box open 등) 영원히 끝나지 않는
+    // await 를 만나면, 이 Future 자체가 완결되지 않아 _tail 이 영구히
+    // 멈추고 그 뒤로는 어떤 편지를 열어도 답장이 계속 뜨지 않는 문제가
+    // 실제로 발생했습니다(답장 화면은 자체 30초 타임아웃으로 에러만
+    // 보여줄 뿐, 이 큐에 걸린 원본 작업은 취소되지 않았기 때문). 이를
+    // 막기 위해 본문 전체를 25초 타임아웃으로 감싸, 어떤 지점에서
+    // 멈추더라도 큐가 다음 요청으로 넘어갈 수 있게 합니다.
+    final result = _tail
+        .catchError((Object _) {})
+        .then((_) => _createBody(id, letterText, style, catName, legacyReplies))
+        .timeout(
+          const Duration(seconds: 25),
+          onTimeout: () => throw TimeoutException(
+            '답장 생성이 지연되고 있어요. 잠시 후 다시 시도해 주세요.',
+          ),
+        );
+    _tail = result.then<void>((_) {}, onError: (Object _, StackTrace __) {});
+    return result;
+  }
+
+  static Future<String> _createBody(
+    String id,
+    String letterText,
+    ReplyStyle style,
+    String catName,
+    List<String> legacyReplies,
+  ) {
+    return () async {
       final box = await _history();
       final existing = box.get(id);
       if (existing is String) {
@@ -132,9 +161,7 @@ class PersonalReplyService {
       });
       await box.flush();
       return generated.text;
-    });
-    _tail = result.then<void>((_) {}, onError: (Object _, StackTrace __) {});
-    return result;
+    }();
   }
 
   /// 저장된 답장 이력 한 줄(JSON 문자열)을 파싱합니다. 손상됐거나 형식이
@@ -158,29 +185,39 @@ class PersonalReplyService {
   static Future<void> setFeedback(String id, String? value) {
     if (value != null && !{'matched', 'off_topic', 'repeated'}.contains(value))
       throw ArgumentError('Invalid feedback');
-    final result = _tail.then((_) async {
-      final box = await _feedback();
-      if (value == null) {
-        await box.delete(id);
-      } else {
-        await box.put(id, value);
-      }
-      await box.flush();
-    });
-    _tail = result.catchError((Object _) {});
+    // create() 와 같은 이유로, 이 작업도 큐(_tail)를 영구히 막을 수 없도록
+    // 전체를 타임아웃으로 감쌉니다.
+    final result = _tail
+        .catchError((Object _) {})
+        .then((_) async {
+          final box = await _feedback();
+          if (value == null) {
+            await box.delete(id);
+          } else {
+            await box.put(id, value);
+          }
+          await box.flush();
+        })
+        .timeout(const Duration(seconds: 15));
+    _tail = result.then<void>((_) {}, onError: (Object _, StackTrace __) {});
     return result;
   }
 
   static Future<void> remove(String id) {
-    final result = _tail.catchError((Object _) {}).then((_) async {
-      final box = await _history();
-      await box.delete(id);
-      await box.flush();
-      final feedback = await _feedback();
-      await feedback.delete(id);
-      await feedback.flush();
-    });
-    _tail = result.catchError((Object _) {});
+    // create() 와 같은 이유로, 이 작업도 큐(_tail)를 영구히 막을 수 없도록
+    // 전체를 타임아웃으로 감쌉니다.
+    final result = _tail
+        .catchError((Object _) {})
+        .then((_) async {
+          final box = await _history();
+          await box.delete(id);
+          await box.flush();
+          final feedback = await _feedback();
+          await feedback.delete(id);
+          await feedback.flush();
+        })
+        .timeout(const Duration(seconds: 15));
+    _tail = result.then<void>((_) {}, onError: (Object _, StackTrace __) {});
     return result;
   }
 }
