@@ -1,0 +1,170 @@
+[
+  {
+    "text": "오늘도 무사히 일을 마쳤습니다. 함께한 모든 이들에게 감사합니다.",
+    "tone": "gratitude_complete"
+  },
+  {
+    "text": "오늘 일을 무사히 끝냈어. 함께해줘서 고마워.",
+    "tone": "gratitude_complete"
+  },
+  {
+    "text": "오늘 일을 무사히 마치지 못했어. 도움은 고마워.",
+    "tone": "gratitude"
+  },
+  {
+    "text": "친구가 도와줘서 고마워.",
+    "tone": "gratitude"
+  },
+  {
+    "text": "선생님께 감사드립니다.",
+    "tone": "gratitude"
+  },
+  {
+    "text": "고마운 마음이 있어.",
+    "tone": "gratitude"
+  },
+  {
+    "text": "감사하지 않아.",
+    "tone": "neutral"
+  },
+  {
+    "text": "고맙지는 않아.",
+    "tone": "neutral"
+  },
+  {
+    "text": "기뻐!",
+    "tone": "joy"
+  },
+  {
+    "text": "오늘 행복해.",
+    "tone": "joy"
+  },
+  {
+    "text": "안 기뻐.",
+    "tone": "neutral"
+  },
+  {
+    "text": "기쁘지 않아.",
+    "tone": "neutral"
+  },
+  {
+    "text": "기쁘지만 앞으로가 불안해.",
+    "tone": "mixed"
+  },
+  {
+    "text": "도움은 고마워. 하지만 서운해.",
+    "tone": "mixed"
+  },
+  {
+    "text": "나는 화가 나.",
+    "tone": "anger"
+  },
+  {
+    "text": "오늘 정말 화났어.",
+    "tone": "anger"
+  },
+  {
+    "text": "화나지 않아.",
+    "tone": "neutral"
+  },
+  {
+    "text": "나는 슬퍼.",
+    "tone": "sadness"
+  },
+  {
+    "text": "서운했어.",
+    "tone": "sadness"
+  },
+  {
+    "text": "속상하지 않아.",
+    "tone": "neutral"
+  },
+  {
+    "text": "나는 오늘 외로워.",
+    "tone": "lonely"
+  },
+  {
+    "text": "나는 외롭지 않아.",
+    "tone": "neutral"
+  },
+  {
+    "text": "너무 지쳤어.",
+    "tone": "tired"
+  },
+  {
+    "text": "안 피곤해.",
+    "tone": "neutral"
+  },
+  {
+    "text": "걱정돼.",
+    "tone": "worry"
+  },
+  {
+    "text": "걱정은 없어.",
+    "tone": "neutral"
+  },
+  {
+    "text": "마음이 놓여.",
+    "tone": "relief"
+  },
+  {
+    "text": "안심이 되지 않아.",
+    "tone": "neutral"
+  },
+  {
+    "text": "미안해.",
+    "tone": "apology"
+  },
+  {
+    "text": "미안하지 않아.",
+    "tone": "neutral"
+  },
+  {
+    "text": "사랑해.",
+    "tone": "affection"
+  },
+  {
+    "text": "용서에 대해 생각해.",
+    "tone": "forgiveness"
+  },
+  {
+    "text": "엄마가 돌아가셨어.",
+    "tone": "loss"
+  },
+  {
+    "text": "친구가 슬퍼.",
+    "tone": "neutral"
+  },
+  {
+    "text": "엄마가 많이 피곤해.",
+    "tone": "neutral"
+  },
+  {
+    "text": "나는 작년에 너무 지쳤어.",
+    "tone": "neutral"
+  },
+  {
+    "text": "예전에 슬펐어. 지금은 편안해.",
+    "tone": "neutral"
+  },
+  {
+    "text": "친구가 \"나는 행복해\"라고 말했어.",
+    "tone": "neutral"
+  },
+  {
+    "text": "행복하다면 좋겠어.",
+    "tone": "neutral"
+  },
+  {
+    "text": "정말 고맙네. 비꼬는 말이야.",
+    "tone": "neutral"
+  },
+  {
+    "text": "그냥 오늘 일기를 남겨.",
+    "tone": "neutral"
+  },
+  {
+    "text": "",
+    "tone": "empty"
+  }
+]

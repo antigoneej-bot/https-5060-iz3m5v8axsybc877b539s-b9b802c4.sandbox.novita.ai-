@@ -22,7 +22,8 @@ void main() {
         text.startsWith('나는 엄마가') ? 'family' : 'general',
         reason: text,
       );
-      expect(reply.text, contains(text));
+      expect(reply.text, isNot(contains(text)));
+      expect(reply.text, isNot(contains('네 편지에서')));
     }
   });
   test('explicit mixed feelings retain both sides', () {

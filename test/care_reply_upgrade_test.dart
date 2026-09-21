@@ -1,5 +1,5 @@
 import 'dart:math';
-import 'package:flutter_app/data/replies/reply_context_content.dart';
+import 'package:flutter_app/data/replies/reply_tone_content.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_app/mongi/integration/mongi_garden_data.dart';
 import 'package:flutter_app/services/personal_reply_engine.dart';
@@ -33,14 +33,14 @@ void main() {
     for(final pair in {'월세와 대출 때문에 계산을 하고 있어.':'money','과제를 마쳤어.':'study','남자친구와 헤어졌어.':'relationship','오늘 너무 피곤해.':'rest'}.entries) {
       for(final style in ReplyStyle.values) {
         final r=e.compose(letterText:pair.key,style:style,catName:'몽이');
-        expect(r.topic,pair.value); expect(r.text,contains(pair.key));
+        expect(r.topic,pair.value); expect(r.text,isNot(contains(pair.key)));
         expect(r.parts.length,style==ReplyStyle.listen ? 3 : 4);
       }
     }
     expect(PersonalReplyEngine.topicFor('오늘은 피곤하지 않아.'),'general');
     final mixed=e.compose(letterText:'회사 일도 있고 월세 문제도 있어.',style:ReplyStyle.listen,catName:'몽이');
     expect(mixed.topic,'general');
-    expect(mixedListeningLines, contains(mixed.parts[1]));
+    expect(replyToneContent['neutral']!['listening'], contains(mixed.parts[1]));
   });
   test('reported repetitive sentences are avoided while alternatives remain', () {
     final e=PersonalReplyEngine(random:Random(8));

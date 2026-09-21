@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'reply_situation.dart';
 import 'access_policy.dart';
 import 'subscription_service.dart';
 import 'package:flutter/foundation.dart';
@@ -190,7 +189,7 @@ class PersonalReplyService {
             'parts': generated.parts,
             'topic': generated.topic,
             'style': style.name,
-            'situation': ReplySituation.detect(letterText)?.id,
+            'situation': generated.situation,
           }),
         }),
       );
