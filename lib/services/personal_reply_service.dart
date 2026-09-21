@@ -126,7 +126,14 @@ class PersonalReplyService {
           offTopicCounts[topic] = (offTopicCounts[topic] ?? 0) + 1;
         }
       }
-      final generated = await compute(_generateReply, <String, dynamic>{
+      // 주의: 과거에는 compute()(별도 워커/isolate)로 답장 문장을
+      // 조합했으나, Flutter Web(dart2js/CanvasKit) 환경에서 워커가 결과를
+      // 정상적으로 계산해 반환값까지 만들어내는데도 그 완료 신호가 원래
+      // async 체인으로 전달되지 않아 화면이 로딩 스피너에 무한정 머무는
+      // 현상이 실제로 재현되었습니다(Future 자체가 절대 끝나지 않음).
+      // 답장 문장 조합은 순수 문자열 처리로 몇 밀리초 밖에 걸리지 않으므로,
+      // 별도 워커 없이 메인 스레드에서 직접 계산합니다.
+      final generated = _generateReply(<String, dynamic>{
         'letterText': letterText,
         'style': style.name,
         'catName': catName,
@@ -146,7 +153,7 @@ class PersonalReplyService {
         'avoidedSituations': avoidedSituations.toList(),
         'preferredParts': preferredParts,
         'repetitionWindow': disliked.isEmpty ? 3 : 6,
-      }).timeout(const Duration(seconds: 15));
+      });
       await box.putAll({
         if (!premium) quotaKey: used + 1,
         id: jsonEncode({
