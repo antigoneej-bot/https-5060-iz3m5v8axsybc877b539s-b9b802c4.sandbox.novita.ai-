@@ -1,4 +1,5 @@
 import 'reply_situation.dart';
+import 'reply_intent.dart';
 import 'dart:math';
 import '../data/replies/personal_reply_content.dart';
 import '../data/replies/reply_context_content.dart';
@@ -92,6 +93,40 @@ class PersonalReplyEngine {
     List<String> preferredParts = const [],
     int repetitionWindow = 3,
   }) {
+    final intent = ReplyIntent.detect(letterText);
+    if (intent != null &&
+        !avoidedSituations.contains(intent.id) &&
+        avoidedTopics.isEmpty) {
+      // Select a complete, relevant response. Do not wrap a question response
+      // in unrelated comfort, an echoed letter, or a ceremonial thank-you.
+      final candidates = List<String>.of(intent.responses)..shuffle(random);
+      double penalty(String candidate) {
+        var score = 0.0;
+        for (final previous in recentTexts.take(20)) {
+          if (previous.contains(candidate)) score += 10;
+          score += similarity(candidate, previous);
+        }
+        for (final parts in recentParts.take(6)) {
+          if (parts.contains(candidate)) score += 10;
+        }
+        for (final previous in dislikedTexts.take(20)) {
+          if (previous.contains(candidate)) score += 40;
+        }
+        return score;
+      }
+      var selected = candidates.first;
+      var bestPenalty = penalty(selected);
+      for (final candidate in candidates.skip(1)) {
+        final score = penalty(candidate);
+        if (score < bestPenalty) {
+          selected = candidate;
+          bestPenalty = score;
+        }
+      }
+      return PersonalReply(
+        '$selected\n\n— $catName', [selected], topicFor(letterText),
+      );
+    }
     final directSituation = ReplySituation.detect(letterText);
     final lexicalTopic = topicFor(letterText);
     final detectedTopic =
