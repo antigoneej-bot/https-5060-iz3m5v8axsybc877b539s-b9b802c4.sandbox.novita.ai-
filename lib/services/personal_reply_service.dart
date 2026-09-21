@@ -8,6 +8,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import '../models/reply_style.dart';
 import 'hive_encryption.dart';
 import 'personal_reply_engine.dart';
+import 'reply_failure.dart';
 
 /// One queue across cats and heart letters; duplicate opens cannot race the
 /// anti-repetition history. Once saved, a reply is never regenerated.
@@ -56,7 +57,11 @@ class PersonalReplyService {
     List<String> legacyReplies,
   ) {
     return () async {
-      final box = await _history();
+      final box = await ReplyFailure.step(
+        'HISTORY',
+        _history,
+        timeout: const Duration(seconds: 8),
+      );
       final existing = box.get(id);
       if (existing is String) {
         // 과거(더 이전) 버전에서 답장 생성 도중 예외가 발생해, 완결된
@@ -76,8 +81,10 @@ class PersonalReplyService {
       // 구독 확인이 네트워크/캐시 문제로 멈추면 답장 전체가 무한정 멈추는
       // 것을 막기 위해 타임아웃을 둡니다(8초 지나면 실패로 처리해 재시도
       // 버튼이 뜨도록 함).
-      final premium = await SubscriptionService().isPremium().timeout(
-        const Duration(seconds: 8),
+      final premium = await ReplyFailure.step(
+        'ACCESS',
+        SubscriptionService().isPremium,
+        timeout: const Duration(seconds: 8),
       );
       final day = AccessPolicy.dayKey(clock());
       final quotaKey = 'quota:$day';
@@ -99,18 +106,32 @@ class PersonalReplyService {
           .map(_historyRow)
           .whereType<Map<String, dynamic>>()
           .toList();
-      final feedback = await _feedback();
+      final feedback = await ReplyFailure.step(
+        'FEEDBACK',
+        _feedback,
+        timeout: const Duration(seconds: 8),
+      );
+      // R11: 과거 행의 id가 비어있거나 String이 아닌 경우 평가 저장소
+      // 조회 키로 그대로 쓰면 예기치 않은 예외가 날 수 있어, 유효성을
+      // 먼저 검증합니다(검증 실패 시 단순히 '평가 없음'으로 취급).
+      Object? feedbackFor(Map<String, dynamic> row) {
+        final key = row['id'];
+        if (key is! String || key.isEmpty) return null;
+        return feedback.get(key);
+      }
       final disliked = [
         for (final row in rows)
-          if (feedback.get(row['id']) == 'repeated') row['reply'] as String,
+          if (feedbackFor(row) == 'repeated') row['reply'] as String,
       ];
       final offTopicCounts = <String, int>{};
       final matchedCounts = <String, int>{};
       final avoidedSituations = <String>{};
       final preferredParts = <String>[];
       for (final row in rows) {
-        if (feedback.get(row['id']) == 'matched') {
-          final topic = row['topic'] as String? ?? 'general';
+        if (feedbackFor(row) == 'matched') {
+          final topic = row['topic'] is String
+              ? row['topic'] as String
+              : 'general';
           matchedCounts[topic] = (matchedCounts[topic] ?? 0) + 1;
           if (topic == PersonalReplyEngine.topicFor(letterText) &&
               row['style'] == style.name)
@@ -118,10 +139,10 @@ class PersonalReplyService {
               (row['parts'] as List? ?? const []).whereType<String>().toList(),
             );
         }
-        if (feedback.get(row['id']) == 'off_topic' &&
+        if (feedbackFor(row) == 'off_topic' &&
             row['situation'] is String)
           avoidedSituations.add(row['situation'] as String);
-        if (feedback.get(row['id']) == 'off_topic' && row['topic'] is String) {
+        if (feedbackFor(row) == 'off_topic' && row['topic'] is String) {
           final topic = row['topic'] as String;
           offTopicCounts[topic] = (offTopicCounts[topic] ?? 0) + 1;
         }
