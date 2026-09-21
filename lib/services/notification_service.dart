@@ -5,6 +5,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest_all.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
 import '../data/shadow_cats_data.dart';
+import '../utils/feature_flags.dart';
 import 'storage_service.dart';
 
 /// 로컬 알림 리마인더 서비스.
@@ -554,6 +555,10 @@ class NotificationService {
   /// 알림을 예약합니다. [scheduledAt]은 [LetterEntry.replyAvailableAt]
   /// (다음날 오전 6시)을 그대로 전달받습니다. 같은 날 편지를 여러 번 써도
   /// 알림은 하나만 남도록, 예약 전에 이전 답장 알림을 취소합니다.
+  ///
+  /// ⚠️ [FeatureFlags.debugInstantReply]가 true인 동안에는 실제
+  /// [scheduledAt] 대신 지금부터 몇 초 뒤로 당겨서 예약합니다(테스트 전용,
+  /// 알림 배너/사운드를 실기기에서 빠르게 확인하기 위함).
   Future<void> scheduleCatReplyNotification({
     required String catName,
     required DateTime scheduledAt,
@@ -562,8 +567,15 @@ class NotificationService {
     await init();
     try {
       await _plugin.cancel(_catReplyId);
-      if (scheduledAt.isBefore(DateTime.now())) return;
-      final scheduled = tz.TZDateTime.from(scheduledAt, tz.local);
+      final effectiveAt = FeatureFlags.debugInstantReply
+          ? DateTime.now().add(
+              const Duration(
+                seconds: FeatureFlags.debugInstantReplyNotificationDelaySeconds,
+              ),
+            )
+          : scheduledAt;
+      if (effectiveAt.isBefore(DateTime.now())) return;
+      final scheduled = tz.TZDateTime.from(effectiveAt, tz.local);
       await _plugin.zonedSchedule(
         _catReplyId,
         '마음냥 정원 💌',
@@ -592,6 +604,9 @@ class NotificationService {
   /// 마음편지(감사·용서·미안함·사랑)를 쓰면, 다음날 아침 답장이 도착했다는
   /// 알림을 예약합니다. 그림자 고양이 답장 알림과는 별개의 ID를 사용해
   /// 같은 날 두 종류의 답장이 겹쳐도 서로 취소되지 않습니다.
+  ///
+  /// ⚠️ [FeatureFlags.debugInstantReply]가 true인 동안에는 실제
+  /// [scheduledAt] 대신 지금부터 몇 초 뒤로 당겨서 예약합니다(테스트 전용).
   Future<void> scheduleHeartLetterReplyNotification({
     required String typeLabel,
     required DateTime scheduledAt,
@@ -600,8 +615,15 @@ class NotificationService {
     await init();
     try {
       await _plugin.cancel(_heartLetterReplyId);
-      if (scheduledAt.isBefore(DateTime.now())) return;
-      final scheduled = tz.TZDateTime.from(scheduledAt, tz.local);
+      final effectiveAt = FeatureFlags.debugInstantReply
+          ? DateTime.now().add(
+              const Duration(
+                seconds: FeatureFlags.debugInstantReplyNotificationDelaySeconds,
+              ),
+            )
+          : scheduledAt;
+      if (effectiveAt.isBefore(DateTime.now())) return;
+      final scheduled = tz.TZDateTime.from(effectiveAt, tz.local);
       await _plugin.zonedSchedule(
         _heartLetterReplyId,
         '마음냥 정원 💌',

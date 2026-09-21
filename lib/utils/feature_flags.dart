@@ -17,6 +17,14 @@ class FeatureFlags {
   /// 되돌려야 합니다.
   static const bool debugInstantReply = true;
 
+  /// ⚠️ 테스트 전용: [debugInstantReply]가 true인 동안, 답장 도착 로컬
+  /// 알림(고양이 답장 · 마음편지 답장)도 원래의 "다음날 오전 6시"가 아니라
+  /// 편지를 보낸 지 이 시간(초) 뒤에 즉시 울리도록 당깁니다. 실기기에서
+  /// 알림 배너/사운드 동작 자체를 빠르게 확인하기 위한 것이며, 정식 배포
+  /// 전 [debugInstantReply]와 함께 반드시 되돌려야 합니다(그러면 이 값은
+  /// 자동으로 무시됩니다).
+  static const int debugInstantReplyNotificationDelaySeconds = 8;
+
   /// ⚠️ 테스트 전용: true면 실제 구독 여부와 관계없이 앱 전체가 항상
   /// "구독 중"인 것처럼 동작합니다(프리미엄 고양이, 명상 전체, 아이템,
   /// 광고 제거, 무제한 답장 등 모든 잠금 해제). 실제 결제 연동 여부와
