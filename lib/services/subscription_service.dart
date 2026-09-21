@@ -1,5 +1,6 @@
 import 'access_policy.dart';
 import 'cloud_service.dart';
+import '../utils/feature_flags.dart';
 import 'package:in_app_purchase_android/billing_client_wrappers.dart'
     show PricingPhaseWrapper;
 import 'dart:async';
@@ -283,7 +284,12 @@ class SubscriptionService {
   Future<bool> isPremium() async {
     if (isAdminUser) return true;
     final override = debugIsPremiumOverride;
+    // 단위 테스트가 명시적으로 설정한 override가 항상 최우선입니다(무료
+    // 쿼터 등 특정 상태를 검증하는 테스트를 방해하지 않기 위함).
     if (kDebugMode && override != null) return override;
+    // ⚠️ 테스트 전용 스위치. FeatureFlags.debugUnlockAllPremium 을 참고.
+    // 정식 배포(APK/AAB) 전 반드시 false로 되돌려야 합니다.
+    if (FeatureFlags.debugUnlockAllPremium) return true;
     if (CloudService.enabled) return CloudService.cachedPremium();
     if (!storeBillingEnabled) {
       await _clearLocalPremiumFlag();

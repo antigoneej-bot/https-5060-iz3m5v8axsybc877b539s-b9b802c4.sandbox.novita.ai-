@@ -10,11 +10,15 @@ import 'package:flutter_app/services/hive_encryption.dart';
 import 'package:flutter_app/services/personal_reply_service.dart';
 import 'package:flutter_app/services/subscription_service.dart';
 import 'package:flutter_app/models/reply_style.dart';
+import 'package:flutter_app/utils/feature_flags.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   late Directory dir;
   setUp(() async {
+    // 이 테스트는 무료 등급의 하루 1회 답장 제한 정책을 검증하므로, QA용
+    // "모든 잠금 해제" 스위치가 켜져 있으면 안 됩니다.
+    FeatureFlags.debugUnlockAllPremium = false;
     dir = await Directory.systemTemp.createTemp('subscription-access-');
     Hive.init(dir.path);
     SharedPreferences.setMockInitialValues({'is_premium_subscriber': true});
@@ -29,6 +33,7 @@ void main() {
   });
   tearDown(() async {
     PersonalReplyService.clock = DateTime.now;
+    FeatureFlags.debugUnlockAllPremium = true;
     await Hive.close();
     await dir.delete(recursive: true);
   });
