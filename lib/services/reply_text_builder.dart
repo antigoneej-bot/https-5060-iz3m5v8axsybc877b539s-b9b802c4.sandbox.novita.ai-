@@ -15,7 +15,11 @@ Future<String> buildReplyText({
   required int visitStreak,
 }) => _replyInFlight.putIfAbsent(entry.id, () => _buildReplyText(
   entry: entry, cat: cat, history: history, growthStage: growthStage, visitStreak: visitStreak,
-).whenComplete(() => _replyInFlight.remove(entry.id)));
+).whenComplete(() {
+  // Do not return Map.remove's value: it is this very Future. Returning it
+  // makes whenComplete wait for itself, so neither success nor error reaches UI.
+  _replyInFlight.remove(entry.id);
+}));
 
 Future<String> _buildReplyText({
   required LetterEntry entry,
