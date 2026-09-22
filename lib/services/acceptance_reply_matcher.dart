@@ -39,23 +39,36 @@ class AcceptanceReplyMatcher {
   }
 
   /// Mirrors [ReplyTone]'s own "don't attribute another person's stated
-  /// emotion to the writer" guard, but with a wider verb list, because this
-  /// matcher covers more feeling families than [ReplyTone] does.
+  /// emotion to the writer" guard, split into two cases:
   ///
-  /// Only genuine "that person IS/FEELS X" state verbs belong on this list
-  /// (슬프다/기쁘다/외롭다/피곤하다/화나다/후회하다/미안하다/서운하다/창피하다 —
-  /// where the marked person is literally the one feeling it). Korean
-  /// stimulus-experiencer adjectives such as 밉다/부럽다/질투/그립다 are
-  /// deliberately excluded: "그 사람이 밉다" means *the writer* finds that
-  /// person hateful, not that the person is stating their own feeling, and
-  /// category 06/07's own example_input lines rely on exactly that reading.
-  static bool _statedAsOtherIntransitive(String text) =>
-      !RegExp(r'나는|내가|난\s|저는|제가').hasMatch(text) &&
-      RegExp(
-        r'(?:친구|동료|엄마|아빠|어머니|아버지|동생|언니|오빠|남편|아내|그녀|그\s*사람)(?:가|이|는|은)\s*[^.!?\n]*'
-        r'(?:슬퍼|슬프|기뻐|외로워|외롭|피곤|지쳤|행복|'
-        r'화가\s*나|화가\s*났|화났|화나|짜증|후회|미안|서운|창피|민망)',
-      ).hasMatch(text);
+  /// Guard A (unchanged from [ReplyTone]): bare state adjectives — 슬프다/
+  /// 기쁘다/외롭다/피곤하다/행복하다 and 그립다 — where "그 사람이 X" almost always
+  /// directly predicates X of that person, with no causal ambiguity.
+  ///
+  /// Guard B (new, and deliberately narrower): reaction verbs — 화나다/
+  /// 후회하다/미안하다/서운하다/창피하다/밉다/부럽다/질투 — where "그 사람이 [행동]해서
+  /// X" is at least as common as "그 사람이 X하대", and in that reading the
+  /// OTHER person only caused the feeling; the writer is the one feeling it
+  /// (e.g. "친구가 약속을 취소해서 서운해." is the writer's own 서운함). Guard B
+  /// therefore only excludes when an explicit hearsay/report suffix
+  /// (대/래/다고 해/하더라 등) immediately follows the emotion word, i.e. the
+  /// text actually reports that person's own statement, not a plain reaction
+  /// clause.
+  static bool _statedAsOtherIntransitive(String text) {
+    if (RegExp(r'나는|내가|난\s|저는|제가').hasMatch(text)) return false;
+    const subjects =
+        r'(?:친구|동료|엄마|아빠|어머니|아버지|동생|언니|오빠|남편|아내|그녀|그\s*사람)(?:가|이|는|은)';
+    if (RegExp(
+      '$subjects\\s*[^.!?\\n]*(?:슬퍼|슬프|기뻐|외로워|외롭|피곤|지쳤|행복|그리워|그리운|그립)',
+    ).hasMatch(text)) {
+      return true;
+    }
+    return RegExp(
+      '$subjects\\s*[^.!?\\n]*(?:화가\\s*나|화가\\s*났|화났|화나|짜증|후회|미안|서운|창피|민망|'
+      r'밉|미워|부럽|질투)(?:해했|해한대|하대|한대|했대|대\b|래\b|다고\s*(?:해|함|했어|하네)|'
+      r'라고\s*(?:해|했어)|더라(?:고)?)',
+    ).hasMatch(text);
+  }
 
   static bool _globalAmbiguous(String text) {
     if (text.length > 500) return true;

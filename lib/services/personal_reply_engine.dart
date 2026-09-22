@@ -151,6 +151,30 @@ class PersonalReplyEngine {
             !avoidedSituations.contains(directSituation?.id)
         ? directSituation
         : null;
+    // Acceptance pack (mind_cat_acceptance_replies_72): only attempted when
+    // none of the narrower, already-tested [ReplySituation] combinations
+    // fired (dismissed_angry, anger_regret, praise_pressure, interview_guilt,
+    // joy_and_worry, and its _everyday list) and topic-level feedback hasn't
+    // asked for the generic neutral path, mirroring how [situation]/[tone]
+    // are already gated above. This keeps every existing situation-based
+    // reply byte-for-byte unchanged; the acceptance pack only ever fills in
+    // the broader, simpler first-person statements ReplySituation's own
+    // narrow regexes don't already cover (e.g. "사람들을 만나도 외로워." rather
+    // than the "나는 ... 외로워" prefix ReplySituation requires).
+    if (situation == null && avoidedTopics.isEmpty) {
+      final acceptance = _composeAcceptance(
+        letterText: letterText,
+        style: style,
+        catName: catName,
+        topic: topic,
+        recentParts: recentParts,
+        recentTexts: recentTexts,
+        dislikedTexts: dislikedTexts,
+        avoidedSituations: avoidedSituations,
+        repetitionWindow: repetitionWindow,
+      );
+      if (acceptance != null) return acceptance;
+    }
     final detectedTone = ReplyTone.detect(letterText);
     final toneName = avoidedTopics.isNotEmpty ||
             avoidedSituations.contains('tone:$detectedTone')
@@ -238,5 +262,86 @@ class PersonalReplyEngine {
       }
     }
     return best!;
+  }
+
+  /// Tries the mind_cat_acceptance_replies_72 pack for an explicit,
+  /// first-person feeling statement. Returns null when no category matches
+  /// (letting the caller fall back to the general tone/topic engine), and
+  /// never invents an opening/closing around the authored text: each
+  /// candidate is used exactly as written in
+  /// lib/data/replies/acceptance_reply_content.dart, per 02_적용_원칙.txt
+  /// section 3 ("하나의 완성 답장을 선택한다... 조합하지 않는다").
+  PersonalReply? _composeAcceptance({
+    required String letterText,
+    required ReplyStyle style,
+    required String catName,
+    required String topic,
+    required List<List<String>> recentParts,
+    required List<String> recentTexts,
+    required List<String> dislikedTexts,
+    required Set<String> avoidedSituations,
+    required int repetitionWindow,
+  }) {
+    final categoryId = AcceptanceReplyMatcher.detect(letterText);
+    if (categoryId == null) return null;
+    final situationId = 'accept:$categoryId';
+    if (avoidedSituations.contains(situationId)) return null;
+    final category = acceptanceReplyContent[categoryId];
+    if (category == null) return null;
+
+    final receivePool = category.receive.map((r) => r.text).toList();
+    final reflectPool = category.reflectOptional.map((r) => r.text).toList();
+    // "조언이나 질문을 원하지 않는 사용자에게는 제안하지 마": a listening-only
+    // request drops the reflect_optional pool entirely, regardless of style.
+    final listeningOnly = AcceptanceReplyMatcher.wantsListeningOnly(
+      letterText,
+    );
+    // "receive를 기본으로 사용한다. reflect_optional은... 가끔 제안하는 경우에만":
+    // reflect_optional is included in the candidate pool only some of the
+    // time (roughly 1 in 4 compositions), so most replies stay receive-only
+    // even before the anti-repetition scoring below runs. Categories 23/24
+    // (들어주기만 원함 / 내용을 확신하기 어려움) have no reflect_optional lines at
+    // all, so this is a no-op for them.
+    final offerReflection =
+        !listeningOnly && reflectPool.isNotEmpty && random.nextInt(4) == 0;
+    final candidates = <String>[...receivePool, if (offerReflection) ...reflectPool];
+
+    // Same anti-repetition scoring shape as the ReplyIntent branch above:
+    // prefer a candidate that hasn't appeared in recent parts/texts, then
+    // one that isn't disliked, but a full pool eventually repeats rather
+    // than silently returning nothing (only 2-3 authored lines exist per
+    // category; 02_적용_원칙.txt section 4 accepts that as a known limit).
+    final cooldown = recentParts
+        .take(repetitionWindow.clamp(3, 6))
+        .expand((parts) => parts)
+        .toSet();
+    double penalty(String candidate) {
+      var score = 0.0;
+      if (cooldown.contains(candidate)) score += 20;
+      for (final previous in recentTexts.take(20)) {
+        if (previous.contains(candidate)) score += 10;
+      }
+      for (final previous in dislikedTexts.take(20)) {
+        if (previous.contains(candidate)) score += 40;
+      }
+      return score;
+    }
+
+    final shuffled = List<String>.of(candidates)..shuffle(random);
+    var selected = shuffled.first;
+    var bestPenalty = penalty(selected);
+    for (final candidate in shuffled.skip(1)) {
+      final score = penalty(candidate);
+      if (score < bestPenalty) {
+        selected = candidate;
+        bestPenalty = score;
+      }
+    }
+    return PersonalReply(
+      '$selected\n\n— $catName',
+      [selected],
+      topic,
+      situation: situationId,
+    );
   }
 }
