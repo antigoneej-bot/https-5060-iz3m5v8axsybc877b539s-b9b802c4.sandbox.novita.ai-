@@ -1,8 +1,8 @@
 import 'reply_contract.dart';
 // Dependency-free engine regression checks. Run: dart run tool/check_personal_replies.dart
 import 'dart:math';
-import '../lib/services/personal_reply_engine.dart';
-import '../lib/models/reply_style.dart';
+import 'package:flutter_app/services/personal_reply_engine.dart';
+import 'package:flutter_app/models/reply_style.dart';
 void check(bool result,String description){if(!result)throw StateError(description);}
 void main(){
   var checks=0;

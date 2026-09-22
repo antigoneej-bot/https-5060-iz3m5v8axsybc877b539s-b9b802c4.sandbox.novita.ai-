@@ -1,7 +1,7 @@
-import '../lib/data/replies/acceptance_reply_content.dart';
-import '../lib/data/replies/reply_tone_content.dart';
-import '../lib/services/personal_reply_engine.dart';
-import '../lib/models/reply_style.dart';
+import 'package:flutter_app/data/replies/acceptance_reply_content.dart';
+import 'package:flutter_app/data/replies/reply_tone_content.dart';
+import 'package:flutter_app/services/personal_reply_engine.dart';
+import 'package:flutter_app/models/reply_style.dart';
 
 /// Checks content membership as well as storage shape. One acceptance part is
 /// a complete authored reply, not a license to drop listening-mode guarantees.
