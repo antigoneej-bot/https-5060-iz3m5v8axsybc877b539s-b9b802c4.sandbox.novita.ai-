@@ -21,6 +21,10 @@ class PersonalReply {
 class PersonalReplyEngine {
   final Random random;
   PersonalReplyEngine({Random? random}) : random = random ?? Random();
+  static final _allReflectOptionalTexts = acceptanceReplyContent.values
+      .expand((category) => category.reflectOptional)
+      .map((r) => r.text)
+      .toSet();
   static const _topics = <String, List<String>>{
     ...extraReplyTopics,
     'work': ['회사', '직장', '상사', '동료', '업무', '야근', '면접'],
@@ -296,14 +300,32 @@ class PersonalReplyEngine {
     final listeningOnly = AcceptanceReplyMatcher.wantsListeningOnly(
       letterText,
     );
+    // ReplyStyle.listen ("그냥 들어줘") never adds a reflection/suggestion extra
+    // anywhere else in this engine (see the opening/listening/ending-only
+    // path below for tone/situation replies); reflect_optional is this
+    // pack's nearest equivalent to that extra module, so it stays out of the
+    // candidate pool in listen mode for the same reason, on top of the
+    // explicit listening-only guard above.
     // "receive를 기본으로 사용한다. reflect_optional은... 가끔 제안하는 경우에만":
-    // reflect_optional is included in the candidate pool only some of the
-    // time (roughly 1 in 4 compositions), so most replies stay receive-only
-    // even before the anti-repetition scoring below runs. Categories 23/24
-    // (들어주기만 원함 / 내용을 확신하기 어려움) have no reflect_optional lines at
-    // all, so this is a no-op for them.
-    final offerReflection =
-        !listeningOnly && reflectPool.isNotEmpty && random.nextInt(4) == 0;
+    // when not excluded by either guard, reflect_optional is included in the
+    // candidate pool only some of the time (roughly 1 in 4 compositions), so
+    // most replies still stay receive-only even before the anti-repetition
+    // scoring below runs. Categories 23/24 (들어주기만 원함 / 내용을 확신하기
+    // 어려움) have no reflect_optional lines at all, so this is a no-op for
+    // them regardless.
+    // "최근 답장 3개 안에 돌아보기 제안이 있었다면 다음은 받아주기 문안 우선"
+    // (02_적용_원칙.txt section 4's explicitly-optional operating suggestion):
+    // if any of the last 3 replies' parts match a reflect_optional line from
+    // ANY category in this pack, skip offering one again this time.
+    final recentlyReflected = recentParts
+        .take(3)
+        .expand((parts) => parts)
+        .any(_allReflectOptionalTexts.contains);
+    final offerReflection = !listeningOnly &&
+        !recentlyReflected &&
+        style != ReplyStyle.listen &&
+        reflectPool.isNotEmpty &&
+        random.nextInt(4) == 0;
     final candidates = <String>[...receivePool, if (offerReflection) ...reflectPool];
 
     // Same anti-repetition scoring shape as the ReplyIntent branch above:
