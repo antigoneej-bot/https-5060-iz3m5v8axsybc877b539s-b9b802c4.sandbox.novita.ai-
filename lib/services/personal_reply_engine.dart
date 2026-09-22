@@ -137,6 +137,16 @@ class PersonalReplyEngine {
       );
     }
     final directSituation = ReplySituation.detect(letterText);
+    final detectedTone = ReplyTone.detect(letterText);
+    final acceptanceId = AcceptanceReplyMatcher.detect(letterText);
+    // Feedback is a routing constraint, not just a candidate penalty. Apply it
+    // before any new/legacy path can return a synonymous rejected response.
+    final rejectedInterpretation =
+        avoidedSituations.contains('tone:$detectedTone') ||
+        (acceptanceId != null &&
+            avoidedSituations.contains('accept:$acceptanceId')) ||
+        (directSituation != null &&
+            avoidedSituations.contains(directSituation.id));
     final lexicalTopic = topicFor(letterText);
     final detectedTopic =
         directSituation == null &&
@@ -147,12 +157,11 @@ class PersonalReplyEngine {
                     {'rest', 'achievement'}.contains(lexicalTopic)))
         ? 'general'
         : lexicalTopic;
-    final topic = avoidedTopics.contains(detectedTopic)
+    final topic = rejectedInterpretation || avoidedTopics.contains(detectedTopic)
         ? 'general'
         : detectedTopic;
     final situation =
-        avoidedTopics.isEmpty &&
-            !avoidedSituations.contains(directSituation?.id)
+        avoidedTopics.isEmpty && !rejectedInterpretation
         ? directSituation
         : null;
     // Acceptance pack (mind_cat_acceptance_replies_72): only attempted when
@@ -165,7 +174,7 @@ class PersonalReplyEngine {
     // the broader, simpler first-person statements ReplySituation's own
     // narrow regexes don't already cover (e.g. "사람들을 만나도 외로워." rather
     // than the "나는 ... 외로워" prefix ReplySituation requires).
-    if (situation == null && avoidedTopics.isEmpty) {
+    if (situation == null && avoidedTopics.isEmpty && !rejectedInterpretation) {
       final acceptance = _composeAcceptance(
         letterText: letterText,
         style: style,
@@ -179,9 +188,7 @@ class PersonalReplyEngine {
       );
       if (acceptance != null) return acceptance;
     }
-    final detectedTone = ReplyTone.detect(letterText);
-    final toneName = avoidedTopics.isNotEmpty ||
-            avoidedSituations.contains('tone:$detectedTone')
+    final toneName = avoidedTopics.isNotEmpty || rejectedInterpretation
         ? 'neutral' : detectedTone;
     final tone = replyToneContent[toneName]!;
     // Select the least repetitive candidate. Relevance and requested mode remain
@@ -208,9 +215,8 @@ class PersonalReplyEngine {
       final opening = pick(tone['openings']!);
       final listening = pick(situation?.listening ?? tone['listening']!);
       final ending = pick(tone['closings']!);
-      final wantsListening = RegExp(
-        r'조언.*(말|싫|필요\s*없)|해결책.*(말|싫|필요\s*없)|그냥\s*들어',
-      ).hasMatch(letterText);
+      final wantsListening =
+          AcceptanceReplyMatcher.wantsListeningOnly(letterText);
       final effectiveStyle = letterText.trim().isEmpty || wantsListening
           ? ReplyStyle.listen
           : style;
@@ -264,6 +270,70 @@ class PersonalReplyEngine {
         best = PersonalReply(text, parts, topic,
           situation: situation?.id ?? 'tone:$toneName');
       }
+    }
+    // The 48 random attempts above independently draw each field from its
+    // own not-recently-used pool, so an unlucky sequence of draws can still
+    // land on a full opening+listening+closing tuple that exactly matches a
+    // recent reply even while *other* untried tuples remain available. Only
+    // when that happens (best!.text is an exact repeat of something already
+    // sent), fall back to an exhaustive scan of every opening/listening/
+    // closing/extra combination and keep the lowest-scoring one that is not
+    // an exact repeat. This never changes behavior for the normal case
+    // (bestScore < 100), it only fires to guarantee "no exact repeat while
+    // an unused combination exists" for the finite neutral/tone pools.
+    if (recentTexts.take(20).any((old) => old == best!.text)) {
+      final openings = tone['openings']!;
+      final listenings = situation?.listening ?? tone['listening']!;
+      final endings = tone['closings']!;
+      final wantsListening = AcceptanceReplyMatcher.wantsListeningOnly(letterText);
+      final effectiveStyle = letterText.trim().isEmpty || wantsListening
+          ? ReplyStyle.listen
+          : style;
+      final extras = switch (effectiveStyle) {
+        ReplyStyle.listen => <String>[''],
+        ReplyStyle.reflect => situation?.reflections ?? tone['reflections']!,
+        ReplyStyle.suggest => situation?.suggestions ??
+            (toneName == 'neutral' && topic != 'general'
+                ? extraSuggestions[topic] ?? tone['suggestions']!
+                : tone['suggestions']!),
+      };
+      PersonalReply? fallback;
+      var fallbackScore = double.infinity;
+      for (final opening in openings) {
+        for (final listening in listenings) {
+          for (final extra in extras) {
+            for (final ending in endings) {
+              final parts = [opening, listening, if (extra.isNotEmpty) extra, ending];
+              final text = [
+                opening,
+                listening,
+                if (extra.isNotEmpty) extra,
+                ending,
+                '— $catName',
+              ].join('\n\n');
+              if (recentTexts.take(20).any((old) => old == text)) continue;
+              var score = 0.0;
+              for (final previous in recentTexts.take(20)) {
+                for (final part in parts) {
+                  if (previous.contains(part)) score += 2;
+                }
+                score += similarity(text, previous) * 2;
+              }
+              for (final previous in dislikedTexts.take(20)) {
+                for (final part in parts) {
+                  if (previous.contains(part)) score += 8;
+                }
+              }
+              if (score < fallbackScore) {
+                fallbackScore = score;
+                fallback = PersonalReply(text, parts, topic,
+                  situation: situation?.id ?? 'tone:$toneName');
+              }
+            }
+          }
+        }
+      }
+      if (fallback != null) best = fallback;
     }
     return best!;
   }
@@ -349,7 +419,12 @@ class PersonalReplyEngine {
       return score;
     }
 
-    final shuffled = List<String>.of(candidates)..shuffle(random);
+    final fresh = candidates.where((candidate) =>
+        !cooldown.contains(candidate) &&
+        !recentTexts.take(repetitionWindow.clamp(3, 6))
+            .any((old) => old.contains(candidate))).toList();
+    final eligible = fresh.isEmpty ? candidates : fresh;
+    final shuffled = List<String>.of(eligible)..shuffle(random);
     var selected = shuffled.first;
     var bestPenalty = penalty(selected);
     for (final candidate in shuffled.skip(1)) {

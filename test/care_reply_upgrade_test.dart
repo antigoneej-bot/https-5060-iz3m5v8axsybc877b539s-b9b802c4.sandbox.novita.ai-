@@ -1,3 +1,4 @@
+import '../tool/reply_contract.dart';
 import 'dart:math';
 import 'package:flutter_app/data/replies/reply_tone_content.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -34,7 +35,7 @@ void main() {
       for(final style in ReplyStyle.values) {
         final r=e.compose(letterText:pair.key,style:style,catName:'몽이');
         expect(r.topic,pair.value); expect(r.text,isNot(contains(pair.key)));
-        expect(r.parts.length,style==ReplyStyle.listen ? 3 : 4);
+        expect(followsReplyContract(r, style), isTrue);
       }
     }
     expect(PersonalReplyEngine.topicFor('오늘은 피곤하지 않아.'),'general');

@@ -1,3 +1,4 @@
+import '../tool/reply_contract.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
@@ -21,13 +22,15 @@ void main() {
         for (final cat in ['지적인 고양이', '마음편지 고양이']) {
           final reply = PersonalReplyEngine(random: Random(seed)).compose(
             letterText: text, style: style, catName: cat);
-          expect(reply.situation, 'tone:gratitude_complete');
+          expect(reply.situation, 'accept:18');
+          expect(reply.text, contains('무사히'));
+          expect(reply.text, contains('함께한'));
           expect(reply.text, isNot(contains(text)));
           expect(reply.text, isNot(contains('멋진 마무리')));
           expect(reply.text, isNot(contains('네 편지에서')));
           expect(RegExp('고마|고맙|감사').hasMatch(reply.text), isTrue);
           expect(reply.text, endsWith('— $cat'));
-          expect(reply.parts.length, style == ReplyStyle.listen ? 3 : 4);
+          expect(followsReplyContract(reply, style), isTrue);
           if (style == ReplyStyle.listen) {
             expect(reply.parts.any(replyToneContent['gratitude_complete']!['suggestions']!.contains), isFalse);
           }
@@ -39,7 +42,9 @@ void main() {
     final reply = PersonalReplyEngine(random: Random(1)).compose(
       letterText: '너무 속상해. 조언하지 말고 그냥 들어줘.',
       style: ReplyStyle.suggest, catName: '몽이');
-    expect(reply.parts.length, 3);
+    expect(reply.situation, 'accept:23');
+    expect(followsReplyContract(reply, ReplyStyle.listen), isTrue);
+    expect(containsNoExtraModule(reply), isTrue);
     expect(reply.text, isNot(contains('?')));
   });
   test('negative feedback can disable a mismatched tone', () {

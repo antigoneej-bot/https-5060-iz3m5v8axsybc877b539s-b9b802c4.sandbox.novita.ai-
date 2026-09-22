@@ -121,14 +121,9 @@ void main() {
     });
 
     test(
-      'case_22: anger + listening-only names one feeling and keeps it (23 is a last resort)',
+      'case_22: explicit refusal uses a pool without follow-up invitations',
       () {
-        // The writer names anger explicitly, so category 01 (anger) is the
-        // right receive-mode match; the listening-only request instead
-        // controls mode selection upstream (skip reflect_optional), not
-        // which category matches. Category 23 is deliberately a fallback
-        // that only fires when no concrete feeling was named at all.
-        expect(AcceptanceReplyMatcher.detect('화가 나지만 말하고 싶지 않아.'), '01');
+        expect(AcceptanceReplyMatcher.detect('화가 나지만 말하고 싶지 않아.'), '23');
         expect(
           AcceptanceReplyMatcher.wantsListeningOnly('화가 나지만 말하고 싶지 않아.'),
           isTrue,

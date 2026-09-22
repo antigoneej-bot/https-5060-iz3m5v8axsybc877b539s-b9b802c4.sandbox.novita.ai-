@@ -82,7 +82,11 @@ class AcceptanceReplyMatcher {
   /// reflection prompt. Category 23 always uses this pool, and every other
   /// matched category must skip its reflect_optional line when this is true.
   static bool wantsListeningOnly(String text) => RegExp(
-    r'그냥\s*들어|조언.*(말|싫|필요\s*없)|해결책.*(말|싫|필요\s*없)|'
+    r'묻지\s*마|그냥\s*들어|'
+    // "질문/조언/해결책 ~" followed by either the "말고/말아/말다" family or
+    // the short imperative "마(요/세요)?" ending (previously only "말…" was
+    // matched, so "질문하지 마." / "조언하지 마." without "고" fell through).
+    r'(?:질문|조언|해결책)[^.!?\n]{0,10}(?:말고|말아|마(?:요|세요)?(?=[.!?\s]|$)|싫|필요\s*없)|'
     r'말하고\s*싶지\s*않|얘기하고\s*싶지\s*않|이야기하고\s*싶지\s*않|설명하고\s*싶지\s*않',
   ).hasMatch(text);
 
@@ -93,6 +97,7 @@ class AcceptanceReplyMatcher {
   static String? detect(String text) {
     final value = text.trim();
     if (value.isEmpty) return null;
+    if (wantsListeningOnly(value)) return '23';
     if (_globalAmbiguous(value)) return null;
     // Same tense-shift/uncertain-perspective wording that makes ReplyTone
     // fall back to neutral keeps this matcher from guessing too; a plain
@@ -146,7 +151,6 @@ class AcceptanceReplyMatcher {
     final relief = _affirmed(value, r'안심|안도|마음이\s*놓');
     final affection = _affirmed(value, r'사랑해|사랑합|사랑하|아끼는|소중한|보고\s*싶');
     final worry = _affirmed(value, r'불안|걱정|막막|두려|무서워');
-    final listeningOnly = wantsListeningOnly(value);
 
     final families = <bool>[
       anger,
@@ -196,10 +200,7 @@ class AcceptanceReplyMatcher {
     if (joy) return '15';
     if (mundane) return '14';
     if (vague) return '13';
-    // 23 들어주기만 원함: only as a last-resort fallback once no explicit
-    // named emotion matched above, so a real feeling is never swapped out
-    // for this pool.
-    if (listeningOnly) return '23';
+    // Explicit listening requests are handled before emotion matching.
     return null;
   }
 }

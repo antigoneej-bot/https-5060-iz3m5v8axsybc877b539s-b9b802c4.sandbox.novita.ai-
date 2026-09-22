@@ -1,3 +1,4 @@
+import 'reply_contract.dart';
 // Dependency-free engine regression checks. Run: dart run tool/check_personal_replies.dart
 import 'dart:math';
 import '../lib/services/personal_reply_engine.dart';
@@ -11,12 +12,12 @@ void main(){
   final reply=engine.compose(letterText:diary,style:ReplyStyle.listen,catName:'마음냥');
   verify(!reply.text.contains(diary) && !reply.text.contains('네 편지에서'),'reply must respond without echoing the letter');
   verify(reply.topic=='friend','explicit friend cue routes to friend topic');
-  verify(reply.parts.length==3,'listen mode adds no question or action module');
+  verify(followsReplyContract(reply, ReplyStyle.listen) && containsNoExtraModule(reply),'listen mode uses only eligible receiving content');
   final work=engine.compose(letterText:'상사에게 업무 이야기를 했다.',style:ReplyStyle.reflect,catName:'마음냥');
   verify(work.topic=='work' && work.parts.length==4,'reflection uses work context');
   verify(!work.parts[2].contains('?'),'reflection summarizes without requiring an answer');
   final suggestion=engine.compose(letterText:diary,style:ReplyStyle.suggest,catName:'마음냥');
-  verify(suggestion.parts.length==4 && suggestion.parts[2].isNotEmpty,'suggest mode adds exactly one action module');
+  verify(followsReplyContract(suggestion, ReplyStyle.suggest),'suggest mode allows one complete eligible acceptance reply');
   verify(PersonalReplyEngine.topicFor('친구와 회사 이야기를 했다.')=='general','mixed subjects do not guess the main event');
   const negated='친구가 약속을 취소하지 않았어. 서운하지도 않아.';
   verify(engine.compose(letterText:negated,style:ReplyStyle.listen,catName:'마음냥').text.contains('서운하구나') == false,'negated feeling is not affirmed');
@@ -30,11 +31,11 @@ void main(){
   verify(!inert.text.contains(injection),'diary instructions are neither executed nor echoed');
   final cautious = engine.compose(letterText:diary, style:ReplyStyle.listen, catName:'마음냥', avoidedTopics:{'friend'});
   verify(cautious.topic=='general', 'repeated off-topic feedback avoids subject-specific inference');
-  verify(reply.parts[1] != cautious.parts[1], 'listening uses authored topic-specific text');
+  verify(reply.text != cautious.text && cautious.situation=='tone:neutral', 'off-topic feedback uses neutral text');
   final history=<List<String>>[];
   final texts=<String>[];
   for(var i=0;i<30;i++){
-    final next=engine.compose(letterText:diary,style:ReplyStyle.listen,catName:'마음냥',
+    final next=engine.compose(letterText:'상사에게 업무 이야기를 했다.',style:ReplyStyle.listen,catName:'마음냥',
       recentParts:history.reversed.take(20).toList(),recentTexts:texts.reversed.take(20).toList());
     verify(!texts.contains(next.text),'30 consecutive sample replies are distinct');
     final cooldown=history.reversed.take(3).expand((parts)=>parts).toSet();

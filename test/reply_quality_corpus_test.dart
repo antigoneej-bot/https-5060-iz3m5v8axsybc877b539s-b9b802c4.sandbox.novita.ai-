@@ -1,3 +1,4 @@
+import '../tool/reply_contract.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
@@ -22,7 +23,7 @@ void main() {
             random: Random(42),
           ).compose(letterText: text, style: style, catName: '몽이');
           expect(reply.text, isNotEmpty);
-          if (style == ReplyStyle.listen) expect(reply.parts.length, 3);
+          expect(followsReplyContract(reply, style), isTrue, reason: text);
         }
       }
     },
