@@ -39,12 +39,22 @@ class AcceptanceReplyMatcher {
   }
 
   /// Mirrors [ReplyTone]'s own "don't attribute another person's stated
-  /// emotion to the writer" guard, using the same verb list, so both systems
-  /// agree on what counts as someone else's reported feeling.
+  /// emotion to the writer" guard, but with a wider verb list, because this
+  /// matcher covers more feeling families than [ReplyTone] does.
+  ///
+  /// Only genuine "that person IS/FEELS X" state verbs belong on this list
+  /// (슬프다/기쁘다/외롭다/피곤하다/화나다/후회하다/미안하다/서운하다/창피하다 —
+  /// where the marked person is literally the one feeling it). Korean
+  /// stimulus-experiencer adjectives such as 밉다/부럽다/질투/그립다 are
+  /// deliberately excluded: "그 사람이 밉다" means *the writer* finds that
+  /// person hateful, not that the person is stating their own feeling, and
+  /// category 06/07's own example_input lines rely on exactly that reading.
   static bool _statedAsOtherIntransitive(String text) =>
       !RegExp(r'나는|내가|난\s|저는|제가').hasMatch(text) &&
       RegExp(
-        r'(?:친구|동료|엄마|아빠|어머니|아버지|동생|언니|오빠|남편|아내|그녀|그\s*사람)(?:가|이|는|은)\s*[^.!?\n]*(?:슬퍼|슬프|기뻐|외로워|외롭|피곤|지쳤|행복)',
+        r'(?:친구|동료|엄마|아빠|어머니|아버지|동생|언니|오빠|남편|아내|그녀|그\s*사람)(?:가|이|는|은)\s*[^.!?\n]*'
+        r'(?:슬퍼|슬프|기뻐|외로워|외롭|피곤|지쳤|행복|'
+        r'화가\s*나|화가\s*났|화났|화나|짜증|후회|미안|서운|창피|민망)',
       ).hasMatch(text);
 
   static bool _globalAmbiguous(String text) {
