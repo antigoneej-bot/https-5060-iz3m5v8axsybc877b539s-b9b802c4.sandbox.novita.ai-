@@ -1,10 +1,10 @@
 // Run on a machine with Dart: dart run tool/check_acceptance_integration.dart
 // Tests the real engine, without Flutter, Hive or a translated implementation.
 import 'dart:math';
-import '../lib/services/personal_reply_engine.dart';
-import '../lib/services/acceptance_reply_matcher.dart';
-import '../lib/data/replies/acceptance_reply_content.dart';
-import '../lib/models/reply_style.dart';
+import 'package:flutter_app/services/personal_reply_engine.dart';
+import 'package:flutter_app/services/acceptance_reply_matcher.dart';
+import 'package:flutter_app/data/replies/acceptance_reply_content.dart';
+import 'package:flutter_app/models/reply_style.dart';
 import 'reply_contract.dart';
 
 void main() {
