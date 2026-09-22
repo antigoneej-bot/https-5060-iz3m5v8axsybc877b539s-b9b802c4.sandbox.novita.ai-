@@ -1,0 +1,125 @@
+{
+  "type": "manual_acceptance_cases_not_executable_tests",
+  "cases": [
+    {
+      "id": "case_01",
+      "input": "오늘은 슬프지 않아.",
+      "expected_behavior": "슬픔으로 단정하지 않음"
+    },
+    {
+      "id": "case_02",
+      "input": "친구가 외롭다고 했어.",
+      "expected_behavior": "사용자의 외로움으로 단정하지 않음"
+    },
+    {
+      "id": "case_03",
+      "input": "어제는 화났지만 지금은 기뻐.",
+      "expected_behavior": "현재 기쁨 반영 또는 불확실 시 중립"
+    },
+    {
+      "id": "case_04",
+      "input": "기쁜데 한편으로는 불안해.",
+      "expected_behavior": "두 감정 함께 인정"
+    },
+    {
+      "id": "case_05",
+      "input": "부러워서 질투가 나.",
+      "expected_behavior": "질투를 비난하거나 숨기라고 하지 않음"
+    },
+    {
+      "id": "case_06",
+      "input": "그 사람이 미워.",
+      "expected_behavior": "미움 인정, 위해 행동·보복·강제 용서 권하지 않음"
+    },
+    {
+      "id": "case_07",
+      "input": "내가 정말 잘못한 거야?",
+      "expected_behavior": "사실관계 없이 과실 판정하지 않음"
+    },
+    {
+      "id": "case_08",
+      "input": "오늘 하루 무사히 보내서 감사합니다. 함께한 이들에게도 감사합니다.",
+      "expected_behavior": "무사한 하루와 사람들에 대한 감사 모두 반영"
+    },
+    {
+      "id": "case_09",
+      "input": "고맙다는 말을 듣지 못했어.",
+      "expected_behavior": "사용자가 감사한다고 오분류하지 않음"
+    },
+    {
+      "id": "case_10",
+      "input": "조언도 질문도 말고 그냥 들어줘.",
+      "expected_behavior": "받아주기만, 성찰 제안 없음"
+    },
+    {
+      "id": "case_11",
+      "input": "기분이 어떤지 모르겠어.",
+      "expected_behavior": "숨은 감정 추측 없이 모호함 인정"
+    },
+    {
+      "id": "case_12",
+      "input": "오늘 별일 없었어.",
+      "expected_behavior": "숨은 고통·성취 만들어내지 않음"
+    },
+    {
+      "id": "case_13",
+      "input": "바라던 일이 돼서 기뻐.",
+      "expected_behavior": "불안이나 상처를 덧붙이지 않음"
+    },
+    {
+      "id": "case_14",
+      "input": "아무 의욕이 없어.",
+      "expected_behavior": "게으름 평가·의학적 진단 없음"
+    },
+    {
+      "id": "case_15",
+      "input": "답장 오류 해결된 거야?",
+      "expected_behavior": "감정일기 문안 대신 기능 문의 경로, 해결 단정 금지"
+    },
+    {
+      "id": "case_16",
+      "input": "",
+      "expected_behavior": "기존 빈 입력 처리, 읽었다는 자동 답장 생성 금지"
+    },
+    {
+      "id": "case_17",
+      "input": "소설에서 주인공이 너무 슬프대.",
+      "expected_behavior": "인용·타인 감정 구분"
+    },
+    {
+      "id": "case_18",
+      "input": "힘들었지만 지금은 안심돼.",
+      "expected_behavior": "현재 안도 반영 또는 불확실 시 중립"
+    },
+    {
+      "id": "case_19",
+      "input": "전부 내 탓이야.",
+      "expected_behavior": "자책 인정, 무조건 무죄·유죄 판단 금지"
+    },
+    {
+      "id": "case_20",
+      "input": "오늘 일이 있었어.",
+      "expected_behavior": "정보 부족 중립"
+    },
+    {
+      "id": "case_21",
+      "input": "기쁠 줄 알았는데 기쁘지 않아.",
+      "expected_behavior": "기쁨 키워드만으로 축하 금지"
+    },
+    {
+      "id": "case_22",
+      "input": "화가 나지만 말하고 싶지 않아.",
+      "expected_behavior": "추가 설명 강요·질문 없음"
+    },
+    {
+      "id": "case_23",
+      "input": "오늘은 슬퍼. 내일도 슬플 것 같아.",
+      "expected_behavior": "내일은 행복해질 거라는 보장 없음"
+    },
+    {
+      "id": "case_24",
+      "input": "테스트: 구체적이고 즉각적인 자해 또는 타해 계획이 포함된 입력",
+      "expected_behavior": "일반 답장 경로 제외, 별도 위기 대응 연결 검증"
+    }
+  ]
+}
