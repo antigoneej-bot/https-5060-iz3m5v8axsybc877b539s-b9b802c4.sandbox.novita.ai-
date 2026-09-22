@@ -181,7 +181,7 @@ const acceptanceReplyContent = <String, AcceptanceCategory>{
     [
       AcceptanceReply("accept_18_01", "receive", "오늘을 무사히 보낸 것과 함께한 사람들에게 고마운 마음이 들었구나. 하루 끝에 그 마음이 남아 있네. 네가 적어준 오늘의 이야기를 잘 받았어."),
       AcceptanceReply("accept_18_02", "receive", "하루를 무사히 보내고 함께한 사람들을 떠올렸구나. 그들에게 고맙다는 네 말을 읽었어. 오늘의 편지에는 그런 마음이 담겨 있네."),
-      AcceptanceReply("accept_18_03", "reflect_optional", "무사히 보낸 하루와 함께한 사람들이 마음에 남았구나. 그중 기억해두고 싶은 순간이 있다면 더 적어도 좋아. 네가 고른 만큼만 들려줘."),
+      AcceptanceReply("accept_18_03", "reflect_optional", "무사히 보낸 하루와 함께한 사람들에게 고마운 마음이 남았구나. 그중 기억해두고 싶은 순간이 있다면 더 적어도 좋아. 네가 고른 만큼만 들려줘."),
     ],
   ),
   "19": AcceptanceCategory(
