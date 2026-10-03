@@ -15,7 +15,7 @@ class FeatureFlags {
   /// 즉시 답장을 열어볼 수 있습니다. 답장 파이프라인을 빠르게 확인하기
   /// 위한 임시 스위치이며, 정식 배포(APK/AAB 빌드) 전 반드시 false로
   /// 되돌려야 합니다.
-  static const bool debugInstantReply = true;
+  static const bool debugInstantReply = false;
 
   /// ⚠️ 테스트 전용: [debugInstantReply]가 true인 동안, 답장 도착 로컬
   /// 알림(고양이 답장 · 마음편지 답장)도 원래의 "다음날 오전 6시"가 아니라
@@ -31,8 +31,8 @@ class FeatureFlags {
   /// 무관하게 켜지므로, 정식 배포(APK/AAB 빌드) 전 반드시 false로
   /// 되돌려야 합니다. [SubscriptionService.isPremium] 에서 확인합니다.
   /// (단위 테스트가 무료 등급 로직을 검증할 수 있도록 const가 아닌
-  /// static 변수로 두되, 기본값은 true입니다.)
-  static bool debugUnlockAllPremium = true;
+  /// static 변수로 두되, 기본값은 false입니다.)
+  static bool debugUnlockAllPremium = false;
 
   /// true: 편지 몇몇 모듈(인사/고양이감정/마무리)에 태그 기반 이모지를
   /// 자동으로 붙입니다(문장 원본은 그대로 두고 조합 단계에서만 덧붙임).
