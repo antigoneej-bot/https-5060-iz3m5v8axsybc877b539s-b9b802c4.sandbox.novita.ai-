@@ -281,6 +281,7 @@ final List<ShadowCat> shadowCats = [
     emoji: '💔',
     keyword: '자책',
     imageAsset: 'assets/cards36/cat_18.png',
+    videoAsset: 'assets/cards36/videos/cat_18_loop.mp4',
     story:
         '거울 속에 비친 울고 있는 자신의 모습을 바라보며, 이 고양이는 화가 난 듯 소리를 지르고 있어요. 실수를 '
         '하면 스스로를 심하게 몰아세우고, "왜 그것밖에 못했을까" 하며 자신을 탓한답니다. 하지만 그 누구보다 '
@@ -296,6 +297,7 @@ final List<ShadowCat> shadowCats = [
     emoji: '😭',
     keyword: '애도',
     imageAsset: 'assets/cards36/cat_19.png',
+    videoAsset: 'assets/cards36/videos/cat_19_loop.mp4',
     story:
         '슬픈 눈망울로 눈물을 흘리며, 이 고양이는 바닥을 멍하니 바라보고 있어요. 소중했던 무언가를 떠나보낸 '
         '뒤, 마음 한켠이 자꾸만 시려온답니다. 슬픔을 서두르지 않고 충분히 흘려보내는 것도 애도의 한 방법이에요.',
