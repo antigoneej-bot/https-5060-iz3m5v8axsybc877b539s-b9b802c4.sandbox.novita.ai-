@@ -92,6 +92,7 @@ final List<ShadowCat> shadowCats = [
     emoji: '👀',
     keyword: '경계심',
     imageAsset: 'assets/cards36/cat_06.png',
+    videoAsset: 'assets/cards36/videos/cat_06_loop.mp4',
     story:
         '초록 수풀 속에 몸을 숨긴 채, 이 고양이는 경계하는 눈빛으로 밖을 조심스레 내다봐요. 낯선 상황에 '
         '선뜻 나서기보다 먼저 안전을 확인하고 싶어 하는 신중한 성격이랍니다. 다만 너무 오래 숨어있다 보면 '
@@ -107,6 +108,7 @@ final List<ShadowCat> shadowCats = [
     emoji: '😩',
     keyword: '무기력',
     imageAsset: 'assets/cards36/cat_07.png',
+    videoAsset: 'assets/cards36/videos/cat_07_loop.mp4',
     story:
         '온몸을 바닥에 축 늘어뜨린 채, 이 고양이는 하루 종일 움직이지 않아요. 무엇을 해도 의미가 없게 느껴지고, '
         '좋아하던 것들에도 흥미가 사라진 지 오래됐답니다. 게으르다고 스스로를 탓하지만, 사실은 마음이 쉬어야 '
