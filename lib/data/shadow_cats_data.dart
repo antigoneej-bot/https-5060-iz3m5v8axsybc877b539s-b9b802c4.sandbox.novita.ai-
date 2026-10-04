@@ -28,6 +28,7 @@ final List<ShadowCat> shadowCats = [
     emoji: '😢',
     keyword: '슬픔',
     imageAsset: 'assets/cards36/cat_02.png',
+    videoAsset: 'assets/cards36/videos/cat_02_loop.mp4',
     story:
         '먹구름이 잔뜩 낀 하늘 아래, 이 고양이는 눈물을 글썽이며 조용히 서 있어요. 뭔가 잃어버린 것 같은 '
         '먹먹함이 가슴 한켠에 자리잡아, 이유 모를 눈물이 자꾸만 차오른답니다. 슬픔을 참지 않아도 괜찮다는 걸, '
