@@ -250,6 +250,7 @@ final List<ShadowCat> shadowCats = [
     emoji: '🥹',
     keyword: '애정결핍',
     imageAsset: 'assets/cards36/cat_16.png',
+    videoAsset: 'assets/cards36/videos/cat_16_loop.mp4',
     story:
         '분홍빛 하트가 흩날리는 가운데, 이 고양이는 눈물을 글썽이며 두 앞발을 벌려 안아달라고 조르고 있어요. '
         '누군가의 관심과 애정이 없으면 마음이 자꾸 허전해지고, 사랑받고 있다는 확신이 필요하답니다. 그 마음을 '
@@ -265,6 +266,7 @@ final List<ShadowCat> shadowCats = [
     emoji: '😼',
     keyword: '장난기',
     imageAsset: 'assets/cards36/cat_17.png',
+    videoAsset: 'assets/cards36/videos/cat_17_loop.mp4',
     story:
         '실을 매단 인형들을 손가락으로 조종하며, 이 고양이는 심술궂은 미소를 짓고 있어요. 규칙을 살짝 비틀고 '
         '예상 밖의 행동을 하는 게 왠지 짜릿하고 재미있답니다. 다만 그 장난이 가끔은 누군가를 곤란하게 만들기도 해요.',
