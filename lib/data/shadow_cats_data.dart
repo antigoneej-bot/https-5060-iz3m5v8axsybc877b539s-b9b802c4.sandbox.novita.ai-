@@ -60,6 +60,7 @@ final List<ShadowCat> shadowCats = [
     emoji: '😾',
     keyword: '분노',
     imageAsset: 'assets/cards36/cat_04.png',
+    videoAsset: 'assets/cards36/videos/cat_04_loop.mp4',
     story:
         '뒤편에서 불길이 활활 타오르고, 이 고양이는 이빨을 드러내며 잔뜩 화가 나 있어요. 누군가 자신의 영역을 '
         '침범했거나 부당한 일을 당했을 때, 마음속에서 뜨거운 불이 확 타올랐답니다. 화를 억누르려 하지만 그 '
@@ -75,6 +76,7 @@ final List<ShadowCat> shadowCats = [
     emoji: '😌',
     keyword: '자신감',
     imageAsset: 'assets/cards36/cat_05.png',
+    videoAsset: 'assets/cards36/videos/cat_05_loop.mp4',
     story:
         '아기자기한 다육식물 화분들 사이에 당당히 앉은 이 고양이는 스스로가 꽤 마음에 드는 눈치예요. 작은 '
         '성취도 크게 기뻐할 줄 알고, 자신을 있는 그대로 사랑하는 법을 알고 있답니다. 가끔은 그 자신감이 '
