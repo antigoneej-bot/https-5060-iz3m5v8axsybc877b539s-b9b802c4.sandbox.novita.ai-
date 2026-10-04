@@ -156,6 +156,7 @@ final List<ShadowCat> shadowCats = [
     emoji: '❓',
     keyword: '혼란',
     imageAsset: 'assets/cards36/cat_10.png',
+    videoAsset: 'assets/cards36/videos/cat_10_loop.mp4',
     story:
         '머리 위에 물음표를 띄운 채, 얼굴이 반반씩 검고 흰 이 고양이는 어리둥절한 표정을 짓고 있어요. 여러 '
         '선택지 앞에서 무엇이 옳은지 갈피를 못 잡고, 마음이 이랬다저랬다 흔들린답니다. 답을 서두르기보다 잠시 '
@@ -171,6 +172,7 @@ final List<ShadowCat> shadowCats = [
     emoji: '🌫️',
     keyword: '그리움',
     imageAsset: 'assets/cards36/cat_11.png',
+    videoAsset: 'assets/cards36/videos/cat_11_loop.mp4',
     story:
         '뒤를 돌아보며 눈물을 흘리는 이 고양이는 지나간 시간을 자꾸 떠올려요. 좋았던 순간들이 그리워 마음이 '
         '아릿해지고, 다시는 돌아갈 수 없다는 사실에 서글퍼진답니다. 그리움은 그만큼 소중했다는 증거이기도 해요.',
