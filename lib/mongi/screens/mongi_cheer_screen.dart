@@ -6,6 +6,7 @@ import '../l10n/gen/app_localizations.dart';
 import '../l10n/mongi_cheer_l10n.dart';
 import '../models/mongi_cheer.dart';
 import '../providers/garden_provider.dart';
+import 'public_garden_settings_screen.dart';
 
 /// "몽이의 응원 우편함" 화면 - Finch "Good Vibes"를 벤치마킹한 경량 소셜
 /// 기능의 로컬 경량판.
@@ -76,7 +77,73 @@ class _MongiCheerScreenState extends State<MongiCheerScreen> {
           _buildReceiveSection(l10n, garden),
           const SizedBox(height: 18),
           _buildSendSection(l10n, garden),
+          const SizedBox(height: 18),
+          _buildPublicGardenBanner(context, l10n, garden),
         ],
+      ),
+    );
+  }
+
+  /// 실제로 다른 사람과 연결되는 "공개정원" 기능으로 가는 진입 배너.
+  ///
+  /// 위의 섹션들은 실제 수신자가 없는 로컬 경량 제스처지만, 이 배너는 본인이
+  /// 직접 opt-in으로 켜야만 동작하는 "진짜" 소셜 기능(정원 공개/응원)으로
+  /// 안내한다. 기본값은 항상 비공개이며, 이 배너를 누르지 않으면 아무 것도
+  /// 바뀌지 않는다.
+  Widget _buildPublicGardenBanner(
+    BuildContext context,
+    AppLocalizations l10n,
+    GardenProvider garden,
+  ) {
+    final published = garden.isGardenPublished;
+    return GestureDetector(
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const PublicGardenSettingsScreen()),
+      ),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.catSageBg,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
+          children: [
+            const Text('🌍', style: TextStyle(fontSize: 22)),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    l10n.publicGardenSettingsTitle,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 14,
+                      color: AppColors.ink,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    published
+                        ? l10n.publicGardenPublishedNotice
+                        : l10n.publicGardenNotPublishedNotice,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.inkSoft,
+                      height: 1.3,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(
+              Icons.chevron_right,
+              color: AppColors.inkSoft,
+              size: 20,
+            ),
+          ],
+        ),
       ),
     );
   }
