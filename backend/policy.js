@@ -26,15 +26,23 @@ export const PUBLIC_CHEER_MESSAGE_COUNT = 6;
 // 유도하거나 포인트를 불리는 수단이 되지 않도록 한다.
 export const MAX_CHEER_GIFT_LIGHT_ESSENCE = 5;
 
-// 공개정원 닉네임: 과도하게 길거나 제어문자가 섞인 입력을 정리한다.
-// 비어있으면 null을 돌려주고, 클라이언트/화면에서 "이름 없는 정원사" 같은
-// 기본 표시 문구를 쓰도록 맡긴다(서버가 가짜 이름을 만들어주지 않는다).
-export function sanitizeNickname(raw) {
+// 제어문자를 지우고 앞뒤 공백을 trim한 뒤 maxLen으로 자른다. 결과가
+// 비어있으면 null(= "값 없음")을 돌려준다. 공개정원 닉네임, 정원소식의
+// 제목/본문 등 "운영자/사용자가 직접 입력한 짧은 텍스트"를 다루는 모든
+// 곳에서 공유하는 기본 정리 함수다.
+function sanitizeText(raw, maxLen) {
   if (typeof raw !== 'string') return null;
   // eslint-disable-next-line no-control-regex
   const cleaned = raw.replace(/[\u0000-\u001f\u007f]/g, '').trim();
   if (!cleaned) return null;
-  return cleaned.slice(0, 20);
+  return cleaned.slice(0, maxLen);
+}
+
+// 공개정원 닉네임: 과도하게 길거나 제어문자가 섞인 입력을 정리한다.
+// 비어있으면 null을 돌려주고, 클라이언트/화면에서 "이름 없는 정원사" 같은
+// 기본 표시 문구를 쓰도록 맡긴다(서버가 가짜 이름을 만들어주지 않는다).
+export function sanitizeNickname(raw) {
+  return sanitizeText(raw, 20);
 }
 
 // 공개정원 스냅샷 검증: 알려진 씨앗/장식 id만 허용하고, 값 범위를 제한해
@@ -54,6 +62,55 @@ export function validatePublicSnapshot(value) {
   if (!Number.isInteger(treeStageIndex) || treeStageIndex < -1 || treeStageIndex > 3) return false;
   return true;
 }
+// ── 정원소식(= 기존 "공지") 관리자 CRUD + 경량 예약 ────────────────────
+// 작성/수정/삭제는 이 이메일 목록에 있는, 이메일 인증을 마친 계정만 할 수
+// 있다. 반드시 lib/services/subscription_service.dart의 adminEmails와
+// 동일한 목록을 유지해야 한다(한쪽만 바꾸면 "앱에서는 관리자 메뉴가 보이는데
+// 서버가 거부" 또는 그 반대 상황이 생긴다).
+export const ADMIN_EMAILS = new Set(['antigone.ej@gmail.com']);
+export function isAdminEmail(email) {
+  return typeof email === 'string' && ADMIN_EMAILS.has(email.toLowerCase());
+}
+
+export const GARDEN_NEWS_TYPES = new Set(['info', 'update', 'event']);
+export const GARDEN_NEWS_STATUSES = new Set(['recruiting', 'ongoing', 'closed']);
+
+// 정원소식 작성/수정 입력값을 검증하고 정리한다. 유효하지 않으면 null을
+// 돌려준다(가짜/비정상 데이터가 Firestore에 쌓이는 것을 막는다).
+//
+// capacity가 숫자면 "앱 안에서 선착순 예약을 받는" 소식이 되고, null이면
+// 예약 기능 없이(기존 공지처럼) 안내만 하는 소식이다. applyUrl은 과거처럼
+// 외부 신청폼을 함께 걸어두고 싶을 때만 쓰는 선택 필드로 남겨둔다.
+export function validateGardenNewsInput(value) {
+  if (!value || typeof value !== 'object') return null;
+  const title = sanitizeText(value.title, 80);
+  const body = sanitizeText(value.body, 4000);
+  if (!title || !body) return null;
+  const emoji = sanitizeText(value.emoji, 8) ?? '📌';
+  const type = GARDEN_NEWS_TYPES.has(value.type) ? value.type : 'info';
+  const status = value.status == null
+    ? null
+    : (GARDEN_NEWS_STATUSES.has(value.status) ? value.status : undefined);
+  if (status === undefined) return null; // explicit invalid status string
+  const period = sanitizeText(value.period, 60);
+  const location = sanitizeText(value.location, 60);
+  const cost = sanitizeText(value.cost, 60);
+  const applyUrlRaw = sanitizeText(value.applyUrl, 300);
+  if (applyUrlRaw && !/^https:\/\//.test(applyUrlRaw)) return null;
+  let capacity = null;
+  if (value.capacity !== null && value.capacity !== undefined) {
+    if (!Number.isInteger(value.capacity) || value.capacity < 0 || value.capacity > 100000) return null;
+    capacity = value.capacity;
+  }
+  return {title, body, emoji, type, status, period, location, cost, applyUrl: applyUrlRaw, capacity};
+}
+
+// 예약 신청 시 함께 남기는 한줄 메모. 이름/연락처 등 민감정보는 처음부터
+// 받지 않는다 - 신원 확인은 로그인 계정의 인증된 이메일로 충분하다.
+export function sanitizeReservationNote(raw) {
+  return sanitizeText(raw, 200);
+}
+
 export function entitlement(purchase, now = Date.now()) {
   const allowed = new Set(['SUBSCRIPTION_STATE_ACTIVE', 'SUBSCRIPTION_STATE_IN_GRACE_PERIOD', 'SUBSCRIPTION_STATE_CANCELED']);
   const items = (purchase.lineItems ?? []).filter(item => PRODUCTS.has(item.productId) && Number.isFinite(Date.parse(item.expiryTime)));

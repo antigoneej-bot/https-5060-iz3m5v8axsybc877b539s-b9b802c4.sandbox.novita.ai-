@@ -34,6 +34,7 @@ import '../widgets/category_list_screen.dart';
 import 'premium_screen.dart';
 import 'my_garden_screen.dart';
 import '../services/notification_service.dart';
+import '../models/notice.dart';
 import '../services/notice_service.dart';
 import 'notice_list_screen.dart';
 import 'notice_detail_screen.dart';
@@ -1084,14 +1085,29 @@ class _StreakWeekDots extends StatelessWidget {
 /// 소식 1건만 보여준다. [설계 원칙] 가짜 참여자 수/마감 임박 연출 없이,
 /// 등록된 내용 그대로를 보여주고 탭하면 전체 목록으로 이동한다.
 /// 등록된 소식이 하나도 없으면 아무것도 보여주지 않는다(빈 카드 금지).
-class _HomeNoticeCard extends StatelessWidget {
+class _HomeNoticeCard extends StatefulWidget {
   const _HomeNoticeCard();
 
   @override
+  State<_HomeNoticeCard> createState() => _HomeNoticeCardState();
+}
+
+class _HomeNoticeCardState extends State<_HomeNoticeCard> {
+  List<Notice> _notices = NoticeService.cachedNotices();
+
+  @override
+  void initState() {
+    super.initState();
+    // 캐시를 즉시 보여주고, 뒤에서 서버 최신 목록으로 조용히 갱신한다.
+    NoticeService.fetchNotices().then((notices) {
+      if (mounted) setState(() => _notices = notices);
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final notices = NoticeService.fetchNotices();
-    if (notices.isEmpty) return const SizedBox.shrink();
-    final notice = notices.first;
+    if (_notices.isEmpty) return const SizedBox.shrink();
+    final notice = _notices.first;
     return Padding(
       padding: const EdgeInsets.only(bottom: 24),
       child: GestureDetector(

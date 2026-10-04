@@ -362,7 +362,7 @@ class _NoticeBellButtonState extends State<_NoticeBellButton> {
     await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) =>
-            const FeatureScaffold(title: '공지사항', child: NoticeListScreen()),
+            const FeatureScaffold(title: '정원소식', child: NoticeListScreen()),
       ),
     );
     _refresh();

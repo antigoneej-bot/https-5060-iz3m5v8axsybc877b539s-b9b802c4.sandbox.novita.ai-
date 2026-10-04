@@ -1,17 +1,18 @@
-/// 공지사항(= "정원 소식") 모델.
+/// 정원소식(구 "공지사항") 모델.
 ///
-/// 현재는 [noticesData]에 정적으로 등록된 공지만 보여주는 "로컬 정적" 방식입니다.
-/// 추후 서버(Firestore 등)를 붙이게 되면, [NoticeService]의 데이터 소스만
-/// 로컬 리스트에서 서버 조회로 교체하면 되고, 이 모델과 화면 위젯은 그대로
-/// 재사용할 수 있도록 필드를 설계해두었습니다.
+/// 서버(Firestore `gardenNews` 컬렉션, Cloud Functions `gardenApi`를 통해서만
+/// 접근)에서 조회합니다. 관리자 계정으로 로그인하면 앱 안에서 직접
+/// 작성/수정/삭제(CRUD)할 수 있어, 원데이 클래스 안내 같은 소식을 앱
+/// 업데이트 없이 올릴 수 있습니다. 서버가 아직 연결되지 않은 경우
+/// ([CloudService.enabled]==false)에는 목록이 비어있는 것으로 처리됩니다.
 ///
 /// [설계 원칙] 운영자가 실제로 올린 내용만 보여준다 - 가짜 참여자 수,
 /// 가짜 신청 현황 같은 "운영 중인 것처럼 꾸민" 데이터는 절대 만들지 않는다.
-/// 참여/신청은 초기엔 외부 신청폼(예: 구글 폼) 링크로 연결하고, 상태
-/// ([NoticeStatus])는 운영자가 직접 올린 문구를 그대로 보여줄 뿐이다.
+/// [reservedCount]는 실제 신청 건수 그대로이며, "마감임박" 같은 문구를
+/// 앱이 자동으로 덧붙이지 않는다. 상태([NoticeStatus])는 운영자가 직접
+/// 고른 값을 그대로 보여줄 뿐이다.
 class Notice {
-  /// 공지 고유 id. 새 공지를 추가할 때마다 유일한 값을 지정해주세요.
-  /// (읽음 여부를 이 id로 로컬에 기록합니다)
+  /// 정원소식 고유 id (Firestore 문서 id).
   final String id;
 
   final String title;
@@ -42,9 +43,17 @@ class Notice {
   /// 참가 비용 안내 문구(예: "무료", "1만원"). null이면 비용 줄을 숨긴다.
   final String? cost;
 
-  /// 외부 신청폼/예약 링크. null이 아니면 상세 화면에 "신청하기" 버튼이 뜬다.
-  /// 서버가 생기기 전까지는 구글 폼 등 외부 링크로 신청을 받는다.
+  /// 외부 신청폼/예약 링크. 앱 안 선착순 예약([capacity])과 별개로, 결제나
+  /// 추가 정보 수집이 필요한 경우를 위해 함께 걸어둘 수 있는 선택 필드다.
   final String? applyUrl;
+
+  /// 앱 안에서 선착순으로 받는 예약 정원. null이면 이 소식은 예약 기능이
+  /// 없는(기존 공지처럼 안내만 하는) 소식이다. 0 이상의 정수.
+  final int? capacity;
+
+  /// 지금까지 실제로 신청한 인원 수(실시간 값, 서버가 집계). 운영자가
+  /// 직접 적은 숫자가 아니라 신청 내역을 그대로 센 값이다.
+  final int reservedCount;
 
   const Notice({
     required this.id,
@@ -58,7 +67,69 @@ class Notice {
     this.location,
     this.cost,
     this.applyUrl,
+    this.capacity,
+    this.reservedCount = 0,
   });
+
+  /// 앱 안에서 선착순 예약을 받는 소식인지 여부.
+  bool get isReservable => capacity != null;
+
+  /// 정원이 다 찼는지 여부(예약 가능한 소식에만 의미가 있다).
+  bool get isReservationFull =>
+      capacity != null && reservedCount >= capacity!;
+
+  /// 서버 응답(JSON)으로부터 [Notice]를 만든다. 날짜 문자열은 ISO8601
+  /// 타임스탬프 중 앞 10글자(YYYY-MM-DD)만 사람이 읽기 좋게 잘라 쓴다.
+  factory Notice.fromJson(Map<String, dynamic> json) {
+    final createdAt = json['createdAt']?.toString();
+    return Notice(
+      id: json['id']?.toString() ?? '',
+      title: json['title']?.toString() ?? '',
+      body: json['body']?.toString() ?? '',
+      emoji: json['emoji']?.toString() ?? '📌',
+      type: NoticeType.values.firstWhere(
+        (t) => t.name == json['type'],
+        orElse: () => NoticeType.info,
+      ),
+      date: (createdAt != null && createdAt.length >= 10)
+          ? createdAt.substring(0, 10)
+          : '',
+      status: json['status'] == null
+          ? null
+          : NoticeStatus.values.firstWhereOrNull(
+              (s) => s.name == json['status'],
+            ),
+      period: json['period']?.toString(),
+      location: json['location']?.toString(),
+      cost: json['cost']?.toString(),
+      applyUrl: json['applyUrl']?.toString(),
+      capacity: (json['capacity'] as num?)?.toInt(),
+      reservedCount: (json['reservedCount'] as num?)?.toInt() ?? 0,
+    );
+  }
+
+  /// 관리자 작성/수정 화면에서 서버로 보낼 입력값(JSON)을 만든다.
+  Map<String, dynamic> toAdminInput() => {
+    'title': title,
+    'body': body,
+    'emoji': emoji,
+    'type': type.name,
+    if (status != null) 'status': status!.name,
+    if (period != null) 'period': period,
+    if (location != null) 'location': location,
+    if (cost != null) 'cost': cost,
+    if (applyUrl != null) 'applyUrl': applyUrl,
+    if (capacity != null) 'capacity': capacity,
+  };
+}
+
+extension _FirstWhereOrNull<T> on Iterable<T> {
+  T? firstWhereOrNull(bool Function(T) test) {
+    for (final e in this) {
+      if (test(e)) return e;
+    }
+    return null;
+  }
 }
 
 enum NoticeType {

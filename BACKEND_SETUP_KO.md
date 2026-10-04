@@ -76,7 +76,36 @@ Play 내부 테스트에서 설치하고 App Check가 통과하는지 확인합�
   이거나 `where('claimed','==',false)` 단독 조건이며, 정렬은 클라이언트/함수
   메모리에서 처리합니다).
 
-## 5. 반드시 확인할 통합 시나리오
+## 5. 정원소식 (구 "공지사항") 관리자 CRUD + 경량 예약
+
+`gardenApi`에 `listGardenNews`/`adminCreateGardenNews`/`adminUpdateGardenNews`/
+`adminDeleteGardenNews`/`adminListGardenNewsReservations`/
+`reserveGardenNews`/`cancelGardenNewsReservation`/`myGardenNewsReservations`
+액션이 추가되어 있습니다. 역시 같은 `gardenApi` 함수이므로 별도 배포 단계가
+필요 없습니다.
+
+- **관리자만 작성/수정/삭제**: `backend/policy.js`의 `ADMIN_EMAILS`에 있는,
+  이메일 인증을 마친 계정만 CRUD 액션을 호출할 수 있습니다. 서버가 매번
+  `identity.email`을 다시 검증하므로, 클라이언트(앱)에서 관리자 메뉴를
+  숨기는 것은 UX일 뿐 보안 경계가 아닙니다.
+  **반드시 `lib/services/subscription_service.dart`의 `adminEmails`와
+  동일한 이메일 목록을 유지하세요** - 한쪽만 바꾸면 "앱에는 메뉴가 보이는데
+  서버가 거부" 또는 그 반대 상황이 생깁니다.
+- **조회는 모든 로그인 사용자 가능**: `listGardenNews`는 인증된 사용자라면
+  누구나 호출할 수 있습니다(최신순, 최대 50개).
+- **경량 예약(선착순, 민감정보 미수집)**: 소식 작성 시 `capacity`(모집
+  정원)를 지정하면 앱 안에서 선착순 신청을 받을 수 있습니다. 신청 시
+  수집하는 정보는 로그인 계정의 인증된 이메일과 선택적 한줄 메모뿐이며,
+  이름/연락처 등은 애초에 받지 않습니다. `reserveGardenNews`는 트랜잭션으로
+  정원 초과/중복신청을 막고, `cancelGardenNewsReservation`은 멱등적으로
+  동작합니다(신청한 적이 없으면 조용히 아무 일도 하지 않음).
+- **가짜 운영데이터 금지**: `reservedCount`는 실제 신청 건수 그대로이며,
+  "마감임박" 같은 문구를 서버가 자동으로 만들어 붙이지 않습니다. 운영자가
+  직접 `status`를 `closed`로 바꿔야만 마감 표시가 됩니다.
+- Firestore 복합 인덱스는 필요 없습니다(`listGardenNews`는 단일 필드
+  `orderBy('createdAt')`, 예약 조회는 모두 단일 `where` 조건입니다).
+
+## 6. 반드시 확인할 통합 시나리오
 
 - 구매→Google 검증→구매 승인→권한 반영, 복원, 갱신, 갱신 취소 후 만료일까지 접근, 만료·보류·환불, 네트워크 실패 재시도.
 - 다른 Firebase 계정의 구매 토큰 제출, 다른 앱 App Check 토큰, 이메일 미인증, 잘못된 토큰으로 권한이나 데이터가 열리지 않는지.

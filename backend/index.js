@@ -8,7 +8,8 @@ import { onRequest } from 'firebase-functions/v2/https';
 import { onMessagePublished } from 'firebase-functions/v2/pubsub';
 import { GoogleAuth } from 'google-auth-library';
 import { PACKAGE, PRODUCTS, entitlement, assertOwner, tokenHash, validEnvelope, nextAccountLease, accountHash,
-  sanitizeNickname, validatePublicSnapshot, PUBLIC_CHEER_MESSAGE_COUNT, MAX_CHEER_GIFT_LIGHT_ESSENCE } from './policy.js';
+  sanitizeNickname, validatePublicSnapshot, PUBLIC_CHEER_MESSAGE_COUNT, MAX_CHEER_GIFT_LIGHT_ESSENCE,
+  isAdminEmail, validateGardenNewsInput, sanitizeReservationNote } from './policy.js';
 initializeApp();
 const db = getFirestore();
 const publisher = new GoogleAuth({scopes:['https://www.googleapis.com/auth/androidpublisher']});
@@ -227,6 +228,107 @@ export const gardenApi = onRequest({region:'asia-northeast3', maxInstances:3, ti
       });
       res.json({claimed:true, amount});return;
     }
+    // ── 정원소식(= 기존 "공지") 관리자 CRUD + 경량 예약 ────────────────
+    // 읍일전용 조회는 모든 로그인 사용자가 할 수 있고, 작성/수정/삭제는
+    // ADMIN_EMAILS에 있는 계정만 할 수 있다(서버에서 다시 검증 - 클라이언트
+    // 쪼코드의 관리자 메뉴 노출 여부를 신뢰하지 않는다).
+    if (action === 'listGardenNews') {
+      const snap = await db.collection('gardenNews').orderBy('createdAt', 'desc').limit(50).get();
+      const news = snap.docs.map(doc => {
+        const d = doc.data();
+        return {
+          id: doc.id, title: d.title, body: d.body, emoji: d.emoji, type: d.type,
+          status: d.status ?? null, period: d.period ?? null, location: d.location ?? null,
+          cost: d.cost ?? null, applyUrl: d.applyUrl ?? null, capacity: d.capacity ?? null,
+          reservedCount: d.reservedCount ?? 0,
+          createdAt: d.createdAt?.toDate().toISOString() ?? null,
+        };
+      });
+      res.json({news});return;
+    }
+    if (action === 'adminCreateGardenNews' || action === 'adminUpdateGardenNews') {
+      if (!isAdminEmail(identity.email)) {res.status(403).json({error:'admin-required'});return;}
+      const parsed = validateGardenNewsInput(req.body.news);
+      if (!parsed) {res.status(400).json({error:'invalid-news'});return;}
+      if (action === 'adminCreateGardenNews') {
+        const ref = db.collection('gardenNews').doc();
+        await ref.set({...parsed, reservedCount: 0, createdBy: uid,
+          createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp()});
+        res.json({id: ref.id});return;
+      }
+      const id = req.body.id;
+      if (typeof id !== 'string' || !id) {res.status(400).json({error:'invalid-id'});return;}
+      const ref = db.doc(`gardenNews/${id}`);
+      const existing = await ref.get();
+      if (!existing.exists) {res.status(404).json({error:'news-not-found'});return;}
+      // capacity가 줄어도 이미 예약된 인원(reservedCount)은 그대로 둔다 -
+      // 관리자가 정원을 낮췄다고 기존 신청자를 자동으로 취소시키지 않는다.
+      await ref.update({...parsed, updatedAt: FieldValue.serverTimestamp()});
+      res.json({id});return;
+    }
+    if (action === 'adminDeleteGardenNews') {
+      if (!isAdminEmail(identity.email)) {res.status(403).json({error:'admin-required'});return;}
+      const id = req.body.id;
+      if (typeof id !== 'string' || !id) {res.status(400).json({error:'invalid-id'});return;}
+      await db.doc(`gardenNews/${id}`).delete();
+      // Clean up this news item's reservations too (bounded: admin content,
+      // never attracts an unbounded crowd the way a public ranking would).
+      const reservations = await db.collection('gardenNewsReservations').where('newsId','==',id).get();
+      for (const doc of reservations.docs) await doc.ref.delete();
+      res.json({deleted:true});return;
+    }
+    if (action === 'adminListGardenNewsReservations') {
+      if (!isAdminEmail(identity.email)) {res.status(403).json({error:'admin-required'});return;}
+      const newsId = req.body.newsId;
+      if (typeof newsId !== 'string' || !newsId) {res.status(400).json({error:'invalid-id'});return;}
+      const snap = await db.collection('gardenNewsReservations').where('newsId','==',newsId).get();
+      const reservations = snap.docs
+        .map(doc => ({email: doc.data().email, note: doc.data().note ?? null,
+          createdAt: doc.data().createdAt?.toDate().toISOString() ?? null}))
+        .sort((a,b) => (a.createdAt ?? '').localeCompare(b.createdAt ?? ''));
+      res.json({reservations});return;
+    }
+    if (action === 'reserveGardenNews') {
+      const newsId = req.body.newsId;
+      if (typeof newsId !== 'string' || !newsId) {res.status(400).json({error:'invalid-id'});return;}
+      const note = sanitizeReservationNote(req.body.note);
+      const newsRef = db.doc(`gardenNews/${newsId}`);
+      const reservationRef = db.doc(`gardenNewsReservations/${newsId}_${uid}`);
+      await db.runTransaction(async tx => {
+        const [news, existingReservation] = await Promise.all([tx.get(newsRef), tx.get(reservationRef)]);
+        if (!news.exists) throw new Error('news-not-found');
+        if (existingReservation.exists) throw new Error('already-reserved');
+        const data = news.data();
+        if (data.status === 'closed') throw new Error('reservation-closed');
+        if (data.capacity == null) throw new Error('reservation-not-available');
+        const reservedCount = data.reservedCount ?? 0;
+        if (reservedCount >= data.capacity) throw new Error('reservation-full');
+        tx.set(reservationRef, {newsId, uid, email: identity.email, note,
+          createdAt: FieldValue.serverTimestamp()});
+        tx.update(newsRef, {reservedCount: reservedCount + 1});
+      });
+      res.json({reserved:true});return;
+    }
+    if (action === 'cancelGardenNewsReservation') {
+      const newsId = req.body.newsId;
+      if (typeof newsId !== 'string' || !newsId) {res.status(400).json({error:'invalid-id'});return;}
+      const newsRef = db.doc(`gardenNews/${newsId}`);
+      const reservationRef = db.doc(`gardenNewsReservations/${newsId}_${uid}`);
+      await db.runTransaction(async tx => {
+        const [news, reservation] = await Promise.all([tx.get(newsRef), tx.get(reservationRef)]);
+        if (!reservation.exists) return; // Idempotent: nothing to cancel.
+        tx.delete(reservationRef);
+        if (news.exists) {
+          const reservedCount = Math.max(0, (news.data().reservedCount ?? 0) - 1);
+          tx.update(newsRef, {reservedCount});
+        }
+      });
+      res.json({canceled:true});return;
+    }
+    if (action === 'myGardenNewsReservations') {
+      const snap = await db.collection('gardenNewsReservations').where('uid','==',uid).get();
+      res.json({newsIds: snap.docs.map(doc => doc.data().newsId)});return;
+    }
     if (action === 'deleteCloudAccount') {
       if (Date.now()/1000 - identity.auth_time > 300) {res.status(403).json({error:'recent-login-required'});return;}
       await lease.ref.set({deleting:true}, {merge:true});
@@ -245,10 +347,12 @@ export const gardenApi = onRequest({region:'asia-northeast3', maxInstances:3, ti
     res.status(400).json({error:'unknown-action'});
   } catch (error) {
     const expected = ['purchase-owner-mismatch','purchase-migration-required','rate-limit','account-busy',
-      'account-deleting','cheer-already-sent-today'];
+      'account-deleting','cheer-already-sent-today','news-not-found','already-reserved',
+      'reservation-closed','reservation-not-available','reservation-full'];
     const code = expected.includes(error.message) ? error.message : 'temporarily-unavailable';
     const statusCode = code === 'rate-limit' ? 429
-      : code === 'cheer-already-sent-today' ? 409
+      : ['cheer-already-sent-today','already-reserved'].includes(code) ? 409
+      : code === 'news-not-found' ? 404
       : code === 'temporarily-unavailable' ? 503 : 403;
     res.status(statusCode).json({error:code});
   } finally {

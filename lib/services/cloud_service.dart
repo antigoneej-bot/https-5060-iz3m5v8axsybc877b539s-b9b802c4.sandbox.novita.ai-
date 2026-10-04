@@ -191,6 +191,75 @@ class CloudService {
     return (result['amount'] as num?)?.toInt() ?? 0;
   }
 
+  // ── 정원소식(= 기존 "공지") 관리자 CRUD + 경량 예약 ────────────────
+  // 조회는 모든 로그인 사용자가 할 수 있고, 작성/수정/삭제는 관리자
+  // 계정만 서버에서 허용한다(클라이언트의 관리자 메뉴 노출 여부와 무관하게
+  // 서버가 다시 검증한다 - [SubscriptionService.isAdminUser]는 UI 노출
+  // 여부를 판단할 때만 쓰고, 보안 경계로 신뢰하지 않는다).
+
+  /// 정원소식 전체 목록(최신순, 최대 50개)을 가져온다.
+  static Future<List<Map<String, dynamic>>> listGardenNews() async {
+    final result = await call('listGardenNews');
+    final news = result['news'];
+    if (news is! List) return [];
+    return news.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+  }
+
+  /// (관리자 전용) 새 정원소식을 작성한다. [capacity]가 null이 아니면
+  /// 앱 안에서 선착순 예약을 받는 소식이 된다.
+  static Future<String> adminCreateGardenNews(Map<String, dynamic> news) async {
+    final result = await call('adminCreateGardenNews', {'news': news});
+    return result['id']?.toString() ?? '';
+  }
+
+  /// (관리자 전용) 기존 정원소식을 수정한다.
+  static Future<void> adminUpdateGardenNews(
+    String id,
+    Map<String, dynamic> news,
+  ) => call('adminUpdateGardenNews', {'id': id, 'news': news});
+
+  /// (관리자 전용) 정원소식을 삭제한다. 이 소식의 예약 신청 기록도 함께
+  /// 정리된다.
+  static Future<void> adminDeleteGardenNews(String id) =>
+      call('adminDeleteGardenNews', {'id': id});
+
+  /// (관리자 전용) 특정 소식의 예약 신청자 목록(이메일/메모/신청시간)을
+  /// 가져온다. 이름/연락처 등은 애초에 수집하지 않으므로 포함되지 않는다.
+  static Future<List<Map<String, dynamic>>> adminListGardenNewsReservations(
+    String newsId,
+  ) async {
+    final result = await call('adminListGardenNewsReservations', {
+      'newsId': newsId,
+    });
+    final reservations = result['reservations'];
+    if (reservations is! List) return [];
+    return reservations
+        .map((e) => Map<String, dynamic>.from(e as Map))
+        .toList();
+  }
+
+  /// 선착순 예약을 신청한다. 정원이 다 찼거나 이미 신청했거나 마감된
+  /// 소식이면 서버가 거부한다(중복신청/초과신청 방지).
+  static Future<void> reserveGardenNews(String newsId, {String? note}) =>
+      call('reserveGardenNews', {
+        'newsId': newsId,
+        if (note != null) 'note': note,
+      });
+
+  /// 신청을 취소한다. 신청한 적이 없으면 조용히 아무 일도 하지 않는다
+  /// (멱등적 동작).
+  static Future<void> cancelGardenNewsReservation(String newsId) =>
+      call('cancelGardenNewsReservation', {'newsId': newsId});
+
+  /// 내가 이미 신청한 정원소식 id 목록 (버튼을 "신청하기"/"신청 취소"로
+  /// 구분해 보여주는 데 사용한다).
+  static Future<Set<String>> myGardenNewsReservations() async {
+    final result = await call('myGardenNewsReservations');
+    final ids = result['newsIds'];
+    if (ids is! List) return {};
+    return ids.map((e) => e.toString()).toSet();
+  }
+
   static Future<bool> cachedPremium() async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return false;
@@ -231,6 +300,13 @@ class CloudException implements Exception {
     'garden-not-found' => '정원을 찾을 수 없어요. 방금 전 다른 분이 공개를 멈췄을 수 있어요.',
     'cannot-cheer-self' => '내 정원에는 응원을 보낼 수 없어요.',
     'invalid-snapshot' => '정원 정보를 공개하는 데 문제가 있었어요. 잠시 후 다시 시도해 주세요.',
+    'admin-required' => '관리자 계정만 할 수 있어요.',
+    'invalid-news' => '소식 내용을 다시 확인해 주세요.',
+    'news-not-found' => '이 소식을 찾을 수 없어요. 방금 삭제되었을 수 있어요.',
+    'already-reserved' => '이미 신청한 소식이에요.',
+    'reservation-closed' => '이 소식은 신청이 마감되었어요.',
+    'reservation-not-available' => '이 소식은 예약을 받지 않아요.',
+    'reservation-full' => '신청 인원이 모두 찼어요.',
     _ => '서버 연결을 확인할 수 없어요. 잠시 후 다시 시도해 주세요.',
   };
 }
