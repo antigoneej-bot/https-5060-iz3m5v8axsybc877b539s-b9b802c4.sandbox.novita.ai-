@@ -4,7 +4,7 @@ import '../widgets/stars_background.dart';
 import '../widgets/garden_path_card.dart';
 
 /// 앱 소개 화면 - "이 앱은 무엇을 기반으로 만들어졌는지, 어떤 기능이 있는지,
-/// 42마리 고양이는 어떤 의미인지, 왜 감정을 기록해야 하는지"를 처음 만나는
+/// 34마리 고양이는 어떤 의미인지, 왜 감정을 기록해야 하는지"를 처음 만나는
 /// 사용자도 편하게 이해할 수 있도록 설명하는 베이직 소개 화면.
 /// 개인정보처리방침 화면과 같은 GlassBlob 카드 톤으로 구성합니다.
 class AboutAppScreen extends StatelessWidget {
@@ -71,16 +71,16 @@ class AboutAppScreen extends StatelessWidget {
                           const SizedBox(height: 14),
                           _AboutSection(
                             emoji: '🐾',
-                            title: '42마리 고양이는 무슨 의미인가요?',
+                            title: '34마리 고양이는 무슨 의미인가요?',
                             accent: AppColors.blobPeachAccent,
                             background: AppColors.blobPeach,
                             body:
-                                '정원에는 총 42마리의 그림자 고양이가 살고 있어요. 각 고양이는 '
+                                '정원에는 총 34마리의 그림자 고양이가 살고 있어요. 각 고양이는 '
                                 '슬픔, 질투, 분노, 불안, 외로움처럼 우리가 자주 느끼지만 쉽게 '
                                 '드러내지 못하는 감정부터, 행복, 다정함, 만족, 평온처럼 소중히 '
                                 '간직하고 싶은 감정까지 사람이 느낄 수 있는 다양한 마음의 '
                                 '스펙트럼을 하나씩 대표하고 있어요.\n\n'
-                                '한 가지 감정만으로는 사람의 마음을 다 담을 수 없기에, 42가지로 '
+                                '한 가지 감정만으로는 사람의 마음을 다 담을 수 없기에, 34가지로 '
                                 '나누어 오늘 내 마음과 가장 닮은 고양이를 찾을 수 있게 했어요. '
                                 '각 고양이에게는 왜 그런 감정을 느끼는지 이야기가 있고, 그 '
                                 '감정을 다정하게 안아주는 위로의 말과, 오늘 해볼 수 있는 작은 '
@@ -167,7 +167,7 @@ class _IntroHeaderCard extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           Text(
-            '이 화면에서는 이 앱이 어떤 생각에서 시작됐는지, 42마리 고양이는 '
+            '이 화면에서는 이 앱이 어떤 생각에서 시작됐는지, 34마리 고양이는 '
             '어떤 의미인지, 그리고 앱에서 무엇을 할 수 있는지 차근차근 '
             '소개해드려요.',
             style: bodyFont(fontSize: 13, color: AppColors.moon, height: 1.7),
@@ -242,7 +242,7 @@ class _FeatureList extends StatelessWidget {
   const _FeatureList();
 
   static const _features = [
-    ('😽', '오늘의 감정 고양이 만나기', '지금 내 기분과 가장 닮은 고양이를 42마리 중에서 직접 골라보세요.'),
+    ('😽', '오늘의 감정 고양이 만나기', '지금 내 기분과 가장 닮은 고양이를 34마리 중에서 직접 골라보세요.'),
     ('💌', '고양이에게 편지쓰기', '고른 고양이에게 하고 싶은 말을 편지로 남기며, 감정을 있는 그대로 들여다봐요.'),
     ('🌘', '오늘의 고양이 카드 (카드뽑기)', '오늘의 고양이 카드를 무작위로 한 장 뽑아보고, 위로와 실천 지침을 받아보세요.'),
     ('🐾', '마음 돌보기', '밥 주기 · 물 주기 · 목욕 · 청소로 나만의 아기고양이를 함께 키워나가요.'),

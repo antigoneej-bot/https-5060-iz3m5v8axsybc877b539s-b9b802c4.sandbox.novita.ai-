@@ -1,4 +1,4 @@
-/// 감정 카테고리(무료 42 + 유료 10 = 52 그림자 고양이)의 톤(긍정/중립/부정)과
+/// 감정 카테고리(무료 34 + 유료 5 = 39 그림자 고양이)의 톤(긍정/중립/부정)과
 /// 강도(고/저) 분류.
 ///
 /// ⚠️ 이 분류는 오직 '정원 날씨 시스템'의 내부 계산(연출)에만 쓰입니다.
@@ -20,7 +20,7 @@ class _ToneEntry {
   const _ToneEntry(this.tone, this.intensity);
 }
 
-/// shadow_cats_data.dart의 52개 id와 1:1로 대응합니다.
+/// shadow_cats_data.dart의 39개 id와 1:1로 대응합니다.
 const Map<String, _ToneEntry> _catEmotionTone = {
   'dreamy': _ToneEntry(EmotionTone.neutral, EmotionIntensity.low),
   'sad': _ToneEntry(EmotionTone.negative, EmotionIntensity.high),
@@ -38,11 +38,9 @@ const Map<String, _ToneEntry> _catEmotionTone = {
   'indifferent': _ToneEntry(EmotionTone.neutral, EmotionIntensity.low),
   'impatient': _ToneEntry(EmotionTone.negative, EmotionIntensity.low),
   'needy': _ToneEntry(EmotionTone.negative, EmotionIntensity.low),
-  'mischievous': _ToneEntry(EmotionTone.positive, EmotionIntensity.low),
   'selfCritical': _ToneEntry(EmotionTone.negative, EmotionIntensity.high),
-  'grieving': _ToneEntry(EmotionTone.negative, EmotionIntensity.high),
+  'depressed': _ToneEntry(EmotionTone.negative, EmotionIntensity.high),
   'hesitant': _ToneEntry(EmotionTone.neutral, EmotionIntensity.low),
-  'surprised': _ToneEntry(EmotionTone.neutral, EmotionIntensity.low),
   // 캐릭터 재배치: 'sleepy' → '피곤한 고양이'(억누르고 버텨온 지침)
   'sleepy': _ToneEntry(EmotionTone.negative, EmotionIntensity.high),
   'sulky': _ToneEntry(EmotionTone.negative, EmotionIntensity.low),
@@ -52,32 +50,21 @@ const Map<String, _ToneEntry> _catEmotionTone = {
   'focused': _ToneEntry(EmotionTone.positive, EmotionIntensity.low),
   'excited': _ToneEntry(EmotionTone.positive, EmotionIntensity.high),
   'curious': _ToneEntry(EmotionTone.positive, EmotionIntensity.low),
-  'comforted': _ToneEntry(EmotionTone.positive, EmotionIntensity.high),
-  'playful': _ToneEntry(EmotionTone.positive, EmotionIntensity.high),
   // 캐릭터 재배치: 'enchanted' → '모르겠는 고양이'(미분화 상태, 중립·저강도 유지)
   'enchanted': _ToneEntry(EmotionTone.neutral, EmotionIntensity.low),
   'serene': _ToneEntry(EmotionTone.positive, EmotionIntensity.low),
-  'studious': _ToneEntry(EmotionTone.neutral, EmotionIntensity.low),
-  'protective': _ToneEntry(EmotionTone.neutral, EmotionIntensity.low),
   'content': _ToneEntry(EmotionTone.positive, EmotionIntensity.low),
-  // 신규 6마리
+  // 신규 추가
   'ashamed': _ToneEntry(EmotionTone.negative, EmotionIntensity.high),
   'wronged': _ToneEntry(EmotionTone.negative, EmotionIntensity.high),
   'hollow': _ToneEntry(EmotionTone.negative, EmotionIntensity.low),
   'grateful': _ToneEntry(EmotionTone.positive, EmotionIntensity.low),
-  'courageous': _ToneEntry(EmotionTone.positive, EmotionIntensity.high),
-  'witty': _ToneEntry(EmotionTone.positive, EmotionIntensity.low),
-  // 유료(Basic 구독) 10마리
+  // 유료(Basic 구독) 5마리
   'cynical': _ToneEntry(EmotionTone.negative, EmotionIntensity.low),
-  'envious': _ToneEntry(EmotionTone.negative, EmotionIntensity.low),
   'hurtFeelings': _ToneEntry(EmotionTone.negative, EmotionIntensity.low),
   'inferior': _ToneEntry(EmotionTone.negative, EmotionIntensity.high),
   'dread': _ToneEntry(EmotionTone.negative, EmotionIntensity.high),
   'guilty': _ToneEntry(EmotionTone.negative, EmotionIntensity.high),
-  'openHearted': _ToneEntry(EmotionTone.positive, EmotionIntensity.low),
-  'creative': _ToneEntry(EmotionTone.positive, EmotionIntensity.high),
-  'leaderly': _ToneEntry(EmotionTone.positive, EmotionIntensity.high),
-  'convicted': _ToneEntry(EmotionTone.positive, EmotionIntensity.low),
 };
 
 /// 감정 카테고리(catId)의 톤을 반환합니다. 알 수 없는 id는 중립으로 처리합니다.

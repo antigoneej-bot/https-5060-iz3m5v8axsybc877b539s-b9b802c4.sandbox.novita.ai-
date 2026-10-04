@@ -16,11 +16,6 @@ const Map<String, List<String>> alternativeEmotionMapping = {
   'hurtFeelings': ['sad', 'sulky'], // 서운함 → 슬픈 또는 삐친
   'inferior': ['jealous', 'selfCritical'], // 열등감 → 질투 또는 자책
   'cynical': ['indifferent'], // 냉소 → 무심한
-  'envious': ['jealous'], // 시기 → 질투
-  'openHearted': ['vulnerable', 'hesitant'], // 취약함 인정 → 다친 또는 망설임
-  'creative': ['curious'], // 창의성 → 호기심
-  'leaderly': ['proud'], // 리더십 → 당당한
-  'convicted': ['proud', 'content'], // 확신 → 당당한 또는 만족
 };
 
 /// 유료 캐릭터 id로 대안 무료 캐릭터 id 목록을 반환합니다.

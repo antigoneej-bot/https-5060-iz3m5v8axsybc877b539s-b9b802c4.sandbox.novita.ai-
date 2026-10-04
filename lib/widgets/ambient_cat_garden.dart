@@ -43,7 +43,7 @@ class AmbientCatGardenLayer extends StatelessWidget {
       flip: false,
     ),
     _AmbientCatSpec(
-      catId: 'comforted',
+      catId: 'content',
       alignment: Alignment(0.97, 0.66),
       size: 34,
       walkRange: 8,

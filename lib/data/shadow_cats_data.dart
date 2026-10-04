@@ -1,9 +1,11 @@
 import '../models/shadow_cat.dart';
 
-/// 42마리 그림자 감정 고양이 (기존 36마리 + 신규 6마리: 수치심·억울함·허무함·
-/// 감사·용기·유머)
+/// 39마리 그림자 감정 고양이 (무료 34마리 + 유료(Basic 구독) 5마리).
+/// '감정'이라 하기엔 모호한 14종(애도·장난기·포근함·놀이·탐구·보호본능·
+/// 유머·놀람·시기·취약한 인정·창의성·리더십·확신·용기)을 정리하고, 대신
+/// 또렷한 감정인 '우울'을 추가했습니다.
 /// - 고양이 선택(감정 체크인) 화면에서 오늘 내 기분과 닮은 고양이를 고를 때 사용
-/// - 데일리 내면소통(카드뽑기) 화면에서도 동일한 42마리를 카드로 사용
+/// - 데일리 내면소통(카드뽑기) 화면에서도 동일한 고양이들을 카드로 사용
 final List<ShadowCat> shadowCats = [
   const ShadowCat(
     id: 'dreamy',
@@ -260,21 +262,6 @@ final List<ShadowCat> shadowCats = [
     guidance: '거울 속의 나를 향해 오늘 하루도 애썼다고 말해주세요.',
   ),
   const ShadowCat(
-    id: 'mischievous',
-    nameKr: '장난꾸러기 고양이',
-    nameEn: 'The Mischievous Cat',
-    emoji: '😼',
-    keyword: '장난기',
-    imageAsset: 'assets/cards36/cat_17.png',
-    videoAsset: 'assets/cards36/videos/cat_17_loop.mp4',
-    story:
-        '실을 매단 인형들을 손가락으로 조종하며, 이 고양이는 심술궂은 미소를 짓고 있어요. 규칙을 살짝 비틀고 '
-        '예상 밖의 행동을 하는 게 왠지 짜릿하고 재미있답니다. 다만 그 장난이 가끔은 누군가를 곤란하게 만들기도 해요.',
-    meditationKeys: ['writing', 'mindfulThought', 'walkingMeditation'],
-    comfortMessage: '장난기는 삶에 활력을 더해줘요. 다만 그 웃음이 모두에게 즐겁길 바라요.',
-    guidance: '오늘은 장난기를 좋은 곳에 써보세요. 누군가를 웃게 해주는 것으로요.',
-  ),
-  const ShadowCat(
     id: 'selfCritical',
     nameKr: '자책하는 고양이',
     nameEn: 'The Self-Critical Cat',
@@ -291,19 +278,19 @@ final List<ShadowCat> shadowCats = [
     guidance: '오늘 나를 탓하고 싶을 때, 친한 친구에게 하듯 부드럽게 말해주세요.',
   ),
   const ShadowCat(
-    id: 'grieving',
-    nameKr: '눈물 고양이',
-    nameEn: 'The Grieving Cat',
-    emoji: '😭',
-    keyword: '애도',
+    id: 'depressed',
+    nameKr: '우울한 고양이',
+    nameEn: 'The Depressed Cat',
+    emoji: '🌧️',
+    keyword: '우울',
     imageAsset: 'assets/cards36/cat_19.png',
-    videoAsset: 'assets/cards36/videos/cat_19_loop.mp4',
     story:
-        '슬픈 눈망울로 눈물을 흘리며, 이 고양이는 바닥을 멍하니 바라보고 있어요. 소중했던 무언가를 떠나보낸 '
-        '뒤, 마음 한켠이 자꾸만 시려온답니다. 슬픔을 서두르지 않고 충분히 흘려보내는 것도 애도의 한 방법이에요.',
-    meditationKeys: ['selfCompassion', 'writing', 'lovingKindness'],
-    comfortMessage: '이별의 아픔은 시간이 필요해요. 지금 이대로 슬퍼해도 괜찮아요.',
-    guidance: '떠나보낸 것에게 짧은 편지를 써보며 마음을 정리해보세요.',
+        '작은 회색 비구름을 머리 위에 인 채, 이 고양이는 바닥에 축 늘어져 멍하니 눈을 내리깔고 있어요. '
+        '특별히 슬픈 일이 있었던 것도 아닌데, 마음에 무거운 회색빛이 가만히 내려앉아 좀처럼 걷히지 않는답니다. '
+        '애써 기운을 내려 하지 않아도, 지금은 그냥 이 무게를 느껴도 괜찮아요.',
+    meditationKeys: ['selfCompassion', 'bodyScan', 'lovingKindness'],
+    comfortMessage: '마음이 가라앉는 날도 있어요. 억지로 밝아지려 하지 않아도 당신은 괜찮아요.',
+    guidance: '오늘은 아무것도 하지 않아도 되는 시간을 잠깐이라도 스스로에게 허락해보세요.',
   ),
   const ShadowCat(
     id: 'hesitant',
@@ -319,25 +306,6 @@ final List<ShadowCat> shadowCats = [
     meditationKeys: ['grounding', 'breathing', 'mindfulThought'],
     comfortMessage: '망설임은 신중함의 다른 얼굴이에요. 준비가 되면 자연스레 나아가게 될 거예요.',
     guidance: '오늘은 망설이던 일 중 가장 작은 부분만 살짝 시작해보세요.',
-  ),
-  // 캐릭터 재배치: '놀란 고양이'는 그림자/황금그림자 어느 쪽에도 명확히
-  // 속하지 않아 새 선택 목록에서는 보류(reserved)합니다. 원화·id는 그대로
-  // 유지하여, 과거 이 캐릭터로 남은 기록은 계속 정상적으로 조회됩니다.
-  const ShadowCat(
-    id: 'surprised',
-    nameKr: '놀란 고양이',
-    nameEn: 'The Surprised Cat',
-    emoji: '😳',
-    keyword: '놀람',
-    imageAsset: 'assets/cards36/cat_21.png',
-    story:
-        '얼음 조각 위에 서서 동그랗게 커진 눈으로, 이 고양이는 깜짝 놀란 표정을 짓고 있어요. 예상치 못한 일이 '
-        '갑자기 벌어지면 마음이 철렁 내려앉고, 어떻게 반응해야 할지 몰라 얼어붙는답니다. 놀란 마음이 가라앉을 '
-        '때까지 잠시 시간이 필요해요.',
-    meditationKeys: ['breathing', 'grounding', 'bodyScan'],
-    comfortMessage: '놀란 마음은 잠시 멈춰서 숨을 고르라는 신호예요.',
-    guidance: '천천히 숨을 내쉬며 지금 발이 닿아있는 곳을 느껴보세요.',
-    selectable: false,
   ),
   // 캐릭터 재배치: 기존 '잠든 고양이' 원화(웅크려 눈을 감고 늘어진 포즈)를
   // 그대로 살려 '피곤' 감정으로 재지정합니다. id·이미지는 변경하지 않고
@@ -465,35 +433,6 @@ final List<ShadowCat> shadowCats = [
     comfortMessage: '궁금한 게 많다는 건 마음이 아직 활짝 열려있다는 뜻이에요.',
     guidance: '오늘 궁금했던 것 하나를 직접 찾아보거나 시도해보세요.',
   ),
-  const ShadowCat(
-    id: 'comforted',
-    nameKr: '포근한 고양이',
-    nameEn: 'The Comforted Cat',
-    emoji: '🤗',
-    keyword: '포근함',
-    imageAsset: 'assets/cards36/cat_30.png',
-    story:
-        '서로를 따뜻하게 껴안으며, 이 고양이들은 애정 가득한 눈빛과 미소를 나누고 있어요. 힘든 하루 끝에 서로에게 '
-        '기댈 수 있다는 것이 얼마나 큰 위로가 되는지 잘 알고 있답니다. 포근한 품이 있다는 것만으로 마음이 놓여요.',
-    meditationKeys: ['bodyScan', 'lovingKindness', 'breathing'],
-    comfortMessage: '지금 느끼는 포근함을 마음껏 느껴보세요. 당신은 안전해요.',
-    guidance: '오늘은 나를 편안하게 해주는 것 곁에 잠시 머물러보세요.',
-  ),
-  const ShadowCat(
-    id: 'playful',
-    nameKr: '놀고 싶은 고양이',
-    nameEn: 'The Playful Cat',
-    emoji: '🧶',
-    keyword: '놀이',
-    imageAsset: 'assets/cards36/cat_31.png',
-    story:
-        '알록달록한 털실 뭉치를 가지고, 이 고양이는 신나게 뒹굴며 놀고 있어요. 재미있는 것 앞에서는 시간 가는 '
-        '줄 모르고 몰두하고, 노는 것 자체가 삶의 활력소랍니다. 가끔은 어른스러워지려 애쓰기보다 이렇게 놀아도 '
-        '괜찮아요.',
-    meditationKeys: ['walkingMeditation', 'writing', 'taichi'],
-    comfortMessage: '노는 것도 마음을 돌보는 훌륭한 방법이에요.',
-    guidance: '오늘은 잠시라도 아무 목적 없이 순수하게 즐거운 일을 해보세요.',
-  ),
   // 캐릭터 재배치: 기존 '몽환적인 고양이' 원화(흐릿한 시선, 몽롱한 톤)를
   // 그대로 살려 '모르겠어' 감정으로 재지정합니다. id·이미지는 변경하지
   // 않고 이름/설명/저널 안내만 새로 작성했습니다. 억압이 아니라, 아직
@@ -527,36 +466,6 @@ final List<ShadowCat> shadowCats = [
     meditationKeys: ['breathing', 'bodyScan', 'taichi'],
     comfortMessage: '지금 이 평온함을 충분히 느껴보세요. 참 잘 지내고 있어요.',
     guidance: '오늘 하루 5분만 아무것도 하지 않고 고요히 앉아보세요.',
-  ),
-  const ShadowCat(
-    id: 'studious',
-    nameKr: '지적인 고양이',
-    nameEn: 'The Studious Cat',
-    emoji: '📚',
-    keyword: '탐구',
-    imageAsset: 'assets/cards36/cat_34.png',
-    story:
-        '책더미 위에 의젓하게 앉아 안경을 쓴 채, 이 고양이는 지적인 분위기를 풍기고 있어요. 새로운 지식을 배우고 '
-        '이해하는 과정 자체를 즐기고, 궁금한 것을 끝까지 파고드는 성실함을 지녔답니다. 배움은 이 고양이에게 삶의 '
-        '중요한 즐거움이에요.',
-    meditationKeys: ['mindfulThought', 'writing', 'breathing'],
-    comfortMessage: '배우고 성장하려는 그 마음이 참 멋져요.',
-    guidance: '오늘 궁금했던 것 하나를 짧게라도 찾아보고 배워보세요.',
-  ),
-  const ShadowCat(
-    id: 'protective',
-    nameKr: '보호하는 고양이',
-    nameEn: 'The Protective Cat',
-    emoji: '🛡️',
-    keyword: '보호본능',
-    imageAsset: 'assets/cards36/cat_35.png',
-    story:
-        '아기 고양이 두 마리를 품에 꼭 안은 채, 이 고양이는 따뜻한 보호 본능을 드러내고 있어요. 소중한 존재를 '
-        '지키기 위해서라면 무엇이든 감수할 준비가 되어 있고, 그 책임감이 마음을 든든하게 채워준답니다. 다만 '
-        '가끔은 자신을 돌보는 것도 잊지 말아야 해요.',
-    meditationKeys: ['lovingKindness', 'bodyScan', 'breathing'],
-    comfortMessage: '누군가를 지키는 그 마음, 참 다정하고 강해요. 스스로도 잊지 말고 돌봐주세요.',
-    guidance: '오늘은 소중한 존재를 돌보는 만큼, 나 자신도 살짝 돌봐주세요.',
   ),
   const ShadowCat(
     id: 'content',
@@ -640,38 +549,8 @@ final List<ShadowCat> shadowCats = [
     comfortMessage: '감사는 크게 소리치지 않아도 충분해요. 지금 그 조용한 따뜻함을 그대로 느껴보세요.',
     guidance: '오늘 고마웠던 아주 작은 것 하나를 마음속으로 가만히 되새겨보세요.',
   ),
-  const ShadowCat(
-    id: 'courageous',
-    nameKr: '용기내는 고양이',
-    nameEn: 'The Courageous Cat',
-    emoji: '🐯',
-    keyword: '용기',
-    imageAsset: 'assets/cards36/cat_41.png',
-    story:
-        '정면을 똑바로 바라보며, 이 고양이는 다리에 살짝 힘을 준 채 한 걸음을 내딛고 있어요. 두렵지 않은 게 '
-        '아니라, 두려움을 안고도 앞으로 나아가기로 마음먹은 긴장감이 몸 전체에 흐른답니다. 여유롭게 자신하는 '
-        '것과는 달리, 지금은 온몸으로 그 순간을 버티고 있어요.',
-    meditationKeys: ['breathing', 'grounding', 'walkingMeditation'],
-    comfortMessage: '떨리면서도 나아가는 것, 그게 진짜 용기예요. 두려움이 있어도 당신은 이미 앞으로 가고 있어요.',
-    guidance: '오늘 미뤄왔던 일 중 가장 무서운 한 걸음을 아주 작게라도 내딛어보세요.',
-  ),
-  const ShadowCat(
-    id: 'witty',
-    nameKr: '유머러스한 고양이',
-    nameEn: 'The Witty Cat',
-    emoji: '😏',
-    keyword: '유머',
-    imageAsset: 'assets/cards36/cat_42.png',
-    story:
-        '몸은 미동도 없이 가만히 앉은 채, 이 고양이는 한쪽 눈을 슬쩍 감으며 장난스러운 미소를 짓고 있어요. '
-        '뛰어다니거나 소란을 피우지 않아도, 눈빛과 표정 하나로 충분히 웃음을 자아낸답니다. 가만히 있는 몸과 '
-        '생생하게 살아있는 표정의 대비가, 이 고양이만의 매력이에요.',
-    meditationKeys: ['threeGoodThings', 'writing', 'mindfulThought'],
-    comfortMessage: '가만히 있어도 재치는 빛나요. 오늘의 유머, 그 자체로 충분히 근사해요.',
-    guidance: '오늘 무거운 순간이 오면, 딱 한 마디의 가벼운 농담을 떠올려보세요.',
-  ),
   // ── 유료(Basic 구독) 10마리 ──
-  // 무료 42마리와 혼동되기 쉬운 감정들을 더 섬세하게 세분화한 캐릭터들입니다.
+  // 무료 34마리와 혼동되기 쉬운 감정들을 더 섬세하게 세분화한 캐릭터들입니다.
   // isPremium: true로 표시되며, 감정체크 화면에서는 항상 노출되지만
   // '안개' 처리로 흐리게 보이고, 탭하면 가장 가까운 무료 캐릭터를 먼저
   // 안내합니다(alternative_emotion_mapping.dart 참조).
@@ -689,22 +568,6 @@ final List<ShadowCat> shadowCats = [
     meditationKeys: ['mindfulThought', 'writing', 'noteAwareness'],
     comfortMessage: '냉소는 상처받지 않으려는 나름의 방식이었을 거예요. 그 마음도 이해받을 자격이 있어요.',
     guidance: '오늘은 시큰둥해지기 전에, 그 뒤에 숨은 진짜 기대를 한 번 들여다보세요.',
-    isPremium: true,
-  ),
-  const ShadowCat(
-    id: 'envious',
-    nameKr: '시기하는 고양이',
-    nameEn: 'The Envious Cat',
-    emoji: '😑',
-    keyword: '시기',
-    imageAsset: 'assets/cards36/cat_44.png',
-    story:
-        '몸을 앞으로 쭉 내밀고, 이 고양이는 저 멀리 다른 고양이를 매섭게 쳐다보고 있어요. 부러움을 안으로 '
-        '삭이기보다, 그 대상에게서 시선을 떼지 못하고 자꾸만 비교하게 된답니다. "왜 나는 저렇게 안 될까" '
-        '하는 생각이 자꾸만 마음을 콕콕 찌르는 것 같아요.',
-    meditationKeys: ['selfCompassion', 'writing', 'gratitudeExpansion'],
-    comfortMessage: '누군가를 자꾸 바라보게 되는 건, 당신 안에도 같은 걸 원하는 마음이 있다는 뜻이에요.',
-    guidance: '오늘은 그 사람에게서 눈을 돌려, 내가 이미 가진 것 하나를 적어보세요.',
     isPremium: true,
   ),
   const ShadowCat(
@@ -771,81 +634,17 @@ final List<ShadowCat> shadowCats = [
     guidance: '오늘은 미안했던 마음을 짧게라도 그 사람에게 전해보는 걸 생각해보세요.',
     isPremium: true,
   ),
-  const ShadowCat(
-    id: 'openHearted',
-    nameKr: '취약함을 인정하는 고양이',
-    nameEn: 'The Cat Acknowledging Vulnerability',
-    emoji: '💗',
-    keyword: '취약함 인정',
-    imageAsset: 'assets/cards36/cat_49.png',
-    story:
-        '두 앞발을 활짝 펴 보이며, 이 고양이는 가슴을 열고 담담하게 정면을 바라보고 있어요. 숨기지 않고 '
-        '"나 지금 힘들어"라고 솔직히 말하는 건 약한 게 아니라, 오히려 스스로를 있는 그대로 보여줄 수 있는 '
-        '용기랍니다. 다친 곳을 감추는 게 아니라, 여린 마음을 그대로 내보이는 거예요.',
-    meditationKeys: ['selfCompassion', 'writing', 'lovingKindness'],
-    comfortMessage: '약함을 인정하는 건 용기예요. 그 솔직함이 결국 더 깊은 연결을 만들어줘요.',
-    guidance: '오늘은 가까운 사람에게 지금 느끼는 그대로의 마음을 솔직히 한마디 건네보세요.',
-    isPremium: true,
-  ),
-  const ShadowCat(
-    id: 'creative',
-    nameKr: '창의적인 고양이',
-    nameEn: 'The Creative Cat',
-    emoji: '💡',
-    keyword: '창의성',
-    imageAsset: 'assets/cards36/cat_50.png',
-    story:
-        '한쪽 앞발을 번쩍 들어 올리며, 이 고양이는 방금 떠오른 반짝이는 생각에 눈을 크게 빛내고 있어요. '
-        '단순히 신기한 것을 구경하는 게 아니라, 머릿속에서 새로운 무언가를 직접 그려내고 만들어내고 싶은 '
-        '충동이 몸 전체에서 뿜어져 나온답니다. 이 순간의 설렘은 무엇이든 될 수 있어요.',
-    meditationKeys: ['writing', 'mindfulThought', 'threeGoodThings'],
-    comfortMessage: '떠오른 그 반짝임은 소중해요. 완벽하지 않아도 일단 시작해보는 것부터가 창조예요.',
-    guidance: '오늘 떠오른 아이디어 하나를, 작더라도 실제로 손으로 옮겨보세요.',
-    isPremium: true,
-  ),
-  const ShadowCat(
-    id: 'leaderly',
-    nameKr: '리더십 있는 고양이',
-    nameEn: 'The Leader Cat',
-    emoji: '🧭',
-    keyword: '리더십',
-    imageAsset: 'assets/cards36/cat_51.png',
-    story:
-        '가슴을 펴고 한 발 앞서 걸어가며, 이 고양이는 뒤따르는 이들을 자연스럽게 이끌고 있어요. 스스로를 '
-        '자랑하기 위해서가 아니라, "내가 먼저 가볼게, 같이 가자"는 든든한 마음으로 앞장서는 거예요. 다른 '
-        '이들을 살피고 방향을 잡아주는 책임감이 몸에 은은하게 흐른답니다.',
-    meditationKeys: ['walkingMeditation', 'mindfulThought', 'breathing'],
-    comfortMessage: '앞서 나서는 마음은 곧 누군가를 향한 책임감이에요. 그 든든함이 사람들을 안심시켜요.',
-    guidance: '오늘은 누군가를 위해 먼저 한 걸음 나서서 방향을 제안해보세요.',
-    isPremium: true,
-  ),
-  const ShadowCat(
-    id: 'convicted',
-    nameKr: '확신에 찬 고양이',
-    nameEn: 'The Cat with Conviction',
-    emoji: '⭐',
-    keyword: '확신',
-    imageAsset: 'assets/cards36/cat_52.png',
-    story:
-        '허리를 곧게 펴고 앞발을 가만히 모은 채, 이 고양이는 흔들림 없이 정면을 바라보고 있어요. 무언가를 '
-        '이뤄서 뿌듯한 것도, 그저 나른하게 만족한 것도 아니라, "나는 내가 믿는 걸 알아"라는 조용하고 굳건한 '
-        '중심이 가슴 한가운데 자리 잡은 느낌이에요. 크게 소리치지 않아도 단단해요.',
-    meditationKeys: ['grounding', 'mindfulThought', 'breathing'],
-    comfortMessage: '확신은 시끄럽지 않아도 돼요. 지금 당신 안의 그 고요한 중심을 믿어보세요.',
-    guidance: '오늘 내가 믿는 것 하나를 마음속으로 조용히, 그러나 또렷하게 되새겨보세요.',
-    isPremium: true,
-  ),
 ];
 
 ShadowCat shadowCatById(String id) => shadowCats.firstWhere((c) => c.id == id);
 
-/// 무료로 제공되는 그림자 고양이 목록(정확히 42마리). 유료(Basic 구독)
-/// 캐릭터 10마리는 제외됩니다.
+/// 무료로 제공되는 그림자 고양이 목록(정확히 34마리). 유료(Basic 구독)
+/// 캐릭터 5마리는 제외됩니다.
 ///
-/// ⚠️ [shadowCats.length]는 무료+유료를 합친 52마리를 반환하므로, "42마리"를
+/// ⚠️ [shadowCats.length]는 무료+유료를 합친 39마리를 반환하므로, "34마리"를
 /// 목표/기준으로 안내하는 화면(졸업 앨범, 만난 고양이 수 등)에서는 절대
 /// [shadowCats.length] 대신 이 [freeShadowCats.length]를 사용해야 합니다.
-/// (유료 캐릭터는 구독하지 않으면 반려묘로 육성할 수 없어, 52를 목표로
+/// (유료 캐릭터는 구독하지 않으면 반려묘로 육성할 수 없어, 39를 목표로
 /// 잡으면 영원히 채울 수 없는 목표가 되어버립니다.)
 final List<ShadowCat> freeShadowCats = shadowCats
     .where((c) => !c.isPremium)

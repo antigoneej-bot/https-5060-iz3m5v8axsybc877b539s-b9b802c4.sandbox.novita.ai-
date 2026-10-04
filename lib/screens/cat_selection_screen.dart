@@ -15,7 +15,7 @@ import '../theme.dart';
 import '../widgets/garden_path_card.dart';
 import 'premium_screen.dart';
 
-/// 42마리 무료 + 10마리 유료(Basic 구독) 그림자 감정 고양이 카드 그리드에서
+/// 34마리 무료 + 5마리 유료(Basic 구독) 그림자 감정 고양이 카드 그리드에서
 /// 지금 내 기분과 닮은 고양이 한 마리를 골라 선택하는 화면.
 /// 딱딱한 사각 카드 그리드 대신, 카드마다 조금씩 다른 유기적인 블롭
 /// 모양과 파스텔 톤을 주어 정원의 화단처럼 느껴지도록 합니다.
@@ -62,11 +62,11 @@ class _CatSelectionScreenState extends State<CatSelectionScreen>
   bool _showReassurance = false;
   bool _checkedReassurance = false;
 
-  // 성능 최적화: 카드마다 독립된 AnimationController(Ticker)를 두면 52개의
+  // 성능 최적화: 카드마다 독립된 AnimationController(Ticker)를 두면 39개의
   // 타이머가 동시에 매 프레임 재계산되어 화면이 느려지고 터치 반응이
   // 늦어집니다. 대신 화면 전체가 공유하는 단 하나의 Ticker만 두고, 카드별로
   // 속도/위상(phase)만 다르게 주어 여전히 '화단처럼 제각각 살아있는' 느낌은
-  // 유지하면서 Ticker 개수를 52개 에서 1개로 줄입니다.
+  // 유지하면서 Ticker 개수를 39개 에서 1개로 줄입니다.
   late final AnimationController _sharedFloat;
   final Map<int, _CardMotion> _motionCache = {};
 
@@ -289,7 +289,7 @@ class _ReassuranceBanner extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              '42가지 감정으로도 충분히 마음을 표현할 수 있어요',
+              '34가지 감정으로도 충분히 마음을 표현할 수 있어요',
               style: bodyFont(fontSize: 12, color: AppColors.ink, height: 1.4),
             ),
           ),

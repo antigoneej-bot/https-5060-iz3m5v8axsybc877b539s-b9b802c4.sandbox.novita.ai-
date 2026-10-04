@@ -426,7 +426,7 @@ class _NoticeBellButtonState extends State<_NoticeBellButton> {
   }
 }
 
-/// 홈 화면 최초 진입 시 한 번만 나타나는 작은 배너: "42마리 중 1마리를 만났어요 🐾"
+/// 홈 화면 최초 진입 시 한 번만 나타나는 작은 배너: "34마리 중 1마리를 만났어요 🐾"
 /// 3초 후 자동으로 사라집니다.
 class _FirstMeetingBanner extends StatefulWidget {
   const _FirstMeetingBanner();
@@ -455,8 +455,8 @@ class _FirstMeetingBannerState extends State<_FirstMeetingBanner> {
   Widget build(BuildContext context) {
     final metCount = context.watch<AppStateProvider>().metCatCount;
     // ⚠️ 유료(Basic 구독) 고양이는 잠겨있으면 탭해도 "만남" 처리가 되지
-    // 않아, 비구독자는 42마리를 넘어 "만날" 수 없습니다. shadowCats.length
-    // (52)를 분모로 쓰면 영원히 채울 수 없는 목표가 되므로 무료 42마리
+    // 않아, 비구독자는 34마리를 넘어 "만날" 수 없습니다. shadowCats.length
+    // (39)를 분모로 쓰면 영원히 채울 수 없는 목표가 되므로 무료 34마리
     // 기준으로 표시합니다.
     final shown = metCount.clamp(1, freeShadowCats.length);
     return AnimatedOpacity(
