@@ -4229,4 +4229,93 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get mindReportReflectionNotEnoughData =>
       'A few more records would help - try adding at least 5 diary entries.';
+
+  @override
+  String get publicGardenSettingsTitle => '🌍 Share Your Garden';
+
+  @override
+  String get publicGardenSettingsDesc =>
+      'Let others see your garden (seeds, decorations, tree growth). Your diary and records are never shared. Visitors can only look - they can\'t rearrange or take anything from your garden.';
+
+  @override
+  String get publicGardenServerUnavailable =>
+      'Server connection isn\'t ready yet, so your garden can\'t be shared right now.';
+
+  @override
+  String get publicGardenNicknameLabel => 'Garden nickname (optional)';
+
+  @override
+  String get publicGardenNicknameHint =>
+      'Leave blank to show as \'An anonymous gardener\'';
+
+  @override
+  String get publicGardenPublishButton => 'Share my garden';
+
+  @override
+  String get publicGardenUnpublishButton => 'Stop sharing';
+
+  @override
+  String get publicGardenPublishedNotice => 'Your garden is currently shared.';
+
+  @override
+  String get publicGardenNotPublishedNotice =>
+      'Your garden is private right now - only you can see it.';
+
+  @override
+  String get publicGardenBrowseTitle => 'Browse other gardens';
+
+  @override
+  String get publicGardenBrowseNotice =>
+      'These are gardens others chose to share. You can only look - they\'re shown in random order, never ranked by popularity.';
+
+  @override
+  String get publicGardenBrowseEmpty =>
+      'No gardens are shared yet. Please check back later.';
+
+  @override
+  String get publicGardenAnonymousNickname => 'An anonymous gardener';
+
+  @override
+  String get publicGardenCheerButton => 'Send cheer';
+
+  @override
+  String get publicGardenCheerAlreadySentToday => 'Already cheered today';
+
+  @override
+  String get publicGardenCheerDialogTitle => 'What would you like to say?';
+
+  @override
+  String get publicGardenCheerSentSnackbar => 'Your message was sent 🌿';
+
+  @override
+  String get publicGardenInboxTitle => 'Received cheers';
+
+  @override
+  String get publicGardenInboxEmpty => 'No cheers received yet.';
+
+  @override
+  String get publicGardenInboxClaimButton => 'Claim';
+
+  @override
+  String publicGardenInboxGiftReceived(int amount) {
+    return 'You received $amount Light Essence';
+  }
+
+  @override
+  String get publicCheerOption0 => 'You\'re doing great 🌱';
+
+  @override
+  String get publicCheerOption1 => 'Your garden is lovely';
+
+  @override
+  String get publicCheerOption2 => 'It\'s okay to go slowly';
+
+  @override
+  String get publicCheerOption3 => 'I\'m rooting for you';
+
+  @override
+  String get publicCheerOption4 => 'I\'m on your side today';
+
+  @override
+  String get publicCheerOption5 => 'Just getting here is enough';
 }

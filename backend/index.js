@@ -7,7 +7,8 @@ import { getStorage } from 'firebase-admin/storage';
 import { onRequest } from 'firebase-functions/v2/https';
 import { onMessagePublished } from 'firebase-functions/v2/pubsub';
 import { GoogleAuth } from 'google-auth-library';
-import { PACKAGE, PRODUCTS, entitlement, assertOwner, tokenHash, validEnvelope, nextAccountLease, accountHash } from './policy.js';
+import { PACKAGE, PRODUCTS, entitlement, assertOwner, tokenHash, validEnvelope, nextAccountLease, accountHash,
+  sanitizeNickname, validatePublicSnapshot, PUBLIC_CHEER_MESSAGE_COUNT, MAX_CHEER_GIFT_LIGHT_ESSENCE } from './policy.js';
 initializeApp();
 const db = getFirestore();
 const publisher = new GoogleAuth({scopes:['https://www.googleapis.com/auth/androidpublisher']});
@@ -133,10 +134,106 @@ export const gardenApi = onRequest({region:'asia-northeast3', maxInstances:3, ti
       const [bytes] = await getStorage().bucket().file(`backups/${uid}/${id}.json`).download();
       res.json({envelope:JSON.parse(bytes.toString('utf8'))});return;
     }
+    // ── 3단계: 공개정원 / 응원 (opt-in, read-only visits, no ranking) ──
+    if (action === 'publishGarden') {
+      const snapshot = req.body.snapshot;
+      if (!validatePublicSnapshot(snapshot)) {res.status(400).json({error:'invalid-snapshot'});return;}
+      const nickname = sanitizeNickname(req.body.nickname);
+      await db.doc(`publicGardens/${uid}`).set({
+        nickname, seedCounts: snapshot.seedCounts,
+        equippedDecorationIds: snapshot.equippedDecorationIds,
+        treeStageIndex: snapshot.treeStageIndex,
+        updatedAt: FieldValue.serverTimestamp(),
+        // Random-sample key; refreshed on every publish so recently-updated
+        // gardens reshuffle into new random draws (no popularity ranking).
+        rand: Math.random(),
+      });
+      res.json({published:true});return;
+    }
+    if (action === 'unpublishGarden') {
+      await db.doc(`publicGardens/${uid}`).delete();
+      res.json({published:false});return;
+    }
+    if (action === 'listPublicGardens') {
+      const limit = 12;
+      const threshold = Math.random();
+      const seen = new Map();
+      const first = await db.collection('publicGardens').where('rand','>=',threshold).orderBy('rand').limit(limit).get();
+      for (const doc of first.docs) seen.set(doc.id, doc);
+      if (seen.size < limit) {
+        const rest = await db.collection('publicGardens').orderBy('rand').limit(limit).get();
+        for (const doc of rest.docs) { if (seen.size >= limit) break; seen.set(doc.id, doc); }
+      }
+      const gardens = [...seen.values()]
+        .filter(doc => doc.id !== uid)
+        .map(doc => {
+          const data = doc.data();
+          // Deliberately omit any cheer/visit counters here - visitors must
+          // never see a popularity ranking of other people's gardens.
+          return {gardenId: doc.id, nickname: data.nickname ?? null,
+            seedCounts: data.seedCounts, equippedDecorationIds: data.equippedDecorationIds,
+            treeStageIndex: data.treeStageIndex};
+        });
+      res.json({gardens});return;
+    }
+    if (action === 'sendPublicCheer') {
+      const targetId = req.body.gardenId;
+      const messageIndex = req.body.messageIndex;
+      if (typeof targetId !== 'string' || !targetId) {res.status(400).json({error:'invalid-target'});return;}
+      if (targetId === uid) {res.status(400).json({error:'cannot-cheer-self'});return;}
+      if (!Number.isInteger(messageIndex) || messageIndex < 0 || messageIndex >= PUBLIC_CHEER_MESSAGE_COUNT) {
+        res.status(400).json({error:'invalid-message'});return;
+      }
+      const giftLightEssence = Math.min(
+        Math.max(0, Math.trunc(Number(req.body.giftLightEssence) || 0)),
+        MAX_CHEER_GIFT_LIGHT_ESSENCE,
+      );
+      const targetDoc = await db.doc(`publicGardens/${targetId}`).get();
+      if (!targetDoc.exists) {res.status(404).json({error:'garden-not-found'});return;}
+      const today = new Date().toISOString().slice(0, 10);
+      const logRef = db.doc(`cheerSentLog/${uid}_${targetId}`);
+      await db.runTransaction(async tx => {
+        const log = await tx.get(logRef);
+        if (log.data()?.date === today) throw new Error('cheer-already-sent-today');
+        tx.set(logRef, {date: today});
+        const receivedRef = db.collection(`users/${targetId}/receivedCheers`).doc();
+        tx.set(receivedRef, {
+          messageIndex, giftLightEssence, claimed: false,
+          createdAt: FieldValue.serverTimestamp(),
+        });
+      });
+      res.json({sent:true});return;
+    }
+    if (action === 'listMyCheers') {
+      // Sort in memory (not orderBy) to avoid requiring a composite index.
+      const unclaimed = await db.collection(`users/${uid}/receivedCheers`).where('claimed','==',false).limit(30).get();
+      const cheers = unclaimed.docs
+        .map(doc => ({id: doc.id, messageIndex: doc.data().messageIndex,
+          giftLightEssence: doc.data().giftLightEssence,
+          createdAt: doc.data().createdAt?.toDate().toISOString() ?? null}))
+        .sort((a,b) => (b.createdAt ?? '').localeCompare(a.createdAt ?? ''));
+      res.json({cheers});return;
+    }
+    if (action === 'claimCheer') {
+      const id = req.body.id;
+      if (typeof id !== 'string' || !id) {res.status(400).json({error:'invalid-id'});return;}
+      const ref = db.doc(`users/${uid}/receivedCheers/${id}`);
+      const amount = await db.runTransaction(async tx => {
+        const doc = await tx.get(ref);
+        if (!doc.exists) throw new Error('invalid-id');
+        if (doc.data().claimed) return 0; // Idempotent: already credited locally once.
+        tx.update(ref, {claimed: true});
+        return doc.data().giftLightEssence ?? 0;
+      });
+      res.json({claimed:true, amount});return;
+    }
     if (action === 'deleteCloudAccount') {
       if (Date.now()/1000 - identity.auth_time > 300) {res.status(403).json({error:'recent-login-required'});return;}
       await lease.ref.set({deleting:true}, {merge:true});
       await getStorage().bucket().deleteFiles({prefix:`backups/${uid}/`});
+      // publicGardens lives outside users/{uid}; remove it explicitly so a
+      // deleted account's garden immediately stops appearing to visitors.
+      await db.doc(`publicGardens/${uid}`).delete();
       await db.recursiveDelete(db.doc(`users/${uid}`));
       // Keep only irreversible ownership tombstones; remove uid and raw token.
       const owned = await db.collection('purchaseTokens').where('uid','==',uid).get();
@@ -147,9 +244,13 @@ export const gardenApi = onRequest({region:'asia-northeast3', maxInstances:3, ti
     }
     res.status(400).json({error:'unknown-action'});
   } catch (error) {
-    const expected = ['purchase-owner-mismatch','purchase-migration-required','rate-limit','account-busy','account-deleting'];
+    const expected = ['purchase-owner-mismatch','purchase-migration-required','rate-limit','account-busy',
+      'account-deleting','cheer-already-sent-today'];
     const code = expected.includes(error.message) ? error.message : 'temporarily-unavailable';
-    res.status(code === 'rate-limit' ? 429 : code === 'temporarily-unavailable' ? 503 : 403).json({error:code});
+    const statusCode = code === 'rate-limit' ? 429
+      : code === 'cheer-already-sent-today' ? 409
+      : code === 'temporarily-unavailable' ? 503 : 403;
+    res.status(statusCode).json({error:code});
   } finally {
     if (lease) await lease.release().catch(() => {});
   }

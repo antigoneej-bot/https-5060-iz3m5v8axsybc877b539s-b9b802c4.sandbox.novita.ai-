@@ -185,6 +185,18 @@ class GardenStorage {
   static const String _keyCheerSentTotalCount =
       'cheer_sent_total_count'; // int (지금까지 응원을 보낸 총 횟수, 통계용)
 
+  // ── 공개정원 / 응원 (3단계, 서버 연동 - opt-in) ───────────────────
+  // 기본값은 항상 "공개 안 함"이다. [CloudService.enabled]가 false인 동안은
+  // 이 설정이 있어도 아무 일도 일어나지 않는다(서버가 없으니 호출부에서
+  // 먼저 막힌다) - 완전 로컬 모드의 기존 동작은 그대로 보존된다.
+  static const String _keyGardenPublished =
+      'garden_published'; // bool (내 정원을 공개로 설정했는지)
+  static const String _keyGardenPublicNickname =
+      'garden_public_nickname'; // String? (공개정원에 보여줄 닉네임, 비우면 "이름 없는 정원사")
+  static const String _keyClaimedCheerIds =
+      'claimed_cheer_ids'; // List<String> (이미 수령 처리한 받은 응원 id - 같은 응원을
+  // 두 번 수령해 빛의 정수를 중복으로 받는 것을 로컬에서도 한 번 더 막는다)
+
   // ── 몽이의 숨결 도감 (Calm/Headspace 벤치마킹, 벤치마킹 제안 #5) ─────────────
   // 여러 호흡 기법(차분한 숨/불안완화/박스호흡/잠들기전) 중 하나를 골라
   // 끝까지 따라하면, 하루 처음 완료했을 때만 빛의 정수 보상을 준다(같은
@@ -1140,6 +1152,43 @@ class GardenStorage {
       _keyLastCheerReceivedDate: _todayString,
       _keyTodayCheerReceivedIndex: index,
     });
+  }
+
+  // ── 공개정원 / 응원 (3단계, 서버 연동 - opt-in) ───────────────────
+
+  /// 지금 내 정원을 공개로 설정해 두었는지(기본값 false - 아무것도 하지
+  /// 않으면 늘 비공개).
+  bool get gardenPublished =>
+      _box.get(_keyGardenPublished, defaultValue: false) as bool;
+
+  Future<void> setGardenPublished(bool value) async {
+    await _box.put(_keyGardenPublished, value);
+  }
+
+  /// 공개정원에 보여줄 닉네임(비어있으면 화면에서 기본 문구를 쓴다).
+  String? get gardenPublicNickname =>
+      _box.get(_keyGardenPublicNickname) as String?;
+
+  Future<void> setGardenPublicNickname(String? value) async {
+    final trimmed = value?.trim();
+    if (trimmed == null || trimmed.isEmpty) {
+      await _box.delete(_keyGardenPublicNickname);
+    } else {
+      await _box.put(_keyGardenPublicNickname, trimmed);
+    }
+  }
+
+  /// 이미 수령 처리한 받은 응원 id 목록(로컬 중복수령 방지용 2차 방어선 -
+  /// 서버도 claimed 플래그로 멱등성을 보장하지만, 네트워크가 느릴 때 같은
+  /// 버튼을 두 번 누르는 경우를 로컬에서 더 빠르게 막는다).
+  Set<String> get claimedCheerIds {
+    final raw = _box.get(_keyClaimedCheerIds, defaultValue: <String>[]) as List;
+    return raw.map((e) => e.toString()).toSet();
+  }
+
+  Future<void> markCheerClaimedLocally(String id) async {
+    final ids = claimedCheerIds..add(id);
+    await _box.put(_keyClaimedCheerIds, ids.toList());
   }
 
   // ── 나만의 안전 계획 ("Safety Plan") ─────────────────────────

@@ -16,6 +16,8 @@ import '../models/mongi_care_item.dart';
 import '../models/mongi_cheer.dart';
 import '../models/mongi_costume.dart';
 import '../models/power_item.dart';
+import '../models/public_garden.dart';
+import '../../services/cloud_service.dart';
 import '../../services/subscription_service.dart';
 import '../../services/access_policy.dart';
 import '../models/season_pass.dart';
@@ -343,6 +345,113 @@ class GardenProvider extends ChangeNotifier {
     }
     notifyListeners();
     return index;
+  }
+
+  // ── 공개정원 / 응원 (3단계, 서버 연동 - opt-in) ───────────────────
+  // [설계 원칙] 서버([CloudService.enabled])가 연결되어 있지 않으면 이 섹션의
+  // 모든 메서드는 조용히 아무 일도 하지 않거나 빈 결과를 돌려준다 - 지금까지의
+  // 완전 로컬 모드 동작은 100% 그대로 보존된다. 방문자는 다른 사람의 정원을
+  // 읽기전용으로만 볼 수 있고(배치변경/반출 불가능), 응원은 하루 한 쌍에 한
+  // 번으로 제한되며, 받는 쪽에 "답장 의무"를 지우지 않는다. 인기순위(방문수/
+  // 응원수 정렬)는 서버도 클라이언트도 만들지 않는다.
+
+  /// 지금 내 정원을 공개해 두었는지.
+  bool isGardenPublished = false;
+
+  /// 공개정원에 보여줄 닉네임(비어있으면 화면에서 기본 문구를 쓴다).
+  String? gardenPublicNickname;
+
+  /// 정원 공개를 켠다(또는 이미 켜져 있다면 최신 정원 모습으로 갱신한다).
+  /// 서버가 연결되어 있지 않으면 안내 문구용으로 false를 반환한다.
+  Future<bool> publishGarden({String? nickname}) async {
+    if (!CloudService.enabled) return false;
+    await CloudService.publishGarden(
+      seedCounts: seedCounts,
+      equippedDecorationIds: equippedDecorationIds,
+      treeStageIndex: treeStageIndex,
+      nickname: nickname,
+    );
+    await _storage.setGardenPublished(true);
+    await _storage.setGardenPublicNickname(nickname);
+    isGardenPublished = true;
+    gardenPublicNickname = nickname?.trim().isEmpty ?? true ? null : nickname;
+    notifyListeners();
+    return true;
+  }
+
+  /// 정원 공개를 끈다. 방문자 목록에서 즉시 사라진다.
+  Future<void> unpublishGarden() async {
+    if (CloudService.enabled) {
+      await CloudService.unpublishGarden();
+    }
+    await _storage.setGardenPublished(false);
+    isGardenPublished = false;
+    notifyListeners();
+  }
+
+  /// 다른 사람들이 공개한 정원을 무작위 순서로 가져온다(순위 없음). 서버가
+  /// 연결되어 있지 않으면 빈 목록을 돌려준다.
+  Future<List<PublicGarden>> loadPublicGardens() async {
+    if (!CloudService.enabled) return [];
+    final raw = await CloudService.listPublicGardens();
+    return raw.map(PublicGarden.fromJson).toList();
+  }
+
+  /// 공개정원 하나에 응원(+선택적으로 소량의 빛의 정수 선물)을 보낸다.
+  /// 같은 상대에게는 하루 한 번만 보낼 수 있다(서버가 강제, 실패하면 예외가
+  /// 그대로 전파되어 호출부에서 안내 문구를 보여줄 수 있다).
+  Future<void> sendPublicCheer({
+    required String gardenId,
+    required int messageIndex,
+    int giftLightEssence = 0,
+  }) async {
+    if (!CloudService.enabled) return;
+    final gift = giftLightEssence.clamp(0, kMaxCheerGiftLightEssence);
+    if (gift > 0) {
+      final spent = await _storage.spendLightEssence(gift);
+      if (!spent) {
+        throw StateError('빛의 정수가 부족해요.');
+      }
+      lightEssence = _storage.lightEssence;
+      notifyListeners();
+    }
+    try {
+      await CloudService.sendPublicCheer(
+        gardenId: gardenId,
+        messageIndex: messageIndex,
+        giftLightEssence: gift,
+      );
+    } catch (e) {
+      // 선물을 이미 차감했는데 전송이 실패했다면 되돌려준다(사용자 손해 방지).
+      if (gift > 0) {
+        await _storage.addLightEssence(gift);
+        lightEssence = _storage.lightEssence;
+        notifyListeners();
+      }
+      rethrow;
+    }
+  }
+
+  /// 내가 아직 확인하지 않은 받은 응원 목록을 서버에서 가져온다.
+  Future<List<ReceivedCheer>> loadMyPublicCheers() async {
+    if (!CloudService.enabled) return [];
+    final raw = await CloudService.listMyCheers();
+    return raw.map(ReceivedCheer.fromJson).toList();
+  }
+
+  /// 받은 응원 하나를 확인 처리하고, 함께 온 빛의 정수 선물을 수령한다.
+  /// 서버와 로컬 양쪽에서 멱등성을 보장하므로 중복 수령되지 않는다.
+  Future<int> claimPublicCheer(String id) async {
+    if (!CloudService.enabled) return 0;
+    if (_storage.claimedCheerIds.contains(id)) return 0;
+    final amount = await CloudService.claimCheer(id);
+    await _storage.markCheerClaimedLocally(id);
+    if (amount > 0) {
+      await _storage.addLightEssence(amount);
+      lightEssence = _storage.lightEssence;
+      notifyListeners();
+    }
+    return amount;
   }
 
   // ── 시즌 패스("몽이의 마음여정") ─────────────────────────
@@ -1060,6 +1169,8 @@ class GardenProvider extends ChangeNotifier {
     hasReceivedCheerToday = _storage.hasReceivedCheerToday;
     todayCheerReceivedIndex = _storage.todayCheerReceivedIndex;
     cheerSentTotalCount = _storage.cheerSentTotalCount;
+    isGardenPublished = _storage.gardenPublished;
+    gardenPublicNickname = _storage.gardenPublicNickname;
     hasBreathingRewardToday = _storage.hasBreathingRewardToday;
     breathingLibraryTotalCompletions =
         _storage.breathingLibraryTotalCompletions;

@@ -129,6 +129,68 @@ class CloudService {
     }
   }
 
+  // ── 3단계: 공개정원 / 응원 (opt-in, 서버 연결이 없으면 모든 메서드가
+  // [enabled]==false라서 호출부에서 사전에 걸러지며, 여기서도 다시 한 번
+  // StateError를 던져 안전하게 막는다) ─────────────────────────────
+
+  /// 내 정원을 공개한다(또는 이미 공개된 내용을 최신화한다). [snapshot]은
+  /// 씨앗 수/장착 장식/나무 단계만 담아야 한다 - 일기·기록 내용은 절대
+  /// 포함하지 않는다(서버도 알려진 필드만 받아들이도록 검증한다).
+  static Future<void> publishGarden({
+    required Map<String, int> seedCounts,
+    required List<String> equippedDecorationIds,
+    required int treeStageIndex,
+    String? nickname,
+  }) async {
+    await call('publishGarden', {
+      'snapshot': {
+        'seedCounts': seedCounts,
+        'equippedDecorationIds': equippedDecorationIds,
+        'treeStageIndex': treeStageIndex,
+      },
+      if (nickname != null) 'nickname': nickname,
+    });
+  }
+
+  /// 공개를 멈춘다. 방문자 목록에서 즉시 사라진다.
+  static Future<void> unpublishGarden() => call('unpublishGarden');
+
+  /// 다른 사람들이 공개한 정원을 무작위 순서로 가져온다(인기순/최신순
+  /// 정렬 없음 - 순서 자체가 매번 새로 섞인다).
+  static Future<List<Map<String, dynamic>>> listPublicGardens() async {
+    final result = await call('listPublicGardens');
+    final gardens = result['gardens'];
+    if (gardens is! List) return [];
+    return gardens.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+  }
+
+  /// 특정 공개정원에 응원(+선택적으로 소량의 빛의 정수 선물)을 보낸다.
+  /// 같은 상대에게는 하루에 한 번만 보낼 수 있다(서버가 강제).
+  static Future<void> sendPublicCheer({
+    required String gardenId,
+    required int messageIndex,
+    int giftLightEssence = 0,
+  }) => call('sendPublicCheer', {
+    'gardenId': gardenId,
+    'messageIndex': messageIndex,
+    'giftLightEssence': giftLightEssence,
+  });
+
+  /// 내가 아직 확인하지 않은(claim하지 않은) 받은 응원 목록.
+  static Future<List<Map<String, dynamic>>> listMyCheers() async {
+    final result = await call('listMyCheers');
+    final cheers = result['cheers'];
+    if (cheers is! List) return [];
+    return cheers.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+  }
+
+  /// 받은 응원 하나를 확인 처리하고, 함께 온 빛의 정수 선물을 수령한다.
+  /// 이미 확인한 응원이면 서버가 0을 돌려준다(중복 지급 방지).
+  static Future<int> claimCheer(String id) async {
+    final result = await call('claimCheer', {'id': id});
+    return (result['amount'] as num?)?.toInt() ?? 0;
+  }
+
   static Future<bool> cachedPremium() async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return false;
@@ -165,6 +227,10 @@ class CloudException implements Exception {
     'purchase-owner-mismatch' => '이 구매는 다른 계정에 연결되어 있어요.',
     'rate-limit' => '잠시 후 다시 시도해 주세요.',
     'recent-login-required' => '계정 삭제 전 다시 로그인해 주세요.',
+    'cheer-already-sent-today' => '이 정원에는 오늘 이미 응원을 보냈어요. 내일 다시 전해주세요.',
+    'garden-not-found' => '정원을 찾을 수 없어요. 방금 전 다른 분이 공개를 멈췄을 수 있어요.',
+    'cannot-cheer-self' => '내 정원에는 응원을 보낼 수 없어요.',
+    'invalid-snapshot' => '정원 정보를 공개하는 데 문제가 있었어요. 잠시 후 다시 시도해 주세요.',
     _ => '서버 연결을 확인할 수 없어요. 잠시 후 다시 시도해 주세요.',
   };
 }

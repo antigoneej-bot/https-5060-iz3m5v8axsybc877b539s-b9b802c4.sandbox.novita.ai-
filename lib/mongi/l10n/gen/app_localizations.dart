@@ -6955,6 +6955,89 @@ abstract class AppLocalizations {
   /// In ko, this message translates to:
   /// **'아직 기록이 조금 더 필요해요. 일기를 5개 이상 남겨주세요.'**
   String get mindReportReflectionNotEnoughData;
+
+  // ── 공개정원 / 응원 (3단계, 서버 연동 - opt-in) ───────────────────
+
+  /// 공개정원 설정 카드 - 제목
+  String get publicGardenSettingsTitle;
+
+  /// 공개정원 설정 카드 - 설명
+  String get publicGardenSettingsDesc;
+
+  /// 공개정원 설정 - 서버 미연결 안내
+  String get publicGardenServerUnavailable;
+
+  /// 공개정원 설정 - 닉네임 입력 라벨
+  String get publicGardenNicknameLabel;
+
+  /// 공개정원 설정 - 닉네임 입력 힌트
+  String get publicGardenNicknameHint;
+
+  /// 공개정원 설정 - 공개 켜기 버튼
+  String get publicGardenPublishButton;
+
+  /// 공개정원 설정 - 공개 끄기 버튼
+  String get publicGardenUnpublishButton;
+
+  /// 공개정원 설정 - 공개 중 안내
+  String get publicGardenPublishedNotice;
+
+  /// 공개정원 설정 - 비공개 안내
+  String get publicGardenNotPublishedNotice;
+
+  /// 둘러보기 화면 - 앱바 타이틀
+  String get publicGardenBrowseTitle;
+
+  /// 둘러보기 화면 - 안내 문구(읽기전용, 순위 없음)
+  String get publicGardenBrowseNotice;
+
+  /// 둘러보기 화면 - 빈 목록 안내
+  String get publicGardenBrowseEmpty;
+
+  /// 둘러보기 화면 - 기본 닉네임(닉네임 미설정 시)
+  String get publicGardenAnonymousNickname;
+
+  /// 둘러보기 화면 - 응원 보내기 버튼
+  String get publicGardenCheerButton;
+
+  /// 둘러보기 화면 - 오늘 이미 응원 보냄 표시
+  String get publicGardenCheerAlreadySentToday;
+
+  /// 응원 보내기 다이얼로그 - 제목
+  String get publicGardenCheerDialogTitle;
+
+  /// 응원 보내기 다이얼로그 - 전송 완료 안내
+  String get publicGardenCheerSentSnackbar;
+
+  /// 받은 응원함 화면 - 앱바 타이틀
+  String get publicGardenInboxTitle;
+
+  /// 받은 응원함 화면 - 빈 목록 안내
+  String get publicGardenInboxEmpty;
+
+  /// 받은 응원함 화면 - 확인(수령) 버튼
+  String get publicGardenInboxClaimButton;
+
+  /// 받은 응원함 화면 - 선물 받음 안내 (amount개)
+  String publicGardenInboxGiftReceived(int amount);
+
+  /// 공개정원 응원 문구 0
+  String get publicCheerOption0;
+
+  /// 공개정원 응원 문구 1
+  String get publicCheerOption1;
+
+  /// 공개정원 응원 문구 2
+  String get publicCheerOption2;
+
+  /// 공개정원 응원 문구 3
+  String get publicCheerOption3;
+
+  /// 공개정원 응원 문구 4
+  String get publicCheerOption4;
+
+  /// 공개정원 응원 문구 5
+  String get publicCheerOption5;
 }
 
 class _AppLocalizationsDelegate

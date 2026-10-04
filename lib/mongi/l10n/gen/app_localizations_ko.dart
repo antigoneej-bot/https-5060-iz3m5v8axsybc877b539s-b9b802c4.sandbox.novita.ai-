@@ -4009,4 +4009,91 @@ class AppLocalizationsKo extends AppLocalizations {
   @override
   String get mindReportReflectionNotEnoughData =>
       '아직 기록이 조금 더 필요해요. 일기를 5개 이상 남겨주세요.';
+
+  @override
+  String get publicGardenSettingsTitle => '🌍 정원 공개하기';
+
+  @override
+  String get publicGardenSettingsDesc =>
+      '내 정원(심은 씨앗, 장식, 나무 모습)을 다른 사람들에게 보여줄 수 있어요. 일기·기록 내용은 절대 공개되지 않아요. 방문자는 구경만 할 수 있고, 내 정원을 바꾸거나 가져갈 수는 없어요.';
+
+  @override
+  String get publicGardenServerUnavailable =>
+      '지금은 서버 연결이 준비되지 않아 정원을 공개할 수 없어요.';
+
+  @override
+  String get publicGardenNicknameLabel => '정원 닉네임 (선택)';
+
+  @override
+  String get publicGardenNicknameHint => '비워두면 \'이름 없는 정원사\'로 보여요';
+
+  @override
+  String get publicGardenPublishButton => '정원 공개하기';
+
+  @override
+  String get publicGardenUnpublishButton => '공개 그만하기';
+
+  @override
+  String get publicGardenPublishedNotice => '지금 내 정원이 공개되어 있어요.';
+
+  @override
+  String get publicGardenNotPublishedNotice => '지금은 비공개예요. 나만 볼 수 있어요.';
+
+  @override
+  String get publicGardenBrowseTitle => '다른 정원 둘러보기';
+
+  @override
+  String get publicGardenBrowseNotice =>
+      '다른 분들이 공개한 정원이에요. 구경만 할 수 있고, 인기순이 아니라 무작위로 보여줘요.';
+
+  @override
+  String get publicGardenBrowseEmpty =>
+      '아직 공개된 정원이 없어요. 나중에 다시 와서 둘러봐 주세요.';
+
+  @override
+  String get publicGardenAnonymousNickname => '이름 없는 정원사';
+
+  @override
+  String get publicGardenCheerButton => '응원 보내기';
+
+  @override
+  String get publicGardenCheerAlreadySentToday => '오늘 이미 응원을 보냈어요';
+
+  @override
+  String get publicGardenCheerDialogTitle => '어떤 마음을 전할까요?';
+
+  @override
+  String get publicGardenCheerSentSnackbar => '마음을 전했어요 🌿';
+
+  @override
+  String get publicGardenInboxTitle => '받은 응원함';
+
+  @override
+  String get publicGardenInboxEmpty => '아직 받은 응원이 없어요.';
+
+  @override
+  String get publicGardenInboxClaimButton => '확인하기';
+
+  @override
+  String publicGardenInboxGiftReceived(int amount) {
+    return '빛의 정수 $amount개를 받았어요';
+  }
+
+  @override
+  String get publicCheerOption0 => '오늘도 고생했어요 🌱';
+
+  @override
+  String get publicCheerOption1 => '당신의 정원이 참 예뻐요';
+
+  @override
+  String get publicCheerOption2 => '천천히 가도 괜찮아요';
+
+  @override
+  String get publicCheerOption3 => '당신을 응원하고 있어요';
+
+  @override
+  String get publicCheerOption4 => '오늘 하루도 당신 편이에요';
+
+  @override
+  String get publicCheerOption5 => '여기까지 온 것만으로도 충분해요';
 }
