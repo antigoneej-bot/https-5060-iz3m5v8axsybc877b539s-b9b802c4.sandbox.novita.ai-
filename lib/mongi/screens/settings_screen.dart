@@ -45,6 +45,8 @@ class SettingsScreen extends StatelessWidget {
                         _buildWebNotice(context),
                       ],
                       const SizedBox(height: 20),
+                      _buildGardenMotionCard(context, garden),
+                      const SizedBox(height: 20),
                       _buildAiReflectionCard(context, garden),
                       const SizedBox(height: 20),
                       _buildMentalHealthSupportCard(context),
@@ -364,6 +366,71 @@ class SettingsScreen extends StatelessWidget {
   /// 여러 감정 기록을 종합해서 보여주는 만큼 평소 화면보다 더 개인적으로
   /// 느껴질 수 있어, 기본값은 꺼짐이며 사용자가 직접 켜야만 [MindReportScreen]에
   /// 리플렉션 카드가 노출된다. 서버/외부 AI로 전송되는 데이터는 전혀 없다.
+  /// "정원 생동감" 토글 - 낮/밤 분위기 전환, 반딧불이, 흔들림 애니메이션을
+  /// 끄고 싶은 사용자를 위한 옵션. 꺼도 기록/보상/진행도에는 전혀 영향이
+  /// 없고 오직 화면 표현만 더 잔잔해진다.
+  Widget _buildGardenMotionCard(BuildContext context, GardenProvider garden) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.88),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: const [
+          BoxShadow(
+            color: Colors.black12,
+            blurRadius: 12,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: const Color(0xFF7FB37A).withValues(alpha: 0.15),
+              shape: BoxShape.circle,
+            ),
+            child: const Text('🌿', style: TextStyle(fontSize: 20)),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  '정원 생동감',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 16,
+                    color: AppColors.ink,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '낮/밤 분위기, 반딧불이, 흔들림 애니메이션을 보여줘요. 꺼도 기록은 그대로예요.',
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    color: AppColors.inkSoft,
+                    height: 1.5,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Switch(
+            value: garden.gardenMotionEnabled,
+            activeThumbColor: const Color(0xFF7FB37A),
+            onChanged: (value) => garden.setGardenMotionEnabled(value),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildAiReflectionCard(BuildContext context, GardenProvider garden) {
     final l10n = AppLocalizations.of(context);
     return Container(

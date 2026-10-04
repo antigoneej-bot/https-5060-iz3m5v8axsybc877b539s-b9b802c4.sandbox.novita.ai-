@@ -269,35 +269,29 @@ class GardenScreen extends StatelessWidget {
 
   /// 몽이의 성장나무 진행 상황을 알려주는 작은 안내 문구.
   /// "다음 성장까지 OO점 남았어요" 형태로 다음 단계까지의 거리를 보여준다.
-  /// 정원을 이틀 이상 찾지 않아 나무가 살짝 시들었을 때는, 절대 다그치는
-  /// 느낌이 들지 않도록 부드럽게 다시 찾아오길 권하는 문구로 바뀐다.
+  /// [설계 원칙] 며칠을 쉬었다 와도 절대 "시들었다"거나 다그치는 느낌을
+  /// 주지 않는다 - 나무는 늘 똑같이 반겨주고, 다시 찾아온 것 자체를
+  /// 홈 화면의 "복귀 케어" 카드가 따로 다정하게 환영해준다.
   Widget _buildTreeGrowthHint(BuildContext context, GardenProvider garden) {
     final l10n = AppLocalizations.of(context);
     final stageIndex = garden.treeStageIndex;
     final label = treeStageLabel(l10n, stageIndex);
     final remaining = garden.pointsToNextTreeStage;
     final isMaxStage = stageIndex >= TreeGrowth.maxStageIndex;
-    final isWilted = garden.isTreeWilted;
-    final String message;
-    if (isWilted) {
-      message = l10n.gardenTreeWiltedHint;
-    } else if (isMaxStage) {
-      message = l10n.gardenTreeMaxStageHint(label);
-    } else {
-      message = l10n.gardenTreeGrowthHint(label, remaining);
-    }
+    final message = isMaxStage
+        ? l10n.gardenTreeMaxStageHint(label)
+        : l10n.gardenTreeGrowthHint(label, remaining);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: (isWilted ? const Color(0xFFC9A87A) : const Color(0xFF7FB37A))
-            .withValues(alpha: 0.10),
+        color: const Color(0xFF7FB37A).withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            stageIndex < 0 ? '🕳️' : (isWilted ? '🍂' : '🌳'),
+            stageIndex < 0 ? '🕳️' : '🌳',
             style: const TextStyle(fontSize: 16),
           ),
           const SizedBox(width: 8),

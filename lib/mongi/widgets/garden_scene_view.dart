@@ -13,6 +13,7 @@ import '../models/garden_decoration.dart';
 import '../models/garden_season.dart';
 import '../models/mongi_care_item.dart';
 import '../models/seed.dart';
+import '../models/time_of_day_ambience.dart';
 import '../models/tree_growth.dart';
 import '../providers/garden_provider.dart';
 import 'garden_decoration_sheet.dart';
@@ -50,6 +51,14 @@ class GardenSceneView extends StatelessWidget {
   Widget build(BuildContext context) {
     final garden = context.watch<GardenProvider>();
     final season = GardenSeason.current;
+    // [설계 원칙] 낮/밤 분위기와 감정은 완전히 별개다 - 지금 몇 시인지에 따라
+    // 색감이 아주 은은하게 바뀔 뿐, 사용자가 겪는 감정이나 정원의 상태를
+    // 판단/평가하지 않는다. "정원 생동감" 설정을 끄면 늘 낮(변화 없음)으로
+    // 고정되어 완전히 정적인 화면이 된다.
+    final motionEnabled = garden.gardenMotionEnabled;
+    final ambience = motionEnabled
+        ? TimeOfDayAmbience.current()
+        : TimeOfDayAmbience.day;
     final met = context.watch<AppStateProvider>().metCatIds;
     final cats = shadowCats
         .where((cat) => met.contains(cat.id))
@@ -77,7 +86,25 @@ class GardenSceneView extends StatelessWidget {
             ),
 
             // 계절 파티클(꽃잎/반짝임/낙엽/눈)이 은은하게 떠다닌다.
-            _SeasonParticleOverlay(season: season, height: height),
+            _SeasonParticleOverlay(
+              season: season,
+              height: height,
+              animate: motionEnabled,
+            ),
+
+            // 낮/밤 분위기 색 오버레이 - 아주 은은하게 덮여 계절 틴트를 가리지 않는다.
+            if (ambience.overlayAlpha > 0)
+              IgnorePointer(
+                child: Container(
+                  color: ambience.overlayColor.withValues(
+                    alpha: ambience.overlayAlpha,
+                  ),
+                ),
+              ),
+
+            // 밤에만 떠다니는 반딧불이.
+            if (ambience.fireflyCount > 0)
+              _FireflyOverlay(count: ambience.fireflyCount, height: height),
 
             // 은은한 하단 그림자 (지면 느낌 강조)
             Positioned(
@@ -132,7 +159,11 @@ class GardenSceneView extends StatelessWidget {
                   final count = garden.seedCounts[seed.id] ?? 0;
                   return _ScenePlacedItem(
                     alignment: seed.sceneAnchor,
-                    child: _SeedPot(seed: seed, count: count),
+                    child: _SeedPot(
+                      seed: seed,
+                      count: count,
+                      animate: motionEnabled,
+                    ),
                   );
                 }),
 
@@ -143,7 +174,7 @@ class GardenSceneView extends StatelessWidget {
                 alignment: const Alignment(0.0, -0.32),
                 child: _GrowthTree(
                   stageIndex: garden.treeStageIndex,
-                  isWilted: garden.isTreeWilted,
+                  animate: motionEnabled,
                 ),
               ),
 
@@ -190,6 +221,29 @@ class GardenSceneView extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 6),
+                  if (ambience.label.isNotEmpty) ...[
+                    _GlassBadge(
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            ambience.emoji,
+                            style: const TextStyle(fontSize: 13),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            ambience.label,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 12.5,
+                              color: Color(0xFF3D5A3D),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                  ],
                   _GlassBadge(
                     onTap: () {
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -293,8 +347,13 @@ class _ScenePlacedItem extends StatelessWidget {
 class _SeedPot extends StatefulWidget {
   final SeedType seed;
   final int count;
+  final bool animate;
 
-  const _SeedPot({required this.seed, required this.count});
+  const _SeedPot({
+    required this.seed,
+    required this.count,
+    this.animate = true,
+  });
 
   @override
   State<_SeedPot> createState() => _SeedPotState();
@@ -305,7 +364,24 @@ class _SeedPotState extends State<_SeedPot>
   late final AnimationController _controller = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 2200),
-  )..repeat(reverse: true);
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.animate) _controller.repeat(reverse: true);
+  }
+
+  @override
+  void didUpdateWidget(_SeedPot oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.animate && !oldWidget.animate) {
+      _controller.repeat(reverse: true);
+    } else if (!widget.animate && oldWidget.animate) {
+      _controller.stop();
+      _controller.value = 0.5; // 흔들림 각도 0으로 고정
+    }
+  }
 
   @override
   void dispose() {
@@ -339,7 +415,9 @@ class _SeedPotState extends State<_SeedPot>
       child: AnimatedBuilder(
         animation: _controller,
         builder: (context, _) {
-          final sway = (_controller.value - 0.5) * 0.10; // 살짝 좌우로 흔들림
+          final sway = widget.animate
+              ? (_controller.value - 0.5) * 0.10 // 살짝 좌우로 흔들림
+              : 0.0;
           return Transform.rotate(
             angle: widget.count > 0 ? sway : 0.0,
             child: Text(emoji, style: TextStyle(fontSize: fontSize)),
@@ -352,11 +430,16 @@ class _SeedPotState extends State<_SeedPot>
 
 /// 몽이의 성장나무 하나의 씬 표현: 성장 단계 일러스트 + 살짝 흔들리는 애니메이션으로
 /// "살아있는 정원" 느낌을 준다. [_SeedPot]과 같은 구조를 따른다.
+///
+/// [설계 원칙] 정원은 "황폐화/시듦"으로 사용자를 다그치지 않는다 - 며칠을
+/// 쉬었다 와도 나무는 색이 바래거나 기운 없어 보이지 않고 늘 똑같이
+/// 반겨준다. (과거에는 isWilted 플래그로 색을 바래게 했지만 완전히
+/// 제거했다. 자세한 이유는 [GardenStorage.isTreeWilted] 참고.)
 class _GrowthTree extends StatefulWidget {
   final int stageIndex;
-  final bool isWilted;
+  final bool animate;
 
-  const _GrowthTree({required this.stageIndex, this.isWilted = false});
+  const _GrowthTree({required this.stageIndex, this.animate = true});
 
   @override
   State<_GrowthTree> createState() => _GrowthTreeState();
@@ -367,7 +450,24 @@ class _GrowthTreeState extends State<_GrowthTree>
   late final AnimationController _controller = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 2400),
-  )..repeat(reverse: true);
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.animate) _controller.repeat(reverse: true);
+  }
+
+  @override
+  void didUpdateWidget(_GrowthTree oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.animate && !oldWidget.animate) {
+      _controller.repeat(reverse: true);
+    } else if (!widget.animate && oldWidget.animate) {
+      _controller.stop();
+      _controller.value = 0.5;
+    }
+  }
 
   @override
   void dispose() {
@@ -386,11 +486,7 @@ class _GrowthTreeState extends State<_GrowthTree>
       onTap: () {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              widget.isWilted
-                  ? l10n.gardenTreeWiltedSnackbar
-                  : l10n.gardenTreeStageSnackbar(label),
-            ),
+            content: Text(l10n.gardenTreeStageSnackbar(label)),
             duration: const Duration(seconds: 2),
           ),
         );
@@ -398,22 +494,9 @@ class _GrowthTreeState extends State<_GrowthTree>
       child: AnimatedBuilder(
         animation: _controller,
         builder: (context, _) {
-          // 시들었을 때는 흔들림 폭도 살짝 줄여서 "기운 없는" 느낌을 은은하게 더한다.
-          final swayRange = widget.isWilted ? 0.04 : 0.08;
-          final sway = (_controller.value - 0.5) * swayRange;
+          final sway = widget.animate ? (_controller.value - 0.5) * 0.08 : 0.0;
           final tree = Image.asset(asset, height: height);
-          final wiltedTree = widget.isWilted
-              ? ColorFiltered(
-                  colorFilter: const ColorFilter.matrix(<double>[
-                    0.55, 0.35, 0.10, 0, -6, // R - 채도를 낮춰 살짝 바랜 톤으로
-                    0.25, 0.55, 0.10, 0, -6, // G
-                    0.20, 0.30, 0.40, 0, -6, // B
-                    0, 0, 0, 1, 0, // A
-                  ]),
-                  child: Opacity(opacity: 0.82, child: tree),
-                )
-              : tree;
-          return Transform.rotate(angle: sway, child: wiltedTree);
+          return Transform.rotate(angle: sway, child: tree);
         },
       ),
     );
@@ -427,8 +510,13 @@ class _GrowthTreeState extends State<_GrowthTree>
 class _SeasonParticleOverlay extends StatefulWidget {
   final GardenSeason season;
   final double height;
+  final bool animate;
 
-  const _SeasonParticleOverlay({required this.season, required this.height});
+  const _SeasonParticleOverlay({
+    required this.season,
+    required this.height,
+    this.animate = true,
+  });
 
   @override
   State<_SeasonParticleOverlay> createState() => _SeasonParticleOverlayState();
@@ -445,7 +533,8 @@ class _SeasonParticleOverlayState extends State<_SeasonParticleOverlay>
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 12),
-    )..repeat();
+    );
+    if (widget.animate) _controller.repeat();
     _specs = _buildSpecs(widget.season);
   }
 
@@ -454,6 +543,11 @@ class _SeasonParticleOverlayState extends State<_SeasonParticleOverlay>
     super.didUpdateWidget(oldWidget);
     if (oldWidget.season != widget.season) {
       _specs = _buildSpecs(widget.season);
+    }
+    if (widget.animate && !oldWidget.animate) {
+      _controller.repeat();
+    } else if (!widget.animate && oldWidget.animate) {
+      _controller.stop();
     }
   }
 
@@ -536,6 +630,120 @@ class _SeasonParticleSpec {
     required this.speed,
     required this.swayAmplitude,
     required this.size,
+  });
+}
+
+/// 밤에만 떠다니는 반딧불이 오버레이. [TimeOfDayAmbience.fireflyCount]만큼
+/// 작은 빛 점이 느리게 깜빡이며 떠다닌다 - 감정 상태와는 무관하게 오직
+/// 지금이 밤이라는 사실만 반영하는 장식용 효과다.
+class _FireflyOverlay extends StatefulWidget {
+  final int count;
+  final double height;
+
+  const _FireflyOverlay({required this.count, required this.height});
+
+  @override
+  State<_FireflyOverlay> createState() => _FireflyOverlayState();
+}
+
+class _FireflyOverlayState extends State<_FireflyOverlay>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(seconds: 18),
+  )..repeat();
+  late final List<_FireflySpec> _specs = List.generate(widget.count, (i) {
+    final rand = math.Random(i * 53 + 7);
+    return _FireflySpec(
+      startX: rand.nextDouble(),
+      startY: rand.nextDouble(),
+      phase: rand.nextDouble(),
+      radius: 12 + rand.nextDouble() * 18,
+      blinkSpeed: 0.6 + rand.nextDouble() * 0.8,
+    );
+  });
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final width = constraints.maxWidth.isFinite
+              ? constraints.maxWidth
+              : 320.0;
+          return AnimatedBuilder(
+            animation: _controller,
+            builder: (context, _) {
+              return Stack(
+                children: _specs.map((spec) {
+                  final t = (_controller.value + spec.phase) % 1.0;
+                  final x =
+                      spec.startX * width +
+                      math.sin(t * 2 * math.pi) * spec.radius;
+                  final y =
+                      spec.startY * widget.height +
+                      math.cos(t * 2 * math.pi * 0.7) * spec.radius;
+                  final blink =
+                      0.35 +
+                      0.65 *
+                          (0.5 +
+                              0.5 *
+                                  math.sin(
+                                    t * 2 * math.pi * spec.blinkSpeed * 6,
+                                  ));
+                  return Positioned(
+                    left: x.clamp(0.0, width),
+                    top: y.clamp(0.0, widget.height),
+                    child: Opacity(
+                      opacity: blink.clamp(0.0, 1.0),
+                      child: Container(
+                        width: 5,
+                        height: 5,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: const Color(0xFFFFF3B0),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(
+                                0xFFFFF3B0,
+                              ).withValues(alpha: 0.8),
+                              blurRadius: 6,
+                              spreadRadius: 1,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _FireflySpec {
+  final double startX;
+  final double startY;
+  final double phase;
+  final double radius;
+  final double blinkSpeed;
+
+  const _FireflySpec({
+    required this.startX,
+    required this.startY,
+    required this.phase,
+    required this.radius,
+    required this.blinkSpeed,
   });
 }
 

@@ -31,6 +31,8 @@ class GardenStorage {
   static const String _keyNotifMinute = 'notif_minute'; // int 0~59 (알림 시각 - 분)
   static const String _keyLanguageCode =
       'language_code'; // String? ('ko'/'en', null이면 시스템 언어를 따라감)
+  static const String _keyGardenMotionEnabled =
+      'garden_motion_enabled'; // bool (정원 씬의 낮/밤 분위기, 흔들림 애니메이션, 반딧불이 등 - 기본 true, 끄면 정적인 화면으로)
   static const String _keyPremiumFramesUnlocked =
       'premium_frames_unlocked'; // bool (프리미엄 카드 프레임 팩 구매 여부 - 실제 결제 완료 시 true)
   static const String _keyHasBloomedOnce =
@@ -348,11 +350,17 @@ class GardenStorage {
     return todayDateOnly.difference(last).inDays;
   }
 
-  /// 몽이의 성장나무가 살짝 시들어 보여야 하는지 여부.
-  /// 어제까지는 그냥 넘어가고(방문 텀 하루는 정상 범위), 하루를 통째로 거른
-  /// 경우(=이틀 이상 지남)에만 "시듦" 상태로 본다 - 절대 처벌적으로 느껴지지
-  /// 않도록, 오늘 한 번만 다시 찾아와도(recordEaten 호출) 곧바로 회복된다.
-  bool get isTreeWilted => daysSinceLastFeed >= 2;
+  /// [설계 원칙] 정원은 "황폐화/시듦"으로 사용자를 다그치지 않는다.
+  /// 예전에는 이틀 이상 찾지 않으면 성장나무가 색이 바래 보이게 했지만,
+  /// 이는 "마음을 안 돌보면 벌을 준다"는 느낌을 줄 수 있어 완전히
+  /// 제거했다 - 쉬었다 와도 나무는 늘 그 자리에서 똑같이 반겨준다
+  /// (= [GardenCareTree]/[GardenCareNote]와 동일한 원칙, "판단하지 않고
+  /// 반영만 한다"). API 호환을 위해 getter는 남겨두되 항상 false를
+  /// 반환하여, 이걸 참조하는 화면들(성장나무 씬, 정원 요약 카드)이
+  /// 자동으로 "시듦" 표현을 멈추게 한다. 복귀 환영 메시지(아래
+  /// [EmotionInsightService.buildComebackCareKind] 참고)는 벌칙이 아니라
+  /// 다정한 인사이므로 별개로 그대로 유지한다.
+  bool get isTreeWilted => false;
 
   /// 감정 타입별로 지금까지 심어진 꽃 개수 (누적, 절대 리셋되지 않음 - "내 마음정원" 화면에서 사용).
   Map<String, int> get flowerCounts {
@@ -454,6 +462,17 @@ class GardenStorage {
 
   Future<void> setNotificationTime(int hour, int minute) async {
     await _box.putAll({_keyNotifHour: hour, _keyNotifMinute: minute});
+  }
+
+  /// 정원 씬의 생동감(낮/밤 분위기 전환, 반딧불이, 나무/화분 흔들림 애니메이션)을
+  /// 보여줄지 여부. 기본값 true. 잔잔함을 원하는 사용자는 설정에서 끌 수 있고,
+  /// 끄면 정원이 움직임 없는 정적인 화면으로 바뀐다(사운드는 별도의 기존
+  /// 배경음악/효과음 설정으로 이미 끌 수 있다).
+  bool get gardenMotionEnabled =>
+      _box.get(_keyGardenMotionEnabled, defaultValue: true) as bool;
+
+  Future<void> setGardenMotionEnabled(bool enabled) async {
+    await _box.put(_keyGardenMotionEnabled, enabled);
   }
 
   /// 사용자가 설정 화면에서 직접 고른 언어 코드('ko'/'en').

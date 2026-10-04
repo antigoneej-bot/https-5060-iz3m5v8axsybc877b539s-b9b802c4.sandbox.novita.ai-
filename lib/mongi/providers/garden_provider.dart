@@ -81,6 +81,10 @@ class GardenProvider extends ChangeNotifier {
   int notificationHour = 20;
   int notificationMinute = 0;
 
+  /// 정원 씬의 낮/밤 분위기 전환, 반딧불이, 흔들림 애니메이션 등 "생동감"을
+  /// 보여줄지 여부. 설정에서 끄면 정적인 화면으로 바뀐다(기본값 true).
+  bool gardenMotionEnabled = true;
+
   /// 사용자가 직접 고른 언어('ko'/'en'). null이면 시스템 언어를 따라간다.
   String? languageCode;
   bool _legacy_premiumFramesUnlocked = false;
@@ -415,10 +419,9 @@ class GardenProvider extends ChangeNotifier {
   /// 다음 나무 성장 단계까지 남은 점수 (이미 열매 단계면 0).
   int get pointsToNextTreeStage => TreeGrowth.pointsToNextStage(score);
 
-  /// 몽이의 성장나무가 지금 살짝 시들어 보이는 상태인지 여부.
-  /// 정원을 이틀 이상 찾아오지 않았을 때만 true가 되고, 오늘 한 번만 다시
-  /// 감정을 먹이면(recordSession 호출) 곧바로 원래대로 돌아온다 - 절대
-  /// 처벌적으로 느껴지지 않는, 부드러운 "그리움" 표현을 위한 상태다.
+  /// [항상 false] 정원 황폐화/시듦 벌칙을 완전히 제거했다 - 쉬었다 와도
+  /// 성장나무는 늘 그대로다. 과거 호출부와의 호환을 위해 getter만 남겨둠
+  /// (자세한 설계 이유는 [GardenStorage.isTreeWilted] 참고).
   bool get isTreeWilted => _storage.isTreeWilted;
 
   /// 마지막으로 정원에 감정을 먹인 날로부터 오늘까지 며칠이 지났는지.
@@ -1016,6 +1019,7 @@ class GardenProvider extends ChangeNotifier {
     notificationsEnabled = _storage.notificationsEnabled;
     notificationHour = _storage.notificationHour;
     notificationMinute = _storage.notificationMinute;
+    gardenMotionEnabled = _storage.gardenMotionEnabled;
     languageCode = _storage.languageCode;
     premiumFramesUnlocked = _storage.premiumFramesUnlocked;
     hasBloomedOnce = _storage.hasBloomedOnce;
@@ -1240,6 +1244,15 @@ class GardenProvider extends ChangeNotifier {
     notificationsEnabled = enabled;
     notifyListeners();
     return true;
+  }
+
+  /// 설정 화면에서 "정원 생동감(낮/밤 분위기, 흔들림, 반딧불이)" 토글을
+  /// 켜거나 끌 때 호출한다. 잔잔함을 원하는 사용자를 위한 옵션으로,
+  /// 끈다고 해서 기록/보상/진행도에는 전혀 영향이 없다 - 오직 화면 표현만 바뀐다.
+  Future<void> setGardenMotionEnabled(bool enabled) async {
+    await _storage.setGardenMotionEnabled(enabled);
+    gardenMotionEnabled = enabled;
+    notifyListeners();
   }
 
   /// 설정 화면에서 언어를 직접 바꿀 때 호출한다. null을 넘기면 다시
