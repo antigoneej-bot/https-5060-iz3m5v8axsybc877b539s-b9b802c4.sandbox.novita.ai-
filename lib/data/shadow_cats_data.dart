@@ -12,6 +12,7 @@ final List<ShadowCat> shadowCats = [
     emoji: '🌌',
     keyword: '몽상',
     imageAsset: 'assets/cards36/cat_01.png',
+    videoAsset: 'assets/cards36/videos/cat_01_loop.mp4',
     story:
         '창가에 앉아 밤하늘 보름달을 가만히 올려다보는 이 고양이는 현실보다 상상 속에서 더 많은 시간을 보내요. '
         '하고 싶은 일과 되고 싶은 모습을 마음속으로 그리며, 언젠가는 그 꿈에 닿을 수 있을 거라 믿고 있답니다. '

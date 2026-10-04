@@ -4,6 +4,7 @@ import 'dart:math';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:video_player/video_player.dart';
 import '../data/shadow_cats_data.dart';
 import '../data/alternative_emotion_mapping.dart';
 import '../models/shadow_cat.dart';
@@ -565,6 +566,43 @@ class _CatCardState extends State<_CatCard> {
   bool _hovering = false;
   bool _pressed = false;
 
+  // 카드별 미세 움직임 영상(시네마그래프) 재생 상태. 카드 틀/배경은 고정된
+  // 채 고양이만 눈 깜빡임/꼬리 흔들기 등으로 아주 살짝 움직이는 짧은 루프
+  // 영상이 있으면, 로딩이 끝나는 즉시 정지 이미지 위에 자연스럽게 교체해
+  // 보여줍니다. 영상이 없거나 아직 준비되지 않았다면 항상 기존 정지
+  // 이미지를 그대로 보여주므로 동작이 실패해도 안전합니다.
+  VideoPlayerController? _videoController;
+  bool _videoReady = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initVideoIfNeeded();
+  }
+
+  void _initVideoIfNeeded() {
+    final asset = widget.cat.videoAsset;
+    if (asset == null) return;
+    final controller = VideoPlayerController.asset(asset);
+    _videoController = controller;
+    controller
+      ..setLooping(true)
+      ..setVolume(0)
+      ..initialize().then((_) {
+        if (!mounted) return;
+        setState(() => _videoReady = true);
+        controller.play();
+      }).catchError((_) {
+        // 영상 로드에 실패해도 조용히 정지 이미지로 폴백합니다.
+      });
+  }
+
+  @override
+  void dispose() {
+    _videoController?.dispose();
+    super.dispose();
+  }
+
   // 디자인 리팩토링: 52장 전부 다른 랜덤 코너를 쓰던 '블롭' 프레임을 없애고,
   // 카드 이미지 자체에 이미 그려진 프레임과 충돌하지 않도록 통일된 라운드
   // 사각형 하나로 정리했습니다. 3열 그리드의 코너 라인이 모두 맞아 훨씬
@@ -580,6 +618,31 @@ class _CatCardState extends State<_CatCard> {
     AppColors.blobButterAccent,
     AppColors.blobPeriwinkleAccent,
   ];
+
+  /// 카드 이미지 영역을 그립니다. 미세 움직임 영상이 준비되어 있으면 영상을,
+  /// 그렇지 않으면(영상이 없거나 아직 로딩 중이거나 실패했다면) 기존 정지
+  /// 이미지를 보여줍니다. 카드/배경 레이아웃은 두 경우 모두 완전히 동일해
+  /// 영상이 있는 카드만 유독 튀어 보이지 않도록 했습니다.
+  Widget _buildCardVisual() {
+    final controller = _videoController;
+    if (controller != null && _videoReady) {
+      return FittedBox(
+        fit: BoxFit.cover,
+        child: SizedBox(
+          width: controller.value.size.width,
+          height: controller.value.size.height,
+          child: VideoPlayer(controller),
+        ),
+      );
+    }
+    return Image.asset(
+      widget.cat.imageAsset,
+      fit: BoxFit.cover,
+      width: double.infinity,
+      cacheWidth: 200,
+      cacheHeight: 200,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -681,13 +744,7 @@ class _CatCardState extends State<_CatCard> {
                                       ),
                                     ),
                                   )
-                                : Image.asset(
-                                    widget.cat.imageAsset,
-                                    fit: BoxFit.cover,
-                                    width: double.infinity,
-                                    cacheWidth: 200,
-                                    cacheHeight: 200,
-                                  ),
+                                : _buildCardVisual(),
                             // 감정 키워드 태그: 색을 카드 전체에 칠하는 대신
                             // 이미지 위 좌상단에 작은 알약 태그로만 얹어, 한눈에
                             // 스캔이 빠르면서도 이미지 원본 프레임을 가리지 않게

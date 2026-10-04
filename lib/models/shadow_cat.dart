@@ -11,6 +11,12 @@ class ShadowCat {
   final String keyword;
   final String imageAsset;
 
+  /// 선택 화면 카드에서 정지 이미지 대신 재생할 짧은 루프 영상(있는 경우).
+  /// 카드 틀/배경은 고정된 채 고양이만 아주 미세하게(눈 깜빡임, 꼬리 등)
+  /// 움직이는 "시네마그래프" 스타일 영상입니다. null이면 기존처럼
+  /// [imageAsset] 정지 이미지를 보여줍니다.
+  final String? videoAsset;
+
   /// 이 고양이가 왜 이런 감정을 느끼는지, 제3자(관찰자) 시점의 이야기
   final String story;
 
@@ -47,6 +53,7 @@ class ShadowCat {
     required this.emoji,
     required this.keyword,
     required this.imageAsset,
+    this.videoAsset,
     required this.story,
     required this.meditationKeys,
     required this.comfortMessage,
