@@ -1,6 +1,7 @@
 import '../widgets/daily_care_card.dart';
 import '../mongi/integration/mongi_experience.dart';
 import '../mongi/integration/mongi_entry_card.dart';
+import '../mongi/widgets/garden_scene_view.dart';
 import 'emotion_statistics_screen.dart';
 import 'dart:math' as math;
 
@@ -33,6 +34,9 @@ import '../widgets/category_list_screen.dart';
 import 'premium_screen.dart';
 import 'my_garden_screen.dart';
 import '../services/notification_service.dart';
+import '../services/notice_service.dart';
+import 'notice_list_screen.dart';
+import 'notice_detail_screen.dart';
 
 /// 홈페이지 탭 - '힐링 정원 산책로' 컨셉의 대시보드.
 /// 딱딱한 흰 사각 카드를 모두 걷어내고, 오솔길을 걷듯 좌우로 살짝씩 흔들리며
@@ -91,6 +95,7 @@ class HomeTabScreen extends StatelessWidget {
         ],
         const _SproutBannerArea(),
         const _ReflectionBannerArea(),
+        const _HomeNoticeCard(),
         Text(
           'MIND CAT GARDEN',
           textAlign: TextAlign.center,
@@ -115,6 +120,21 @@ class HomeTabScreen extends StatelessWidget {
             fontSize: 13.5,
             color: AppColors.inkSoft,
             height: 1.7,
+          ),
+        ),
+        const SizedBox(height: 22),
+        // 정원을 홈의 중심에 - 마음을 꺼내고 돌본 시간이 실제로 남아있는
+        // 모습을 매번 홈에 들어올 때마다 바로 보여준다(탭해서 더 자세히
+        // 가꿀 수 있는 입구 역할도 겸함).
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: GestureDetector(
+            onTap: () => pushFullScreen(
+              context,
+              '나의 정원',
+              MyGardenScreen(onGoMeetCat: onGoToCatSelect),
+            ),
+            child: const GardenSceneView(interactive: false, height: 200),
           ),
         ),
         const SizedBox(height: 30),
@@ -1060,6 +1080,92 @@ class _StreakWeekDots extends StatelessWidget {
 /// 진입 조건(가입 후 7일/30일 경과 등)을 만족하고, 아직 이번 주기 안에
 /// 보지 않았을 때만 나타납니다. 사용자가 앱을 열었을 때 화면에 조용히
 /// 보이는 카드일 뿐, 푸시 알림 등 어떤 강제 알림도 사용하지 않습니다.
+/// 홈 화면 "정원 소식" 미리보기 카드 - 운영자가 실제로 올린 가장 최신
+/// 소식 1건만 보여준다. [설계 원칙] 가짜 참여자 수/마감 임박 연출 없이,
+/// 등록된 내용 그대로를 보여주고 탭하면 전체 목록으로 이동한다.
+/// 등록된 소식이 하나도 없으면 아무것도 보여주지 않는다(빈 카드 금지).
+class _HomeNoticeCard extends StatelessWidget {
+  const _HomeNoticeCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final notices = NoticeService.fetchNotices();
+    if (notices.isEmpty) return const SizedBox.shrink();
+    final notice = notices.first;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 24),
+      child: GestureDetector(
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => NoticeDetailScreen(notice: notice),
+          ),
+        ),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.blobLavender,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: AppColors.blobLavenderAccent.withValues(alpha: 0.3),
+            ),
+          ),
+          child: Row(
+            children: [
+              Text(notice.emoji, style: const TextStyle(fontSize: 22)),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '정원 소식',
+                      style: bodyFont(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.blobLavenderAccent,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      notice.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: pathLabelFont(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.ink,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const FeatureScaffold(
+                      title: '정원 소식',
+                      child: NoticeListScreen(),
+                    ),
+                  ),
+                ),
+                child: Text(
+                  '더보기',
+                  style: bodyFont(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.blobLavenderAccent,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _ReflectionBannerArea extends StatefulWidget {
   const _ReflectionBannerArea();
 

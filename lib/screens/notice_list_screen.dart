@@ -3,6 +3,7 @@ import '../models/notice.dart';
 import '../services/notice_service.dart';
 import '../theme.dart';
 import '../widgets/garden_path_card.dart';
+import 'notice_detail_screen.dart';
 
 /// 공지사항 목록 화면.
 /// 화면에 들어오는 순간 모든 공지를 읽음으로 표시합니다.
@@ -44,6 +45,17 @@ class _NoticeListScreenState extends State<NoticeListScreen> {
     }
   }
 
+  Color _statusColor(NoticeStatus status) {
+    switch (status) {
+      case NoticeStatus.recruiting:
+        return AppColors.blobMintAccent;
+      case NoticeStatus.ongoing:
+        return AppColors.blobPeachAccent;
+      case NoticeStatus.closed:
+        return AppColors.inkSoft;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_notices.isEmpty) {
@@ -61,61 +73,116 @@ class _NoticeListScreenState extends State<NoticeListScreen> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         for (final notice in _notices) ...[
-          GlassBlob(
-            accent: _accentFor(notice.type),
-            background: _bgFor(notice.type),
-            padding: const EdgeInsets.all(18),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Text(notice.emoji, style: const TextStyle(fontSize: 20)),
-                    const SizedBox(width: 10),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 3,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.6),
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: Text(
-                        notice.type.label,
-                        style: bodyFont(
-                          fontSize: 10.5,
-                          fontWeight: FontWeight.w700,
-                          color: _accentFor(notice.type),
+          GestureDetector(
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => NoticeDetailScreen(notice: notice),
+              ),
+            ),
+            child: GlassBlob(
+              accent: _accentFor(notice.type),
+              background: _bgFor(notice.type),
+              padding: const EdgeInsets.all(18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(notice.emoji, style: const TextStyle(fontSize: 20)),
+                      const SizedBox(width: 10),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.6),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          notice.type.label,
+                          style: bodyFont(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w700,
+                            color: _accentFor(notice.type),
+                          ),
                         ),
                       ),
+                      if (notice.status != null) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: _statusColor(
+                              notice.status!,
+                            ).withValues(alpha: 0.18),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            notice.status!.label,
+                            style: bodyFont(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w700,
+                              color: _statusColor(notice.status!),
+                            ),
+                          ),
+                        ),
+                      ],
+                      const Spacer(),
+                      Text(
+                        notice.date,
+                        style: bodyFont(
+                          fontSize: 10.5,
+                          color: AppColors.inkSoft,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    notice.title,
+                    style: pathLabelFont(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.ink,
                     ),
-                    const Spacer(),
-                    Text(
-                      notice.date,
-                      style: bodyFont(fontSize: 10.5, color: AppColors.inkSoft),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    notice.body,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: bodyFont(
+                      fontSize: 12.5,
+                      color: AppColors.inkSoft,
+                      height: 1.6,
+                    ),
+                  ),
+                  if (notice.applyUrl != null) ...[
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Text(
+                          '자세히 보기',
+                          style: bodyFont(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w700,
+                            color: _accentFor(notice.type),
+                          ),
+                        ),
+                        Icon(
+                          Icons.chevron_right_rounded,
+                          size: 16,
+                          color: _accentFor(notice.type),
+                        ),
+                      ],
                     ),
                   ],
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  notice.title,
-                  style: pathLabelFont(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.ink,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  notice.body,
-                  style: bodyFont(
-                    fontSize: 12.5,
-                    color: AppColors.inkSoft,
-                    height: 1.6,
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
           const SizedBox(height: 14),
