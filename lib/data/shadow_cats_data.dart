@@ -218,6 +218,7 @@ final List<ShadowCat> shadowCats = [
     emoji: '😐',
     keyword: '무심함',
     imageAsset: 'assets/cards36/cat_14.png',
+    videoAsset: 'assets/cards36/videos/cat_14_loop.mp4',
     story:
         '두 발로 서서 무표정한 눈빛으로 정면을 응시하는 이 고양이는 좀처럼 감정을 드러내지 않아요. 무엇에도 '
         '크게 동요하지 않는 게 편할 때도 있지만, 가끔은 그 무심함 뒤로 진짜 감정을 숨기고 있는 건 아닌지 '
@@ -233,9 +234,10 @@ final List<ShadowCat> shadowCats = [
     emoji: '⏳',
     keyword: '조바심',
     imageAsset: 'assets/cards36/cat_15.png',
+    videoAsset: 'assets/cards36/videos/cat_15_loop.mp4',
     story:
-        '굳게 닫힌 나무 문 앞에 덩그러니 앉아, 이 고양이는 안절부절못하며 문을 올려다봐요. 기다림이 길어질수록 '
-        '마음이 조급해지고, 지금 당장 답을 알고 싶어 발을 동동 구른답니다. 하지만 어떤 문은 스스로 열릴 때까지 '
+        '굳게 닫힌 나무 문 앞에서, 이 고양이는 안절부절못하며 앞발로 문을 긁어요. 기다림이 길어질수록 '
+        '마음이 조급해지고, 지금 당장 답을 알고 싶어 발톱을 세워 긁어본답니다. 하지만 어떤 문은 스스로 열릴 때까지 '
         '기다려야 해요.',
     meditationKeys: ['breathing', 'grounding', 'bodyScan'],
     comfortMessage: '기다림도 성장의 한 과정이에요. 문은 때가 되면 열려요.',
