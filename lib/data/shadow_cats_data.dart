@@ -44,6 +44,7 @@ final List<ShadowCat> shadowCats = [
     emoji: '😒',
     keyword: '질투',
     imageAsset: 'assets/cards36/cat_03.png',
+    videoAsset: 'assets/cards36/videos/cat_03_loop.mp4',
     story:
         '흰 고양이가 맛있게 밥을 먹는 모습을 곁눈질하며, 이 고양이는 뾰로통한 표정을 감추지 못해요. "왜 나는 '
         '저렇게 될 수 없을까" 하는 생각에 마음이 조급해지고, 스스로가 작아지는 기분이 든답니다. 사실 그 안엔 '
