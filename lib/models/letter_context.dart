@@ -32,7 +32,7 @@ class LetterContext {
   final DateTime now;
 
   /// 오늘 보낸 편지의 그림자 고양이(catId)가 갖고 있는 전용 위로 한 줄
-  /// ([ShadowCat.comfortMessage]). [EmotionTag]는 39종 그림자 고양이를
+  /// ([ShadowCat.comfortMessage]). [EmotionTag]는 37종 그림자 고양이를
   /// 11종으로 뭉뚱그리기 때문에("다친 고양이"→ sad로 매핑되어 "슬픔"류
   /// 문장이 나가는 등) 세밀한 뉘앙스가 사라지는 문제가 있었습니다. 이
   /// 필드가 있으면 ⑤ 위로 모듈에서 범용 문장 풀 대신 이 전용 문구를

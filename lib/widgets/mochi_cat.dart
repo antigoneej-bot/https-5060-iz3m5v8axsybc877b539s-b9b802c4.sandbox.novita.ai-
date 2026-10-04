@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 /// 마음 돌보기 탭 전용 마스코트 - 치즈태비 아기 고양이 "모찌".
 ///
 /// ⚠️ 주의: 이 애셋(assets/mochi/*)은 마음 돌보기(Heart Care) 탭 히어로
-/// 영역 전용입니다. 사용자가 키우는 39마리 그림자 고양이(AnimatedCatArt,
+/// 영역 전용입니다. 사용자가 키우는 37마리 그림자 고양이(AnimatedCatArt,
 /// assets/cards36/*)와는 완전히 별개의 캐릭터이니 혼동하지 마세요.
 ///
 /// [CatEmotion.happy]는 평소(오늘 이미 방문했거나 정상적으로 매일 오는 중)에

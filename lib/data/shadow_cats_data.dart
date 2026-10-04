@@ -1,28 +1,14 @@
 import '../models/shadow_cat.dart';
 
-/// 39마리 그림자 감정 고양이 (무료 34마리 + 유료(Basic 구독) 5마리).
-/// '감정'이라 하기엔 모호한 14종(애도·장난기·포근함·놀이·탐구·보호본능·
-/// 유머·놀람·시기·취약한 인정·창의성·리더십·확신·용기)을 정리하고, 대신
-/// 또렷한 감정인 '우울'을 추가했습니다.
+/// 37마리 그림자 감정 고양이 (전원 무료 - 유료(Basic 구독) 구분 폐지).
+/// '감정'이라 하기엔 모호한 16종(애도·장난기·포근함·놀이·탐구·보호본능·
+/// 유머·놀람·시기·취약한 인정·창의성·리더십·확신·용기·몽상·애정결핍)을
+/// 정리하고, 대신 또렷한 감정인 '우울'을 추가했습니다. 과거 유료(Basic
+/// 구독) 전용이던 5마리(냉소·서운함·열등감·두려움·죄책감)와 선택 화면에서
+/// 숨겨졌던 '몰입하는 고양이'도 모두 잠금 해제되어 전원 무료/선택 가능.
 /// - 고양이 선택(감정 체크인) 화면에서 오늘 내 기분과 닮은 고양이를 고를 때 사용
 /// - 데일리 내면소통(카드뽑기) 화면에서도 동일한 고양이들을 카드로 사용
 final List<ShadowCat> shadowCats = [
-  const ShadowCat(
-    id: 'dreamy',
-    nameKr: '몽상 고양이',
-    nameEn: 'The Dreaming Cat',
-    emoji: '🌌',
-    keyword: '몽상',
-    imageAsset: 'assets/cards36/cat_01.png',
-    videoAsset: 'assets/cards36/videos/cat_01_loop.mp4',
-    story:
-        '창가에 앉아 밤하늘 보름달을 가만히 올려다보는 이 고양이는 현실보다 상상 속에서 더 많은 시간을 보내요. '
-        '하고 싶은 일과 되고 싶은 모습을 마음속으로 그리며, 언젠가는 그 꿈에 닿을 수 있을 거라 믿고 있답니다. '
-        '다만 상상에 잠긴 나머지 가끔은 지금 이 순간을 놓치기도 해요.',
-    meditationKeys: ['mindfulThought', 'grounding', 'bodyScan'],
-    comfortMessage: '꿈꾸는 마음은 잘못이 아니에요. 오늘은 상상과 현실 사이에 다정한 다리를 놓아보세요.',
-    guidance: '오늘 떠오른 상상 하나를 아주 작은 실천으로 바꿔보세요. 예: 하고 싶었던 일 1분만 시작해보기.',
-  ),
   const ShadowCat(
     id: 'sad',
     nameKr: '슬픈 고양이',
@@ -246,22 +232,6 @@ final List<ShadowCat> shadowCats = [
     guidance: '오늘은 기다리는 동안 할 수 있는 작은 일 하나를 찾아 해보세요.',
   ),
   const ShadowCat(
-    id: 'needy',
-    nameKr: '응석부리는 고양이',
-    nameEn: 'The Needy Cat',
-    emoji: '🥹',
-    keyword: '애정결핍',
-    imageAsset: 'assets/cards36/cat_16.png',
-    videoAsset: 'assets/cards36/videos/cat_16_loop.mp4',
-    story:
-        '분홍빛 하트가 흩날리는 가운데, 이 고양이는 눈물을 글썽이며 두 앞발을 벌려 안아달라고 조르고 있어요. '
-        '누군가의 관심과 애정이 없으면 마음이 자꾸 허전해지고, 사랑받고 있다는 확신이 필요하답니다. 그 마음을 '
-        '부끄러워할 필요는 없어요.',
-    meditationKeys: ['lovingKindness', 'selfCompassion', 'writing'],
-    comfortMessage: '사랑받고 싶은 마음은 자연스러운 거예요. 먼저 나 자신을 안아주세요.',
-    guidance: '거울 속의 나를 향해 오늘 하루도 애썼다고 말해주세요.',
-  ),
-  const ShadowCat(
     id: 'selfCritical',
     nameKr: '자책하는 고양이',
     nameEn: 'The Self-Critical Cat',
@@ -401,7 +371,6 @@ final List<ShadowCat> shadowCats = [
     meditationKeys: ['mindfulThought', 'bodyScan', 'breathing'],
     comfortMessage: '몰입하는 순간, 당신은 가장 생생하게 살아있어요.',
     guidance: '오늘 몰입하고 싶은 일 하나에 방해 없이 20분만 집중해보세요.',
-    selectable: false,
   ),
   const ShadowCat(
     id: 'excited',
@@ -549,11 +518,9 @@ final List<ShadowCat> shadowCats = [
     comfortMessage: '감사는 크게 소리치지 않아도 충분해요. 지금 그 조용한 따뜻함을 그대로 느껴보세요.',
     guidance: '오늘 고마웠던 아주 작은 것 하나를 마음속으로 가만히 되새겨보세요.',
   ),
-  // ── 유료(Basic 구독) 10마리 ──
-  // 무료 34마리와 혼동되기 쉬운 감정들을 더 섬세하게 세분화한 캐릭터들입니다.
-  // isPremium: true로 표시되며, 감정체크 화면에서는 항상 노출되지만
-  // '안개' 처리로 흐리게 보이고, 탭하면 가장 가까운 무료 캐릭터를 먼저
-  // 안내합니다(alternative_emotion_mapping.dart 참조).
+  // ── 냉소·서운함·열등감·두려움·죄책감 ──
+  // 과거 유료(Basic 구독) 전용으로 분류되었던 섬세한 감정들이지만,
+  // 현재는 모든 사용자에게 무료로 제공됩니다.
   const ShadowCat(
     id: 'cynical',
     nameKr: '냉소적인 고양이',
@@ -568,7 +535,6 @@ final List<ShadowCat> shadowCats = [
     meditationKeys: ['mindfulThought', 'writing', 'noteAwareness'],
     comfortMessage: '냉소는 상처받지 않으려는 나름의 방식이었을 거예요. 그 마음도 이해받을 자격이 있어요.',
     guidance: '오늘은 시큰둥해지기 전에, 그 뒤에 숨은 진짜 기대를 한 번 들여다보세요.',
-    isPremium: true,
   ),
   const ShadowCat(
     id: 'hurtFeelings',
@@ -584,7 +550,6 @@ final List<ShadowCat> shadowCats = [
     meditationKeys: ['writing', 'selfCompassion', 'breathing'],
     comfortMessage: '서운함을 느끼는 건 그만큼 마음을 썼다는 뜻이에요. 그 마음, 작지 않아요.',
     guidance: '오늘은 서운했던 순간을 한 문장으로 적어, 스스로에게만 솔직히 인정해주세요.',
-    isPremium: true,
   ),
   const ShadowCat(
     id: 'inferior',
@@ -600,7 +565,6 @@ final List<ShadowCat> shadowCats = [
     meditationKeys: ['selfCompassion', 'lovingKindness', 'gratitudeExpansion'],
     comfortMessage: '누군가와 비교해서 매겨진 값이 당신의 전부는 아니에요. 당신은 이미 고유해요.',
     guidance: '오늘은 남과 비교하지 않고, 오직 나만이 가진 장점 하나를 떠올려보세요.',
-    isPremium: true,
   ),
   const ShadowCat(
     id: 'dread',
@@ -616,7 +580,6 @@ final List<ShadowCat> shadowCats = [
     meditationKeys: ['breathing', 'grounding', 'bodyScan'],
     comfortMessage: '두려움이 이렇게 크다는 건, 지금 당신에게 안전함이 꼭 필요하다는 신호예요.',
     guidance: '오늘은 발이 닿은 자리를 꾹꾹 눌러보며, 지금 여기가 안전하다는 걸 몸으로 확인해보세요.',
-    isPremium: true,
   ),
   const ShadowCat(
     id: 'guilty',
@@ -632,20 +595,15 @@ final List<ShadowCat> shadowCats = [
     meditationKeys: ['writing', 'selfCompassion', 'lovingKindness'],
     comfortMessage: '미안한 마음이 든다는 건, 그 관계를 소중히 여긴다는 뜻이에요. 진심을 전할 기회는 아직 있어요.',
     guidance: '오늘은 미안했던 마음을 짧게라도 그 사람에게 전해보는 걸 생각해보세요.',
-    isPremium: true,
   ),
 ];
 
 ShadowCat shadowCatById(String id) => shadowCats.firstWhere((c) => c.id == id);
 
-/// 무료로 제공되는 그림자 고양이 목록(정확히 34마리). 유료(Basic 구독)
-/// 캐릭터 5마리는 제외됩니다.
-///
-/// ⚠️ [shadowCats.length]는 무료+유료를 합친 39마리를 반환하므로, "34마리"를
-/// 목표/기준으로 안내하는 화면(졸업 앨범, 만난 고양이 수 등)에서는 절대
-/// [shadowCats.length] 대신 이 [freeShadowCats.length]를 사용해야 합니다.
-/// (유료 캐릭터는 구독하지 않으면 반려묘로 육성할 수 없어, 39를 목표로
-/// 잡으면 영원히 채울 수 없는 목표가 되어버립니다.)
+/// 무료로 제공되는 그림자 고양이 목록. 이제 유료(Basic 구독) 구분이
+/// 폐지되어 [shadowCats] 전체(37마리)와 동일합니다. 과거 코드와의
+/// 호환성을 위해 이 리스트를 유지하되, 실질적으로는 [shadowCats]를
+/// 그대로 가리킵니다.
 final List<ShadowCat> freeShadowCats = shadowCats
     .where((c) => !c.isPremium)
     .toList();

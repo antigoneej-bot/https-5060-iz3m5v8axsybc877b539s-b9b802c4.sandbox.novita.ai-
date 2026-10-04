@@ -15,14 +15,13 @@ import '../theme.dart';
 import '../widgets/garden_path_card.dart';
 import 'premium_screen.dart';
 
-/// 34마리 무료 + 5마리 유료(Basic 구독) 그림자 감정 고양이 카드 그리드에서
+/// 37마리 그림자 감정 고양이 카드 그리드에서
 /// 지금 내 기분과 닮은 고양이 한 마리를 골라 선택하는 화면.
 /// 딱딱한 사각 카드 그리드 대신, 카드마다 조금씩 다른 유기적인 블롭
 /// 모양과 파스텔 톤을 주어 정원의 화단처럼 느껴지도록 합니다.
 ///
-/// 유료 캐릭터는 항상 그리드에 노출되지만(절대 완전히 숨기지 않음), 흐림+저채도의
-/// '안개' 처리로 표시됩니다. 탭하면 곧바로 결제창으로 보내지 않고, 먼저 그
-/// 캐릭터를 짧게 소개한 뒤 가장 가까운 무료 캐릭터를 대안으로 안내합니다.
+/// (이전에는 유료(Basic 구독) 전용 캐릭터가 있었지만, 현재는 전원
+/// 무료로 전환되어 관련 안내/잠금 코드는 더 트리거되지 않습니다.)
 class CatSelectionScreen extends StatefulWidget {
   const CatSelectionScreen({super.key});
 
@@ -62,11 +61,11 @@ class _CatSelectionScreenState extends State<CatSelectionScreen>
   bool _showReassurance = false;
   bool _checkedReassurance = false;
 
-  // 성능 최적화: 카드마다 독립된 AnimationController(Ticker)를 두면 39개의
+  // 성능 최적화: 카드마다 독립된 AnimationController(Ticker)를 두면 37개의
   // 타이머가 동시에 매 프레임 재계산되어 화면이 느려지고 터치 반응이
   // 늦어집니다. 대신 화면 전체가 공유하는 단 하나의 Ticker만 두고, 카드별로
   // 속도/위상(phase)만 다르게 주어 여전히 '화단처럼 제각각 살아있는' 느낌은
-  // 유지하면서 Ticker 개수를 39개 에서 1개로 줄입니다.
+  // 유지하면서 Ticker 개수를 37개 에서 1개로 줄입니다.
   late final AnimationController _sharedFloat;
   final Map<int, _CardMotion> _motionCache = {};
 
@@ -289,7 +288,7 @@ class _ReassuranceBanner extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              '34가지 감정으로도 충분히 마음을 표현할 수 있어요',
+              '37가지 감정으로도 충분히 마음을 표현할 수 있어요',
               style: bodyFont(fontSize: 12, color: AppColors.ink, height: 1.4),
             ),
           ),

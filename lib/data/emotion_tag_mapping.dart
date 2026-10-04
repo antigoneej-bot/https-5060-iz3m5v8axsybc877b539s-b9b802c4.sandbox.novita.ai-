@@ -1,15 +1,14 @@
 import '../models/letter_tags.dart';
 
-/// 39개 그림자 고양이(`shadow_cats_data.dart`)의 `id`를 편지 시스템의
+/// 37개 그림자 고양이(`shadow_cats_data.dart`)의 `id`를 편지 시스템의
 /// 11종 [EmotionTag]로 매핑합니다.
 ///
-/// 그림자 고양이는 39종으로 세분화되어 있지만, 편지 문장 데이터는 11개의
+/// 그림자 고양이는 37종으로 세분화되어 있지만, 편지 문장 데이터는 11개의
 /// 상위 감정 축으로만 작성되어 있어(설계서 3장), 다대일 매핑이 필요합니다.
 /// 이 매핑은 각 고양이의 `keyword`(한글 감정명)와 의미가 가장 가까운
 /// [EmotionTag]를 고른 것으로, 정답이 하나만 있는 분류는 아닙니다 - 추후
 /// 필요하면 이 맵만 수정하면 됩니다(문장 데이터/엔진 코드는 그대로 둬도 됨).
 const Map<String, EmotionTag> catIdToEmotionTag = {
-  'dreamy': EmotionTag.calm, // 몽상
   'sad': EmotionTag.sad, // 슬픔
   'jealous': EmotionTag.angry, // 질투
   'angry': EmotionTag.angry, // 분노
@@ -24,7 +23,6 @@ const Map<String, EmotionTag> catIdToEmotionTag = {
   'vulnerable': EmotionTag.sad, // 상처
   'indifferent': EmotionTag.calm, // 무심함
   'impatient': EmotionTag.anxious, // 조바심
-  'needy': EmotionTag.lonely, // 애정결핍
   'selfCritical': EmotionTag.regretful, // 자책
   'depressed': EmotionTag.weary, // 우울
   'hesitant': EmotionTag.anxious, // 망설임

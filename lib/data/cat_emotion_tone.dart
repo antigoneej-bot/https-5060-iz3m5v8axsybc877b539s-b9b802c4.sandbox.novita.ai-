@@ -1,4 +1,4 @@
-/// 감정 카테고리(무료 34 + 유료 5 = 39 그림자 고양이)의 톤(긍정/중립/부정)과
+/// 감정 카테고리(전체 37 그림자 고양이, 전원 무료)의 톤(긍정/중립/부정)과
 /// 강도(고/저) 분류.
 ///
 /// ⚠️ 이 분류는 오직 '정원 날씨 시스템'의 내부 계산(연출)에만 쓰입니다.
@@ -20,9 +20,8 @@ class _ToneEntry {
   const _ToneEntry(this.tone, this.intensity);
 }
 
-/// shadow_cats_data.dart의 39개 id와 1:1로 대응합니다.
+/// shadow_cats_data.dart의 37개 id와 1:1로 대응합니다.
 const Map<String, _ToneEntry> _catEmotionTone = {
-  'dreamy': _ToneEntry(EmotionTone.neutral, EmotionIntensity.low),
   'sad': _ToneEntry(EmotionTone.negative, EmotionIntensity.high),
   'jealous': _ToneEntry(EmotionTone.negative, EmotionIntensity.low),
   'angry': _ToneEntry(EmotionTone.negative, EmotionIntensity.high),
@@ -37,7 +36,6 @@ const Map<String, _ToneEntry> _catEmotionTone = {
   'vulnerable': _ToneEntry(EmotionTone.negative, EmotionIntensity.high),
   'indifferent': _ToneEntry(EmotionTone.neutral, EmotionIntensity.low),
   'impatient': _ToneEntry(EmotionTone.negative, EmotionIntensity.low),
-  'needy': _ToneEntry(EmotionTone.negative, EmotionIntensity.low),
   'selfCritical': _ToneEntry(EmotionTone.negative, EmotionIntensity.high),
   'depressed': _ToneEntry(EmotionTone.negative, EmotionIntensity.high),
   'hesitant': _ToneEntry(EmotionTone.neutral, EmotionIntensity.low),
@@ -59,7 +57,7 @@ const Map<String, _ToneEntry> _catEmotionTone = {
   'wronged': _ToneEntry(EmotionTone.negative, EmotionIntensity.high),
   'hollow': _ToneEntry(EmotionTone.negative, EmotionIntensity.low),
   'grateful': _ToneEntry(EmotionTone.positive, EmotionIntensity.low),
-  // 유료(Basic 구독) 5마리
+  // 과거 유료(Basic 구독) 전용이었던 5마리 (현재 전원 무료)
   'cynical': _ToneEntry(EmotionTone.negative, EmotionIntensity.low),
   'hurtFeelings': _ToneEntry(EmotionTone.negative, EmotionIntensity.low),
   'inferior': _ToneEntry(EmotionTone.negative, EmotionIntensity.high),

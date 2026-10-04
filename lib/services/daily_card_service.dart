@@ -5,7 +5,7 @@ import '../models/shadow_cat.dart';
 import '../models/daily_draw_entry.dart';
 import 'storage_service.dart';
 
-/// 데일리 내면소통 - 타로카드처럼 34마리 고양이 카드를 스프레드에서 골라
+/// 데일리 내면소통 - 타로카드처럼 37마리 고양이 카드를 스프레드에서 골라
 /// 오늘의 위로와 지침을 받는 기능. 하루에 한 번만 뽑을 수 있습니다.
 ///
 /// v2부터는 매일 뽑힌 카드를 [StorageService]의 daily draw 히스토리에도

@@ -290,8 +290,8 @@ class ShareCatCardContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // ⚠️ 유료(Basic 구독) 고양이는 잠겨있으면 탭해도 "만남" 처리가 되지
-    // 않아, 비구독자는 34마리를 넘어 "만날" 수 없습니다. shadowCats.length
-    // (39)를 분모로 쓰면 영원히 채울 수 없는 목표가 되므로 무료 34마리
+    // 전원 무료로 전환되어 freeShadowCats == shadowCats(37마리)입니다. shadowCats.length
+    // 와 freeShadowCats.length는 이제 항상 같은 값(37)이지만, 과거 호환을 위해
     // 기준으로 표시합니다.
     final total = freeShadowCats.length;
     return Container(

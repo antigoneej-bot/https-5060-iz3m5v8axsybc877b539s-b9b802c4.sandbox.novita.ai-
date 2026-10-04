@@ -115,7 +115,7 @@ class HomeTabScreen extends StatelessWidget {
         ),
         const SizedBox(height: 10),
         Text(
-          '34마리 그림자 고양이를 한 마리씩 만나며,\n내 감정을 스스로 알아차리는 시간',
+          '37마리 그림자 고양이를 한 마리씩 만나며,\n내 감정을 스스로 알아차리는 시간',
           textAlign: TextAlign.center,
           style: bodyFont(
             fontSize: 13.5,
@@ -142,9 +142,9 @@ class HomeTabScreen extends StatelessWidget {
         _JourneyHero(
           metCount: app.metCatCount,
           // ⚠️ 유료(Basic 구독) 고양이는 잠겨있으면 탭해도 "만남" 처리가
-          // 되지 않아, 비구독자는 34마리를 넘어 "만날" 수 없습니다.
+          // 전원 무료로 전환되어 freeShadowCats == shadowCats(37마리)입니다.
           // shadowCats.length(39)를 분모로 쓰면 영원히 채울 수 없는 목표가
-          // 되므로 무료 34마리 기준으로 표시합니다.
+          // freeShadowCats.length 기준으로 표시합니다(현재 37).
           total: freeShadowCats.length,
           onMeetCat: onGoToCatSelect,
           onOpenGarden: () => pushFullScreen(

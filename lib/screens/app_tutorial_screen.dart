@@ -38,7 +38,7 @@ class AppTutorialScreen extends StatelessWidget {
             _FeatureBullet(
               emoji: '🐾',
               title: '그림자 고양이 여정',
-              desc: '지금까지 만난 고양이 수(무료 34마리 기준)와 진행률을 보여주고, '
+              desc: '지금까지 만난 고양이 수(총 37마리 기준)와 진행률을 보여주고, '
                   '"오늘의 고양이 만나기" 버튼으로 고양이선택 탭으로 바로 이동해요.',
             ),
             _FeatureBullet(
@@ -79,8 +79,8 @@ class AppTutorialScreen extends StatelessWidget {
             _FeatureBullet(
               emoji: '1️⃣',
               title: '고양이 고르기',
-              desc: '34마리 무료 고양이 + 5마리 정원 플러스 전용 고양이 중, '
-                  '지금 내 기분과 가장 닮은 한 마리를 직접 골라요.',
+              desc: '37마리 고양이 중, 지금 내 기분과 가장 닮은 한 마리를 '
+                  '직접 골라요.',
               badge: _Badge.free,
             ),
             _FeatureBullet(
@@ -103,14 +103,6 @@ class AppTutorialScreen extends StatelessWidget {
               emoji: '5️⃣',
               title: '마음 온도 체크 · 완료',
               desc: '편지를 쓰기 전/후 마음 온도를 기록해 변화를 남겨요.',
-            ),
-            _FeatureBullet(
-              emoji: '🔒',
-              title: '유료 고양이는 안개처리로만 노출',
-              desc: '정원 플러스 전용 5마리는 카드가 흐릿하게 보이지만 완전히 '
-                  '숨겨지진 않아요. 탭하면 소개만 볼 수 있고, 실제로 만나려면 '
-                  '구독이 필요해요.',
-              badge: _Badge.plus,
             ),
           ],
         ),
@@ -249,7 +241,7 @@ class AppTutorialScreen extends StatelessWidget {
             _FeatureBullet(
               emoji: '🎓',
               title: '졸업 앨범',
-              desc: '성체까지 다 키운 고양이를 졸업일과 함께 모아봐요. 무료 34마리 '
+              desc: '성체까지 다 키운 고양이를 졸업일과 함께 모아봐요. 37마리 '
                   '전체를 졸업시키는 게 목표예요.',
               badge: _Badge.free,
             ),
@@ -593,7 +585,9 @@ class _TutorialSectionState extends State<_TutorialSection> {
   }
 }
 
-/// 무료 34마리와 정원 플러스(구독) 5마리 + 추가 기능을 정리한 비교 카드.
+/// 무료 기능과 정원 플러스(구독) 추가 기능을 정리한 비교 카드.
+/// (과거에는 유료 전용 고양이 5마리가 있었지만, 현재는 전원 무료로
+/// 전환되어 고양이 관련 구분은 더 이상 존재하지 않습니다.)
 class _PlusComparisonCard extends StatelessWidget {
   const _PlusComparisonCard();
 
@@ -612,7 +606,7 @@ class _PlusComparisonCard extends StatelessWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  '34마리 고양이, 마음 돌보기, 명상 가이드 전체, 기록 기본 기능은 '
+                  '37마리 고양이, 마음 돌보기, 명상 가이드 전체, 기록 기본 기능은 '
                   '누구나 무료로 계속 이용할 수 있어요.',
                   style: bodyFont(fontSize: 12, color: AppColors.moon, height: 1.6),
                 ),
@@ -626,9 +620,9 @@ class _PlusComparisonCard extends StatelessWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  '정원 플러스(월 구독)는 냉소·열등감 같은 섬세한 감정의 고양이 '
-                  '5마리와, 주간 그림자 지도의 심층 분석(지난달/분기 비교, '
-                  '요일·시간대 패턴)을 추가로 열어줘요.',
+                  '정원 플러스(월 구독)는 주간 그림자 지도의 심층 분석(지난달/분기 '
+                  '비교, 요일·시간대 패턴)과 이번 달 돌아보기의 리플렉션 레터를 '
+                  '추가로 열어줘요.',
                   style: bodyFont(fontSize: 12, color: AppColors.moon, height: 1.6),
                 ),
               ),
