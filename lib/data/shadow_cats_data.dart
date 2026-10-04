@@ -269,6 +269,7 @@ final List<ShadowCat> shadowCats = [
     emoji: '🌉',
     keyword: '망설임',
     imageAsset: 'assets/cards36/cat_20.png',
+    videoAsset: 'assets/cards36/videos/cat_20_loop.mp4',
     story:
         '부서진 나무 다리 앞에서 뒤를 돌아보며, 이 고양이는 경계하는 표정을 짓고 있어요. 앞으로 나아가야 할지, '
         '돌아가야 할지 쉽게 결정하지 못하고 망설이는 시간이 길어진답니다. 다리가 흔들려 보여도, 한 걸음씩 조심히 '
