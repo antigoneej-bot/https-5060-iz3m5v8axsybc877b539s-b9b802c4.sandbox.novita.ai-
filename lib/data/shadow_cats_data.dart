@@ -187,6 +187,7 @@ final List<ShadowCat> shadowCats = [
     emoji: '😤',
     keyword: '고집',
     imageAsset: 'assets/cards36/cat_12.png',
+    videoAsset: 'assets/cards36/videos/cat_12_loop.mp4',
     story:
         '화난 표정으로 꼬리를 치켜세운 채, 이 고양이는 씩씩하게 앞만 보고 걸어가요. 한번 마음먹은 건 좀처럼 '
         '바꾸지 않고, 남의 말보다 자기 확신을 믿는 편이랍니다. 가끔은 그 고집이 스스로를 더 힘들게 만들기도 해요.',
@@ -201,6 +202,7 @@ final List<ShadowCat> shadowCats = [
     emoji: '🩹',
     keyword: '상처',
     imageAsset: 'assets/cards36/cat_13.png',
+    videoAsset: 'assets/cards36/videos/cat_13_loop.mp4',
     story:
         '다리에 붕대를 감은 채, 꽃밭 한가운데서 이 고양이는 서럽게 울고 있어요. 마음이든 몸이든 어딘가 '
         '다쳐본 이는 알아요, 아무렇지 않은 척하는 게 얼마나 힘든지. 이 고양이에게는 낫기까지 기다려줄 시간과 '
