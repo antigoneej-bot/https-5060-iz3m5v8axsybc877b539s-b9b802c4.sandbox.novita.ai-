@@ -66,6 +66,10 @@ class GardenSceneView extends StatelessWidget {
         .toList();
     final l10n = AppLocalizations.of(context);
 
+    // 화면이 커질수록(정원 상세 화면) 요소들도 비례해서 더 커 보이도록,
+    // 기준 높이(320) 대비 현재 높이의 비율을 전체 콘텐츠 스케일로 사용한다.
+    final contentScale = (height / 320.0).clamp(0.82, 1.9);
+
     return ClipRRect(
       borderRadius: BorderRadius.circular(28),
       child: SizedBox(
@@ -74,11 +78,36 @@ class GardenSceneView extends StatelessWidget {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            // 배경 정원 그림
-            Image.asset(
-              'assets/mongi/images/garden_scene_bg.png',
-              fit: BoxFit.cover,
+            // 배경 정원 그림 - 살짝 확대해 bottom 여백을 만들어, 요소들의
+            // 그림자가 "바닥" 위에 자연스럽게 얹힌 느낌을 준다.
+            Transform.scale(
+              scale: 1.04,
+              alignment: Alignment.topCenter,
+              child: Image.asset(
+                'assets/mongi/images/garden_scene_bg.png',
+                fit: BoxFit.cover,
+              ),
             ),
+
+            // 하늘 쪽 은은한 햇살 글로우 - 공간에 입체적인 빛 방향감을 준다.
+            IgnorePointer(
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: RadialGradient(
+                    center: const Alignment(-0.3, -0.75),
+                    radius: 1.1,
+                    colors: [
+                      Colors.white.withValues(alpha: 0.26),
+                      Colors.white.withValues(alpha: 0.0),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+            // 천천히 흐르는 구름 - 하늘에 느린 움직임을 더해 "살아있는 공간"
+            // 느낌과 힐링감을 더한다.
+            _DriftingCloudsOverlay(height: height, animate: motionEnabled),
 
             // 계절 색 틴트 - 배경을 다시 그리지 않고도 계절 분위기를 낸다.
             Container(
@@ -106,33 +135,14 @@ class GardenSceneView extends StatelessWidget {
             if (ambience.fireflyCount > 0)
               _FireflyOverlay(count: ambience.fireflyCount, height: height),
 
-            // 은은한 하단 그림자 (지면 느낌 강조)
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              height: height * 0.28,
-              child: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.black.withValues(alpha: 0.0),
-                      Colors.black.withValues(alpha: 0.08),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-
-            // 장착된 장식 아이템들 (데이터 기반 배치)
+            // 장착된 장식 아이템들 (데이터 기반 배치) - y좌표(깊이)에 따라
+            // 자동으로 크기/그림자가 조절되어 원근감(앞은 크고 뒤는 작게)을 낸다.
             ...GardenDecoration.all
                 .where((d) => garden.isDecorationEquipped(d))
                 .map(
                   (d) => _ScenePlacedItem(
                     alignment: d.sceneAnchor,
-                    scale: d.sceneScale,
+                    scale: d.sceneScale * contentScale,
                     child: _DecorationBadge(emoji: d.emoji),
                   ),
                 ),
@@ -143,7 +153,7 @@ class GardenSceneView extends StatelessWidget {
                 .map(
                   (i) => _ScenePlacedItem(
                     alignment: i.sceneAnchor,
-                    scale: i.sceneScale,
+                    scale: i.sceneScale * contentScale,
                     child: _DecorationBadge(emoji: i.emoji),
                   ),
                 ),
@@ -159,6 +169,7 @@ class GardenSceneView extends StatelessWidget {
                   final count = garden.seedCounts[seed.id] ?? 0;
                   return _ScenePlacedItem(
                     alignment: seed.sceneAnchor,
+                    scale: contentScale,
                     child: _SeedPot(
                       seed: seed,
                       count: count,
@@ -172,6 +183,7 @@ class GardenSceneView extends StatelessWidget {
             if (garden.treeStageIndex >= 0)
               _ScenePlacedItem(
                 alignment: const Alignment(0.0, -0.32),
+                scale: contentScale,
                 child: _GrowthTree(
                   stageIndex: garden.treeStageIndex,
                   animate: motionEnabled,
@@ -189,12 +201,15 @@ class GardenSceneView extends StatelessWidget {
                       .map(
                         (cat) => Tooltip(
                           message: cat.nameKr,
-                          child: SizedBox(
-                            width: 40,
-                            height: 44,
-                            child: Image.asset(
-                              cat.imageAsset,
-                              fit: BoxFit.contain,
+                          child: _GroundShadowWrap(
+                            scale: contentScale,
+                            child: SizedBox(
+                              width: 40 * contentScale,
+                              height: 44 * contentScale,
+                              child: Image.asset(
+                                cat.imageAsset,
+                                fit: BoxFit.contain,
+                              ),
                             ),
                           ),
                         ),
@@ -202,7 +217,55 @@ class GardenSceneView extends StatelessWidget {
                       .toList(),
                 ),
               ),
-            const Positioned(right: 16, bottom: 70, child: GardenCareTree()),
+            Positioned(
+              right: 16,
+              bottom: 70,
+              child: Transform.scale(
+                scale: contentScale,
+                alignment: Alignment.bottomRight,
+                child: const GardenCareTree(),
+              ),
+            ),
+
+            // 가장자리 비네트 - 사진 가장자리를 은은하게 어둡게 해 정원이
+            // 하나의 입체적인 공간처럼 느껴지게 한다(배경 선명도는 그대로).
+            IgnorePointer(
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: RadialGradient(
+                    center: Alignment.center,
+                    radius: 1.05,
+                    colors: [
+                      Colors.black.withValues(alpha: 0.0),
+                      Colors.black.withValues(alpha: 0.10),
+                    ],
+                    stops: const [0.74, 1.0],
+                  ),
+                ),
+              ),
+            ),
+
+            // 은은한 하단 그림자 (지면 느낌 강조)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              height: height * 0.28,
+              child: IgnorePointer(
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.black.withValues(alpha: 0.0),
+                        Colors.black.withValues(alpha: 0.1),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
             // 상단 타이틀 배지 + 계절 배지
             Positioned(
               top: 14,
@@ -322,6 +385,12 @@ class GardenSceneView extends StatelessWidget {
 }
 
 /// Alignment 기반 좌표로 씬 위에 자식을 배치하는 헬퍼.
+///
+/// [alignment]의 y값(세로 위치)을 "카메라로부터의 거리"처럼 활용해 원근감을
+/// 만든다 - 화면 아래쪽(y가 클수록 = 보는 사람과 가까운 쪽)에 놓인 요소는
+/// 살짝 더 크고 그림자가 진하게, 위쪽(먼 쪽)은 살짝 작고 그림자가 연하게
+/// 그려진다. 또한 모든 요소 아래에 타원형 그림자를 깔아 "땅 위에 실제로
+/// 놓여있다"는 입체감을 준다.
 class _ScenePlacedItem extends StatelessWidget {
   final Alignment alignment;
   final double scale;
@@ -335,9 +404,159 @@ class _ScenePlacedItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // y: -1(맨 위, 먼 곳) ~ 1(맨 아래, 가까운 곳) → depth 0~1로 정규화.
+    final depth = ((alignment.y + 1) / 2).clamp(0.0, 1.0);
+    final perspectiveScale = 0.86 + depth * 0.3; // 0.86~1.16배
+    final shadowOpacity = 0.14 + depth * 0.16; // 멀면 연하게, 가까우면 진하게
+    final shadowWidth = 34.0 * perspectiveScale * scale;
+
     return Align(
       alignment: alignment,
-      child: Transform.scale(scale: scale, child: child),
+      child: Transform.scale(
+        scale: scale * perspectiveScale,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            child,
+            Transform.translate(
+              offset: const Offset(0, -4),
+              child: Container(
+                width: shadowWidth,
+                height: shadowWidth * 0.28,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      Colors.black.withValues(alpha: shadowOpacity),
+                      Colors.black.withValues(alpha: 0.0),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// [_ScenePlacedItem]과 같은 "땅 그림자" 느낌을, 미리 Positioned로 직접
+/// 배치되는 요소(고양이 줄 등)에도 똑같이 입히기 위한 간단한 래퍼.
+class _GroundShadowWrap extends StatelessWidget {
+  final Widget child;
+  final double scale;
+  const _GroundShadowWrap({required this.child, this.scale = 1.0});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        child,
+        Transform.translate(
+          offset: const Offset(0, -3),
+          child: Container(
+            width: 30 * scale,
+            height: 8 * scale,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: RadialGradient(
+                colors: [
+                  Colors.black.withValues(alpha: 0.22),
+                  Colors.black.withValues(alpha: 0.0),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// 하늘 위를 아주 느리게 가로지르는 구름 두세 점 - 정원 씬에 조용한
+/// 움직임을 더해 "멈춰있는 그림"이 아니라 "지금 살아있는 공간"처럼
+/// 느껴지게 한다. 계절/시간과 무관하게 항상 은은하게 떠 있는다.
+class _DriftingCloudsOverlay extends StatefulWidget {
+  final double height;
+  final bool animate;
+  const _DriftingCloudsOverlay({required this.height, this.animate = true});
+
+  @override
+  State<_DriftingCloudsOverlay> createState() =>
+      _DriftingCloudsOverlayState();
+}
+
+class _DriftingCloudsOverlayState extends State<_DriftingCloudsOverlay>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(seconds: 50),
+  );
+
+  static const _specs = [
+    (startX: -0.3, y: 0.08, size: 46.0, speed: 1.0, opacity: 0.5),
+    (startX: 0.3, y: 0.16, size: 34.0, speed: 1.4, opacity: 0.4),
+    (startX: -0.7, y: 0.03, size: 28.0, speed: 0.7, opacity: 0.35),
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.animate) _controller.repeat();
+  }
+
+  @override
+  void didUpdateWidget(_DriftingCloudsOverlay oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.animate && !oldWidget.animate) {
+      _controller.repeat();
+    } else if (!widget.animate && oldWidget.animate) {
+      _controller.stop();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final width = constraints.maxWidth.isFinite
+              ? constraints.maxWidth
+              : 320.0;
+          return AnimatedBuilder(
+            animation: _controller,
+            builder: (context, _) {
+              return Stack(
+                children: _specs.map((spec) {
+                  final t = (_controller.value * spec.speed) % 1.0;
+                  // 화면 왼쪽 밖에서 오른쪽 밖까지 천천히 흘러간다.
+                  final x = (spec.startX + t * 1.6) * width;
+                  return Positioned(
+                    left: x,
+                    top: spec.y * widget.height,
+                    child: Opacity(
+                      opacity: spec.opacity,
+                      child: Icon(
+                        Icons.cloud_rounded,
+                        size: spec.size,
+                        color: Colors.white,
+                      ),
+                    ),
+                  );
+                }).toList(),
+              );
+            },
+          );
+        },
+      ),
     );
   }
 }

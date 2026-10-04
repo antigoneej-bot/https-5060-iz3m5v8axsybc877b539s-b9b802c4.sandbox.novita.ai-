@@ -108,7 +108,7 @@ class _UnifiedGardenPanelState extends State<UnifiedGardenPanel> {
             icon: const Icon(Icons.menu_book),
             label: const Text('몽이의 정원 이야기'),
           ),
-          const GardenSceneView(),
+          const GardenSceneView(height: 460),
           GardenCareNote(data: data),
           GardenMomentsCard(data: data, catCount: cats.length),
           OutlinedButton.icon(

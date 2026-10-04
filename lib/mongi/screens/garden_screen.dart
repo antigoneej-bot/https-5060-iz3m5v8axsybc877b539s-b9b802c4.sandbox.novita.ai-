@@ -51,7 +51,7 @@ class GardenScreen extends StatelessWidget {
                     children: [
                       _buildSummaryCard(context, garden),
                       const SizedBox(height: 20),
-                      const GardenSceneView(),
+                      const GardenSceneView(height: 460),
                       const SizedBox(height: 6),
                       Text(
                         AppLocalizations.of(context).gardenTapHint,
