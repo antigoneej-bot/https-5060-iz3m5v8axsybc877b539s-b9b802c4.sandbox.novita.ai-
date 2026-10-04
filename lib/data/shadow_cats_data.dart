@@ -124,6 +124,7 @@ final List<ShadowCat> shadowCats = [
     emoji: '😰',
     keyword: '불안',
     imageAsset: 'assets/cards36/cat_08.png',
+    videoAsset: 'assets/cards36/videos/cat_08_loop.mp4',
     story:
         '걱정 가득한 눈빛으로 앞발을 모아 입가에 댄 채, 이 고양이는 안절부절못하고 있어요. 아직 일어나지도 '
         '않은 일들을 미리 상상하며 불안해하고, 작은 소리에도 화들짝 놀란답니다. 사실 이 고양이는 그저 자신을 '
@@ -139,6 +140,7 @@ final List<ShadowCat> shadowCats = [
     emoji: '🥺',
     keyword: '외로움',
     imageAsset: 'assets/cards36/cat_09.png',
+    videoAsset: 'assets/cards36/videos/cat_09_loop.mp4',
     story:
         '어두운 먹구름 아래, 이 고양이는 몸을 둥글게 웅크린 채 외로운 눈빛으로 정면을 바라봐요. 곁에 아무도 '
         '없다고 느껴질 때면 마음 한구석이 텅 빈 것처럼 시려온답니다. 다가가고 싶지만 상처받을까 두려워 조용히 '
