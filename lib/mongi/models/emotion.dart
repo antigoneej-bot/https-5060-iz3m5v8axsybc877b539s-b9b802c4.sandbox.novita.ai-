@@ -27,6 +27,9 @@ enum EmotionType {
   courage,
   thrill,
   happiness,
+  // 추가된 감정 2가지 (삐짐/소외감 - 둘 다 부정 쪽)
+  sulking,
+  exclusion,
 }
 
 /// 감정 하나에 대한 모든 정보(이름, 이미지, 컬러, 대사)를 담는 모델
@@ -319,6 +322,31 @@ class Emotion {
       gardenIcon: '☀️',
       storyText:
           '행복 햇살은 반짝하고 사라지는 기쁨과 달리, 잔잔하고 오래도록 마음을 데워줘요. 특별한 일이 없어도 하루하루가 괜찮다고 느껴질 때, 이 햇살이 은은하게 비춘답니다.',
+    ),
+    // --- 여기부터 추가된 감정 2가지: 삐짐/소외감 (둘 다 부정적 감정) ---
+    Emotion(
+      type: EmotionType.sulking,
+      label: '삐짐',
+      emoji: '😤',
+      monsterAsset: 'assets/mongi/images/monster_sulking_pout.png',
+      color: Color(0xFFD98C9A),
+      catQuestion: '입이 쭉 나온 삐짐이네. 서운한 게 있었나 보다.',
+      healMessage: '쭉 나왔던 입이 스르륵 들어가고\n마음이 몽글몽글 풀렸어요 🎀',
+      gardenIcon: '🎀',
+      storyText:
+          '삐짐이는 화내고 싶은 건 아닌데 마음은 서운할 때, 말없이 입을 쭉 내밀어요. 사실 "나한테 좀 더 신경 써줘"라는 작고 귀여운 투정이에요. 서운함을 알아주기만 해도, 삐짐이는 금방 몽글몽글 풀려요.',
+    ),
+    Emotion(
+      type: EmotionType.exclusion,
+      label: '소외감',
+      emoji: '🫥',
+      monsterAsset: 'assets/mongi/images/monster_exclusion_fade.png',
+      color: Color(0xFF8E9BAE),
+      catQuestion: '혼자 희미해지던 소외감이구나. 나만 빼놓은 것 같았지.',
+      healMessage: '희미했던 몸이 다시 또렷해지고\n함께하는 자리에 스며들었어요 🧩',
+      gardenIcon: '🧩',
+      storyText:
+          '소외감이는 다른 사람들 사이에서 나만 끼지 못한 것 같을 때, 점점 희미해지는 느낌이 들어요. 외로움과 비슷하지만, 소외감은 "같이 있고 싶은데 못 끼었다"는 아쉬움이 더 커요. 그 마음을 꺼내 보여주면, 다시 또렷하게 자리를 찾을 수 있어요.',
     ),
   ];
 }

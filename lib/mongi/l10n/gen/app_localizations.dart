@@ -5087,6 +5087,18 @@ abstract class AppLocalizations {
   /// **'행복'**
   String get emotionLabelHappiness;
 
+  /// 감정 라벨 - sulking
+  ///
+  /// In ko, this message translates to:
+  /// **'삐짐'**
+  String get emotionLabelSulking;
+
+  /// 감정 라벨 - exclusion
+  ///
+  /// In ko, this message translates to:
+  /// **'소외감'**
+  String get emotionLabelExclusion;
+
   /// 몬스터 등장 시 몽이 대사 - hate
   ///
   /// In ko, this message translates to:
@@ -5206,6 +5218,18 @@ abstract class AppLocalizations {
   /// In ko, this message translates to:
   /// **'포근한 행복 햇살이네. 마음 가득 따뜻했나 보다.'**
   String get emotionCatQuestionHappiness;
+
+  /// 몬스터 등장 시 몽이 대사 - sulking
+  ///
+  /// In ko, this message translates to:
+  /// **'입이 쭉 나온 삐짐이네. 서운한 게 있었나 보다.'**
+  String get emotionCatQuestionSulking;
+
+  /// 몬스터 등장 시 몽이 대사 - exclusion
+  ///
+  /// In ko, this message translates to:
+  /// **'혼자 희미해지던 소외감이구나. 나만 빼놓은 것 같았지.'**
+  String get emotionCatQuestionExclusion;
 
   /// 먹고 난 뒤 위로 메시지 - hate
   ///
@@ -5327,6 +5351,18 @@ abstract class AppLocalizations {
   /// **'따스한 볕이 마음 구석구석까지 스며들어\n은은하게 오래 남아요 ☀️'**
   String get emotionHealMessageHappiness;
 
+  /// 먹고 난 뒤 위로 메시지 - sulking
+  ///
+  /// In ko, this message translates to:
+  /// **'쭉 나왔던 입이 스르륵 들어가고\n마음이 몽글몽글 풀렸어요 🎀'**
+  String get emotionHealMessageSulking;
+
+  /// 먹고 난 뒤 위로 메시지 - exclusion
+  ///
+  /// In ko, this message translates to:
+  /// **'희미했던 몸이 다시 또렷해지고\n함께하는 자리에 스며들었어요 🧩'**
+  String get emotionHealMessageExclusion;
+
   /// 감정 컬렉션 도감 스토리 - hate
   ///
   /// In ko, this message translates to:
@@ -5446,6 +5482,18 @@ abstract class AppLocalizations {
   /// In ko, this message translates to:
   /// **'행복 햇살은 반짝하고 사라지는 기쁨과 달리, 잔잔하고 오래도록 마음을 데워줘요. 특별한 일이 없어도 하루하루가 괜찮다고 느껴질 때, 이 햇살이 은은하게 비춘답니다.'**
   String get emotionStoryTextHappiness;
+
+  /// 감정 컬렉션 도감 소개 글 - sulking
+  ///
+  /// In ko, this message translates to:
+  /// **'삐짐이는 화내고 싶은 건 아닌데 마음은 서운할 때, 말없이 입을 쭉 내밀어요. 사실 "나한테 좀 더 신경 써줘"라는 작고 귀여운 투정이에요. 서운함을 알아주기만 해도, 삐짐이는 금방 몽글몽글 풀려요.'**
+  String get emotionStoryTextSulking;
+
+  /// 감정 컬렉션 도감 소개 글 - exclusion
+  ///
+  /// In ko, this message translates to:
+  /// **'소외감이는 다른 사람들 사이에서 나만 끼지 못한 것 같을 때, 점점 희미해지는 느낌이 들어요. 외로움과 비슷하지만, 소외감은 "같이 있고 싶은데 못 끼었다"는 아쉬움이 더 커요. 그 마음을 꺼내 보여주면, 다시 또렷하게 자리를 찾을 수 있어요.'**
+  String get emotionStoryTextExclusion;
 
   /// 진화 단계 이름 0 - hate
   ///
@@ -5926,6 +5974,54 @@ abstract class AppLocalizations {
   /// In ko, this message translates to:
   /// **'영원한햇살'**
   String get evolutionNameHappiness3;
+
+  /// 진화 단계 이름 0 - sulking
+  ///
+  /// In ko, this message translates to:
+  /// **'삐짐이'**
+  String get evolutionNameSulking0;
+
+  /// 진화 단계 이름 1 - sulking
+  ///
+  /// In ko, this message translates to:
+  /// **'풀린삐짐'**
+  String get evolutionNameSulking1;
+
+  /// 진화 단계 이름 2 - sulking
+  ///
+  /// In ko, this message translates to:
+  /// **'싱긋삐짐'**
+  String get evolutionNameSulking2;
+
+  /// 진화 단계 이름 3 - sulking
+  ///
+  /// In ko, this message translates to:
+  /// **'활짝리본'**
+  String get evolutionNameSulking3;
+
+  /// 진화 단계 이름 0 - exclusion
+  ///
+  /// In ko, this message translates to:
+  /// **'소외감'**
+  String get evolutionNameExclusion0;
+
+  /// 진화 단계 이름 1 - exclusion
+  ///
+  /// In ko, this message translates to:
+  /// **'어렴풋이'**
+  String get evolutionNameExclusion1;
+
+  /// 진화 단계 이름 2 - exclusion
+  ///
+  /// In ko, this message translates to:
+  /// **'또렷이'**
+  String get evolutionNameExclusion2;
+
+  /// 진화 단계 이름 3 - exclusion
+  ///
+  /// In ko, this message translates to:
+  /// **'함께조각'**
+  String get evolutionNameExclusion3;
 
   /// 몬스터를 먹는 순간 뜨는 한 줄(1회)
   ///

@@ -3112,6 +3112,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get emotionLabelHappiness => 'Happiness';
 
   @override
+  String get emotionLabelSulking => 'Sulking';
+
+  @override
+  String get emotionLabelExclusion => 'Exclusion';
+
+  @override
   String get emotionCatQuestionHate =>
       'This is... a Hate Bean. You\'ve been holding onto it for a while, huh.';
 
@@ -3190,6 +3196,14 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get emotionCatQuestionHappiness =>
       'A cozy Happiness Sunshine. Your heart must feel full and warm.';
+
+  @override
+  String get emotionCatQuestionSulking =>
+      'A pouty Sulking with lips stuck out. Something must\'ve made you feel hurt.';
+
+  @override
+  String get emotionCatQuestionExclusion =>
+      'An Exclusion, fading away all alone. Felt like you were the only one left out, huh.';
 
   @override
   String get emotionHealMessageHate =>
@@ -3272,6 +3286,14 @@ class AppLocalizationsEn extends AppLocalizations {
       'The warm sunshine has seeped\ninto every corner of the heart, lingering softly ☀️';
 
   @override
+  String get emotionHealMessageSulking =>
+      'The pouty lips have softened back in,\nand the heart feels light and fluffy again 🎀';
+
+  @override
+  String get emotionHealMessageExclusion =>
+      'The fading body has come back into focus,\nblending softly into the circle again 🧩';
+
+  @override
   String get emotionStoryTextHate =>
       'A Hate Bean grows harder the longer you keep it inside. Disliking someone is sometimes proof of how much you once cared. Bring it out into the open, and a flower can bloom in its place.';
 
@@ -3350,6 +3372,14 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get emotionStoryTextHappiness =>
       'Unlike Joy, which sparkles and fades quickly, Happiness Sunshine warms your heart gently and for a long time. Even without anything special happening, when each day just feels okay, this sunshine quietly shines through.';
+
+  @override
+  String get emotionStoryTextSulking =>
+      'Sulking isn\'t about wanting to get angry - it\'s a quiet pout that shows up when your heart feels hurt. It\'s really a small, cute way of saying "please pay a little more attention to me." Just being noticed is often enough to melt it away.';
+
+  @override
+  String get emotionStoryTextExclusion =>
+      'Exclusion creeps in when it feels like everyone else belongs except you, slowly fading you out. It\'s similar to Loneliness, but Exclusion carries a sharper ache of wanting to be included and not quite making it in. Showing that feeling to someone helps you come back into focus again.';
 
   @override
   String get evolutionNameHate0 => 'Hate Bean';
@@ -3590,6 +3620,30 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get evolutionNameHappiness3 => 'Eternal Sunshine';
+
+  @override
+  String get evolutionNameSulking0 => 'Sulky';
+
+  @override
+  String get evolutionNameSulking1 => 'Softened Sulky';
+
+  @override
+  String get evolutionNameSulking2 => 'Smiley Sulky';
+
+  @override
+  String get evolutionNameSulking3 => 'Beaming Bloom';
+
+  @override
+  String get evolutionNameExclusion0 => 'Exclusion';
+
+  @override
+  String get evolutionNameExclusion1 => 'Fading Soul';
+
+  @override
+  String get evolutionNameExclusion2 => 'Returning Soul';
+
+  @override
+  String get evolutionNameExclusion3 => 'Belonging Piece';
 
   @override
   String gameEatenLineSingle(String label) {
