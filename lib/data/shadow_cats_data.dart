@@ -254,6 +254,7 @@ final List<ShadowCat> shadowCats = [
     emoji: '🌧️',
     keyword: '우울',
     imageAsset: 'assets/cards36/cat_19.png',
+    videoAsset: 'assets/cards36/videos/cat_19_loop.mp4',
     story:
         '작은 회색 비구름을 머리 위에 인 채, 이 고양이는 바닥에 축 늘어져 멍하니 눈을 내리깔고 있어요. '
         '특별히 슬픈 일이 있었던 것도 아닌데, 마음에 무거운 회색빛이 가만히 내려앉아 좀처럼 걷히지 않는답니다. '
@@ -288,6 +289,7 @@ final List<ShadowCat> shadowCats = [
     emoji: '😪',
     keyword: '피곤',
     imageAsset: 'assets/cards36/cat_22.png',
+    videoAsset: 'assets/cards36/videos/cat_22_loop.mp4',
     story:
         '보라색 꽃송이를 지붕 삼아, 이 고양이는 몸을 잔뜩 웅크린 채 눈을 반쯤 내려감고 있어요. 힘든 걸 애써 '
         '누르고 티 내지 않으려 버텨온 하루였답니다. 겉으론 괜찮아 보이려 했지만, 사실은 쉬고 싶다는 말을 '
