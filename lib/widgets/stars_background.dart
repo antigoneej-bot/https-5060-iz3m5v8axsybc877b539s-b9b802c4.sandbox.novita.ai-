@@ -220,7 +220,23 @@ class _LeafCluster extends StatelessWidget {
 /// 살짝 흔들리는 나뭇잎 + 배경 속을 오가는 그림자 고양이들
 class GardenScaffoldBackground extends StatelessWidget {
   final Widget child;
-  const GardenScaffoldBackground({super.key, required this.child});
+
+  /// 배경 속 떠다니는 고양이 크기 배율(1.0 = 기존 크기). 첫 화면처럼 특정
+  /// 화면에서만 고양이를 더 작게 보이고 싶을 때 지정합니다. 지정하지 않으면
+  /// 다른 모든 화면은 기존과 동일한 크기를 유지합니다.
+  final double ambientCatScale;
+
+  /// true면 배경 고양이의 제자리 숨쉬기 펄스·걷기 이동을 줄이고 눈 깜빡임과
+  /// 작은 꼬리 흔들림 위주로 차분하게 움직이게 합니다. 지정하지 않으면
+  /// 기존 동작(걷기 + 숨쉬기 펄스)을 그대로 유지합니다.
+  final bool calmAmbientCats;
+
+  const GardenScaffoldBackground({
+    super.key,
+    required this.child,
+    this.ambientCatScale = 1.0,
+    this.calmAmbientCats = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -243,7 +259,12 @@ class GardenScaffoldBackground extends StatelessWidget {
           const Positioned.fill(child: StarsBackground()),
           const Positioned.fill(child: _SwayingLeavesLayer()),
           Positioned.fill(child: GardenWeatherLayer(kind: weather.kind)),
-          const Positioned.fill(child: AmbientCatGardenLayer()),
+          Positioned.fill(
+            child: AmbientCatGardenLayer(
+              scale: ambientCatScale,
+              calmMotion: calmAmbientCats,
+            ),
+          ),
           child,
         ],
       ),

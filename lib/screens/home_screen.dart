@@ -159,9 +159,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       });
     }
 
+    // 첫 화면(홈 탭)에서만 배경 고양이를 더 작고 차분하게 보이도록 합니다.
+    // 고양이선택/명상/기록/마이 탭과 다른 화면들의 고양이 크기·움직임은
+    // 그대로 유지됩니다.
+    final isHomeTab = _navIndex == 0;
     return Scaffold(
       extendBody: true,
       body: GardenScaffoldBackground(
+        ambientCatScale: isHomeTab ? 0.62 : 1.0,
+        calmAmbientCats: isHomeTab,
         child: SafeArea(
           bottom: false,
           child: Stack(

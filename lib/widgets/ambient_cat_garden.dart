@@ -12,7 +12,21 @@ import '../theme.dart';
 ///   AnimationController 1개만 사용해 모든 동작(걷기/앉기/꼬리흔들기/눈깜빡임/
 ///   고개돌리기/식물 뒤에서 나타나기)을 하나의 시간값에서 파생시킵니다.
 class AmbientCatGardenLayer extends StatelessWidget {
-  const AmbientCatGardenLayer({super.key});
+  /// 고양이 크기 배율(1.0 = 기존 크기). 특정 화면에서만 고양이를 더 작게
+  /// 보이게 하고 싶을 때(예: 첫 화면) 1.0보다 작은 값을 전달합니다.
+  /// 다른 화면들은 이 값을 지정하지 않으면 그대로 기존 크기를 유지합니다.
+  final double scale;
+
+  /// true면 제자리에서 몸 전체가 커졌다 작아지거나(숨쉬기 펄스) 좌우로
+  /// 기울어지는(꼬리/고개 흔들림을 흉내 낸 전신 회전) 움직임을 크게 줄이고,
+  /// 눈 깜빡임과 아주 작은 흔들림 위주로 차분하게 표현합니다.
+  final bool calmMotion;
+
+  const AmbientCatGardenLayer({
+    super.key,
+    this.scale = 1.0,
+    this.calmMotion = false,
+  });
 
   static const List<_AmbientCatSpec> _specs = [
     _AmbientCatSpec(
@@ -68,7 +82,13 @@ class AmbientCatGardenLayer extends StatelessWidget {
       child: Stack(
         children: [
           for (final spec in _specs)
-            RepaintBoundary(child: _AmbientCat(spec: spec)),
+            RepaintBoundary(
+              child: _AmbientCat(
+                spec: spec,
+                scale: scale,
+                calmMotion: calmMotion,
+              ),
+            ),
         ],
       ),
     );
@@ -96,7 +116,13 @@ class _AmbientCatSpec {
 
 class _AmbientCat extends StatefulWidget {
   final _AmbientCatSpec spec;
-  const _AmbientCat({required this.spec});
+  final double scale;
+  final bool calmMotion;
+  const _AmbientCat({
+    required this.spec,
+    this.scale = 1.0,
+    this.calmMotion = false,
+  });
 
   @override
   State<_AmbientCat> createState() => _AmbientCatState();
@@ -124,7 +150,11 @@ class _AmbientCatState extends State<_AmbientCat>
   @override
   Widget build(BuildContext context) {
     final cat = shadowCatById(widget.spec.catId);
-    final size = widget.spec.size;
+    // 화면별로 고양이를 더 작게 보이고 싶을 때(예: 첫 화면) scale(<1.0)을
+    // 곱해 크기를 줄입니다. 그림자/받침(식물)도 같은 size를 쓰므로 비율이
+    // 그대로 유지되어, 작아진 몸집에 맞게 발이 닿는 자리와 그림자도 함께
+    // 작아집니다.
+    final size = widget.spec.size * widget.scale;
     return Align(
       alignment: widget.spec.alignment,
       child: SizedBox(
@@ -230,12 +260,17 @@ class _AmbientCatState extends State<_AmbientCat>
     }
     if (tp < activeEnd) {
       final t = (tp - emergeEnd) / (activeEnd - emergeEnd);
-      // 걷기: 느리고 부드러운 왕복 이동
-      final dx = widget.spec.walkRange * sin(t * 2 * pi);
+      // calmMotion(예: 첫 화면)에서는 제자리에서 몸 전체가 커졌다 작아지는
+      // 숨쉬기 펄스와 좌우로 걷는 이동·몸 기울임을 크게 줄여, 눈 깜빡임과
+      // 아주 작은 꼬리 흔들림 정도만 남깁니다.
+      final walkRange = widget.calmMotion ? 0.0 : widget.spec.walkRange;
+      final breatheAmp = widget.calmMotion ? 0.0 : 0.018;
+      final tailAmp = widget.calmMotion ? 0.018 : 0.05;
+      // 걷기: 느리고 부드러운 왕복 이동 (calmMotion에서는 비활성화)
+      final dx = walkRange * sin(t * 2 * pi);
       // 앉아 숨쉬는 듯한 미세한 스케일 펄스 + 꼬리 흔들림을 암시하는 아주 작은 회전
-      final breathe =
-          1.0 + 0.018 * sin(t * 2 * pi * 5 + widget.spec.phase * 10);
-      final tailAndTurn = 0.05 * sin(t * 2 * pi * 1.3 + widget.spec.phase * 7);
+      final breathe = 1.0 + breatheAmp * sin(t * 2 * pi * 5 + widget.spec.phase * 10);
+      final tailAndTurn = tailAmp * sin(t * 2 * pi * 1.3 + widget.spec.phase * 7);
       // 눈 깜빡임: 활동 구간 동안 짧게 세 번 정도 깜빡입니다.
       final blinkFrac = (t * 3) % 1.0;
       final blink = blinkFrac > 0.95 ? 0.3 : 1.0;
