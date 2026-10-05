@@ -137,16 +137,24 @@ class CloudService {
   /// 씨앗 수/장착 장식/나무 단계만 담아야 한다 - 일기·기록 내용은 절대
   /// 포함하지 않는다(서버도 알려진 필드만 받아들이도록 검증한다).
   static Future<void> publishGarden({
+    Map<String, dynamic>? layout,
     required Map<String, int> seedCounts,
     required List<String> equippedDecorationIds,
     required int treeStageIndex,
+    int memoryTreeStage = 0,
+    bool hasCheerFlowers = false,
+    List<String> flowerKinds = const [],
     String? nickname,
   }) async {
     await call('publishGarden', {
       'snapshot': {
+        if (layout != null) 'layout': layout,
         'seedCounts': seedCounts,
         'equippedDecorationIds': equippedDecorationIds,
         'treeStageIndex': treeStageIndex,
+        'memoryTreeStage': memoryTreeStage,
+        'hasCheerFlowers': hasCheerFlowers,
+        'flowerKinds': flowerKinds,
       },
       if (nickname != null) 'nickname': nickname,
     });
@@ -170,9 +178,13 @@ class CloudService {
     required String gardenId,
     required int messageIndex,
     int giftLightEssence = 0,
+    String flowerKind = 'daisy',
+    String? reaction,
   }) => call('sendPublicCheer', {
     'gardenId': gardenId,
     'messageIndex': messageIndex,
+    'flowerKind': flowerKind,
+    'reaction': reaction,
     'giftLightEssence': giftLightEssence,
   });
 
@@ -186,6 +198,21 @@ class CloudService {
 
   /// 받은 응원 하나를 확인 처리하고, 함께 온 빛의 정수 선물을 수령한다.
   /// 이미 확인한 응원이면 서버가 0을 돌려준다(중복 지급 방지).
+  static Future<void> confirmFlowerPlanted(String id, String flowerKind) async {
+    final result = await call('confirmFlowerPlanted', {
+      'id': id,
+      'flowerKind': flowerKind,
+    });
+    if (result['confirmed'] != true) throw StateError('꽃 소식을 확인하지 못했어요.');
+  }
+
+  static Future<List<Map<String, dynamic>>> listFlowerBlooms() async {
+    final result = await call('listFlowerBlooms');
+    return (result['blooms'] as List? ?? [])
+        .map((e) => Map<String, dynamic>.from(e as Map))
+        .toList();
+  }
+
   static Future<int> claimCheer(String id) async {
     final result = await call('claimCheer', {'id': id});
     return (result['amount'] as num?)?.toInt() ?? 0;
@@ -240,11 +267,10 @@ class CloudService {
 
   /// 선착순 예약을 신청한다. 정원이 다 찼거나 이미 신청했거나 마감된
   /// 소식이면 서버가 거부한다(중복신청/초과신청 방지).
-  static Future<void> reserveGardenNews(String newsId, {String? note}) =>
-      call('reserveGardenNews', {
-        'newsId': newsId,
-        if (note != null) 'note': note,
-      });
+  static Future<void> reserveGardenNews(String newsId, {String? note}) => call(
+    'reserveGardenNews',
+    {'newsId': newsId, if (note != null) 'note': note},
+  );
 
   /// 신청을 취소한다. 신청한 적이 없으면 조용히 아무 일도 하지 않는다
   /// (멱등적 동작).

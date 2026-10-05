@@ -118,6 +118,20 @@ class MongiGardenStore extends ValueNotifier<MongiGardenData> {
     if (eligible) await _change((data) => data.claimRecordDay(today));
   }
 
+  Future<void> reconcileRecordedDays({DateTime? now}) async {
+    final today = MongiGardenData.dayKey(now ?? DateTime.now());
+    final dates = StorageService.getAllLetters()
+        .where(
+          (entry) =>
+              entry.letterText.trim().isNotEmpty ||
+              (entry.moodEmoji?.isNotEmpty ?? false),
+        )
+        .map((entry) => entry.date.toLocal())
+        .where((date) => MongiGardenData.dayKey(date).compareTo(today) <= 0)
+        .toList();
+    await _change((data) => data.reconcileRecordDays(dates));
+  }
+
   Future<void> claimCompletedCare({DateTime? now, bool meditation = false}) =>
       _change((data) {
         final today = now ?? DateTime.now();

@@ -1,3 +1,5 @@
+import '../mongi/widgets/garden_record_card.dart';
+import '../mongi/screens/garden_world_screen.dart';
 import '../models/reply_style.dart';
 import '../widgets/reply_style_picker.dart';
 import '../services/draft_service.dart';
@@ -36,8 +38,11 @@ class _MeditationFlowScreenState extends State<MeditationFlowScreen> {
   @override
   void initState() {
     super.initState();
-    _letterController = DraftTextController('letter_${context.read<AppStateProvider>().selectedCat!.id}');
+    _letterController = DraftTextController(
+      'letter_${context.read<AppStateProvider>().selectedCat!.id}',
+    );
   }
+
   String? _moodEmoji;
   FlowStage? _lastStage;
 
@@ -105,9 +110,9 @@ class _StoryStage extends StatelessWidget {
     final onboardingDone = await StorageService.isOnboardingCompleted();
     if (!context.mounted) return;
     if (!onboardingDone) {
-      await Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => OnboardingFlowScreen(cat: cat)),
-      );
+      await Navigator.of(
+        context,
+      ).push(MaterialPageRoute(builder: (_) => OnboardingFlowScreen(cat: cat)));
       return;
     }
     context.read<AppStateProvider>().goToLetter();
@@ -231,15 +236,24 @@ class _LetterStageState extends State<_LetterStage> {
         },
       );
       if (widget.controller is DraftTextController) {
-        try { await (widget.controller as DraftTextController).discard(); }
-        catch (_) {
-          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content:Text('편지는 저장됐어요. 초안을 정리하지 못했지만 다시 보낼 필요는 없어요.')));
+        try {
+          await (widget.controller as DraftTextController).discard();
+        } catch (_) {
+          if (mounted)
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('편지는 저장됐어요. 초안을 정리하지 못했지만 다시 보낼 필요는 없어요.'),
+              ),
+            );
         }
       }
     } catch (_) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content:Text('저장 완료를 확인하지 못했어요. 내용은 유지돼요. 다시 눌러 저장을 확인해 주세요.')));
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('저장 완료를 확인하지 못했어요. 내용은 유지돼요. 다시 눌러 저장을 확인해 주세요.'),
+          ),
+        );
     } finally {
       if (mounted) setState(() => _sending = false);
     }
@@ -288,12 +302,27 @@ class _LetterStageState extends State<_LetterStage> {
           const SizedBox(height: 16),
           JournalBox(
             question: '${widget.cat.nameKr}에게, 하고 싶은 말이 있나요?',
-            hint: '짧아도 괜찮아요. 이건 나를 들여다보는 기록이에요.',
+            hint: '오늘 있었던 일이나 지금 마음을 한 줄만 남겨도 괜찮아요.',
             controller: widget.controller,
           ),
+          TextButton.icon(
+            onPressed: _sending
+                ? null
+                : () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const GardenWorldScreen(),
+                    ),
+                  ),
+            icon: const Icon(Icons.park_outlined),
+            label: const Text('오늘은 기록 없이 정원에서 쉴래요'),
+          ),
           const SizedBox(height: 14),
-          ReplyStylePicker(value:_replyStyle, enabled:!_sending, onChanged:(value)=>setState(()=>_replyStyle=value)),
-          const SizedBox(height:14),
+          ReplyStylePicker(
+            value: _replyStyle,
+            enabled: !_sending,
+            onChanged: (value) => setState(() => _replyStyle = value),
+          ),
+          const SizedBox(height: 14),
           MoodPicker(
             selectedEmoji: widget.moodEmoji,
             onChanged: widget.onMoodChanged,
@@ -375,7 +404,10 @@ class _MeditationStageState extends State<_MeditationStage> {
         }());
       }
     } catch (_) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('돌봄 보상을 저장하지 못했어요. 다시 완료해 주세요.')));
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('돌봄 보상을 저장하지 못했어요. 다시 완료해 주세요.')),
+        );
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -410,13 +442,17 @@ class _MeditationStageState extends State<_MeditationStage> {
           const SizedBox(height: 4),
           Center(
             child: Text(
-              '마음 온도가 1도 올랐어요 · 아래는 선택사항이에요',
+              '편지는 저장됐어요 · 아래 명상은 선택사항이에요',
               style: bodyFont(fontSize: 12, color: AppColors.inkSoft),
               textAlign: TextAlign.center,
             ),
           ),
+          const SizedBox(height: 12),
+          const GardenRecordCard(),
           const SizedBox(height: 18),
-          Center(child: AnimatedCatArt(imageAsset: widget.cat.imageAsset, size: 88)),
+          Center(
+            child: AnimatedCatArt(imageAsset: widget.cat.imageAsset, size: 88),
+          ),
           const SizedBox(height: 8),
           Center(
             child: Text(
@@ -592,6 +628,8 @@ class _DoneStage extends StatelessWidget {
             ),
             textAlign: TextAlign.center,
           ),
+          const SizedBox(height: 16),
+          const GardenRecordCard(),
           const SizedBox(height: 20),
           OutlinedButton.icon(
             onPressed: () {

@@ -1,3 +1,5 @@
+import 'package:provider/provider.dart';
+import '../providers/cat_care_provider.dart';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import '../services/storage_service.dart';
@@ -73,8 +75,8 @@ class _WelcomeIntroScreenState extends State<WelcomeIntroScreen> {
     ),
     _IntroPageData(
       imageAsset: 'assets/onboarding_intro/intro_3_growth.png',
-      title: '오늘의 마음을 닮은 고양이를 만나\n그림자를 인정하고 받아들이세요.',
-      subtitle: '그러면 당신의 마음고양이와 함께 성장합니다.\n내면소통 \'마음냥 정원\'',
+      title: '고양이에게 남긴 한 줄이\n정원의 기억이 됩니다.',
+      subtitle: '기쁜 마음도 힘든 마음도 괜찮아요.\n함께한 시간은 기억의 나무에 남아요.',
     ),
     _IntroPageData(
       imageAsset: 'assets/onboarding_intro/intro_5_garden_grown.png',
@@ -119,11 +121,11 @@ class _WelcomeIntroScreenState extends State<WelcomeIntroScreen> {
     setState(() => _saving = true);
     final name = _nameController.text.trim();
     if (name.isNotEmpty) {
-      await StorageService.setCompanionName(name);
+      await context.read<CatCareProvider>().renameCompanion(name);
     }
     if (!mounted) return;
     setState(() {
-      _greetingName = name.isNotEmpty ? name : '아이';
+      _greetingName = name.isNotEmpty ? name : '고양이';
       _showGreeting = true;
       _saving = false;
     });

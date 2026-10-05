@@ -22,6 +22,7 @@ class SoundManager {
   bool _muted = false;
   bool _bgmStarted = false;
   bool _ambientStarted = false;
+  bool get ambientNaturePlaying => _ambientStarted;
 
   /// 발소리를 지금 재생해서는 안 되는 구간(스테이지 종료 순간부터 다음
   /// 스테이지가 시작되기 전까지, 또는 사용자가 종료 버튼으로 완전히
@@ -492,7 +493,7 @@ class SoundManager {
       await water.setVolume(0.12);
       await water.play(AssetSource('mongi/audio/ambient_water.mp3'));
     } catch (e) {
-      _ambientStarted = false;
+      await stopAmbientNature();
       if (kDebugMode) {
         debugPrint('SoundManager: failed to start ambient nature -> $e');
       }

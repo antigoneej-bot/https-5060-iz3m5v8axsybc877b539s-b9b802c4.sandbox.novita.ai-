@@ -1,3 +1,4 @@
+import { FLOWERS } from './garden-gifts.js';
 import { createHash } from 'node:crypto';
 export const PACKAGE = 'com.mysticcat.journal';
 export const PRODUCTS = new Set(['garden_plus_monthly', 'garden_plus_yearly']);
@@ -51,6 +52,7 @@ export function sanitizeNickname(raw) {
 // 다루는 필드에 포함되지 않는다(스키마 자체에 그런 필드가 없음).
 export function validatePublicSnapshot(value) {
   if (!value || typeof value !== 'object') return false;
+  if (Array.isArray(value) || Object.keys(value).some(k => !['seedCounts','equippedDecorationIds','treeStageIndex','layout','memoryTreeStage','hasCheerFlowers','flowerKinds'].includes(k))) return false;
   const { seedCounts, equippedDecorationIds, treeStageIndex } = value;
   if (!seedCounts || typeof seedCounts !== 'object' || Array.isArray(seedCounts)) return false;
   for (const [id, count] of Object.entries(seedCounts)) {
@@ -60,7 +62,27 @@ export function validatePublicSnapshot(value) {
   if (!Array.isArray(equippedDecorationIds) || equippedDecorationIds.length > 20) return false;
   if (!equippedDecorationIds.every(id => typeof id === 'string' && KNOWN_DECORATION_IDS.has(id))) return false;
   if (!Number.isInteger(treeStageIndex) || treeStageIndex < -1 || treeStageIndex > 3) return false;
+  if (value.memoryTreeStage !== undefined && (!Number.isInteger(value.memoryTreeStage) || value.memoryTreeStage < 0 || value.memoryTreeStage > 4)) return false;
+  if (value.flowerKinds !== undefined && (!Array.isArray(value.flowerKinds) || value.flowerKinds.length > 5 || !value.flowerKinds.every(f => FLOWERS.includes(f)))) return false;
+  if (value.hasCheerFlowers !== undefined && typeof value.hasCheerFlowers !== 'boolean') return false;
+  if (value.layout != null && !validatePublicLayout(value.layout)) return false;
   return true;
+}
+export function validatePublicLayout(layout) {
+  if (!layout || typeof layout !== 'object' || Array.isArray(layout) ||
+      Object.keys(layout).some(k => !['version','spaces','positions'].includes(k)) ||
+      layout.version !== 1 || !Number.isInteger(layout.spaces) || layout.spaces < 1 || layout.spaces > 3) return false;
+  const positions = layout.positions;
+  if (!positions || typeof positions !== 'object' || Array.isArray(positions)) return false;
+  const ids = new Set([...KNOWN_SEED_IDS].map(id => `seed:${id}`).concat([...KNOWN_DECORATION_IDS].map(id => `decor:${id}`)));
+  if (Object.keys(positions).length > ids.size) return false;
+  return Object.entries(positions).every(([id, point]) => {
+    if (!ids.has(id) || !Array.isArray(point) || point.length !== 2 || !point.every(Number.isFinite)) return false;
+    const [x,y] = point;
+    const zone = x < 1/3 ? 0 : x > 2/3 ? 2 : 1;
+    return x >= .035 && x <= .965 && y >= .52 && y <= .91 &&
+      (zone === 1 || (zone === 0 && layout.spaces >= 2) || layout.spaces >= 3);
+  });
 }
 // ── 정원소식(= 기존 "공지") 관리자 CRUD + 경량 예약 ────────────────────
 // 작성/수정/삭제는 이 이메일 목록에 있는, 이메일 인증을 마친 계정만 할 수

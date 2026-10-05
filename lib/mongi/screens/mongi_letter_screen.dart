@@ -1,3 +1,5 @@
+import '../../providers/cat_care_provider.dart';
+import '../../utils/companion_name.dart';
 import '../../theme.dart' show AppColors;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -25,6 +27,8 @@ class _MongiLetterScreenState extends State<MongiLetterScreen>
     with SingleTickerProviderStateMixin {
   late final AnimationController _envelopeController;
   bool _envelopeOpened = false;
+  String _companionName = '고양이';
+  String _named(String text) => companionCopy(text, _companionName);
 
   @override
   void initState() {
@@ -53,6 +57,7 @@ class _MongiLetterScreenState extends State<MongiLetterScreen>
 
   @override
   Widget build(BuildContext context) {
+    _companionName = context.watch<CatCareProvider>().displayName;
     final l10n = AppLocalizations.of(context);
     final garden = context.watch<GardenProvider>();
     final letter = MongiLetterService.buildWeeklyLetter(
@@ -100,7 +105,7 @@ class _MongiLetterScreenState extends State<MongiLetterScreen>
           ),
           const SizedBox(width: 4),
           Text(
-            l10n.mongiLetterHeaderTitle,
+            _named(l10n.mongiLetterHeaderTitle),
             style: const TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w800,
@@ -122,7 +127,7 @@ class _MongiLetterScreenState extends State<MongiLetterScreen>
             const Text('✉️', style: TextStyle(fontSize: 48)),
             const SizedBox(height: 16),
             Text(
-              l10n.mongiLetterNotEnoughMessage,
+              _named(l10n.mongiLetterNotEnoughMessage),
               textAlign: TextAlign.center,
               style: const TextStyle(
                 fontSize: 14,
@@ -177,7 +182,7 @@ class _MongiLetterScreenState extends State<MongiLetterScreen>
             ),
             const SizedBox(height: 24),
             Text(
-              l10n.mongiLetterArrivedTitle,
+              _named(l10n.mongiLetterArrivedTitle),
               style: const TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w800,
@@ -186,7 +191,7 @@ class _MongiLetterScreenState extends State<MongiLetterScreen>
             ),
             const SizedBox(height: 6),
             Text(
-              l10n.mongiLetterTapToOpenHint,
+              _named(l10n.mongiLetterTapToOpenHint),
               style: const TextStyle(fontSize: 12.5, color: AppColors.inkSoft),
             ),
           ],
@@ -198,10 +203,10 @@ class _MongiLetterScreenState extends State<MongiLetterScreen>
   /// 열린 편지지 - 문단들이 순서대로 페이드인되며 나타난다.
   Widget _buildLetterPaper(AppLocalizations l10n, MongiWeeklyLetter letter) {
     final paragraphs = <String>[
-      l10n.mongiLetterGreeting,
-      mongiLetterBodyText(l10n, letter.bodyResult!),
-      mongiLetterStreakText(l10n, letter.streakResult!),
-      l10n.mongiLetterClosing,
+      _named(l10n.mongiLetterGreeting),
+      _named(mongiLetterBodyText(l10n, letter.bodyResult!)),
+      _named(mongiLetterStreakText(l10n, letter.streakResult!)),
+      _named(l10n.mongiLetterClosing),
     ];
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),

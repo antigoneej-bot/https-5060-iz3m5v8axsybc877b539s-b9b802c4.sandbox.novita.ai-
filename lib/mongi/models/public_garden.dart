@@ -1,3 +1,6 @@
+import 'garden_layout.dart';
+import 'garden_gifts.dart';
+
 /// "둘러보기"에서 다른 사용자가 공개한 정원 하나를 나타내는 읽기전용 모델.
 ///
 /// [설계 원칙] 서버가 넘겨주는 필드는 정원의 겉모습(씨앗 수/장착 장식/나무
@@ -6,6 +9,12 @@
 /// 또한 이 모델에는 "응원받은 횟수", "방문자 수" 같은 인기도 지표가 전혀
 /// 없다 - 방문자가 다른 정원을 순위로 비교하게 만들지 않기 위함이다.
 class PublicGarden {
+  final GardenLayout? layout;
+  final int memoryTreeStage;
+  final bool hasCheerFlowers;
+  final List<GardenReaction> reactions;
+  final List<String> flowerKinds;
+
   /// 정원 소유자의 uid. 응원을 보낼 때 대상 식별자로만 쓰인다(화면에 그대로
   /// 노출하지 않는다).
   final String gardenId;
@@ -19,6 +28,11 @@ class PublicGarden {
   final int treeStageIndex;
 
   const PublicGarden({
+    this.layout,
+    this.memoryTreeStage = 0,
+    this.hasCheerFlowers = false,
+    this.reactions = const [],
+    this.flowerKinds = const [],
     required this.gardenId,
     required this.nickname,
     required this.seedCounts,
@@ -29,15 +43,29 @@ class PublicGarden {
   factory PublicGarden.fromJson(Map<String, dynamic> json) {
     final rawSeedCounts = json['seedCounts'];
     final rawDecorationIds = json['equippedDecorationIds'];
+    final stage = json['memoryTreeStage'];
     return PublicGarden(
+      memoryTreeStage: stage is int ? stage.clamp(0, 4) : 0,
+      hasCheerFlowers: json['hasCheerFlowers'] == true,
+      flowerKinds:
+          (json['flowerKinds'] is List ? json['flowerKinds'] as List : [])
+              .whereType<String>()
+              .where(gardenFlowerNames.containsKey)
+              .take(5)
+              .toList(),
+      reactions: (json['reactions'] is List ? json['reactions'] as List : [])
+          .map(GardenReaction.fromJson)
+          .whereType<GardenReaction>()
+          .toList(),
+      layout: json['layout'] is Map
+          ? GardenLayout.fromJson(json['layout'] as Map)
+          : null,
       gardenId: json['gardenId']?.toString() ?? '',
       nickname: json['nickname']?.toString(),
       seedCounts: rawSeedCounts is Map
           ? rawSeedCounts.map(
-              (key, value) => MapEntry(
-                key.toString(),
-                (value as num?)?.toInt() ?? 0,
-              ),
+              (key, value) =>
+                  MapEntry(key.toString(), (value as num?)?.toInt() ?? 0),
             )
           : const {},
       equippedDecorationIds: rawDecorationIds is List
@@ -54,17 +82,25 @@ class ReceivedCheer {
   final int messageIndex;
   final int giftLightEssence;
   final DateTime? createdAt;
+  final String flowerKind;
+  final GardenReaction? reaction;
 
   const ReceivedCheer({
     required this.id,
     required this.messageIndex,
     required this.giftLightEssence,
     required this.createdAt,
+    this.flowerKind = 'daisy',
+    this.reaction,
   });
 
   factory ReceivedCheer.fromJson(Map<String, dynamic> json) {
     final createdAtRaw = json['createdAt']?.toString();
     return ReceivedCheer(
+      flowerKind: gardenFlowerNames.containsKey(json['flowerKind'])
+          ? json['flowerKind'] as String
+          : 'daisy',
+      reaction: GardenReaction.fromJson(json['reaction']),
       id: json['id']?.toString() ?? '',
       messageIndex: (json['messageIndex'] as num?)?.toInt() ?? 0,
       giftLightEssence: (json['giftLightEssence'] as num?)?.toInt() ?? 0,

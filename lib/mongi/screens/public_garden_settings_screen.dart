@@ -48,9 +48,7 @@ class _PublicGardenSettingsScreenState
     final l10n = AppLocalizations.of(context);
     try {
       final garden = context.read<GardenProvider>();
-      final ok = await garden.publishGarden(
-        nickname: _nicknameController.text,
-      );
+      final ok = await garden.publishGarden(nickname: _nicknameController.text);
       if (!mounted) return;
       if (!ok) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -206,9 +204,7 @@ class _PublicGardenSettingsScreenState
                       backgroundColor: published
                           ? const Color(0xFFD8D2C8)
                           : const Color(0xFF7FB37A),
-                      foregroundColor: published
-                          ? AppColors.ink
-                          : Colors.white,
+                      foregroundColor: published ? AppColors.ink : Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 13),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14),
@@ -234,6 +230,17 @@ class _PublicGardenSettingsScreenState
               ],
             ),
           ),
+          if (published) ...[
+            const SizedBox(height: 8),
+            const Text(
+              '정원을 바꾼 뒤 아래 버튼을 누르면 이웃에게도 새 배치를 보여줘요. 편지와 식물에 남긴 추억은 공개되지 않아요.',
+            ),
+            OutlinedButton.icon(
+              onPressed: _busy || !CloudService.enabled ? null : _publish,
+              icon: const Icon(Icons.refresh),
+              label: const Text('지금 정원 모습으로 공개 갱신'),
+            ),
+          ],
           const SizedBox(height: 16),
           _buildNavRow(
             context,
@@ -296,11 +303,7 @@ class _PublicGardenSettingsScreenState
                 ),
               ),
             ),
-            const Icon(
-              Icons.chevron_right,
-              color: AppColors.inkSoft,
-              size: 20,
-            ),
+            const Icon(Icons.chevron_right, color: AppColors.inkSoft, size: 20),
           ],
         ),
       ),

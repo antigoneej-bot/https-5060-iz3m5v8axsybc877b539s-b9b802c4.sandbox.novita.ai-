@@ -8,7 +8,6 @@ import '../mongi/services/sound_manager.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_state_provider.dart';
-import '../data/shadow_cats_data.dart';
 import '../services/notification_service.dart';
 import '../theme.dart';
 import '../widgets/stars_background.dart';
@@ -453,12 +452,6 @@ class _FirstMeetingBannerState extends State<_FirstMeetingBanner> {
 
   @override
   Widget build(BuildContext context) {
-    final metCount = context.watch<AppStateProvider>().metCatCount;
-    // ⚠️ 유료(Basic 구독) 고양이는 잠겨있으면 탭해도 "만남" 처리가 되지
-    // 전원 무료로 전환되어 freeShadowCats == shadowCats(37마리)입니다. shadowCats.length
-    // 와 freeShadowCats.length는 이제 항상 같은 값(37)이지만, 과거 호환을 위해
-    // 기준으로 표시합니다.
-    final shown = metCount.clamp(1, freeShadowCats.length);
     return AnimatedOpacity(
       duration: const Duration(milliseconds: 400),
       opacity: _visible ? 1.0 : 0.0,
@@ -488,7 +481,7 @@ class _FirstMeetingBannerState extends State<_FirstMeetingBanner> {
           ],
         ),
         child: Text(
-          '${freeShadowCats.length}마리 중 $shown마리를 만났어요 🐾',
+          '한 줄을 남겨도, 잠깐 쉬어가도 괜찮아요 🌿',
           style: pathLabelFont(
             fontSize: 13,
             fontWeight: FontWeight.w600,

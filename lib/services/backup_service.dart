@@ -1,3 +1,5 @@
+import '../mongi/models/garden_layout.dart';
+import '../mongi/integration/cheer_flower_store.dart';
 import '../mongi/integration/mongi_garden_store.dart';
 import '../mongi/integration/session_transaction.dart';
 import '../mongi/integration/mongi_backup_schema.dart';
@@ -37,6 +39,8 @@ class BackupService {
     'personal_replies',
     'reply_feedback',
     'garden_memories',
+    'garden_cheer_flowers',
+    'garden_layout',
     'mongi_progress',
   ];
   static const globals = {
@@ -233,6 +237,20 @@ class BackupService {
               !(metadata['parts'] as List).every((part) => part is String) ||
               !{'listen', 'reflect', 'suggest'}.contains(metadata['style']))
             throw const FormatException('잘못된 답장 기록이에요.');
+          continue;
+        }
+        if (entry.key == 'garden_layout') {
+          if (row['key'] != 'layout' || value is! Map) {
+            throw const FormatException('잘못된 정원 배치 기록이에요.');
+          }
+          GardenLayout.fromJson(value);
+          continue;
+        }
+        if (entry.key == 'garden_cheer_flowers') {
+          if (value is! Map) throw const FormatException('잘못된 응원 꽃이에요.');
+          final flower = CheerFlower.fromJson(value);
+          if (row['key'] != flower.key)
+            throw const FormatException('응원 꽃이 일치하지 않아요.');
           continue;
         }
         if (entry.key == 'garden_memories') {

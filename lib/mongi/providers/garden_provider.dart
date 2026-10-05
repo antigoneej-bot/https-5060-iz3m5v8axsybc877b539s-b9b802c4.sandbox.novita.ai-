@@ -1,4 +1,8 @@
 import '../integration/session_transaction.dart';
+import '../integration/cheer_flower_store.dart';
+
+import '../models/seed.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../integration/mongi_garden_store.dart';
 import 'dart:math';
 
@@ -17,6 +21,7 @@ import '../models/mongi_cheer.dart';
 import '../models/mongi_costume.dart';
 import '../models/power_item.dart';
 import '../models/public_garden.dart';
+import '../integration/garden_layout_store.dart';
 import '../../services/cloud_service.dart';
 import '../../services/subscription_service.dart';
 import '../../services/access_policy.dart';
@@ -365,10 +370,30 @@ class GardenProvider extends ChangeNotifier {
   /// 서버가 연결되어 있지 않으면 안내 문구용으로 false를 반환한다.
   Future<bool> publishGarden({String? nickname}) async {
     if (!CloudService.enabled) return false;
+    await MongiGardenStore.instance.reconcileRecordedDays();
+    await GardenLayoutStore.instance.reload();
+    final layout = GardenLayoutStore.instance.value.grow(
+      seedCounts.values.fold<int>(0, (sum, n) => sum + n),
+    );
+    await CheerFlowerStore.instance.reload();
     await CloudService.publishGarden(
+      layout: layout.toJson(),
       seedCounts: seedCounts,
       equippedDecorationIds: equippedDecorationIds,
       treeStageIndex: treeStageIndex,
+      flowerKinds: CheerFlowerStore.instance
+          .forOwner(FirebaseAuth.instance.currentUser?.uid)
+          .where((f) => f.planted)
+          .map((f) => f.flowerKind)
+          .toSet()
+          .take(5)
+          .toList(),
+      memoryTreeStage: SeedType.byId(
+        'cherry',
+      ).tierForCount(MongiGardenStore.instance.value.recordDays.length),
+      hasCheerFlowers: CheerFlowerStore.instance
+          .forOwner(FirebaseAuth.instance.currentUser?.uid)
+          .any((f) => f.planted),
       nickname: nickname,
     );
     await _storage.setGardenPublished(true);
@@ -392,7 +417,8 @@ class GardenProvider extends ChangeNotifier {
   /// 다른 사람들이 공개한 정원을 무작위 순서로 가져온다(순위 없음). 서버가
   /// 연결되어 있지 않으면 빈 목록을 돌려준다.
   Future<List<PublicGarden>> loadPublicGardens() async {
-    if (!CloudService.enabled) return [];
+    if (!CloudService.enabled)
+      throw StateError('이웃 정원은 서버 연결을 준비 중이에요. 내 정원과 기록은 계속 이용할 수 있어요.');
     final raw = await CloudService.listPublicGardens();
     return raw.map(PublicGarden.fromJson).toList();
   }
@@ -404,8 +430,10 @@ class GardenProvider extends ChangeNotifier {
     required String gardenId,
     required int messageIndex,
     int giftLightEssence = 0,
+    String flowerKind = 'daisy',
+    String? reaction,
   }) async {
-    if (!CloudService.enabled) return;
+    if (!CloudService.enabled) throw StateError('온라인 정원 연결을 확인해 주세요.');
     final gift = giftLightEssence.clamp(0, kMaxCheerGiftLightEssence);
     if (gift > 0) {
       final spent = await _storage.spendLightEssence(gift);
@@ -420,6 +448,8 @@ class GardenProvider extends ChangeNotifier {
         gardenId: gardenId,
         messageIndex: messageIndex,
         giftLightEssence: gift,
+        flowerKind: flowerKind,
+        reaction: reaction,
       );
     } catch (e) {
       // 선물을 이미 차감했는데 전송이 실패했다면 되돌려준다(사용자 손해 방지).
@@ -435,8 +465,14 @@ class GardenProvider extends ChangeNotifier {
   /// 내가 아직 확인하지 않은 받은 응원 목록을 서버에서 가져온다.
   Future<List<ReceivedCheer>> loadMyPublicCheers() async {
     if (!CloudService.enabled) return [];
+    final owner = FirebaseAuth.instance.currentUser?.uid;
     final raw = await CloudService.listMyCheers();
-    return raw.map(ReceivedCheer.fromJson).toList();
+    final cheers = raw.map(ReceivedCheer.fromJson).toList();
+    if (owner == null || FirebaseAuth.instance.currentUser?.uid != owner) {
+      throw StateError('로그인 상태가 바뀌었어요. 다시 열어 주세요.');
+    }
+    await CheerFlowerStore.instance.remember(owner, cheers);
+    return cheers;
   }
 
   /// 받은 응원 하나를 확인 처리하고, 함께 온 빛의 정수 선물을 수령한다.

@@ -1,3 +1,4 @@
+import 'garden_world_view.dart';
 import 'package:flutter/material.dart';
 
 import '../../theme.dart' show AppColors;
@@ -85,6 +86,34 @@ class PublicGardenCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
+          if (garden.layout != null)
+            OutlinedButton.icon(
+              icon: const Icon(Icons.landscape_outlined),
+              label: const Text('이 정원 산책하기'),
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => Scaffold(
+                    appBar: AppBar(
+                      title: Text('${garden.nickname ?? "이웃"}의 정원'),
+                    ),
+                    body: GardenWorldView(
+                      readOnly: true,
+                      publicMemoryStage: garden.memoryTreeStage,
+                      publicCheerBed: garden.hasCheerFlowers,
+                      reactions: garden.reactions,
+                      flowerKinds: garden.flowerKinds,
+                      layout: garden.layout!,
+                      seeds: garden.seedCounts,
+                      decorations: garden.equippedDecorationIds,
+                      onMove: (_, _) async {},
+                      onMemory: (_) {},
+                      onPlant: () {},
+                      onDecorate: () {},
+                    ),
+                  ),
+                ),
+              ),
+            ),
           if (garden.treeStageIndex >= 0)
             Row(
               children: [

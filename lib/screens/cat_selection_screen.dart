@@ -4,7 +4,7 @@ import 'dart:math';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:video_player/video_player.dart';
+import '../widgets/emotion_cat_video.dart';
 import '../data/shadow_cats_data.dart';
 import '../data/alternative_emotion_mapping.dart';
 import '../models/shadow_cat.dart';
@@ -51,13 +51,21 @@ class _CatSelectionScreenState extends State<CatSelectionScreen>
   Future<void> _loadFavorites() async {
     final prefs = await SharedPreferences.getInstance();
     if (!mounted) return;
-    setState(() => _favorites.addAll(prefs.getStringList('cat_browse_favorites_v1') ?? []));
+    setState(
+      () => _favorites.addAll(
+        prefs.getStringList('cat_browse_favorites_v1') ?? [],
+      ),
+    );
   }
+
   Future<void> _toggleFavorite(String id) async {
-    setState(() { if (!_favorites.add(id)) _favorites.remove(id); });
+    setState(() {
+      if (!_favorites.add(id)) _favorites.remove(id);
+    });
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList('cat_browse_favorites_v1', _favorites.toList());
   }
+
   bool _showReassurance = false;
   bool _checkedReassurance = false;
 
@@ -135,12 +143,17 @@ class _CatSelectionScreenState extends State<CatSelectionScreen>
     final recent = app.history.map((e) => e.catId).toSet().take(3).toList();
     final filtered = catalog.where((cat) {
       if (_favoritesOnly && !_favorites.contains(cat.id)) return false;
-      if (_query.isNotEmpty) return '${cat.keyword} ${cat.nameKr}'.contains(_query);
+      if (_query.isNotEmpty)
+        return '${cat.keyword} ${cat.nameKr}'.contains(_query);
       return _group == null || catBrowseGroups[_group]!.contains(cat.id);
     }).toList();
-    final browsing = _group != null || _query.isNotEmpty || _showAll || _favoritesOnly;
-    final allCats = browsing ? (_showAll || _query.isNotEmpty || _favoritesOnly
-        ? filtered : filtered.take(6).toList()) : <ShadowCat>[];
+    final browsing =
+        _group != null || _query.isNotEmpty || _showAll || _favoritesOnly;
+    final allCats = browsing
+        ? (_showAll || _query.isNotEmpty || _favoritesOnly
+              ? filtered
+              : filtered.take(6).toList())
+        : <ShadowCat>[];
     final isPremiumUser = context.watch<AppStateProvider>().isPremiumUser;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -170,56 +183,88 @@ class _CatSelectionScreenState extends State<CatSelectionScreen>
           onChanged: (value) => setState(() => _query = value.trim()),
         ),
         const SizedBox(height: 14),
-        Wrap(spacing: 8, runSpacing: 10, children: [
-          for (final entry in catBrowseGroups.keys.toList().asMap().entries)
+        Wrap(
+          spacing: 8,
+          runSpacing: 10,
+          children: [
+            for (final entry in catBrowseGroups.keys.toList().asMap().entries)
+              _EmotionFilterPill(
+                label: entry.value,
+                selected: _group == entry.value,
+                colorSet: _pillColors[entry.key % _pillColors.length],
+                onTap: () => setState(() {
+                  _group = _group == entry.value ? null : entry.value;
+                  _showAll = false;
+                  _favoritesOnly = false;
+                  _search.clear();
+                  _query = '';
+                }),
+              ),
             _EmotionFilterPill(
-              label: entry.value,
-              selected: _group == entry.value,
-              colorSet: _pillColors[entry.key % _pillColors.length],
+              label: '전체 고양이',
+              selected: _showAll && _group == null,
+              colorSet:
+                  _pillColors[catBrowseGroups.length % _pillColors.length],
               onTap: () => setState(() {
-                _group = _group == entry.value ? null : entry.value;
-                _showAll = false; _favoritesOnly = false;
-                _search.clear(); _query = '';
+                _group = null;
+                _showAll = true;
+                _favoritesOnly = false;
+                _search.clear();
+                _query = '';
               }),
             ),
-          _EmotionFilterPill(
-            label: '전체 고양이',
-            selected: _showAll && _group == null,
-            colorSet: _pillColors[catBrowseGroups.length % _pillColors.length],
-            onTap: () => setState(() {
-              _group = null; _showAll = true; _favoritesOnly = false;
-              _search.clear(); _query = '';
-            }),
-          ),
-          _EmotionFilterPill(
-            label: '즐겨찾기',
-            icon: Icons.star_rounded,
-            selected: _favoritesOnly,
-            colorSet: _pillColors[(catBrowseGroups.length + 1) % _pillColors.length],
-            onTap: () => setState(() {
-              _favoritesOnly = !_favoritesOnly; _group = null; _showAll = false;
-              _search.clear(); _query = '';
-            }),
-          ),
-        ]),
+            _EmotionFilterPill(
+              label: '즐겨찾기',
+              icon: Icons.star_rounded,
+              selected: _favoritesOnly,
+              colorSet:
+                  _pillColors[(catBrowseGroups.length + 1) %
+                      _pillColors.length],
+              onTap: () => setState(() {
+                _favoritesOnly = !_favoritesOnly;
+                _group = null;
+                _showAll = false;
+                _search.clear();
+                _query = '';
+              }),
+            ),
+          ],
+        ),
         if (!browsing && recent.isNotEmpty) ...[
           const SizedBox(height: 18),
-          Text('최근에 고른 마음', style: bodyFont(fontSize: 12.5, fontWeight: FontWeight.w600, color: AppColors.inkSoft)),
-          const SizedBox(height: 8),
-          Wrap(spacing: 8, runSpacing: 8, children: [for (final id in recent)
-            _RecentEmotionChip(
-              label: shadowCatById(id).keyword,
-              onTap: () {
-                final cat = shadowCatById(id);
-                if (cat.isPremium && !isPremiumUser) {
-                  _onTapPremiumCat(cat);
-                } else { app.selectCat(cat); }
-              },
+          Text(
+            '최근에 고른 마음',
+            style: bodyFont(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w600,
+              color: AppColors.inkSoft,
             ),
-          ]),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final id in recent)
+                _RecentEmotionChip(
+                  label: shadowCatById(id).keyword,
+                  onTap: () {
+                    final cat = shadowCatById(id);
+                    if (cat.isPremium && !isPremiumUser) {
+                      _onTapPremiumCat(cat);
+                    } else {
+                      app.selectCat(cat);
+                    }
+                  },
+                ),
+            ],
+          ),
         ],
         if (browsing && allCats.isEmpty)
-          const Padding(padding: EdgeInsets.all(16), child: Text('찾는 고양이가 없어요. 다른 감정이나 전체 고양이를 골라보세요.')),
+          const Padding(
+            padding: EdgeInsets.all(16),
+            child: Text('찾는 고양이가 없어요. 다른 감정이나 전체 고양이를 골라보세요.'),
+          ),
         if (_checkedReassurance)
           AnimatedSize(
             duration: const Duration(milliseconds: 300),
@@ -244,26 +289,47 @@ class _CatSelectionScreenState extends State<CatSelectionScreen>
           itemBuilder: (context, index) {
             final cat = allCats[index];
             final locked = cat.isPremium && !isPremiumUser;
-            return Stack(children: [ _CatCard(
-              cat: cat,
-              seed: index,
-              locked: locked,
-              motion: _motionFor(index),
-              sharedAnimation: _sharedFloat,
-              onTap: locked
-                  ? () => _onTapPremiumCat(cat)
-                  : () => context.read<AppStateProvider>().selectCat(cat),
-            ), Positioned(top: 0, right: 0, child: IconButton(
-              tooltip: _favorites.contains(cat.id) ? '즐겨찾기 해제' : '즐겨찾기 추가',
-              onPressed: () => _toggleFavorite(cat.id),
-              icon: Icon(_favorites.contains(cat.id) ? Icons.star : Icons.star_border,
-                color: AppColors.ink),
-            )) ]);
+            return Stack(
+              children: [
+                _CatCard(
+                  cat: cat,
+                  seed: index,
+                  locked: locked,
+                  motion: _motionFor(index),
+                  sharedAnimation: _sharedFloat,
+                  onTap: locked
+                      ? () => _onTapPremiumCat(cat)
+                      : () => context.read<AppStateProvider>().selectCat(cat),
+                ),
+                Positioned(
+                  top: 0,
+                  right: 0,
+                  child: IconButton(
+                    tooltip: _favorites.contains(cat.id)
+                        ? '즐겨찾기 해제'
+                        : '즐겨찾기 추가',
+                    onPressed: () => _toggleFavorite(cat.id),
+                    icon: Icon(
+                      _favorites.contains(cat.id)
+                          ? Icons.star
+                          : Icons.star_border,
+                      color: AppColors.ink,
+                    ),
+                  ),
+                ),
+              ],
+            );
           },
         ),
-        if (browsing && !_showAll && _query.isEmpty && !_favoritesOnly && filtered.length > 6)
-          TextButton(onPressed: () => setState(() => _showAll = true),
-            child: Text('이 마음의 고양이 더 보기 (${filtered.length - 6})')),
+        if (browsing &&
+            !_showAll &&
+            _query.isEmpty &&
+            !_favoritesOnly &&
+            filtered.length > 6)
+          TextButton(
+            onPressed: () => setState(() => _showAll = true),
+            child: Text('이 마음의 고양이 더 보기 (${filtered.length - 6})'),
+          ),
       ],
     );
   }
@@ -565,43 +631,6 @@ class _CatCardState extends State<_CatCard> {
   bool _hovering = false;
   bool _pressed = false;
 
-  // 카드별 미세 움직임 영상(시네마그래프) 재생 상태. 카드 틀/배경은 고정된
-  // 채 고양이만 눈 깜빡임/꼬리 흔들기 등으로 아주 살짝 움직이는 짧은 루프
-  // 영상이 있으면, 로딩이 끝나는 즉시 정지 이미지 위에 자연스럽게 교체해
-  // 보여줍니다. 영상이 없거나 아직 준비되지 않았다면 항상 기존 정지
-  // 이미지를 그대로 보여주므로 동작이 실패해도 안전합니다.
-  VideoPlayerController? _videoController;
-  bool _videoReady = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _initVideoIfNeeded();
-  }
-
-  void _initVideoIfNeeded() {
-    final asset = widget.cat.videoAsset;
-    if (asset == null) return;
-    final controller = VideoPlayerController.asset(asset);
-    _videoController = controller;
-    controller
-      ..setLooping(true)
-      ..setVolume(0)
-      ..initialize().then((_) {
-        if (!mounted) return;
-        setState(() => _videoReady = true);
-        controller.play();
-      }).catchError((_) {
-        // 영상 로드에 실패해도 조용히 정지 이미지로 폴백합니다.
-      });
-  }
-
-  @override
-  void dispose() {
-    _videoController?.dispose();
-    super.dispose();
-  }
-
   // 디자인 리팩토링: 52장 전부 다른 랜덤 코너를 쓰던 '블롭' 프레임을 없애고,
   // 카드 이미지 자체에 이미 그려진 프레임과 충돌하지 않도록 통일된 라운드
   // 사각형 하나로 정리했습니다. 3열 그리드의 코너 라인이 모두 맞아 훨씬
@@ -622,26 +651,11 @@ class _CatCardState extends State<_CatCard> {
   /// 그렇지 않으면(영상이 없거나 아직 로딩 중이거나 실패했다면) 기존 정지
   /// 이미지를 보여줍니다. 카드/배경 레이아웃은 두 경우 모두 완전히 동일해
   /// 영상이 있는 카드만 유독 튀어 보이지 않도록 했습니다.
-  Widget _buildCardVisual() {
-    final controller = _videoController;
-    if (controller != null && _videoReady) {
-      return FittedBox(
-        fit: BoxFit.cover,
-        child: SizedBox(
-          width: controller.value.size.width,
-          height: controller.value.size.height,
-          child: VideoPlayer(controller),
-        ),
-      );
-    }
-    return Image.asset(
-      widget.cat.imageAsset,
-      fit: BoxFit.cover,
-      width: double.infinity,
-      cacheWidth: 200,
-      cacheHeight: 200,
-    );
-  }
+  Widget _buildCardVisual() => EmotionCatVideo(
+    key: ValueKey(widget.cat.id),
+    imageAsset: widget.cat.imageAsset,
+    videoAsset: widget.cat.videoAsset,
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -842,7 +856,10 @@ class _CatCardState extends State<_CatCard> {
 class _EmotionSearchField extends StatefulWidget {
   final TextEditingController controller;
   final ValueChanged<String> onChanged;
-  const _EmotionSearchField({required this.controller, required this.onChanged});
+  const _EmotionSearchField({
+    required this.controller,
+    required this.onChanged,
+  });
 
   @override
   State<_EmotionSearchField> createState() => _EmotionSearchFieldState();
@@ -869,12 +886,16 @@ class _EmotionSearchFieldState extends State<_EmotionSearchField> {
           ],
         ),
         border: Border.all(
-          color: AppColors.blobLavenderAccent.withValues(alpha: active ? 0.45 : 0.22),
+          color: AppColors.blobLavenderAccent.withValues(
+            alpha: active ? 0.45 : 0.22,
+          ),
           width: active ? 1.4 : 1,
         ),
         boxShadow: [
           BoxShadow(
-            color: AppColors.blobLavenderAccent.withValues(alpha: active ? 0.16 : 0.08),
+            color: AppColors.blobLavenderAccent.withValues(
+              alpha: active ? 0.16 : 0.08,
+            ),
             blurRadius: active ? 18 : 10,
             offset: const Offset(0, 6),
           ),
@@ -891,12 +912,23 @@ class _EmotionSearchFieldState extends State<_EmotionSearchField> {
             isDense: true,
             border: InputBorder.none,
             hintText: '감정 찾기 · 예: 서운함, 감사',
-            hintStyle: bodyFont(fontSize: 13, color: AppColors.inkSoft.withValues(alpha: 0.75)),
-            prefixIcon: Icon(Icons.search_rounded, color: AppColors.blobLavenderAccent, size: 22),
+            hintStyle: bodyFont(
+              fontSize: 13,
+              color: AppColors.inkSoft.withValues(alpha: 0.75),
+            ),
+            prefixIcon: Icon(
+              Icons.search_rounded,
+              color: AppColors.blobLavenderAccent,
+              size: 22,
+            ),
             suffixIcon: widget.controller.text.isEmpty
                 ? null
                 : IconButton(
-                    icon: Icon(Icons.close_rounded, size: 18, color: AppColors.blobLavenderAccent),
+                    icon: Icon(
+                      Icons.close_rounded,
+                      size: 18,
+                      color: AppColors.blobLavenderAccent,
+                    ),
                     onPressed: () {
                       widget.controller.clear();
                       widget.onChanged('');
@@ -972,7 +1004,11 @@ class _EmotionFilterPill extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             if (icon != null) ...[
-              Icon(icon, size: 14, color: selected ? Colors.white : colorSet.accent),
+              Icon(
+                icon,
+                size: 14,
+                color: selected ? Colors.white : colorSet.accent,
+              ),
               const SizedBox(width: 5),
             ],
             Text(
@@ -1006,11 +1042,18 @@ class _RecentEmotionChip extends StatelessWidget {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(999),
           color: AppColors.gold.withValues(alpha: 0.12),
-          border: Border.all(color: AppColors.gold.withValues(alpha: 0.35), width: 1),
+          border: Border.all(
+            color: AppColors.gold.withValues(alpha: 0.35),
+            width: 1,
+          ),
         ),
         child: Text(
           label,
-          style: bodyFont(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.goldSoft),
+          style: bodyFont(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: AppColors.goldSoft,
+          ),
         ),
       ),
     );

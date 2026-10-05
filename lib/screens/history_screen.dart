@@ -608,14 +608,23 @@ class _HistoryItemState extends State<_HistoryItem>
                   Align(
                     alignment: Alignment.centerRight,
                     child: TextButton(
-                      onPressed: () {
-                        context.read<AppStateProvider>().deleteHistoryEntry(
-                          entry.id,
-                        );
-                        Navigator.pop(ctx);
+                      onPressed: () async {
+                        try {
+                          await context
+                              .read<AppStateProvider>()
+                              .deleteHistoryEntry(entry.id);
+                          if (ctx.mounted) Navigator.pop(ctx);
+                        } catch (_) {
+                          if (ctx.mounted)
+                            ScaffoldMessenger.of(ctx).showSnackBar(
+                              const SnackBar(
+                                content: Text('삭제를 완료하지 못했어요. 다시 시도해 주세요.'),
+                              ),
+                            );
+                        }
                       },
                       child: Text(
-                        '삭제하기',
+                        '편지 삭제 · 나무 성장은 유지',
                         style: bodyFont(fontSize: 12.5, color: AppColors.rose),
                       ),
                     ),
@@ -710,39 +719,44 @@ class _CatReplySectionState extends State<_CatReplySection> {
     final app = context.read<AppStateProvider>();
     final catCare = context.read<CatCareProvider>();
     buildReplyText(
-      entry: widget.entry,
-      cat: cat,
-      history: app.history,
-      growthStage: catCare.effectiveGrowthStage,
-      visitStreak: app.streak,
-    ).timeout(const Duration(seconds: 30)).then((value) {
-      if (!mounted) return;
-      setState(() {
-        _loading = false;
-        _reply = value;
-      });
-      // 답장을 실제로 불러오는 데 성공한 뒤에만 "읽음"으로 표시합니다. 로딩
-      // 실패/타임아웃 시 미리 읽음 처리해버리면 홈 배너가 사라져 사용자가
-      // 다시 찾기 어려워지는 문제를 막기 위함입니다.
-      if (!_markedSeen && value.isNotEmpty) {
-        _markedSeen = true;
-        final entryId = widget.entry.id;
-        WidgetsBinding.instance.addPostFrameCallback((_) async {
-          if (!mounted) return;
-          try {
-            await context.read<AppStateProvider>().markReplySeen(entryId);
-          } catch (_) {
-            _markedSeen = false;
-          }
-        });
-      }
-    }, onError: (Object error, StackTrace stackTrace) {
-      if (!mounted) return;
-      setState(() {
-        _loading = false;
-        _error = error;
-      });
-    });
+          entry: widget.entry,
+          cat: cat,
+          history: app.history,
+          growthStage: catCare.effectiveGrowthStage,
+          visitStreak: app.streak,
+        )
+        .timeout(const Duration(seconds: 30))
+        .then(
+          (value) {
+            if (!mounted) return;
+            setState(() {
+              _loading = false;
+              _reply = value;
+            });
+            // 답장을 실제로 불러오는 데 성공한 뒤에만 "읽음"으로 표시합니다. 로딩
+            // 실패/타임아웃 시 미리 읽음 처리해버리면 홈 배너가 사라져 사용자가
+            // 다시 찾기 어려워지는 문제를 막기 위함입니다.
+            if (!_markedSeen && value.isNotEmpty) {
+              _markedSeen = true;
+              final entryId = widget.entry.id;
+              WidgetsBinding.instance.addPostFrameCallback((_) async {
+                if (!mounted) return;
+                try {
+                  await context.read<AppStateProvider>().markReplySeen(entryId);
+                } catch (_) {
+                  _markedSeen = false;
+                }
+              });
+            }
+          },
+          onError: (Object error, StackTrace stackTrace) {
+            if (!mounted) return;
+            setState(() {
+              _loading = false;
+              _error = error;
+            });
+          },
+        );
   }
 
   void _retry() {
@@ -785,10 +799,7 @@ class _CatReplySectionState extends State<_CatReplySection> {
     }
 
     if (_error is SubscriptionRequired) {
-      return SubscriptionNotice(
-        message: _error.toString(),
-        onReturn: _retry,
-      );
+      return SubscriptionNotice(message: _error.toString(), onReturn: _retry);
     }
     if (_error != null) {
       return Column(
@@ -798,10 +809,7 @@ class _CatReplySectionState extends State<_CatReplySection> {
             ReplyFailure.description(_error),
             style: const TextStyle(fontSize: 12, color: Colors.grey),
           ),
-          TextButton(
-            onPressed: _retry,
-            child: const Text('다시 준비하기'),
-          ),
+          TextButton(onPressed: _retry, child: const Text('다시 준비하기')),
         ],
       );
     }
@@ -851,11 +859,7 @@ class _CatReplySectionState extends State<_CatReplySection> {
           else
             Text(
               reply,
-              style: bodyFont(
-                fontSize: 13,
-                color: AppColors.moon,
-                height: 1.7,
-              ),
+              style: bodyFont(fontSize: 13, color: AppColors.moon, height: 1.7),
             ),
           if (!_loading && _error == null)
             ReplyFeedback(

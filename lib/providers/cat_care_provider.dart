@@ -1,3 +1,4 @@
+import '../utils/companion_name.dart';
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
@@ -147,10 +148,14 @@ class CatCareProvider extends ChangeNotifier {
   }
 
   /// 이름이 지어져 있으면 이름을, 없으면 기본 문구를 반환합니다.
-  String get displayName =>
-      (companionName != null && companionName!.trim().isNotEmpty)
-      ? companionName!.trim()
-      : '아기 고양이';
+  String get displayName => companionDisplayName(companionName);
+
+  Future<void> renameCompanion(String name) async {
+    final value = name.trim();
+    await StorageService.setCompanionName(value);
+    companionName = value;
+    notifyListeners();
+  }
 
   /// 100도를 달성할 때마다 적립된 포인트(구독자 전용 보상). 화면에서
   /// 구독 여부와 무관하게 조회할 수 있도록 노출합니다.

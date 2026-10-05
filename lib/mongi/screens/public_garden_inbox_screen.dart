@@ -1,3 +1,5 @@
+import '../integration/garden_bloom_sync.dart';
+import '../screens/garden_bloom_news_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -5,6 +7,9 @@ import '../../theme.dart' show AppColors;
 import '../l10n/gen/app_localizations.dart';
 import '../l10n/public_cheer_l10n.dart';
 import '../models/public_garden.dart';
+import '../integration/cheer_flower_store.dart';
+import '../widgets/garden_keepsake_sheets.dart'
+    show currentGardenOwner, showCheerFlowers;
 import '../providers/garden_provider.dart';
 
 /// "받은 응원함" - 내가 정원을 공개한 뒤 다른 사람들로부터 받은 응원을
@@ -40,8 +45,12 @@ class _PublicGardenInboxScreenState extends State<PublicGardenInboxScreen> {
       _error = null;
     });
     try {
+      await CheerFlowerStore.instance.reload();
+      if (!mounted) return;
       final garden = context.read<GardenProvider>();
       final cheers = await garden.loadMyPublicCheers();
+      final owner = currentGardenOwner();
+      if (owner != null) await GardenBloomSync.flush(owner);
       if (!mounted) return;
       setState(() {
         _cheers = cheers;
@@ -102,7 +111,27 @@ class _PublicGardenInboxScreenState extends State<PublicGardenInboxScreen> {
         ),
         centerTitle: true,
       ),
-      body: RefreshIndicator(onRefresh: _load, child: _buildBody(l10n)),
+      body: Column(
+        children: [
+          TextButton.icon(
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const GardenBloomNewsScreen(),
+              ),
+            ),
+            icon: const Icon(Icons.mark_email_read_outlined),
+            label: const Text('내가 건넨 꽃 소식'),
+          ),
+          TextButton.icon(
+            onPressed: () => showCheerFlowers(context),
+            icon: const Icon(Icons.local_florist_outlined),
+            label: const Text('보관한 응원 꽃 보기'),
+          ),
+          Expanded(
+            child: RefreshIndicator(onRefresh: _load, child: _buildBody(l10n)),
+          ),
+        ],
+      ),
     );
   }
 
@@ -177,6 +206,32 @@ class _PublicGardenInboxScreenState extends State<PublicGardenInboxScreen> {
                         color: AppColors.ink,
                         height: 1.4,
                       ),
+                    ),
+                    TextButton.icon(
+                      onPressed: () async {
+                        final owner = currentGardenOwner();
+                        if (owner == null) return;
+                        try {
+                          await plantGardenFlower(owner, cheer.id);
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('응원이 정원에 꽃으로 남았어요.'),
+                              ),
+                            );
+                          }
+                        } catch (_) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('꽃을 저장하지 못했어요. 다시 시도해 주세요.'),
+                              ),
+                            );
+                          }
+                        }
+                      },
+                      icon: const Icon(Icons.local_florist_outlined),
+                      label: const Text('정원에 꽃으로 남기기'),
                     ),
                     if (cheer.giftLightEssence > 0) ...[
                       const SizedBox(height: 4),

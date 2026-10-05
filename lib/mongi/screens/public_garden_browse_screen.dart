@@ -1,9 +1,9 @@
+import '../widgets/garden_cheer_composer.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../theme.dart' show AppColors;
 import '../l10n/gen/app_localizations.dart';
-import '../l10n/public_cheer_l10n.dart';
 import '../models/public_garden.dart';
 import '../providers/garden_provider.dart';
 import '../widgets/public_garden_card.dart';
@@ -61,74 +61,30 @@ class _PublicGardenBrowseScreenState extends State<PublicGardenBrowseScreen> {
   }
 
   Future<void> _openCheerDialog(PublicGarden target) async {
-    final l10n = AppLocalizations.of(context);
-    final picked = await showModalBottomSheet<int>(
-      context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (sheetContext) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  l10n.publicGardenCheerDialogTitle,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 16,
-                    color: AppColors.ink,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: List.generate(kPublicCheerMessageCount, (index) {
-                    return GestureDetector(
-                      onTap: () => Navigator.of(sheetContext).pop(index),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 11,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFFE3EC),
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: Text(
-                          publicCheerOptionText(l10n, index),
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFF9A3A5C),
-                          ),
-                        ),
-                      ),
-                    );
-                  }),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
+    final picked = await composeGardenCheer(context);
     if (picked == null || !mounted) return;
-    await _sendCheer(target, picked);
+    await _sendCheer(
+      target,
+      picked.message,
+      flowerKind: picked.flower,
+      reaction: picked.reaction,
+    );
   }
 
-  Future<void> _sendCheer(PublicGarden target, int messageIndex) async {
+  Future<void> _sendCheer(
+    PublicGarden target,
+    int messageIndex, {
+    String flowerKind = 'daisy',
+    String? reaction,
+  }) async {
     final l10n = AppLocalizations.of(context);
     final garden = context.read<GardenProvider>();
     try {
       await garden.sendPublicCheer(
         gardenId: target.gardenId,
         messageIndex: messageIndex,
+        flowerKind: flowerKind,
+        reaction: reaction,
       );
       if (!mounted) return;
       setState(() => _cheeredThisVisit.add(target.gardenId));
@@ -168,10 +124,7 @@ class _PublicGardenBrowseScreenState extends State<PublicGardenBrowseScreen> {
         ),
         centerTitle: true,
       ),
-      body: RefreshIndicator(
-        onRefresh: _load,
-        child: _buildBody(l10n),
-      ),
+      body: RefreshIndicator(onRefresh: _load, child: _buildBody(l10n)),
     );
   }
 

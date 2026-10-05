@@ -111,10 +111,28 @@ class AppStateProvider extends ChangeNotifier {
   }
 
   /// 로그인된 사용자(userId)의 데이터 영역으로 전환한 뒤 불러옵니다.
+  bool gardenRewardPending = false;
+  bool gardenRewardRetrying = false;
+  Future<void> retryGardenRewards() async {
+    if (gardenRewardRetrying) return;
+    gardenRewardRetrying = true;
+    notifyListeners();
+    try {
+      await MongiGardenStore.instance.reconcileRecordedDays();
+      gardenRewardPending = false;
+    } catch (_) {
+      gardenRewardPending = true;
+    } finally {
+      gardenRewardRetrying = false;
+      notifyListeners();
+    }
+  }
+
   Future<void> init(String userId) async {
     await StorageService.setCurrentUser(userId);
     // 스트릭/온보딩 복구가 편지를 참조하므로 history를 먼저 올립니다.
     history = StorageService.getAllLetters();
+    await retryGardenRewards();
     await _refreshStreakInternal();
     growthLevel = await StorageService.getGrowthLevel();
     final (points, elapsed) = await StorageService.getGrowthProgress();
@@ -231,9 +249,19 @@ class AppStateProvider extends ChangeNotifier {
   // RangeError를 던집니다(네이티브 VM에서는 문제 없어 flutter test로는
   // 잡히지 않았던 웹 전용 버그). `1 << 31`(2^31)은 모든 플랫폼에서
   // 안전한 양수 범위입니다.
-  String _newLetterId() => '${DateTime.now().microsecondsSinceEpoch}_${Random.secure().nextInt(1 << 31)}';
-  bool _sameLetter(LetterEntry entry,String text,String catId,String? mood,ReplyStyle style) =>
-      entry.letterText == text && entry.catId == catId && entry.moodEmoji == mood && entry.replyStyle == style;
+  String _newLetterId() =>
+      '${DateTime.now().microsecondsSinceEpoch}_${Random.secure().nextInt(1 << 31)}';
+  bool _sameLetter(
+    LetterEntry entry,
+    String text,
+    String catId,
+    String? mood,
+    ReplyStyle style,
+  ) =>
+      entry.letterText == text &&
+      entry.catId == catId &&
+      entry.moodEmoji == mood &&
+      entry.replyStyle == style;
 
   /// 편지를 쓰고 "보내기"를 누른 즉시(=명상/온도체크와 완전히 독립적으로)
   /// 편지를 저장하고, 마음 온도를 자동으로 +1도 올립니다. 사용자가 직접
@@ -256,37 +284,55 @@ class AppStateProvider extends ChangeNotifier {
     final cat = selectedCat;
     if (cat == null) throw StateError('감정 고양이를 먼저 골라 주세요.');
     final old = _letterSubmission;
-    if (old != null && _sameLetter(old.payload,letterText,cat.id,moodEmoji,replyStyle)) {
+    if (old != null &&
+        _sameLetter(old.payload, letterText, cat.id, moodEmoji, replyStyle)) {
       await old.submit();
       return;
     }
-    final entry = LetterEntry(id:_newLetterId(),catId:cat.id,date:DateTime.now(),
-      letterText:letterText,moodEmoji:moodEmoji,replyStyle:replyStyle);
+    final entry = LetterEntry(
+      id: _newLetterId(),
+      catId: cat.id,
+      date: DateTime.now(),
+      letterText: letterText,
+      moodEmoji: moodEmoji,
+      replyStyle: replyStyle,
+    );
     final submission = PersistedSubmission<LetterEntry>(
-      payload:entry, persist:StorageService.saveLetter,
-      onSaved:(saved) {
-        history = [saved,...history.where((item)=>item.id!=saved.id)];
+      payload: entry,
+      persist: StorageService.saveLetter,
+      onSaved: (saved) {
+        history = [saved, ...history.where((item) => item.id != saved.id)];
         currentLetterId = saved.id;
         flowStage = FlowStage.meditation;
         notifyListeners();
       },
-      afterSaved:(_) => _afterLetterSaved(entry,cat.nameKr,onTemperatureBonus),
+      afterSaved: (_) =>
+          _afterLetterSaved(entry, cat.nameKr, onTemperatureBonus),
     );
     _letterSubmission = submission;
     await submission.submit();
   }
 
-  Future<void> _afterLetterSaved(LetterEntry entry,String catName,
-      Future<void> Function() onTemperatureBonus) async {
+  Future<void> _afterLetterSaved(
+    LetterEntry entry,
+    String catName,
+    Future<void> Function() onTemperatureBonus,
+  ) async {
     // Garden reward retries are safe: one persisted date can grant only once.
-    try { await MongiGardenStore.instance.claimTodayRecord(); } catch (_) {}
+    await retryGardenRewards();
     // Each post-save step is independent; do not retry non-idempotent bonuses here.
     try {
-      final (leveledUp, level, points, elapsed) = await StorageService.recordGrowthDay();
-      growthLevel=level; growthPoints=points; growthElapsedDays=elapsed; justLeveledUp=leveledUp;
+      final (leveledUp, level, points, elapsed) =
+          await StorageService.recordGrowthDay();
+      growthLevel = level;
+      growthPoints = points;
+      growthElapsedDays = elapsed;
+      justLeveledUp = leveledUp;
       notifyListeners();
     } catch (_) {}
-    try { await onTemperatureBonus(); } catch (_) {}
+    try {
+      await onTemperatureBonus();
+    } catch (_) {}
     unawaited(() async {
       try {
         await AnalyticsService().logEvent(AnalyticsEvents.letterSent, {
@@ -338,9 +384,10 @@ class AppStateProvider extends ChangeNotifier {
     if (meditationKey != null) {
       unawaited(() async {
         try {
-          await AnalyticsService().logEvent(AnalyticsEvents.meditationCompleted, {
-            'meditation_key': meditationKey,
-          });
+          await AnalyticsService().logEvent(
+            AnalyticsEvents.meditationCompleted,
+            {'meditation_key': meditationKey},
+          );
         } catch (_) {}
       }());
     }
@@ -365,20 +412,40 @@ class AppStateProvider extends ChangeNotifier {
     String? moodEmoji,
   }) async {
     final old = _onboardingSubmission;
-    if (old != null && _sameLetter(old.payload,letterText,cat.id,moodEmoji,ReplyStyle.listen)) {
-      await old.submit(); return;
+    if (old != null &&
+        _sameLetter(
+          old.payload,
+          letterText,
+          cat.id,
+          moodEmoji,
+          ReplyStyle.listen,
+        )) {
+      await old.submit();
+      return;
     }
-    final entry=LetterEntry(id:_newLetterId(),catId:cat.id,date:DateTime.now(),letterText:letterText,moodEmoji:moodEmoji);
-    final submission=PersistedSubmission<LetterEntry>(payload:entry,persist:StorageService.saveLetter,
-      onSaved:(saved) {
-        history=[saved,...history.where((item)=>item.id!=saved.id)];
+    final entry = LetterEntry(
+      id: _newLetterId(),
+      catId: cat.id,
+      date: DateTime.now(),
+      letterText: letterText,
+      moodEmoji: moodEmoji,
+    );
+    final submission = PersistedSubmission<LetterEntry>(
+      payload: entry,
+      persist: StorageService.saveLetter,
+      onSaved: (saved) {
+        history = [saved, ...history.where((item) => item.id != saved.id)];
         notifyListeners();
       },
-      afterSaved:(_) => _afterLetterSaved(entry,cat.nameKr,() async {
-        await CatCareService.adjustBonusTemperature(1,isPremium:isPremiumUser,countAsActivityBonus:true);
+      afterSaved: (_) => _afterLetterSaved(entry, cat.nameKr, () async {
+        await CatCareService.adjustBonusTemperature(
+          1,
+          isPremium: isPremiumUser,
+          countAsActivityBonus: true,
+        );
       }),
     );
-    _onboardingSubmission=submission;
+    _onboardingSubmission = submission;
     await submission.submit();
   }
 
@@ -649,7 +716,10 @@ class AppStateProvider extends ChangeNotifier {
     final periodStart = DateTime(ref.year, ref.month, 1);
     final firstHalfEnd = DateTime(ref.year, ref.month, 15);
     final secondHalfStart = DateTime(ref.year, ref.month, 16);
-    final firstHalf = _dominantCatIdInRange(periodStart, firstHalfEnd.isAfter(periodEnd) ? periodEnd : firstHalfEnd);
+    final firstHalf = _dominantCatIdInRange(
+      periodStart,
+      firstHalfEnd.isAfter(periodEnd) ? periodEnd : firstHalfEnd,
+    );
     final secondHalf = _dominantCatIdInRange(secondHalfStart, periodEnd);
     return (firstHalf, secondHalf);
   }

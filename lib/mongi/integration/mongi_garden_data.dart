@@ -204,6 +204,14 @@ class MongiGardenData {
     );
   }
 
+  MongiGardenData reconcileRecordDays(Iterable<DateTime> dates) {
+    var next = this;
+    for (final date in dates) {
+      next = next.claimRecordDay(date);
+    }
+    return next;
+  }
+
   MongiGardenData claimRecordDay(DateTime today) {
     final day = dayKey(today);
     // Preserve every claimed date across clock corrections and backup restores.

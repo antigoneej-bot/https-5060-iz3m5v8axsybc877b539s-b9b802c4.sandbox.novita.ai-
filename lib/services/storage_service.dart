@@ -1,3 +1,4 @@
+import '../mongi/integration/mongi_garden_store.dart';
 import '../mongi/integration/session_transaction.dart';
 import 'personal_reply_service.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -149,11 +150,11 @@ class StorageService {
       await _bubbleMemoBox!.close();
     }
     _letterBox = await HiveEncryption.openBox('letter_entries_$_uid');
-    _reflectionLetterBox =
-        await HiveEncryption.openBox('reflection_letters_$_uid');
+    _reflectionLetterBox = await HiveEncryption.openBox(
+      'reflection_letters_$_uid',
+    );
     _dailyDrawBox = await HiveEncryption.openBox('daily_draw_entries_$_uid');
-    _bubbleMemoBox =
-        await HiveEncryption.openBox('bubble_memo_entries_$_uid');
+    _bubbleMemoBox = await HiveEncryption.openBox('bubble_memo_entries_$_uid');
   }
 
   /// 로그아웃 시 호출해서 계정 전용 데이터 접근을 닫습니다.
@@ -186,7 +187,8 @@ class StorageService {
 
   static Future<void> saveLetter(LetterEntry entry) async {
     // A retry after an uncertain write uses the same immutable ID.
-    if (!letterBox.containsKey(entry.id)) await letterBox.put(entry.id, entry.toMap());
+    if (!letterBox.containsKey(entry.id))
+      await letterBox.put(entry.id, entry.toMap());
     await letterBox.flush();
   }
 
@@ -213,6 +215,7 @@ class StorageService {
   }
 
   static Future<void> deleteLetter(String id) async {
+    await MongiGardenStore.instance.reconcileRecordedDays();
     await PersonalReplyService.remove('letter:$id');
     final cache = await HiveEncryption.openBox('reply_cache_local_user');
     await cache.delete(id);
@@ -272,8 +275,9 @@ class StorageService {
     final lastVisitDay = lastVisitRaw != null
         ? _parseDateOnly(lastVisitRaw)
         : null;
-    final lastVisit =
-        lastVisitDay != null ? _dateOnlyString(lastVisitDay) : null;
+    final lastVisit = lastVisitDay != null
+        ? _dateOnlyString(lastVisitDay)
+        : null;
     int streak = prefs.getInt(_streakKey) ?? 0;
 
     if (lastVisit == null) {
@@ -384,8 +388,7 @@ class StorageService {
       if (d != null) normalized.add(_dateOnlyString(d));
     }
     final list = normalized.toList()..sort();
-    if (list.length != raw.length ||
-        list.any((e) => !raw.contains(e))) {
+    if (list.length != raw.length || list.any((e) => !raw.contains(e))) {
       await prefs.setStringList(_growthDaysKey, list);
     }
     return list;
@@ -445,7 +448,11 @@ class StorageService {
     final today = DateTime(now.year, now.month, now.day);
     final elapsedNow = leveledUp
         ? 0
-        : today.difference(DateTime(startDate.year, startDate.month, startDate.day)).inDays +
+        : today
+                  .difference(
+                    DateTime(startDate.year, startDate.month, startDate.day),
+                  )
+                  .inDays +
               1;
     return (leveledUp, level, days.length, elapsedNow);
   }

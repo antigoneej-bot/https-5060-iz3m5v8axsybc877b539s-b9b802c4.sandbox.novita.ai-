@@ -1,6 +1,7 @@
 import 'garden_care_tree.dart';
 import 'garden_moments_card.dart';
 import '../providers/garden_provider.dart';
+import '../widgets/living_garden_entry.dart';
 import '../widgets/garden_scene_view.dart';
 import 'garden_postcard_screen.dart';
 import 'garden_stories_screen.dart';
@@ -108,7 +109,12 @@ class _UnifiedGardenPanelState extends State<UnifiedGardenPanel> {
             icon: const Icon(Icons.menu_book),
             label: const Text('몽이의 정원 이야기'),
           ),
-          const GardenSceneView(height: 460),
+          const LivingGardenEntry(),
+          const ExpansionTile(
+            title: Text('장식 배치와 돌봄 나무 보기'),
+            leading: Icon(Icons.dashboard_customize_outlined),
+            children: [GardenSceneView(height: 460)],
+          ),
           GardenCareNote(data: data),
           GardenMomentsCard(data: data, catCount: cats.length),
           OutlinedButton.icon(

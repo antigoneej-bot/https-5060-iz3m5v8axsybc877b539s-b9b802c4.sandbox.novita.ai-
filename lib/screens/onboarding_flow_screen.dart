@@ -1,3 +1,4 @@
+import '../mongi/widgets/garden_record_card.dart';
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
@@ -78,9 +79,9 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
         _busy = false;
         _step = _OnboardingStep.letter;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('편지를 저장하지 못했어요. 다시 보내 주세요')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('편지를 저장하지 못했어요. 다시 보내 주세요')));
       return;
     }
 
@@ -145,6 +146,7 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
           moodEmoji: _moodEmoji,
           onMoodChanged: (v) => setState(() => _moodEmoji = v),
           onSend: _onSendLetter,
+          onSkip: () => setState(() => _step = _OnboardingStep.signup),
         );
       case _OnboardingStep.sending:
         return _SendingAnimationStep(
@@ -199,7 +201,7 @@ class _OnboardingLetterStep extends StatelessWidget {
   final bool busy;
   final String? moodEmoji;
   final ValueChanged<String?> onMoodChanged;
-  final VoidCallback onSend;
+  final VoidCallback onSend, onSkip;
   const _OnboardingLetterStep({
     super.key,
     required this.cat,
@@ -208,6 +210,7 @@ class _OnboardingLetterStep extends StatelessWidget {
     required this.moodEmoji,
     required this.onMoodChanged,
     required this.onSend,
+    required this.onSkip,
   });
 
   @override
@@ -237,13 +240,13 @@ class _OnboardingLetterStep extends StatelessWidget {
             ),
             child: TextField(
               controller: controller,
-              minLines: 6,
+              minLines: 3,
               maxLines: 10,
-              autofocus: true,
+              autofocus: false,
               style: bodyFont(fontSize: 14, color: AppColors.moon, height: 1.6),
               decoration: InputDecoration(
                 border: InputBorder.none,
-                hintText: '지금 이 마음을 이 아이에게 들려주세요',
+                hintText: '오늘은 조금 지쳤어… 한 줄이면 충분해요.',
                 hintStyle: bodyFont(
                   fontSize: 13.5,
                   color: AppColors.inkSoft,
@@ -254,6 +257,12 @@ class _OnboardingLetterStep extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           MoodPicker(selectedEmoji: moodEmoji, onChanged: onMoodChanged),
+          const SizedBox(height: 8),
+          const Text('글 대신 감정 하나만 골라도 괜찮아요.'),
+          TextButton(
+            onPressed: busy ? null : onSkip,
+            child: const Text('기록은 나중에, 먼저 시작할래요'),
+          ),
           const SizedBox(height: 22),
           SizedBox(
             width: double.infinity,
@@ -385,7 +394,7 @@ class _SignupPromptStep extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            '이 편지, 계속 이어가고 싶다면',
+            '당신의 속도로 가꾸는 정원',
             textAlign: TextAlign.center,
             style: serifFont(
               fontSize: 18,
@@ -395,7 +404,7 @@ class _SignupPromptStep extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           Text(
-            '당신과 이 아이의 이야기는 이 기기에 안전하게 남아요.\n쓴 편지와 마음의 온도를 기억해 두고,\n다음에 와도 이어서 지켜볼게요.',
+            '한 줄의 마음이 기억의 나무를 키워요.\n기록하지 않는 날에는 정원에서 쉬어도 괜찮아요.',
             textAlign: TextAlign.center,
             style: bodyFont(
               fontSize: 13.5,
@@ -403,6 +412,10 @@ class _SignupPromptStep extends StatelessWidget {
               height: 1.7,
             ),
           ),
+          if (context.watch<AppStateProvider>().history.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            const GardenRecordCard(),
+          ],
           const SizedBox(height: 32),
           SizedBox(
             width: double.infinity,
