@@ -54,12 +54,10 @@ class _EmotionCatVideoState extends State<EmotionCatVideo>
     if (_active.value == _identity) _active.value = null;
   }
 
-  void _checkVisibility() {
-    if (!mounted || _active.value != _identity) return;
+  bool _isVisibleNow() {
     final box = context.findRenderObject();
     if (!_allowed || !_foreground || box is! RenderBox || !box.hasSize) {
-      _stop();
-      return;
+      return false;
     }
     final bounds = box.localToGlobal(Offset.zero) & box.size;
     final viewport = Scrollable.maybeOf(context)?.context.findRenderObject();
@@ -67,8 +65,17 @@ class _EmotionCatVideoState extends State<EmotionCatVideo>
         ? viewport.localToGlobal(Offset.zero) & viewport.size
         : Offset.zero & MediaQuery.sizeOf(context);
     final overlap = bounds.intersect(visible);
-    if (overlap.isEmpty ||
-        overlap.width * overlap.height < bounds.width * bounds.height * .5) {
+    return !overlap.isEmpty &&
+        overlap.width * overlap.height >= bounds.width * bounds.height * .5;
+  }
+
+  void _checkVisibility() {
+    if (!mounted) return;
+    if (_isVisibleNow()) {
+      // 카드가 화면에 충분히 보이면 탭 없이 자동으로 재생을 시도합니다.
+      // (다른 카드가 재생 중이면 _active 싱글톤이 그 카드를 먼저 멈춥니다.)
+      _play();
+    } else if (_active.value == _identity) {
       _stop();
     }
   }
