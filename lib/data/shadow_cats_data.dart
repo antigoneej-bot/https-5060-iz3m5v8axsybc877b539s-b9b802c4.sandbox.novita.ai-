@@ -305,6 +305,7 @@ final List<ShadowCat> shadowCats = [
     emoji: '🙄',
     keyword: '삐짐',
     imageAsset: 'assets/cards36/cat_23.png',
+    videoAsset: 'assets/cards36/videos/cat_23_loop.mp4',
     story:
         '팔짱을 낀 채 뾰로통한 표정으로 곁눈질하는 이 고양이는 단단히 삐쳐있어요. 서운한 마음을 솔직히 말하기보다 '
         '토라진 티를 팍팍 내며 알아주기를 바란답니다. 사실 그 안엔 이해받고 싶은 마음이 가득해요.',
@@ -319,6 +320,7 @@ final List<ShadowCat> shadowCats = [
     emoji: '🏝️',
     keyword: '소외감',
     imageAsset: 'assets/cards36/cat_24.png',
+    videoAsset: 'assets/cards36/videos/cat_24_loop.mp4',
     story:
         '다른 고양이들이 어울려 노는 모습을 먼발치에서 바라보며, 이 고양이는 홀로 작은 섬에 쓸쓸히 앉아 있어요. '
         '무리에 끼지 못하는 것 같은 기분에 마음이 움츠러들고, 자신만 뒤처진 것 같아 속상하답니다. 하지만 함께할 '
