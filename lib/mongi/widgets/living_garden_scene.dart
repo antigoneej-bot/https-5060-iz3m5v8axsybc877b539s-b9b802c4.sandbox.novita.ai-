@@ -41,7 +41,10 @@ class _LivingGardenSceneState extends State<LivingGardenScene>
   Timer? _clock;
   int _light =
       0; // 0 device time, 1 day, 2 night; preview never changes records.
-  bool _paused = false, _foreground = true, _animate = false;
+  // 정원 화면의 입체 고양이는 움직임이 부자연스럽다는 피드백에 따라
+  // 기본값을 '정지'로 두고, 사용자가 직접 '정원 움직임 켜기'를 눌렀을 때만
+  // 흔들림/배회 애니메이션을 재생합니다(쓰다듬기 탭 자체는 항상 가능).
+  bool _paused = true, _foreground = true, _animate = false;
   Offset _look = Offset.zero;
   bool get _night =>
       _light == 2 ||
@@ -218,14 +221,17 @@ class _LivingGardenSceneState extends State<LivingGardenScene>
                             ),
                           ),
                           Positioned(
-                            left: w * .225 + _look.dx * 5,
-                            top: h * .425 + math.sin(t * 6) * 1.2 - pet * 9,
-                            width: w * .58,
-                            height: w * .58,
+                            // 배경(정원 씬)에 비해 고양이가 지나치게 크고
+                            // 움직임도 부담스럽다는 피드백에 따라, 비율을
+                            // 약 35%로 줄이고 흔들림 폭도 함께 낮췄습니다.
+                            left: w * .34 + _look.dx * 3,
+                            top: h * .577 + math.sin(t * 6) * .7 - pet * 5,
+                            width: w * .35,
+                            height: w * .35,
                             child: Transform.rotate(
-                              angle: pet * -.045,
+                              angle: pet * -.03,
                               child: Transform.scale(
-                                scale: 1 + pet * .035,
+                                scale: 1 + pet * .025,
                                 alignment: Alignment.bottomCenter,
                                 child: Semantics(
                                   label:
@@ -255,7 +261,7 @@ class _LivingGardenSceneState extends State<LivingGardenScene>
                           ),
                           if (pet > 0)
                             Positioned(
-                              top: h * .40 - pet * 20,
+                              top: h * .52 - pet * 20,
                               left: w * .48,
                               child: Opacity(
                                 opacity: pet,
