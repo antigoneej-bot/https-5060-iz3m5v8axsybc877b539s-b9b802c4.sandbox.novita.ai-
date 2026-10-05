@@ -86,12 +86,14 @@ class _EmotionCatVideoState extends State<EmotionCatVideo>
     if (!_foreground) _stop();
   }
 
-  Future<void> _toggle() async {
-    if (_active.value == _identity) {
-      _stop();
+  /// Starts (or resumes) playback of this card's video. Safe to call
+  /// repeatedly (e.g. from scroll/visibility checks) — it no-ops while
+  /// loading or once this card is already the active, playing one.
+  Future<void> _play() async {
+    if (widget.videoAsset == null || _loading || !_allowed || !_foreground) {
       return;
     }
-    if (_loading || !_allowed || !_foreground || widget.videoAsset == null) {
+    if (_active.value == _identity && (_player?.value.isPlaying ?? false)) {
       return;
     }
     _active.value = _identity;
@@ -109,8 +111,10 @@ class _EmotionCatVideoState extends State<EmotionCatVideo>
         await player.setLooping(true);
       }
       if (!mounted) return;
-      _checkVisibility();
-      if (_active.value == _identity && _allowed && _foreground) {
+      if (_active.value == _identity &&
+          _allowed &&
+          _foreground &&
+          _isVisibleNow()) {
         await _player!.play();
       }
     } catch (_) {
@@ -122,6 +126,14 @@ class _EmotionCatVideoState extends State<EmotionCatVideo>
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  Future<void> _toggle() async {
+    if (_active.value == _identity) {
+      _stop();
+      return;
+    }
+    await _play();
   }
 
   @override
