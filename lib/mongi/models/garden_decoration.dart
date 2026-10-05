@@ -3,7 +3,8 @@ import 'package:flutter/material.dart';
 /// 마음정원을 꾸미는 장식 아이템(벤치/분수대/오솔길/조명 등).
 ///
 /// [SeedType]과 마찬가지로 리스트([all]) 기반 확장 구조로 설계했다 - 새 장식을
-/// 추가해도 화면(GardenDecorationSheet, GardenScreen) 코드는 수정할 필요가 없다.
+/// 추가해도 화면(GardenDecorationSheet, UnifiedGardenPanel) 코드는 수정할
+/// 필요가 없다.
 ///
 /// 무료 아이템은 앱을 자연스럽게 이용하다 보면 달성하게 되는 마일스톤으로
 /// 잠금 해제되고(스트릭, 씨앗 완성, 정원 만개 등), 프리미엄 아이템은

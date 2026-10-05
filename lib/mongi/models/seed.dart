@@ -6,7 +6,8 @@ import 'package:flutter/material.dart';
 ///
 /// 확장성: 새로운 씨앗 종류(예: '감사', '희망')를 추가하고 싶다면 이 파일의
 /// [SeedType.all] 리스트에 항목 하나만 추가하면 된다 - 화면(ChoiceScreen,
-/// GardenScreen) 쪽 코드는 이 리스트를 그대로 순회해서 그리므로 수정이 필요 없다.
+/// UnifiedGardenPanel) 쪽 코드는 이 리스트를 그대로 순회해서 그리므로 수정이
+/// 필요 없다.
 /// 마찬가지로 나무 모양이 아닌 다른 성장 형태(꽃밭, 연못 등)도
 /// [growthStages]에 원하는 이모지 시퀀스만 넣어주면 자유롭게 표현할 수 있다.
 class SeedType {
