@@ -53,10 +53,6 @@ String emotionLabel(AppLocalizations l10n, EmotionType type) {
       return l10n.emotionLabelThrill;
     case EmotionType.happiness:
       return l10n.emotionLabelHappiness;
-    case EmotionType.sulking:
-      return l10n.emotionLabelSulking;
-    case EmotionType.exclusion:
-      return l10n.emotionLabelExclusion;
   }
 }
 
@@ -102,10 +98,6 @@ String emotionCatQuestion(AppLocalizations l10n, EmotionType type) {
       return l10n.emotionCatQuestionThrill;
     case EmotionType.happiness:
       return l10n.emotionCatQuestionHappiness;
-    case EmotionType.sulking:
-      return l10n.emotionCatQuestionSulking;
-    case EmotionType.exclusion:
-      return l10n.emotionCatQuestionExclusion;
   }
 }
 
@@ -151,10 +143,6 @@ String emotionHealMessage(AppLocalizations l10n, EmotionType type) {
       return l10n.emotionHealMessageThrill;
     case EmotionType.happiness:
       return l10n.emotionHealMessageHappiness;
-    case EmotionType.sulking:
-      return l10n.emotionHealMessageSulking;
-    case EmotionType.exclusion:
-      return l10n.emotionHealMessageExclusion;
   }
 }
 
@@ -200,10 +188,6 @@ String emotionStoryText(AppLocalizations l10n, EmotionType type) {
       return l10n.emotionStoryTextThrill;
     case EmotionType.happiness:
       return l10n.emotionStoryTextHappiness;
-    case EmotionType.sulking:
-      return l10n.emotionStoryTextSulking;
-    case EmotionType.exclusion:
-      return l10n.emotionStoryTextExclusion;
   }
 }
 
@@ -350,20 +334,6 @@ List<String> evolutionNamesFor(AppLocalizations l10n, EmotionType type) {
         l10n.evolutionNameHappiness1,
         l10n.evolutionNameHappiness2,
         l10n.evolutionNameHappiness3,
-      ];
-    case EmotionType.sulking:
-      return [
-        l10n.evolutionNameSulking0,
-        l10n.evolutionNameSulking1,
-        l10n.evolutionNameSulking2,
-        l10n.evolutionNameSulking3,
-      ];
-    case EmotionType.exclusion:
-      return [
-        l10n.evolutionNameExclusion0,
-        l10n.evolutionNameExclusion1,
-        l10n.evolutionNameExclusion2,
-        l10n.evolutionNameExclusion3,
       ];
   }
 }
