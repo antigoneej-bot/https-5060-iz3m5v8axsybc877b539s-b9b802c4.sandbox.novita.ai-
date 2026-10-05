@@ -1,4 +1,6 @@
 import '../mongi/integration/unified_garden_panel.dart';
+import '../mongi/integration/garden_activity_menu.dart';
+import '../mongi/integration/garden_flower_bed_section.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../data/shadow_cats_data.dart';
@@ -8,22 +10,25 @@ import '../theme.dart';
 import '../utils/cat_palette.dart';
 import '../widgets/garden_path_card.dart';
 
-/// '나의 정원' - 실제로 가꾸는 정원([UnifiedGardenPanel]: 씨앗/장식/몽이
-/// 성장나무)과, 지금까지 만난 그림자 고양이 도감(컬렉션)을 한 화면에서
-/// 이어서 보여주는 메인 진입점.
+/// '나의 정원' - 몽이와 함께 가꾸는 단 하나의 정원 화면.
 ///
-/// [showMongiPanel]이 true(기본값, 홈에서 들어올 때)면 화면 맨 위에
-/// [UnifiedGardenPanel](진짜 정원 - 심은 씨앗, 장착한 장식, 몽이의
-/// 성장나무)이 먼저 나오고, 그 아래 고양이 도감이 이어진다. false(예:
-/// [GardenScreen] 하단에 끼워 넣을 때)면 중복을 피해 도감 그리드만
-/// 보여준다. 아직 만나지 않은 고양이는 실루엣(그레이스케일)으로 표시되어,
-/// 앞으로 채워나갈 자리라는 걸 은은하게 보여준다.
+/// 정원 통합(2024년, "몽이네 정원"(구 GardenScreen)과 "마음냥 정원"(이 화면)을
+/// 하나로 합침) 이후, 이 화면이 앱에서 '정원 보기'로 들어오는 모든 경로의
+/// 유일한 목적지가 되었다. 두 화면이 보여주던 데이터는 애초에 같은
+/// 저장소([GardenProvider] -> [GardenStorage]/[MongiGardenStore])를 공유했으므로
+/// 통합으로 인한 데이터 손실은 없으며, 이 화면 하나에서 위에서 아래 순서로:
 ///
-/// 참고로 "세션을 막 끝낸 직후"에는 이 화면 대신 [GardenScreen]("🌷 내
-/// 마음정원" - 감정별 꽃밭 + 같은 정원 씬 + 도감)으로 안내된다. 두 화면
-/// 모두 같은 데이터([GardenProvider])를 보되, 보여주는 관점이 다를 뿐
-/// 서로 다른 정원이 아니다 - 혼동되지 않도록 항상 "나의 정원" 또는
-/// "내 마음정원"처럼 화면 타이틀을 명확히 구분해서 붙인다.
+/// 1. 상단 [GardenActivityMenuButton] - 마음 리포트/감정 도감/성장 마일스톤/
+///    정원 공유/감정 캘린더/감정 다이어리로 가는 '기록·활동' 통합 메뉴
+/// 2. [UnifiedGardenPanel] - 실제로 가꾸는 정원(심은 씨앗, 장착한 장식, 몽이의
+///    성장나무, 정원 이야기/엽서 만들기)
+/// 3. [GardenFlowerBedSection] - 구 GardenScreen에만 있던 "감정별 꽃밭" 시각화
+///    (감정을 마주할 때마다 쌓인 [GardenProvider.flowerCounts]를 그대로 보여줌)
+/// 4. 지금까지 만난 그림자 고양이 도감(컬렉션) 그리드
+///
+/// 를 모두 이어서 보여준다. [showMongiPanel]은 과거 GardenScreen 내부에
+/// 중복 없이 고양이 도감만 끼워 넣기 위해 쓰이던 옵션으로, GardenScreen이
+/// 삭제된 지금은 항상 기본값(true)으로만 호출된다(하위 호환을 위해 유지).
 class MyGardenScreen extends StatelessWidget {
   final VoidCallback onGoMeetCat;
   final bool showMongiPanel;
@@ -39,7 +44,19 @@ class MyGardenScreen extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        const Align(
+          alignment: Alignment.centerRight,
+          child: GardenActivityMenuButton(),
+        ),
+        const SizedBox(height: 14),
         if (showMongiPanel) const UnifiedGardenPanel(),
+        const SizedBox(height: 20),
+        GlassBlob(
+          accent: AppColors.blobPeachAccent,
+          background: AppColors.blobPeach,
+          floatSeed: 5,
+          child: const GardenFlowerBedSection(),
+        ),
         const SizedBox(height: 20),
         GlassBlob(
           accent: AppColors.blobMintAccent,

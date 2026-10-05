@@ -11,7 +11,8 @@ import '../models/emotion.dart';
 import '../providers/garden_provider.dart';
 import '../services/emotion_breathing_service.dart';
 import '../widgets/breathing_interstitial.dart';
-import 'garden_screen.dart';
+import '../../screens/my_garden_screen.dart';
+import '../../widgets/feature_scaffold.dart';
 
 enum _QuietStage { greet, breathe, reflect, planting, done }
 
@@ -113,10 +114,21 @@ class _QuietModeScreenState extends State<QuietModeScreen>
     Navigator.of(context).pop();
   }
 
+  /// 고요 모드 결과 화면을 "나의 정원"으로 대체한다(pushReplacement) -
+  /// 되돌아갈 결과 화면이 애초에 의미가 없으므로, 뒤로가기 한 번으로 바로
+  /// 감정 입력 화면까지 돌아가도록 스택에 쌓지 않는다.
   void _openGarden() {
-    Navigator.of(
-      context,
-    ).pushReplacement(MaterialPageRoute(builder: (_) => const GardenScreen()));
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => FeatureScaffold(
+          title: '나의 정원',
+          child: MyGardenScreen(
+            onGoMeetCat: () =>
+                Navigator.of(context).popUntil((route) => route.isFirst),
+          ),
+        ),
+      ),
+    );
   }
 
   @override

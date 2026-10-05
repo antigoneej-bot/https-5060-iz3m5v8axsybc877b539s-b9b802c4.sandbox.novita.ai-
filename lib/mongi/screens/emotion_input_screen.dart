@@ -25,9 +25,10 @@ import '../widgets/light_essence_shop_sheet.dart';
 import '../widgets/mongi_care_sheet.dart';
 import '../widgets/mongi_greeting_animation.dart';
 import '../widgets/power_charm_shop_sheet.dart';
+import '../../screens/my_garden_screen.dart';
+import '../../widgets/feature_scaffold.dart';
 import 'breathing_library_screen.dart';
 import 'endless_mode_screen.dart';
-import 'garden_screen.dart';
 import 'mental_health_support_screen.dart';
 import 'mind_box_screen.dart';
 import 'mind_challenge_detail_screen.dart';
@@ -599,9 +600,7 @@ class _EmotionInputScreenState extends State<EmotionInputScreen> {
               _navItem(
                 emoji: '🌷',
                 label: l10n.navGarden,
-                onTap: () => Navigator.of(
-                  context,
-                ).push(MaterialPageRoute(builder: (_) => const GardenScreen())),
+                onTap: _openGarden,
               ),
               _navItem(
                 emoji: '🎁',
@@ -960,14 +959,20 @@ class _EmotionInputScreenState extends State<EmotionInputScreen> {
     );
   }
 
+  /// '나의 정원'(통합 화면)으로 이동한다. 이 화면(마음냥 정원 메인) 자체가
+  /// 이미 중첩 네비게이터([MongiExperience])의 첫 화면이므로, 단순
+  /// push만으로도 뒤로가기 한 번에 다시 이 화면으로 돌아오며 스택이 쌓이지
+  /// 않는다.
+  void _openGarden() {
+    pushFullScreen(context, '나의 정원', MyGardenScreen(onGoMeetCat: () {
+      Navigator.of(context).popUntil((route) => route.isFirst);
+    }));
+  }
+
   Widget _buildGardenBadge(GardenProvider garden) {
     final l10n = AppLocalizations.of(context);
     return GestureDetector(
-      onTap: () {
-        Navigator.of(
-          context,
-        ).push(MaterialPageRoute(builder: (_) => const GardenScreen()));
-      },
+      onTap: _openGarden,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(

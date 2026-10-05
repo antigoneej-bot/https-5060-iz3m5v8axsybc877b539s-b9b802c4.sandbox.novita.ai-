@@ -22,8 +22,9 @@ import '../widgets/garden_growth_share_sheet.dart';
 import '../widgets/score_popup_animation.dart';
 import '../widgets/seed_planting_animation.dart';
 import '../widgets/tree_growth_animation.dart';
+import '../../screens/my_garden_screen.dart';
+import '../../widgets/feature_scaffold.dart';
 import 'emotion_input_screen.dart';
-import 'garden_screen.dart';
 import 'growth_milestone_screen.dart';
 
 enum _Stage { stageClear, asking, seedSelect, planting, treeGrowth, result }
@@ -328,9 +329,14 @@ class _ChoiceScreenState extends State<ChoiceScreen>
   }
 
   void _openGarden() {
-    Navigator.of(
+    pushFullScreen(
       context,
-    ).push(MaterialPageRoute(builder: (_) => const GardenScreen()));
+      '나의 정원',
+      MyGardenScreen(
+        onGoMeetCat: () =>
+            Navigator.of(context).popUntil((route) => route.isFirst),
+      ),
+    );
   }
 
   void _openShareSheet() {
