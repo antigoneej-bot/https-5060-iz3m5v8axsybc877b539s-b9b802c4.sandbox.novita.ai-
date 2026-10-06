@@ -91,8 +91,12 @@ void main() {
   }
 
   // Care/decorate/memory tools now live behind a collapsed "돌보기 · 꾸미기 ·
-  // 추억" toggle; open it before tapping any tool inside.
+  // 추억" toggle; open it before tapping any tool inside. The toggle only
+  // flips _toolsOpen, so if the tray is already open (its label already
+  // reads "도구 접기"), tapping it again would close it - check state first
+  // instead of toggling unconditionally.
   Future<void> openTools(WidgetTester tester) async {
+    if (find.text('도구 접기').evaluate().isNotEmpty) return;
     await tester.tap(find.text('돌보기 · 꾸미기 · 추억'));
     // Ambient controllers repeat forever when a test runs with
     // reduced:false, so pumpAndSettle would hang here; a single bounded
@@ -102,11 +106,18 @@ void main() {
 
   // Zoom/light/motion controls moved from standalone icon buttons into a
   // single "보기 설정" popup menu; open it before tapping an option's text.
+  // The ambient controllers repeat forever while motion is on, so
+  // pumpAndSettle would hang; use bounded pumps instead. A zero-duration
+  // pump must run right after the tap so the PopupMenuRoute is actually
+  // pushed onto the Navigator before its 300ms entrance transition is
+  // pumped - otherwise the menu item's hit test can land on the route
+  // underneath instead of the menu itself.
   Future<void> selectViewOption(WidgetTester tester, String label) async {
     await tester.tap(find.byTooltip('보기 설정'));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
     await tester.tap(find.text(label));
-    await tester.pumpAndSettle();
+    await tester.pump();
   }
 
   testWidgets('camera pans, zooms and can return home', (tester) async {
@@ -179,17 +190,14 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
     expect(clock.value, isNot(initial));
     // The garden's ambient controllers repeat forever while motion is on, so
-    // pumpAndSettle would hang here; open the popup menu with bounded pumps.
-    await tester.tap(find.byTooltip('보기 설정'));
-    await tester.pump(const Duration(milliseconds: 300));
-    await tester.tap(find.text('정원 움직임 멈추기'));
-    await tester.pump();
+    // pumpAndSettle would hang here. The popup route needs a zero-duration
+    // pump to actually push/register before its 300ms entrance transition
+    // is pumped, or the menu item's hit test lands on the old route instead.
+    await selectViewOption(tester, '정원 움직임 멈추기');
     final paused = clock.value;
     await tester.pump(const Duration(seconds: 1));
     expect(clock.value, paused);
-    await tester.tap(find.byTooltip('보기 설정'));
-    await tester.pump(const Duration(milliseconds: 300));
-    await tester.tap(find.text('정원 움직임 재생'));
+    await selectViewOption(tester, '정원 움직임 재생');
     await tester.pump();
     await tester.pump(const Duration(seconds: 1));
     expect(clock.value, isNot(paused));
@@ -201,6 +209,18 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(seconds: 1));
     expect(clock.value, isNot(background));
+    // The user's own pause preference must survive a backgrounding, not
+    // just the lifecycle's own foreground/background suspension above.
+    await selectViewOption(tester, '정원 움직임 멈추기');
+    await tester.pump();
+    final userPaused = clock.value;
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    await tester.pump(const Duration(seconds: 1));
+    expect(clock.value, userPaused);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    expect(clock.value, userPaused);
     await tester.pumpWidget(const SizedBox());
     expect(tester.binding.transientCallbackCount, 0);
   });
@@ -274,7 +294,9 @@ void main() {
     await tester.tap(find.text('쉬기 마치기'));
     await tester.pumpAndSettle();
     // _toolsOpen isn't reset by rest mode, so the tray is still expanded
-    // from the openTools() call above; no second toggle tap is needed.
+    // from the openTools() call above. Call openTools() again anyway to
+    // confirm it's a no-op (idempotent) rather than assuming the state.
+    await openTools(tester);
     expect(find.text('배치 모드'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
