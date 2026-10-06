@@ -78,14 +78,22 @@ class _LivingGardenEntryState extends State<LivingGardenEntry> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        LivingGardenScene(
-          companionName: companionName,
-          seeds: garden.seedCounts,
-          motionEnabled: garden.gardenMotionEnabled,
-          onWrite: widget.onWrite,
-          onGarden: widget.onGarden == null ? null : _openWorld,
-          onNeighbors: widget.onNeighbors,
-          onPlant: _loading || _failed ? null : _memory,
+        LayoutBuilder(
+          builder: (context, constraints) => Center(
+            child: SizedBox(
+              width: constraints.maxWidth.clamp(0.0, 360.0).toDouble(),
+              child: LivingGardenScene(
+                compact: true,
+                companionName: companionName,
+                seeds: garden.seedCounts,
+                motionEnabled: garden.gardenMotionEnabled,
+                onWrite: widget.onWrite,
+                onGarden: widget.onGarden == null ? null : _openWorld,
+                onNeighbors: widget.onNeighbors,
+                onPlant: _loading || _failed ? null : _memory,
+              ),
+            ),
+          ),
         ),
         OutlinedButton.icon(
           onPressed: _openWorld,

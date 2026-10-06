@@ -168,6 +168,9 @@ class _GardenWorldViewState extends State<GardenWorldView>
   final _camera = TransformationController();
   Size _viewport = Size.zero;
   double _minScale = .5;
+  int _zone = 1;
+  bool _toolsOpen = false;
+  bool _catWanders = false;
   bool _editing = false, _saving = false;
   late bool _night = DateTime.now().hour < 6 || DateTime.now().hour >= 19;
   String? _selected;
@@ -279,39 +282,37 @@ class _GardenWorldViewState extends State<GardenWorldView>
         Material(
           color: const Color(0xFFFFF9ED),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-            child: Wrap(
-              alignment: WrapAlignment.center,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              spacing: 4,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            child: Row(
               children: [
-                IconButton(
-                  tooltip: _paused ? '정원 움직임 재생' : '정원 움직임 멈추기',
-                  onPressed: () {
-                    setState(() => _paused = !_paused);
-                    _syncMotion();
-                  },
-                  icon: Icon(
-                    _paused ? Icons.play_arrow_rounded : Icons.pause_rounded,
+                Expanded(
+                  child: DropdownButton<int>(
+                    value: _zone,
+                    isExpanded: true,
+                    underline: const SizedBox.shrink(),
+                    items: [
+                      for (var zone = 0; zone < 3; zone++)
+                        DropdownMenuItem(
+                          value: zone,
+                          child: Text(
+                            '${widget.layout.isOpen(zone) ? '' : '🔒 '}' +
+                                [
+                                  '꽃밭',
+                                  '${companionDisplayName(widget.companionName)}의 집',
+                                  '나무 뜰',
+                                ][zone],
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                    ],
+                    onChanged: (zone) {
+                      if (zone == null) return;
+                      setState(() => _zone = zone);
+                      _jump((zone + .5) / 3);
+                    },
                   ),
                 ),
-                for (var zone = 0; zone < 3; zone++)
-                  TextButton.icon(
-                    onPressed: () => _jump((zone + .5) / 3),
-                    icon: Icon(
-                      widget.layout.isOpen(zone)
-                          ? Icons.park_outlined
-                          : Icons.lock_outline,
-                      size: 16,
-                    ),
-                    label: Text(
-                      [
-                        '꽃밭',
-                        '${companionDisplayName(widget.companionName)}의 집',
-                        '나무 뜰',
-                      ][zone],
-                    ),
-                  ),
                 IconButton(
                   tooltip: '정원 축소',
                   onPressed: () => _zoom(.8),
@@ -322,224 +323,263 @@ class _GardenWorldViewState extends State<GardenWorldView>
                   onPressed: () => _zoom(1.25),
                   icon: const Icon(Icons.add),
                 ),
-                IconButton(
-                  tooltip: _night ? '햇살 정원 보기' : '별빛 정원 보기',
-                  onPressed: () => setState(() => _night = !_night),
-                  icon: Icon(
-                    _night
-                        ? Icons.light_mode_outlined
-                        : Icons.nightlight_outlined,
-                  ),
+                PopupMenuButton<String>(
+                  tooltip: '보기 설정',
+                  onSelected: (value) {
+                    if (value == 'reset') {
+                      setState(() => _zone = 1);
+                      _jump(.5, scale: _minScale);
+                    } else if (value == 'light') {
+                      setState(() => _night = !_night);
+                    } else if (value == 'cat') {
+                      setState(() => _catWanders = !_catWanders);
+                    } else if (value == 'motion') {
+                      setState(() => _paused = !_paused);
+                      _syncMotion();
+                    }
+                  },
+                  itemBuilder: (_) => [
+                    const PopupMenuItem(
+                      value: 'reset',
+                      child: Text('기본 크기로 보기'),
+                    ),
+                    PopupMenuItem(
+                      value: 'cat',
+                      child: Text(_catWanders ? '고양이 앉아서 쉬기' : '고양이 산책하기'),
+                    ),
+                    PopupMenuItem(
+                      value: 'light',
+                      child: Text(_night ? '햇살 정원' : '별빛 정원'),
+                    ),
+                    PopupMenuItem(
+                      value: 'motion',
+                      child: Text(_paused ? '정원 움직임 재생' : '정원 움직임 멈추기'),
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
         ),
       Expanded(
-        child: LayoutBuilder(
-          builder: (context, box) {
-            final size = box.biggest;
-            if (size != _viewport) {
-              _viewport = size;
-              _minScale = math.max(size.width / 2400, size.height / 800);
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (mounted) {
-                  _jump(
-                    _quiet && widget.decorations.contains('bench')
-                        ? widget.layout.position('decor:bench').dx
-                        : .5,
-                    scale: _minScale,
-                  );
+        child: Center(
+          child: AspectRatio(
+            // A landscape viewport avoids portrait-height-driven magnification.
+            aspectRatio: 1.25,
+            child: LayoutBuilder(
+              builder: (context, box) {
+                final size = box.biggest;
+                if (size != _viewport) {
+                  _viewport = size;
+                  _minScale = math.max(size.width / 2400, size.height / 800);
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (mounted) {
+                      _jump(
+                        _quiet && widget.decorations.contains('bench')
+                            ? widget.layout.position('decor:bench').dx
+                            : .5,
+                        scale: _minScale,
+                      );
+                    }
+                  });
                 }
-              });
-            }
-            final sorted = [..._items]
-              ..sort(
-                (a, b) => widget.layout
-                    .position(a)
-                    .dy
-                    .compareTo(widget.layout.position(b).dy),
-              );
-            return ClipRect(
-              child: InteractiveViewer(
-                key: const Key('garden-world-camera'),
-                transformationController: _camera,
-                constrained: false,
-                alignment: Alignment.topLeft,
-                minScale: _minScale,
-                maxScale: _minScale * 2.5,
-                child: GestureDetector(
-                  onTapUp: (e) => _place(e.localPosition),
-                  behavior: HitTestBehavior.opaque,
-                  child: SizedBox(
-                    key: const Key('garden-world-ground'),
-                    width: 2400,
-                    height: 800,
-                    child: Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        Positioned.fill(
-                          child: Image.asset(
-                            'assets/living_garden/world_${_night ? 'night' : 'day'}.webp',
-                            fit: BoxFit.fill,
-                            excludeFromSemantics: true,
-                          ),
-                        ),
-                        Positioned.fill(
-                          child: IgnorePointer(
-                            child: RepaintBoundary(
-                              child: CustomPaint(
-                                painter: GardenAtmosphere.animated(
-                                  _air,
-                                  _night,
-                                  daylight: _daylight,
-                                ),
+                final sorted = [..._items]
+                  ..sort(
+                    (a, b) => widget.layout
+                        .position(a)
+                        .dy
+                        .compareTo(widget.layout.position(b).dy),
+                  );
+                return ClipRect(
+                  child: InteractiveViewer(
+                    key: const Key('garden-world-camera'),
+                    transformationController: _camera,
+                    constrained: false,
+                    alignment: Alignment.topLeft,
+                    minScale: _minScale,
+                    maxScale: _minScale * 2.5,
+                    child: GestureDetector(
+                      onTapUp: (e) => _place(e.localPosition),
+                      behavior: HitTestBehavior.opaque,
+                      child: SizedBox(
+                        key: const Key('garden-world-ground'),
+                        width: 2400,
+                        height: 800,
+                        child: Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            Positioned.fill(
+                              child: Image.asset(
+                                'assets/living_garden/world_${_night ? 'night' : 'day'}.webp',
+                                fit: BoxFit.fill,
+                                excludeFromSemantics: true,
                               ),
                             ),
-                          ),
-                        ),
-                        if (_editing)
-                          Positioned.fill(
-                            child: IgnorePointer(
-                              child: CustomPaint(painter: _GroundGrid()),
-                            ),
-                          ),
-                        for (final id in sorted) _item(id),
-                        if (_visibleMemoryCount > 0)
-                          Positioned(
-                            left: 1430,
-                            top: 370,
-                            width: 155,
-                            height: 170,
-                            child: Semantics(
-                              button: true,
-                              label: widget.readOnly
-                                  ? '기억의 나무'
-                                  : '기억의 나무, 기록한 날 ${widget.memoryDays}일',
-                              child: GestureDetector(
-                                key: const Key('garden-memory-tree'),
-                                onTap: _quiet || widget.readOnly
-                                    ? null
-                                    : widget.onMemoryTree,
-                                child: GardenPlantArt(
-                                  seed: SeedType.byId('cherry'),
-                                  count: _visibleMemoryCount,
-                                  night: _night,
-                                ),
-                              ),
-                            ),
-                          ),
-                        if (_visibleFlowerCount > 0)
-                          Positioned(
-                            left: 970,
-                            top: 575,
-                            width: 180,
-                            height: 115,
-                            child: Semantics(
-                              button: true,
-                              label: '받은 응원의 꽃밭',
-                              child: GestureDetector(
-                                key: const Key('garden-cheer-flowers'),
-                                onTap: _quiet || widget.readOnly
-                                    ? null
-                                    : widget.onCheerFlowers,
-                                child: Stack(
-                                  children: [
-                                    for (
-                                      var i = 0;
-                                      i < math.min(_visibleFlowerCount, 9);
-                                      i++
-                                    )
-                                      Positioned(
-                                        left: (i % 3) * 48.0,
-                                        top: (i ~/ 3) * 20.0,
-                                        width: 76,
-                                        height: 76,
-                                        child: GardenFlowerArt(
-                                          night: _night,
-                                          kind: i < widget.flowerKinds.length
-                                              ? widget.flowerKinds[i]
-                                              : gardenFlowerNames.keys
-                                                    .elementAt(i % 5),
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                        _livingCat(),
-                        ..._reactionSprites(),
-                        if (_waterTarget != null &&
-                            _items.contains(_waterTarget))
-                          Positioned(
-                            left:
-                                widget.layout.position(_waterTarget!).dx *
-                                    2400 -
-                                70,
-                            top:
-                                widget.layout.position(_waterTarget!).dy * 800 -
-                                160,
-                            width: 140,
-                            height: 170,
-                            child: IgnorePointer(
-                              child: CustomPaint(
-                                painter: GardenWaterDrops(_water),
-                              ),
-                            ),
-                          ),
-                        for (final zone in [0, 2])
-                          if (!widget.layout.isOpen(zone))
-                            Positioned(
-                              left: zone * 800.0,
-                              top: 0,
-                              width: 800,
-                              height: 800,
-                              child: ColoredBox(
-                                color: const Color(0x806D816C),
-                                child: Center(
-                                  child: Container(
-                                    padding: const EdgeInsets.all(24),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xEFFFF9E8),
-                                      borderRadius: BorderRadius.circular(24),
-                                    ),
-                                    child: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        const Icon(
-                                          Icons.spa_outlined,
-                                          size: 38,
-                                          color: Color(0xFF577451),
-                                        ),
-                                        Text(
-                                          zone == 0
-                                              ? '조금씩 열리는 꽃밭'
-                                              : '나무를 위한 넓은 뜰',
-                                          style: const TextStyle(fontSize: 24),
-                                        ),
-                                        const SizedBox(height: 8),
-                                        Text(
-                                          '씨앗을 심거나 가꾼 횟수 ${zone == 0 ? 3 : 8}회에 열려요',
-                                          style: const TextStyle(fontSize: 18),
-                                        ),
-                                        const Text(
-                                          '한 번 열린 공간은 그대로 남아요',
-                                          style: TextStyle(fontSize: 16),
-                                        ),
-                                      ],
+                            Positioned.fill(
+                              child: IgnorePointer(
+                                child: RepaintBoundary(
+                                  child: CustomPaint(
+                                    painter: GardenAtmosphere.animated(
+                                      _air,
+                                      _night,
+                                      daylight: _daylight,
                                     ),
                                   ),
                                 ),
                               ),
                             ),
-                      ],
+                            if (_editing)
+                              Positioned.fill(
+                                child: IgnorePointer(
+                                  child: CustomPaint(painter: _GroundGrid()),
+                                ),
+                              ),
+                            for (final id in sorted) _item(id),
+                            if (_visibleMemoryCount > 0)
+                              Positioned(
+                                left: 1430,
+                                top: 370,
+                                width: 155,
+                                height: 170,
+                                child: Semantics(
+                                  button: true,
+                                  label: widget.readOnly
+                                      ? '기억의 나무'
+                                      : '기억의 나무, 기록한 날 ${widget.memoryDays}일',
+                                  child: GestureDetector(
+                                    key: const Key('garden-memory-tree'),
+                                    onTap: _quiet || widget.readOnly
+                                        ? null
+                                        : widget.onMemoryTree,
+                                    child: GardenPlantArt(
+                                      seed: SeedType.byId('cherry'),
+                                      count: _visibleMemoryCount,
+                                      night: _night,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            if (_visibleFlowerCount > 0)
+                              Positioned(
+                                left: 970,
+                                top: 575,
+                                width: 180,
+                                height: 115,
+                                child: Semantics(
+                                  button: true,
+                                  label: '받은 응원의 꽃밭',
+                                  child: GestureDetector(
+                                    key: const Key('garden-cheer-flowers'),
+                                    onTap: _quiet || widget.readOnly
+                                        ? null
+                                        : widget.onCheerFlowers,
+                                    child: Stack(
+                                      children: [
+                                        for (
+                                          var i = 0;
+                                          i < math.min(_visibleFlowerCount, 9);
+                                          i++
+                                        )
+                                          Positioned(
+                                            left: (i % 3) * 48.0,
+                                            top: (i ~/ 3) * 20.0,
+                                            width: 76,
+                                            height: 76,
+                                            child: GardenFlowerArt(
+                                              night: _night,
+                                              kind:
+                                                  i < widget.flowerKinds.length
+                                                  ? widget.flowerKinds[i]
+                                                  : gardenFlowerNames.keys
+                                                        .elementAt(i % 5),
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            _livingCat(),
+                            ..._reactionSprites(),
+                            if (_waterTarget != null &&
+                                _items.contains(_waterTarget))
+                              Positioned(
+                                left:
+                                    widget.layout.position(_waterTarget!).dx *
+                                        2400 -
+                                    70,
+                                top:
+                                    widget.layout.position(_waterTarget!).dy *
+                                        800 -
+                                    160,
+                                width: 140,
+                                height: 170,
+                                child: IgnorePointer(
+                                  child: CustomPaint(
+                                    painter: GardenWaterDrops(_water),
+                                  ),
+                                ),
+                              ),
+                            for (final zone in [0, 2])
+                              if (!widget.layout.isOpen(zone))
+                                Positioned(
+                                  left: zone * 800.0,
+                                  top: 0,
+                                  width: 800,
+                                  height: 800,
+                                  child: ColoredBox(
+                                    color: const Color(0x806D816C),
+                                    child: Center(
+                                      child: Container(
+                                        padding: const EdgeInsets.all(24),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xEFFFF9E8),
+                                          borderRadius: BorderRadius.circular(
+                                            24,
+                                          ),
+                                        ),
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            const Icon(
+                                              Icons.spa_outlined,
+                                              size: 38,
+                                              color: Color(0xFF577451),
+                                            ),
+                                            Text(
+                                              zone == 0
+                                                  ? '조금씩 열리는 꽃밭'
+                                                  : '나무를 위한 넓은 뜰',
+                                              style: const TextStyle(
+                                                fontSize: 24,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 8),
+                                            Text(
+                                              '씨앗을 심거나 가꾼 횟수 ${zone == 0 ? 3 : 8}회에 열려요',
+                                              style: const TextStyle(
+                                                fontSize: 18,
+                                              ),
+                                            ),
+                                            const Text(
+                                              '한 번 열린 공간은 그대로 남아요',
+                                              style: TextStyle(fontSize: 16),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
-                ),
-              ),
-            );
-          },
+                );
+              },
+            ),
+          ),
         ),
       ),
       if (_quiet)
@@ -601,70 +641,85 @@ class _GardenWorldViewState extends State<GardenWorldView>
                       child: Text('씨앗을 심거나 장식을 놓으면 여기서 옮길 수 있어요.'),
                     ),
                   if (!widget.readOnly)
-                    Wrap(
-                      alignment: WrapAlignment.center,
-                      spacing: 6,
-                      children: [
-                        TextButton.icon(
-                          onPressed: _saving
-                              ? null
-                              : () => setState(() {
-                                  _wateringMode = !_wateringMode;
-                                  _editing = false;
-                                  _selected = null;
-                                }),
-                          icon: Icon(
-                            _wateringMode
-                                ? Icons.check
-                                : Icons.water_drop_outlined,
-                          ),
-                          label: Text(_wateringMode ? '물주기 완료' : '물 주기'),
+                    TextButton.icon(
+                      onPressed: () => setState(() => _toolsOpen = !_toolsOpen),
+                      icon: Icon(_toolsOpen ? Icons.expand_less : Icons.tune),
+                      label: Text(_toolsOpen ? '도구 접기' : '돌보기 · 꾸미기 · 추억'),
+                    ),
+                  if (!widget.readOnly && _toolsOpen)
+                    ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxHeight: MediaQuery.sizeOf(context).height * .28,
+                      ),
+                      child: SingleChildScrollView(
+                        child: Wrap(
+                          alignment: WrapAlignment.center,
+                          spacing: 6,
+                          children: [
+                            TextButton.icon(
+                              onPressed: _saving
+                                  ? null
+                                  : () => setState(() {
+                                      _wateringMode = !_wateringMode;
+                                      _editing = false;
+                                      _selected = null;
+                                    }),
+                              icon: Icon(
+                                _wateringMode
+                                    ? Icons.check
+                                    : Icons.water_drop_outlined,
+                              ),
+                              label: Text(_wateringMode ? '물주기 완료' : '물 주기'),
+                            ),
+                            TextButton.icon(
+                              onPressed: _saving
+                                  ? null
+                                  : () => setState(() {
+                                      _editing = !_editing;
+                                      _wateringMode = false;
+                                      _selected = null;
+                                    }),
+                              icon: Icon(
+                                _editing ? Icons.check : Icons.open_with,
+                              ),
+                              label: Text(_editing ? '배치 완료' : '배치 모드'),
+                            ),
+                            if (widget.onMemoryTree != null)
+                              TextButton.icon(
+                                onPressed: widget.onMemoryTree,
+                                icon: const Icon(Icons.park_outlined),
+                                label: const Text('기억의 나무'),
+                              ),
+                            if (widget.onCheerFlowers != null)
+                              TextButton.icon(
+                                onPressed: widget.onCheerFlowers,
+                                icon: const Icon(Icons.local_florist_outlined),
+                                label: const Text('응원 꽃'),
+                              ),
+                            TextButton.icon(
+                              onPressed: () => _setQuiet(true),
+                              icon: const Icon(Icons.weekend_outlined),
+                              label: const Text('잠깐 쉬기'),
+                            ),
+                            TextButton.icon(
+                              onPressed: _saving ? null : widget.onPlant,
+                              icon: const Icon(Icons.grass),
+                              label: const Text('씨앗 심기'),
+                            ),
+                            TextButton.icon(
+                              onPressed: _saving ? null : widget.onDecorate,
+                              icon: const Icon(Icons.chair_outlined),
+                              label: const Text('장식'),
+                            ),
+                            if (_undo != null)
+                              TextButton.icon(
+                                onPressed: _saving ? null : _undoMove,
+                                icon: const Icon(Icons.undo),
+                                label: const Text('되돌리기'),
+                              ),
+                          ],
                         ),
-                        TextButton.icon(
-                          onPressed: _saving
-                              ? null
-                              : () => setState(() {
-                                  _editing = !_editing;
-                                  _wateringMode = false;
-                                  _selected = null;
-                                }),
-                          icon: Icon(_editing ? Icons.check : Icons.open_with),
-                          label: Text(_editing ? '배치 완료' : '배치 모드'),
-                        ),
-                        if (widget.onMemoryTree != null)
-                          TextButton.icon(
-                            onPressed: widget.onMemoryTree,
-                            icon: const Icon(Icons.park_outlined),
-                            label: const Text('기억의 나무'),
-                          ),
-                        if (widget.onCheerFlowers != null)
-                          TextButton.icon(
-                            onPressed: widget.onCheerFlowers,
-                            icon: const Icon(Icons.local_florist_outlined),
-                            label: const Text('응원 꽃'),
-                          ),
-                        TextButton.icon(
-                          onPressed: () => _setQuiet(true),
-                          icon: const Icon(Icons.weekend_outlined),
-                          label: const Text('잠깐 쉬기'),
-                        ),
-                        TextButton.icon(
-                          onPressed: _saving ? null : widget.onPlant,
-                          icon: const Icon(Icons.grass),
-                          label: const Text('씨앗 심기'),
-                        ),
-                        TextButton.icon(
-                          onPressed: _saving ? null : widget.onDecorate,
-                          icon: const Icon(Icons.chair_outlined),
-                          label: const Text('장식'),
-                        ),
-                        if (_undo != null)
-                          TextButton.icon(
-                            onPressed: _saving ? null : _undoMove,
-                            icon: const Icon(Icons.undo),
-                            label: const Text('되돌리기'),
-                          ),
-                      ],
+                      ),
                     ),
                 ],
               ),
@@ -769,7 +824,7 @@ class _GardenWorldViewState extends State<GardenWorldView>
             ? world('decor:bench')
             : null,
         quiet: _quiet,
-        animated: _air.isAnimating,
+        animated: _air.isAnimating && _catWanders,
       );
       if (_hasResponse) {
         final anchor = _responseAnchor ?? moment;
@@ -805,7 +860,7 @@ class _GardenWorldViewState extends State<GardenWorldView>
                         key: const Key('garden-cat-response'),
                         kind: _responseKind!,
                         progress: _response.value,
-                        animated: _air.isAnimating,
+                        animated: _air.isAnimating && _catWanders,
                       )
                     : moment.walking
                     ? Transform.flip(

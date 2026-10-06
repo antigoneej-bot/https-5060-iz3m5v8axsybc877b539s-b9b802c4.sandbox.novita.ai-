@@ -91,16 +91,21 @@ void main() {
     await tester.pumpWidget(const SizedBox());
     await tester.pumpAndSettle();
   });
-  testWidgets('scrolling a playing card out of view pauses it', (tester) async {
+  testWidgets('scrolling never starts or resumes a card without a tap', (
+    tester,
+  ) async {
     final old = VideoPlayerPlatform.instance;
     final fake = FakeVideos();
+    final scroll = ScrollController();
+    addTearDown(scroll.dispose);
     VideoPlayerPlatform.instance = fake;
     addTearDown(() => VideoPlayerPlatform.instance = old);
     await tester.pumpWidget(
-      const MaterialApp(
+      MaterialApp(
         home: Scaffold(
           body: SingleChildScrollView(
-            child: Column(
+            controller: scroll,
+            child: const Column(
               children: [
                 SizedBox(
                   width: 150,
@@ -118,6 +123,23 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+    expect(fake.created, 0);
+    scroll.jumpTo(20);
+    await tester.pumpAndSettle();
+    expect(fake.created, 0);
+    scroll.jumpTo(0);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('움직임 보기'));
+    await tester.pumpAndSettle();
+    expect(fake.playing, {1});
+    await tester.tap(find.byTooltip('움직임 멈추기'));
+    await tester.pumpAndSettle();
+    scroll.jumpTo(20);
+    await tester.pumpAndSettle();
+    expect(fake.playing, isEmpty);
+    scroll.jumpTo(0);
+    await tester.pumpAndSettle();
+    expect(fake.playing, isEmpty);
     await tester.tap(find.byTooltip('움직임 보기'));
     await tester.pumpAndSettle();
     expect(fake.playing, {1});
@@ -127,6 +149,13 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(fake.playing, isEmpty);
+    scroll.jumpTo(0);
+    await tester.pumpAndSettle();
+    expect(fake.playing, isEmpty);
+    expect(fake.created, 1);
+    await tester.tap(find.byTooltip('움직임 보기'));
+    await tester.pumpAndSettle();
+    expect(fake.playing, {1});
     await tester.pumpWidget(const SizedBox());
     await tester.pumpAndSettle();
   });

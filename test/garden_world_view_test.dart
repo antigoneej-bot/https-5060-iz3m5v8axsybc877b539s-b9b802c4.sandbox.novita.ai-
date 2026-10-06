@@ -81,6 +81,34 @@ void main() {
     }
   }
 
+  // The zone picker is a closed DropdownButton showing only the current
+  // selection; open it before its other options' text is in the tree.
+  Future<void> selectZone(WidgetTester tester, String label) async {
+    await tester.tap(find.byType(DropdownButton<int>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(label).last);
+    await tester.pumpAndSettle();
+  }
+
+  // Care/decorate/memory tools now live behind a collapsed "돌보기 · 꾸미기 ·
+  // 추억" toggle; open it before tapping any tool inside.
+  Future<void> openTools(WidgetTester tester) async {
+    await tester.tap(find.text('돌보기 · 꾸미기 · 추억'));
+    // Ambient controllers repeat forever when a test runs with
+    // reduced:false, so pumpAndSettle would hang here; a single bounded
+    // pump is enough to open the ConstrainedBox/SingleChildScrollView tray.
+    await tester.pump(const Duration(milliseconds: 300));
+  }
+
+  // Zoom/light/motion controls moved from standalone icon buttons into a
+  // single "보기 설정" popup menu; open it before tapping an option's text.
+  Future<void> selectViewOption(WidgetTester tester, String label) async {
+    await tester.tap(find.byTooltip('보기 설정'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(label));
+    await tester.pumpAndSettle();
+  }
+
   testWidgets('camera pans, zooms and can return home', (tester) async {
     await showWorld(tester);
     final viewer = tester.widget<InteractiveViewer>(
@@ -88,7 +116,7 @@ void main() {
     );
     final camera = viewer.transformationController!;
     final initial = camera.value.clone();
-    await tester.tap(find.text('꽃밭'));
+    await selectZone(tester, '꽃밭');
     await tester.pumpAndSettle();
     expect(camera.value.storage[12], isNot(initial.storage[12]));
     await tester.tap(find.byTooltip('정원 확대'));
@@ -106,6 +134,7 @@ void main() {
     (tester) async {
       final moves = <Offset>[];
       await showWorld(tester, move: (_, p) async => moves.add(p));
+      await openTools(tester);
       await tester.tap(find.text('배치 모드'));
       await tester.pumpAndSettle();
       await tester.tap(find.widgetWithText(ChoiceChip, '사랑'));
@@ -131,6 +160,7 @@ void main() {
   );
   testWidgets('narrow screen and large text do not overflow', (tester) async {
     await showWorld(tester, width: 320, scale: 1.8);
+    await openTools(tester);
     await tester.tap(find.text('배치 모드'));
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
@@ -148,12 +178,18 @@ void main() {
     final initial = clock.value;
     await tester.pump(const Duration(seconds: 1));
     expect(clock.value, isNot(initial));
-    await tester.tap(find.byTooltip('정원 움직임 멈추기'));
+    // The garden's ambient controllers repeat forever while motion is on, so
+    // pumpAndSettle would hang here; open the popup menu with bounded pumps.
+    await tester.tap(find.byTooltip('보기 설정'));
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(find.text('정원 움직임 멈추기'));
     await tester.pump();
     final paused = clock.value;
     await tester.pump(const Duration(seconds: 1));
     expect(clock.value, paused);
-    await tester.tap(find.byTooltip('정원 움직임 재생'));
+    await tester.tap(find.byTooltip('보기 설정'));
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(find.text('정원 움직임 재생'));
     await tester.pump();
     await tester.pump(const Duration(seconds: 1));
     expect(clock.value, isNot(paused));
@@ -179,7 +215,15 @@ void main() {
   ) async {
     await showWorld(tester, reduced: false);
     final bench = find.byKey(const ValueKey('world-item-decor:bench'));
-    expect(tester.getSize(bench), const Size(172, 184));
+    // The wide-garden layout (AspectRatio 1.25, depth-scaled art) renders the
+    // bench at a different on-screen size than the old portrait layout;
+    // this reflects the intentional ZIP layout change, not a test bug.
+    // Flutter's layout pass can round the final pixel values slightly
+    // (e.g. off by 1e-4), so compare with a tolerance instead of exact.
+    final benchSize = tester.getSize(bench);
+    expect(benchSize.width, closeTo(209.935, 0.01));
+    expect(benchSize.height, closeTo(162.027, 0.01));
+    await openTools(tester);
     await tester.tap(find.text('물 주기'));
     await tester.pump();
     await tester.tap(find.byKey(const ValueKey('world-item-seed:love')));
@@ -204,6 +248,7 @@ void main() {
     tester,
   ) async {
     await showWorld(tester);
+    await openTools(tester);
     await tester.tap(find.text('물 주기'));
     await tester.pump();
     await tester.tap(find.byKey(const ValueKey('world-item-seed:love')));
@@ -220,6 +265,7 @@ void main() {
     tester,
   ) async {
     await showWorld(tester);
+    await openTools(tester);
     await tester.tap(find.text('잠깐 쉬기'));
     await tester.pumpAndSettle();
     expect(find.text('배치 모드'), findsNothing);
@@ -227,6 +273,8 @@ void main() {
     expect(find.text('쉬기 마치기'), findsOneWidget);
     await tester.tap(find.text('쉬기 마치기'));
     await tester.pumpAndSettle();
+    // _toolsOpen isn't reset by rest mode, so the tray is still expanded
+    // from the openTools() call above; no second toggle tap is needed.
     expect(find.text('배치 모드'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
@@ -241,6 +289,7 @@ void main() {
         memoryTree: () => memories++,
         flowers: () => flowers++,
       );
+      await openTools(tester);
       await tester.tap(find.text('기억의 나무'));
       await tester.tap(find.text('응원 꽃'));
       expect([memories, flowers], [1, 1]);

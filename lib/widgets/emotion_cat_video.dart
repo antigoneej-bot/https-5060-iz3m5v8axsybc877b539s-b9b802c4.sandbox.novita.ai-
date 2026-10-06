@@ -70,12 +70,10 @@ class _EmotionCatVideoState extends State<EmotionCatVideo>
   }
 
   void _checkVisibility() {
-    if (!mounted) return;
-    if (_isVisibleNow()) {
-      // 카드가 화면에 충분히 보이면 탭 없이 자동으로 재생을 시도합니다.
-      // (다른 카드가 재생 중이면 _active 싱글톤이 그 카드를 먼저 멈춥니다.)
-      _play();
-    } else if (_active.value == _identity) {
+    if (!mounted || _active.value != _identity) return;
+    // Visibility can stop playback, but only the play button can start it.
+    // Returning to a card must also respect the user's previous pause.
+    if (!_isVisibleNow()) {
       _stop();
     }
   }
@@ -86,9 +84,7 @@ class _EmotionCatVideoState extends State<EmotionCatVideo>
     if (!_foreground) _stop();
   }
 
-  /// Starts (or resumes) playback of this card's video. Safe to call
-  /// repeatedly (e.g. from scroll/visibility checks) — it no-ops while
-  /// loading or once this card is already the active, playing one.
+  /// Starts (or resumes) playback only after an explicit button press.
   Future<void> _play() async {
     if (widget.videoAsset == null || _loading || !_allowed || !_foreground) {
       return;

@@ -1,3 +1,4 @@
+import '../screens/my_garden_screen.dart';
 import 'package:flutter/material.dart';
 import '../theme.dart';
 import 'stars_background.dart';
@@ -21,6 +22,10 @@ class FeatureScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // A full-screen garden owns its viewport; do not put it in a scroll view.
+    if (child is MyGardenScreen && (child as MyGardenScreen).showMongiPanel) {
+      return child;
+    }
     return Scaffold(
       body: GardenScaffoldBackground(
         child: SafeArea(

@@ -489,7 +489,7 @@ class GardenCatArt extends StatelessWidget {
       fit: StackFit.expand,
       children: [
         Image.asset(
-          'assets/living_garden/cat.webp',
+          'assets/living_garden/cat_idle_front.webp',
           excludeFromSemantics: true,
         ),
         Opacity(
@@ -499,7 +499,7 @@ class GardenCatArt extends StatelessWidget {
           child: ClipPath(
             clipper: _CatEyes(),
             child: Image.asset(
-              'assets/living_garden/cat_blink.webp',
+              'assets/living_garden/cat_idle_front_blink.webp',
               excludeFromSemantics: true,
             ),
           ),
@@ -514,17 +514,17 @@ class _CatEyes extends CustomClipper<Path> {
   Path getClip(Size size) => Path()
     ..addOval(
       Rect.fromLTRB(
-        size.width * .306,
-        size.height * .375,
-        size.width * .46,
-        size.height * .495,
+        size.width * .303,
+        size.height * .320,
+        size.width * .465,
+        size.height * .438,
       ),
     )
     ..addOval(
       Rect.fromLTRB(
-        size.width * .498,
-        size.height * .302,
-        size.width * .638,
+        size.width * .523,
+        size.height * .320,
+        size.width * .676,
         size.height * .438,
       ),
     );

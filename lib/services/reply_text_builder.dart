@@ -13,13 +13,21 @@ Future<String> buildReplyText({
   required List<LetterEntry> history,
   required CatGrowthStage growthStage,
   required int visitStreak,
-}) => _replyInFlight.putIfAbsent(entry.id, () => _buildReplyText(
-  entry: entry, cat: cat, history: history, growthStage: growthStage, visitStreak: visitStreak,
-).whenComplete(() {
-  // Do not return Map.remove's value: it is this very Future. Returning it
-  // makes whenComplete wait for itself, so neither success nor error reaches UI.
-  _replyInFlight.remove(entry.id);
-}));
+}) => _replyInFlight.putIfAbsent(
+  entry.id,
+  () =>
+      _buildReplyText(
+        entry: entry,
+        cat: cat,
+        history: history,
+        growthStage: growthStage,
+        visitStreak: visitStreak,
+      ).whenComplete(() {
+        // Do not return Map.remove's value: it is this very Future. Returning it
+        // makes whenComplete wait for itself, so neither success nor error reaches UI.
+        _replyInFlight.remove(entry.id);
+      }),
+);
 
 Future<String> _buildReplyText({
   required LetterEntry entry,
@@ -34,11 +42,20 @@ Future<String> _buildReplyText({
     timeout: const Duration(seconds: 8),
   );
   final cached = cache.get(entry.id);
-  if (cached is String) return cached;
+  // Match PersonalReplyService's minimum validity check. A damaged legacy
+  // cache must not hide a valid stored answer or block regeneration forever.
+  if (cached is String && cached.trim().length >= 4) return cached;
   final reply = await PersonalReplyService.create(
-    id: 'letter:${entry.id}', letterText: entry.letterText,
-    style: entry.replyStyle, catName: cat.nameKr,
-    legacyReplies: cache.values.whereType<String>().toList().reversed.take(20).toList(),
+    id: 'letter:${entry.id}',
+    letterText: entry.letterText,
+    style: entry.replyStyle,
+    catName: cat.nameKr,
+    legacyReplies: cache.values
+        .whereType<String>()
+        .toList()
+        .reversed
+        .take(20)
+        .toList(),
   );
   // New replies are already durably cached by PersonalReplyService.
   return reply;

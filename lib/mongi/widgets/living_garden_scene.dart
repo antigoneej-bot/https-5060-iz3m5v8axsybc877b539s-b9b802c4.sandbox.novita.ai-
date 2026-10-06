@@ -12,6 +12,7 @@ class LivingGardenScene extends StatefulWidget {
   final String companionName;
   final Map<String, int> seeds;
   final bool motionEnabled;
+  final bool compact;
   final VoidCallback? onWrite, onGarden, onNeighbors;
   final ValueChanged<SeedType>? onPlant;
   const LivingGardenScene({
@@ -19,6 +20,7 @@ class LivingGardenScene extends StatefulWidget {
     this.companionName = '고양이',
     this.seeds = const {},
     this.motionEnabled = true,
+    this.compact = false,
     this.onWrite,
     this.onGarden,
     this.onNeighbors,
@@ -38,6 +40,11 @@ class _LivingGardenSceneState extends State<LivingGardenScene>
     vsync: this,
     duration: const Duration(milliseconds: 1300),
   );
+  late final AnimationController _blink = AnimationController(
+    vsync: this,
+    duration: const Duration(seconds: 24),
+  );
+  bool _canBlink = false;
   Timer? _clock;
   int _light =
       0; // 0 device time, 1 day, 2 night; preview never changes records.
@@ -81,6 +88,18 @@ class _LivingGardenSceneState extends State<LivingGardenScene>
   }
 
   void _syncMotion() {
+    // Idle blinking is independent of the optional wind/body animation.
+    _canBlink =
+        widget.motionEnabled &&
+        _foreground &&
+        !MediaQuery.disableAnimationsOf(context) &&
+        TickerMode.of(context) &&
+        (ModalRoute.of(context)?.isCurrent ?? true);
+    if (_canBlink) {
+      if (!_blink.isAnimating) _blink.repeat();
+    } else {
+      _blink.stop();
+    }
     _animate =
         widget.motionEnabled &&
         !_paused &&
@@ -116,6 +135,7 @@ class _LivingGardenSceneState extends State<LivingGardenScene>
     WidgetsBinding.instance.removeObserver(this);
     _clock?.cancel();
     _air.dispose();
+    _blink.dispose();
     _pet.dispose();
     super.dispose();
   }
@@ -132,7 +152,7 @@ class _LivingGardenSceneState extends State<LivingGardenScene>
         ClipRRect(
           borderRadius: BorderRadius.circular(28),
           child: AspectRatio(
-            aspectRatio: 2 / 3,
+            aspectRatio: widget.compact ? 4 / 5 : 2 / 3,
             child: LayoutBuilder(
               builder: (context, box) {
                 final w = box.maxWidth, h = box.maxHeight;
@@ -201,9 +221,9 @@ class _LivingGardenSceneState extends State<LivingGardenScene>
                           for (final seed in planted)
                             _plant(seed, w, h, t, night),
                           Positioned(
-                            left: w * .31,
-                            top: h * .795,
-                            width: w * .39,
+                            left: w * (widget.compact ? .39 : .31),
+                            top: h * (widget.compact ? .766 : .795),
+                            width: w * (widget.compact ? .24 : .39),
                             height: h * .032,
                             child: DecoratedBox(
                               decoration: BoxDecoration(
@@ -224,10 +244,14 @@ class _LivingGardenSceneState extends State<LivingGardenScene>
                             // 배경(정원 씬)에 비해 고양이가 지나치게 크고
                             // 움직임도 부담스럽다는 피드백에 따라, 비율을
                             // 약 35%로 줄이고 흔들림 폭도 함께 낮췄습니다.
-                            left: w * .34 + _look.dx * 3,
-                            top: h * .577 + math.sin(t * 6) * .7 - pet * 5,
-                            width: w * .35,
-                            height: w * .35,
+                            left:
+                                w * (widget.compact ? .37 : .34) + _look.dx * 3,
+                            top:
+                                h * (widget.compact ? .55 : .577) +
+                                math.sin(t * 6) * .7 -
+                                pet * 5,
+                            width: w * (widget.compact ? .28 : .35),
+                            height: w * (widget.compact ? .28 : .35),
                             child: Transform.rotate(
                               angle: pet * -.03,
                               child: Transform.scale(
@@ -249,8 +273,8 @@ class _LivingGardenSceneState extends State<LivingGardenScene>
                                       child: GardenNightLight(
                                         night: night,
                                         child: GardenCatArt(
-                                          animation: _air,
-                                          blinking: _animate,
+                                          animation: _blink,
+                                          blinking: _canBlink,
                                         ),
                                       ),
                                     ),
@@ -272,72 +296,76 @@ class _LivingGardenSceneState extends State<LivingGardenScene>
                                 ),
                               ),
                             ),
-                          Positioned(
-                            top: 0,
-                            left: 0,
-                            right: 0,
-                            height: h * .32,
-                            child: IgnorePointer(
-                              child: DecoratedBox(
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    begin: Alignment.topCenter,
-                                    end: Alignment.bottomCenter,
-                                    colors: night
-                                        ? [
-                                            const Color(0xA6192945),
-                                            Colors.transparent,
-                                          ]
-                                        : [
-                                            const Color(0xDBFFFAE8),
-                                            const Color(0x00FFFAE8),
-                                          ],
+                          if (!widget.compact)
+                            Positioned(
+                              top: 0,
+                              left: 0,
+                              right: 0,
+                              height: h * .32,
+                              child: IgnorePointer(
+                                child: DecoratedBox(
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      begin: Alignment.topCenter,
+                                      end: Alignment.bottomCenter,
+                                      colors: night
+                                          ? [
+                                              const Color(0xA6192945),
+                                              Colors.transparent,
+                                            ]
+                                          : [
+                                              const Color(0xDBFFFAE8),
+                                              const Color(0x00FFFAE8),
+                                            ],
+                                    ),
                                   ),
                                 ),
                               ),
                             ),
-                          ),
-                          Positioned(
-                            top: 23,
-                            left: 12,
-                            right: 12,
-                            child: IgnorePointer(
-                              child: Column(
-                                children: [
-                                  Text(
-                                    '마음냥 정원',
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(
-                                      fontFamily: 'GamjaFlower',
-                                      fontSize: w < 320 ? 34 : 40,
-                                      color: night
-                                          ? const Color(0xFFFFF0D1)
-                                          : const Color(0xFF456747),
-                                      shadows: [
-                                        Shadow(
-                                          color: night
-                                              ? Colors.black26
-                                              : Colors.white70,
-                                          blurRadius: 8,
-                                        ),
-                                      ],
+                          if (!widget.compact)
+                            Positioned(
+                              top: 23,
+                              left: 12,
+                              right: 12,
+                              child: IgnorePointer(
+                                child: Column(
+                                  children: [
+                                    Text(
+                                      '마음냥 정원',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        fontFamily: 'GamjaFlower',
+                                        fontSize: widget.compact
+                                            ? 28
+                                            : (w < 320 ? 34 : 40),
+                                        color: night
+                                            ? const Color(0xFFFFF0D1)
+                                            : const Color(0xFF456747),
+                                        shadows: [
+                                          Shadow(
+                                            color: night
+                                                ? Colors.black26
+                                                : Colors.white70,
+                                            blurRadius: 8,
+                                          ),
+                                        ],
+                                      ),
                                     ),
-                                  ),
-                                  Text(
-                                    '내 마음이 자라는 곳',
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(
-                                      fontFamily: 'GowunDodum',
-                                      fontSize: 13,
-                                      color: night
-                                          ? const Color(0xFFE3E8EC)
-                                          : const Color(0xFF53674D),
+                                    Text(
+                                      '내 마음이 자라는 곳',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        fontFamily: 'GowunDodum',
+                                        fontSize: 13,
+                                        color: night
+                                            ? const Color(0xFFE3E8EC)
+                                            : const Color(0xFF53674D),
+                                      ),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
                             ),
-                          ),
                           Positioned(
                             right: 10,
                             top: h * .20,
@@ -354,7 +382,9 @@ class _LivingGardenSceneState extends State<LivingGardenScene>
                                   _paused
                                       ? Icons.play_arrow_rounded
                                       : Icons.pause_rounded,
-                                  _paused ? '정원 움직임 켜기' : '정원 움직임 쉬기',
+                                  _paused
+                                      ? '바람과 물레방아 움직임 켜기'
+                                      : '바람과 물레방아 움직임 쉬기',
                                   () {
                                     setState(() => _paused = !_paused);
                                     _syncMotion();
@@ -363,39 +393,40 @@ class _LivingGardenSceneState extends State<LivingGardenScene>
                               ],
                             ),
                           ),
-                          Positioned(
-                            left: 16,
-                            right: 16,
-                            bottom: 18,
-                            child: IgnorePointer(
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 14,
-                                  vertical: 12,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: night
-                                      ? const Color(0xD92A3A49)
-                                      : const Color(0xE6FFF9E8),
-                                  borderRadius: BorderRadius.circular(18),
-                                  border: Border.all(color: Colors.white38),
-                                ),
-                                child: Text(
-                                  planted.isEmpty
-                                      ? '오늘의 마음을, 이곳에 심어 볼까요?'
-                                      : '${planted.length}가지 마음이 정원에서 자라고 있어요',
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    fontFamily: 'GowunDodum',
-                                    fontSize: 12,
+                          if (!widget.compact)
+                            Positioned(
+                              left: 16,
+                              right: 16,
+                              bottom: 18,
+                              child: IgnorePointer(
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 14,
+                                    vertical: 12,
+                                  ),
+                                  decoration: BoxDecoration(
                                     color: night
-                                        ? const Color(0xFFFFF2D8)
-                                        : const Color(0xFF4A604A),
+                                        ? const Color(0xD92A3A49)
+                                        : const Color(0xE6FFF9E8),
+                                    borderRadius: BorderRadius.circular(18),
+                                    border: Border.all(color: Colors.white38),
+                                  ),
+                                  child: Text(
+                                    planted.isEmpty
+                                        ? '오늘의 마음을, 이곳에 심어 볼까요?'
+                                        : '${planted.length}가지 마음이 정원에서 자라고 있어요',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      fontFamily: 'GowunDodum',
+                                      fontSize: 12,
+                                      color: night
+                                          ? const Color(0xFFFFF2D8)
+                                          : const Color(0xFF4A604A),
+                                    ),
                                   ),
                                 ),
                               ),
                             ),
-                          ),
                         ],
                       );
                     },

@@ -87,7 +87,6 @@ class HomeTabScreen extends StatelessWidget {
               child: Text(app.gardenRewardRetrying ? '확인 중…' : '다시 연결'),
             ),
           ),
-        const _ReplyNotificationSettingsButton(),
         if (unseenReply != null) ...[
           _CatReplyBanner(entry: unseenReply, onTap: onGoToRecords),
           const SizedBox(height: 16),
@@ -104,9 +103,6 @@ class HomeTabScreen extends StatelessWidget {
           ),
           const SizedBox(height: 16),
         ],
-        const _SproutBannerArea(),
-        const _ReflectionBannerArea(),
-        const _HomeNoticeCard(),
         Text(
           'MIND CAT GARDEN',
           textAlign: TextAlign.center,
@@ -121,7 +117,7 @@ class HomeTabScreen extends StatelessWidget {
         Text(
           '마음냥 정원',
           textAlign: TextAlign.center,
-          style: brandFont(fontSize: 44, color: AppColors.titlePastelGreen),
+          style: brandFont(fontSize: 30, color: AppColors.titlePastelGreen),
         ),
         const SizedBox(height: 10),
         Text(
@@ -145,216 +141,263 @@ class HomeTabScreen extends StatelessWidget {
               '나의 정원',
               MyGardenScreen(onGoMeetCat: onGoToCatSelect),
             ),
-            child: const GardenSceneView(interactive: false, height: 200),
+            child: const GardenSceneView(interactive: false, height: 150),
           ),
         ),
-        const SizedBox(height: 30),
-        _JourneyHero(
-          metCount: app.metCatCount,
-          // ⚠️ 유료(Basic 구독) 고양이는 잠겨있으면 탭해도 "만남" 처리가
-          // 전원 무료로 전환되어 freeShadowCats == shadowCats(37마리)입니다.
-          // shadowCats.length(39)를 분모로 쓰면 영원히 채울 수 없는 목표가
-          // freeShadowCats.length 기준으로 표시합니다(현재 37).
-          total: freeShadowCats.length,
-          onMeetCat: onGoToCatSelect,
-          onOpenGarden: () => pushFullScreen(
-            context,
-            '나의 정원',
-            MyGardenScreen(onGoMeetCat: onGoToCatSelect),
-          ),
-        ),
-        MongiEntryCard(onGoMeetCat: onGoToCatSelect),
-        const SizedBox(height: 26),
-        Builder(
-          builder: (context) {
-            final careDays = context.watch<CatCareProvider>().state.growthDays;
-            // 설치일 기준(streak)과 출석일(growthDays) 중 큰 값으로 맞춤
-            final days = math.max(app.streak, careDays);
-            return _StreakBlob(streak: days);
-          },
-        ),
-        const SizedBox(height: 18),
-        GrowthHeader(state: context.watch<CatCareProvider>().state),
-        const SizedBox(height: 44),
-        _PathSignpost(title: '고양이를 만난 뒤엔, 이렇게 돌봐요'),
-        const SizedBox(height: 6),
-        GardenPathCard(
-          emoji: '🌿',
-          title: '마음 돌보기',
-          subtitle: '명상·움직임, 몸 돌봄, 오늘의 고양이 카드을 모아뒀어요',
-          accent: AppColors.blobMintAccent,
-          background: AppColors.blobMint,
-          alignX: 0.28,
-          widthFactor: 0.92,
-          floatSeed: 2,
-          onTap: () => Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => CategoryListScreen(
-                title: '마음 돌보기',
-                headerEmoji: '🌿',
-                headerSubtitle: '몸과 마음을 함께 돌보는 시간이에요.\n필요한 곳을 골라 들어가보세요',
-                items: [
-                  CategoryItem(
-                    emoji: '🧘',
-                    title: '명상 · 움직임 둘러보기',
-                    subtitle: '호흡, 알아차림, 움직임, 표현하기 가이드를 살펴보세요',
-                    accent: AppColors.blobLavenderAccent,
-                    background: AppColors.blobLavender,
-                    onTap: (ctx) {
-                      // 카테고리 목록이 탭 셸 위에 덮여 있으므로, 먼저 닫고
-                      // 명상 탭으로 바꿔야 바로 보입니다.
-                      Navigator.of(ctx).pop();
-                      onGoToMeditation();
-                    },
-                  ),
-                  CategoryItem(
-                    emoji: '🐟',
-                    title: '마음 돌보기(몸 돌봄)',
-                    subtitle: '밥·물·목욕과 호흡·걷기 명상으로 고양이를 함께 키워보세요',
-                    accent: AppColors.blobRoseAccent,
-                    background: AppColors.blobRose,
-                    onTap: (ctx) =>
-                        pushFullScreen(ctx, '마음 돌보기', const PetCareScreen()),
-                  ),
-                  CategoryItem(
-                    emoji: '🔮',
-                    title: '오늘의 고양이 카드',
-                    subtitle: '오늘의 카드를 뽑아 위로와 지침을 받아보세요',
-                    accent: AppColors.blobPeriwinkleAccent,
-                    background: AppColors.blobPeriwinkle,
-                    onTap: (ctx) => pushFullScreen(
-                      ctx,
-                      '오늘의 고양이 카드',
-                      const DailyCardScreen(),
-                    ),
-                  ),
-                ],
+        const SizedBox(height: 16),
+        ExpansionTile(
+          key: const PageStorageKey('home-growth'),
+          title: const Text('고양이와 함께한 기록'),
+          children: [
+            _JourneyHero(
+              metCount: app.metCatCount,
+              // ⚠️ 유료(Basic 구독) 고양이는 잠겨있으면 탭해도 "만남" 처리가
+              // 전원 무료로 전환되어 freeShadowCats == shadowCats(37마리)입니다.
+              // shadowCats.length(39)를 분모로 쓰면 영원히 채울 수 없는 목표가
+              // freeShadowCats.length 기준으로 표시합니다(현재 37).
+              total: freeShadowCats.length,
+              onMeetCat: onGoToCatSelect,
+              onOpenGarden: () => pushFullScreen(
+                context,
+                '나의 정원',
+                MyGardenScreen(onGoMeetCat: onGoToCatSelect),
               ),
             ),
-          ),
+            const SizedBox(height: 26),
+            Builder(
+              builder: (context) {
+                final careDays = context
+                    .watch<CatCareProvider>()
+                    .state
+                    .growthDays;
+                // 설치일 기준(streak)과 출석일(growthDays) 중 큰 값으로 맞춤
+                final days = math.max(app.streak, careDays);
+                return _StreakBlob(streak: days);
+              },
+            ),
+            const SizedBox(height: 18),
+            GrowthHeader(state: context.watch<CatCareProvider>().state),
+          ],
         ),
-        const GardenPathConnector(startX: 0.28, endX: -0.28, decorEmoji: '🐾'),
-        GardenPathCard(
-          emoji: '💌',
-          title: '편지 쓰기',
-          subtitle: '마음편지와 오늘의 약속, 마음을 짧게 적어보는 곳이에요',
-          accent: AppColors.blobButterAccent,
-          background: AppColors.blobButter,
-          alignX: -0.28,
-          widthFactor: 0.92,
-          floatSeed: 12,
-          onTap: () => Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => CategoryListScreen(
-                title: '편지 쓰기',
-                headerEmoji: '💌',
-                headerSubtitle: '짧게 적어도 괜찮아요.\n마음을 편지로 남겨보세요',
-                items: [
-                  CategoryItem(
-                    emoji: '💌',
-                    title: '마음편지',
-                    subtitle: '감사·용서·미안함·사랑, 짧게 적으면 내일 답장이 와요',
-                    accent: AppColors.blobButterAccent,
-                    background: AppColors.blobButter,
-                    onTap: (ctx) =>
-                        pushFullScreen(ctx, '마음편지', const HeartLettersScreen()),
+        const SizedBox(height: 12),
+        ExpansionTile(
+          key: const PageStorageKey('home-more'),
+          title: const Text('마음 돌보기 · 편지 · 더 보기'),
+          children: [
+            MongiEntryCard(onGoMeetCat: onGoToCatSelect),
+            _PathSignpost(title: '고양이를 만난 뒤엔, 이렇게 돌봐요'),
+            const SizedBox(height: 6),
+            GardenPathCard(
+              emoji: '🌿',
+              title: '마음 돌보기',
+              subtitle: '명상·움직임, 몸 돌봄, 오늘의 고양이 카드을 모아뒀어요',
+              accent: AppColors.blobMintAccent,
+              background: AppColors.blobMint,
+              alignX: 0.28,
+              widthFactor: 0.92,
+              floatSeed: 2,
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => CategoryListScreen(
+                    title: '마음 돌보기',
+                    headerEmoji: '🌿',
+                    headerSubtitle: '몸과 마음을 함께 돌보는 시간이에요.\n필요한 곳을 골라 들어가보세요',
+                    items: [
+                      CategoryItem(
+                        emoji: '🧘',
+                        title: '명상 · 움직임 둘러보기',
+                        subtitle: '호흡, 알아차림, 움직임, 표현하기 가이드를 살펴보세요',
+                        accent: AppColors.blobLavenderAccent,
+                        background: AppColors.blobLavender,
+                        onTap: (ctx) {
+                          // 카테고리 목록이 탭 셸 위에 덮여 있으므로, 먼저 닫고
+                          // 명상 탭으로 바꿔야 바로 보입니다.
+                          Navigator.of(ctx).pop();
+                          onGoToMeditation();
+                        },
+                      ),
+                      CategoryItem(
+                        emoji: '🐟',
+                        title: '마음 돌보기(몸 돌봄)',
+                        subtitle: '밥·물·목욕과 호흡·걷기 명상으로 고양이를 함께 키워보세요',
+                        accent: AppColors.blobRoseAccent,
+                        background: AppColors.blobRose,
+                        onTap: (ctx) => pushFullScreen(
+                          ctx,
+                          '마음 돌보기',
+                          const PetCareScreen(),
+                        ),
+                      ),
+                      CategoryItem(
+                        emoji: '🔮',
+                        title: '오늘의 고양이 카드',
+                        subtitle: '오늘의 카드를 뽑아 위로와 지침을 받아보세요',
+                        accent: AppColors.blobPeriwinkleAccent,
+                        background: AppColors.blobPeriwinkle,
+                        onTap: (ctx) => pushFullScreen(
+                          ctx,
+                          '오늘의 고양이 카드',
+                          const DailyCardScreen(),
+                        ),
+                      ),
+                    ],
                   ),
-                  CategoryItem(
-                    emoji: '🌱',
-                    title: '오늘의 약속',
-                    subtitle: '오늘 나를 위해 지켜주고 싶은 작은 약속을 남겨보세요',
-                    accent: AppColors.blobRoseAccent,
-                    background: AppColors.blobRose,
-                    onTap: (ctx) => pushFullScreen(
-                      ctx,
-                      '오늘의 약속',
-                      const TodaysPromiseScreen(),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
-          ),
-        ),
-        const GardenPathConnector(startX: -0.28, endX: 0.26, decorEmoji: '🦋'),
-        GardenPathCard(
-          emoji: '📖',
-          title: '돌아보기 & 기록',
-          subtitle: '마음 온도, 주간 지도, 하루 닫기, 그림자 방울을 살펴보세요',
-          accent: AppColors.blobPeachAccent,
-          background: AppColors.blobPeach,
-          alignX: 0.26,
-          widthFactor: 0.92,
-          floatSeed: 9,
-          onTap: () => Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => CategoryListScreen(
-                title: '돌아보기 & 기록',
-                headerEmoji: '📖',
-                headerSubtitle: '지나온 마음의 흐름을\n천천히 돌아보는 시간이에요',
-                items: [
-                  CategoryItem(
-                    emoji: '🌡️',
-                    title: '마음 온도 기록 보기',
-                    subtitle: '지난 편지와 마음 온도 변화를 돌아보세요',
-                    accent: AppColors.blobRoseAccent,
-                    background: AppColors.blobRose,
-                    onTap: (ctx) {
-                      Navigator.of(ctx).pop();
-                      onGoToRecords();
-                    },
+            const GardenPathConnector(
+              startX: 0.28,
+              endX: -0.28,
+              decorEmoji: '🐾',
+            ),
+            GardenPathCard(
+              emoji: '💌',
+              title: '편지 쓰기',
+              subtitle: '마음편지와 오늘의 약속, 마음을 짧게 적어보는 곳이에요',
+              accent: AppColors.blobButterAccent,
+              background: AppColors.blobButter,
+              alignX: -0.28,
+              widthFactor: 0.92,
+              floatSeed: 12,
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => CategoryListScreen(
+                    title: '편지 쓰기',
+                    headerEmoji: '💌',
+                    headerSubtitle: '짧게 적어도 괜찮아요.\n마음을 편지로 남겨보세요',
+                    items: [
+                      CategoryItem(
+                        emoji: '💌',
+                        title: '마음편지',
+                        subtitle: '감사·용서·미안함·사랑, 짧게 적으면 내일 답장이 와요',
+                        accent: AppColors.blobButterAccent,
+                        background: AppColors.blobButter,
+                        onTap: (ctx) => pushFullScreen(
+                          ctx,
+                          '마음편지',
+                          const HeartLettersScreen(),
+                        ),
+                      ),
+                      CategoryItem(
+                        emoji: '🌱',
+                        title: '오늘의 약속',
+                        subtitle: '오늘 나를 위해 지켜주고 싶은 작은 약속을 남겨보세요',
+                        accent: AppColors.blobRoseAccent,
+                        background: AppColors.blobRose,
+                        onTap: (ctx) => pushFullScreen(
+                          ctx,
+                          '오늘의 약속',
+                          const TodaysPromiseScreen(),
+                        ),
+                      ),
+                    ],
                   ),
-                  CategoryItem(
-                    emoji: '🗺️',
-                    title: '감정 통계',
-                    subtitle: '이번 주 자주 마주한 감정 Top 3를 지도처럼 살펴보세요',
-                    accent: AppColors.blobPeachAccent,
-                    background: AppColors.blobPeach,
-                    onTap: (ctx) => pushFullScreen(
-                      ctx,
-                      '감정 통계',
-                      const EmotionStatisticsScreen(),
-                    ),
-                  ),
-                  CategoryItem(
-                    emoji: '🌙',
-                    title: '하루 닫기',
-                    subtitle: '오늘 곁에 남긴 약속들을 조용히 돌아보며 하루를 닫아요',
-                    accent: AppColors.blobPeriwinkleAccent,
-                    background: AppColors.blobPeriwinkle,
-                    onTap: (ctx) =>
-                        pushFullScreen(ctx, '하루 닫기', const DayCloseScreen()),
-                  ),
-                  CategoryItem(
-                    emoji: '🫧',
-                    title: '오늘의 그림자 방울 터뜨리기',
-                    subtitle: '오늘 마주한 감정을 방울로 만나, 하나씩 터뜨려 놓아주세요',
-                    accent: AppColors.blobLavenderAccent,
-                    background: AppColors.blobLavender,
-                    onTap: (ctx) => pushFullScreen(
-                      ctx,
-                      '오늘의 그림자 방울 터뜨리기',
-                      const BubbleGardenScreen(),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
-          ),
+            const GardenPathConnector(
+              startX: -0.28,
+              endX: 0.26,
+              decorEmoji: '🦋',
+            ),
+            GardenPathCard(
+              emoji: '📖',
+              title: '돌아보기 & 기록',
+              subtitle: '마음 온도, 주간 지도, 하루 닫기, 그림자 방울을 살펴보세요',
+              accent: AppColors.blobPeachAccent,
+              background: AppColors.blobPeach,
+              alignX: 0.26,
+              widthFactor: 0.92,
+              floatSeed: 9,
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => CategoryListScreen(
+                    title: '돌아보기 & 기록',
+                    headerEmoji: '📖',
+                    headerSubtitle: '지나온 마음의 흐름을\n천천히 돌아보는 시간이에요',
+                    items: [
+                      CategoryItem(
+                        emoji: '🌡️',
+                        title: '마음 온도 기록 보기',
+                        subtitle: '지난 편지와 마음 온도 변화를 돌아보세요',
+                        accent: AppColors.blobRoseAccent,
+                        background: AppColors.blobRose,
+                        onTap: (ctx) {
+                          Navigator.of(ctx).pop();
+                          onGoToRecords();
+                        },
+                      ),
+                      CategoryItem(
+                        emoji: '🗺️',
+                        title: '감정 통계',
+                        subtitle: '이번 주 자주 마주한 감정 Top 3를 지도처럼 살펴보세요',
+                        accent: AppColors.blobPeachAccent,
+                        background: AppColors.blobPeach,
+                        onTap: (ctx) => pushFullScreen(
+                          ctx,
+                          '감정 통계',
+                          const EmotionStatisticsScreen(),
+                        ),
+                      ),
+                      CategoryItem(
+                        emoji: '🌙',
+                        title: '하루 닫기',
+                        subtitle: '오늘 곁에 남긴 약속들을 조용히 돌아보며 하루를 닫아요',
+                        accent: AppColors.blobPeriwinkleAccent,
+                        background: AppColors.blobPeriwinkle,
+                        onTap: (ctx) => pushFullScreen(
+                          ctx,
+                          '하루 닫기',
+                          const DayCloseScreen(),
+                        ),
+                      ),
+                      CategoryItem(
+                        emoji: '🫧',
+                        title: '오늘의 그림자 방울 터뜨리기',
+                        subtitle: '오늘 마주한 감정을 방울로 만나, 하나씩 터뜨려 놓아주세요',
+                        accent: AppColors.blobLavenderAccent,
+                        background: AppColors.blobLavender,
+                        onTap: (ctx) => pushFullScreen(
+                          ctx,
+                          '오늘의 그림자 방울 터뜨리기',
+                          const BubbleGardenScreen(),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            const GardenPathConnector(
+              startX: 0.26,
+              endX: -0.24,
+              decorEmoji: '🐾',
+            ),
+            GardenPathCard(
+              emoji: '🧵',
+              title: '묘연 나누기',
+              subtitle: '내 그림자 고양이 코드를 친구에게 보내고 나란히 살펴보세요',
+              accent: AppColors.blobLavenderAccent,
+              background: AppColors.blobLavender,
+              alignX: -0.24,
+              widthFactor: 0.9,
+              floatSeed: 11,
+              onTap: () =>
+                  pushFullScreen(context, '묘연 나누기', const CatBondScreen()),
+            ),
+          ],
         ),
-        const GardenPathConnector(startX: 0.26, endX: -0.24, decorEmoji: '🐾'),
-        GardenPathCard(
-          emoji: '🧵',
-          title: '묘연 나누기',
-          subtitle: '내 그림자 고양이 코드를 친구에게 보내고 나란히 살펴보세요',
-          accent: AppColors.blobLavenderAccent,
-          background: AppColors.blobLavender,
-          alignX: -0.24,
-          widthFactor: 0.9,
-          floatSeed: 11,
-          onTap: () => pushFullScreen(context, '묘연 나누기', const CatBondScreen()),
+        ExpansionTile(
+          key: const PageStorageKey('home-news'),
+          title: const Text('정원 소식 · 알림'),
+          children: [
+            const _SproutBannerArea(),
+            const _ReflectionBannerArea(),
+            const _HomeNoticeCard(),
+            const _ReplyNotificationSettingsButton(),
+          ],
         ),
-        const SizedBox(height: 40),
+        const SizedBox(height: 16),
         _GardenHintCaption(),
       ],
     );

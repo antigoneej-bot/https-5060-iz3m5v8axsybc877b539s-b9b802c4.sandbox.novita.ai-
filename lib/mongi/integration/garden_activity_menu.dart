@@ -60,7 +60,13 @@ class GardenActivityMenuButton extends StatelessWidget {
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (sheetContext) => _GardenActivitySheet(garden: garden),
+      useSafeArea: true,
+      builder: (sheetContext) => FractionallySizedBox(
+        heightFactor: .85,
+        child: SingleChildScrollView(
+          child: _GardenActivitySheet(garden: garden),
+        ),
+      ),
     );
   }
 }

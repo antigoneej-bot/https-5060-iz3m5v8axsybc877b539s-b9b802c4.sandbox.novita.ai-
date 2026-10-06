@@ -1,6 +1,7 @@
 import '../mongi/integration/mongi_garden_store.dart';
 import 'dart:math';
 import '../services/persisted_submission.dart';
+import '../services/coalescing_refresh.dart';
 import '../models/reply_style.dart';
 import 'dart:async';
 
@@ -112,21 +113,19 @@ class AppStateProvider extends ChangeNotifier {
 
   /// 로그인된 사용자(userId)의 데이터 영역으로 전환한 뒤 불러옵니다.
   bool gardenRewardPending = false;
-  bool gardenRewardRetrying = false;
-  Future<void> retryGardenRewards() async {
-    if (gardenRewardRetrying) return;
-    gardenRewardRetrying = true;
+  bool get gardenRewardRetrying => _gardenRewardRefresh.isRunning;
+  late final _gardenRewardRefresh = CoalescingRefresh(() async {
     notifyListeners();
     try {
       await MongiGardenStore.instance.reconcileRecordedDays();
       gardenRewardPending = false;
     } catch (_) {
       gardenRewardPending = true;
-    } finally {
-      gardenRewardRetrying = false;
-      notifyListeners();
     }
-  }
+  });
+
+  Future<void> retryGardenRewards() =>
+      _gardenRewardRefresh.request().whenComplete(notifyListeners);
 
   Future<void> init(String userId) async {
     await StorageService.setCurrentUser(userId);

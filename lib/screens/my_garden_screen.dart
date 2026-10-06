@@ -1,3 +1,5 @@
+import '../mongi/screens/garden_world_screen.dart';
+import '../mongi/widgets/garden_tool_sheet.dart';
 import '../mongi/integration/unified_garden_panel.dart';
 import '../mongi/integration/garden_activity_menu.dart';
 import '../mongi/integration/garden_flower_bed_section.dart';
@@ -32,126 +34,155 @@ import '../widgets/garden_path_card.dart';
 class MyGardenScreen extends StatelessWidget {
   final VoidCallback onGoMeetCat;
   final bool showMongiPanel;
-  const MyGardenScreen({super.key, required this.onGoMeetCat, this.showMongiPanel = true});
+  const MyGardenScreen({
+    super.key,
+    required this.onGoMeetCat,
+    this.showMongiPanel = true,
+  });
 
   @override
   Widget build(BuildContext context) {
     final app = context.watch<AppStateProvider>();
     final metIds = app.metCatIds;
-    final cats = shadowCats.where((cat) => !cat.isPremium || metIds.contains(cat.id)).toList();
+    final cats = shadowCats
+        .where((cat) => !cat.isPremium || metIds.contains(cat.id))
+        .toList();
     final metCount = cats.where((c) => metIds.contains(c.id)).length;
 
+    if (showMongiPanel) {
+      return GardenWorldScreen(
+        onOpenCollection: () => showGardenToolSheet(
+          context,
+          title: '기록·활동',
+          builder: (_) => Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const GardenActivityMenuButton(),
+              const SizedBox(height: 12),
+              const UnifiedGardenPanel(section: 'records'),
+              MyGardenScreen(onGoMeetCat: onGoMeetCat, showMongiPanel: false),
+            ],
+          ),
+        ),
+      );
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Align(
-          alignment: Alignment.centerRight,
-          child: GardenActivityMenuButton(),
-        ),
-        const SizedBox(height: 14),
-        if (showMongiPanel) const UnifiedGardenPanel(),
         const SizedBox(height: 20),
-        GlassBlob(
-          accent: AppColors.blobPeachAccent,
-          background: AppColors.blobPeach,
-          floatSeed: 5,
-          child: const GardenFlowerBedSection(),
+        ExpansionTile(
+          key: const PageStorageKey('garden-flower-beds'),
+          title: const Text('감정별 꽃밭 보기'),
+          children: [
+            GlassBlob(
+              accent: AppColors.blobPeachAccent,
+              background: AppColors.blobPeach,
+              floatSeed: 5,
+              child: const GardenFlowerBedSection(),
+            ),
+          ],
         ),
         const SizedBox(height: 20),
-        GlassBlob(
-          accent: AppColors.blobMintAccent,
-          background: AppColors.blobMint,
-          floatSeed: 3,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+        ExpansionTile(
+          key: const PageStorageKey('garden-cats'),
+          title: Text('함께한 고양이 도감'),
+          children: [
+            GlassBlob(
+              accent: AppColors.blobMintAccent,
+              background: AppColors.blobMint,
+              floatSeed: 3,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('🌷', style: TextStyle(fontSize: 20)),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      '함께한 고양이',
-                      style: pathLabelFont(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.ink,
+                  Row(
+                    children: [
+                      const Text('🌷', style: TextStyle(fontSize: 20)),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          '함께한 고양이',
+                          style: pathLabelFont(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.ink,
+                          ),
+                        ),
+                      ),
+                      Text(
+                        '$metCount / ${cats.length}',
+                        style: numberFont(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.blobMintAccent,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(999),
+                    child: LinearProgressIndicator(
+                      value: cats.isEmpty ? 0 : metCount / cats.length,
+                      minHeight: 8,
+                      backgroundColor: Colors.white.withValues(alpha: 0.55),
+                      valueColor: const AlwaysStoppedAnimation(
+                        AppColors.blobMintAccent,
                       ),
                     ),
                   ),
+                  const SizedBox(height: 10),
                   Text(
-                    '$metCount / ${cats.length}',
-                    style: numberFont(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.blobMintAccent,
+                    metCount == 0
+                        ? '아직 정원에 아무도 없어요. 첫 고양이를 만나 정원을 채워보세요'
+                        : '지금까지 만난 고양이들이 정원 곳곳에 자리를 잡았어요',
+                    style: bodyFont(
+                      fontSize: 12,
+                      color: AppColors.inkSoft,
+                      height: 1.5,
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 10),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(999),
-                child: LinearProgressIndicator(
-                  value: cats.isEmpty ? 0 : metCount / cats.length,
-                  minHeight: 8,
-                  backgroundColor: Colors.white.withValues(alpha: 0.55),
-                  valueColor: const AlwaysStoppedAnimation(
-                    AppColors.blobMintAccent,
+            ),
+            const SizedBox(height: 20),
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: cats.length,
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3,
+                crossAxisSpacing: 10,
+                mainAxisSpacing: 18,
+                childAspectRatio: 0.76,
+              ),
+              itemBuilder: (context, i) {
+                final cat = cats[i];
+                final met = metIds.contains(cat.id);
+                return _GardenCatTile(
+                  cat: cat,
+                  met: met,
+                  meetingCount: met ? app.meetingCountFor(cat.id) : 0,
+                  onTap: () => _showCatSheet(context, cat, met),
+                );
+              },
+            ),
+            const SizedBox(height: 24),
+            if (metCount < cats.length)
+              Center(
+                child: TextButton(
+                  onPressed: onGoMeetCat,
+                  child: Text(
+                    '오늘의 고양이 만나러 가기 →',
+                    style: pathLabelFont(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.blobPeachAccent,
+                    ),
                   ),
                 ),
               ),
-              const SizedBox(height: 10),
-              Text(
-                metCount == 0
-                    ? '아직 정원에 아무도 없어요. 첫 고양이를 만나 정원을 채워보세요'
-                    : '지금까지 만난 고양이들이 정원 곳곳에 자리를 잡았어요',
-                style: bodyFont(
-                  fontSize: 12,
-                  color: AppColors.inkSoft,
-                  height: 1.5,
-                ),
-              ),
-            ],
-          ),
+          ],
         ),
-        const SizedBox(height: 20),
-        GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: cats.length,
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 3,
-            crossAxisSpacing: 10,
-            mainAxisSpacing: 18,
-            childAspectRatio: 0.76,
-          ),
-          itemBuilder: (context, i) {
-            final cat = cats[i];
-            final met = metIds.contains(cat.id);
-            return _GardenCatTile(
-              cat: cat,
-              met: met,
-              meetingCount: met ? app.meetingCountFor(cat.id) : 0,
-              onTap: () => _showCatSheet(context, cat, met),
-            );
-          },
-        ),
-        const SizedBox(height: 24),
-        if (metCount < cats.length)
-          Center(
-            child: TextButton(
-              onPressed: onGoMeetCat,
-              child: Text(
-                '오늘의 고양이 만나러 가기 →',
-                style: pathLabelFont(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.blobPeachAccent,
-                ),
-              ),
-            ),
-          ),
         const SizedBox(height: 10),
       ],
     );
@@ -330,9 +361,7 @@ class _GardenCatSheet extends StatelessWidget {
                       onPressed: () => Navigator.of(context).pop(),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: accent,
-                        side: BorderSide(
-                          color: accent.withValues(alpha: 0.5),
-                        ),
+                        side: BorderSide(color: accent.withValues(alpha: 0.5)),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(999),
                         ),
