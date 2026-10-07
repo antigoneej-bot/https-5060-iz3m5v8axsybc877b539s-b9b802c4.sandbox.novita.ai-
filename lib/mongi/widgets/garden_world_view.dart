@@ -61,6 +61,7 @@ class GardenWorldView extends StatefulWidget {
 class _GardenWorldViewState extends State<GardenWorldView>
     with TickerProviderStateMixin, WidgetsBindingObserver {
   double _catSeconds = 0, _lastCatAir = 0;
+  Offset? _catAnchor;
   Timer? _expiryTimer;
   final _seenReactions = <String>{};
   String? _responseKind;
@@ -296,12 +297,12 @@ class _GardenWorldViewState extends State<GardenWorldView>
             border: const Border(bottom: BorderSide(color: AppColors.line)),
           ),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             child: Row(
               children: [
                 Expanded(
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
                     decoration: BoxDecoration(
                       color: AppColors.catSageBg,
                       borderRadius: BorderRadius.circular(999),
@@ -338,29 +339,90 @@ class _GardenWorldViewState extends State<GardenWorldView>
                     ),
                   ),
                 ),
-                const SizedBox(width: 6),
+                const SizedBox(width: 4),
                 IconButton(
                   tooltip: '정원 축소',
                   onPressed: () => _zoom(.8),
-                  icon: const Icon(Icons.remove),
+                  icon: const Icon(Icons.remove, size: 17),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints.tightFor(
+                    width: 32,
+                    height: 32,
+                  ),
                   style: IconButton.styleFrom(
                     backgroundColor: AppColors.blobMint,
                     foregroundColor: AppColors.blobMintAccent,
                     shape: const CircleBorder(),
                   ),
                 ),
-                const SizedBox(width: 4),
+                const SizedBox(width: 3),
                 IconButton(
                   tooltip: '정원 확대',
                   onPressed: () => _zoom(1.25),
-                  icon: const Icon(Icons.add),
+                  icon: const Icon(Icons.add, size: 17),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints.tightFor(
+                    width: 32,
+                    height: 32,
+                  ),
                   style: IconButton.styleFrom(
                     backgroundColor: AppColors.blobMint,
                     foregroundColor: AppColors.blobMintAccent,
                     shape: const CircleBorder(),
                   ),
                 ),
-                const SizedBox(width: 4),
+                const SizedBox(width: 3),
+                // Always-visible status toggles, so walk/motion state no
+                // longer requires opening the "보기 설정" menu to find.
+                IconButton(
+                  tooltip: _catWanders ? '고양이 앉아서 쉬기' : '고양이 산책하기',
+                  onPressed: () => setState(() => _catWanders = !_catWanders),
+                  icon: Icon(
+                    _catWanders ? Icons.directions_walk : Icons.weekend,
+                    size: 16,
+                  ),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints.tightFor(
+                    width: 32,
+                    height: 32,
+                  ),
+                  style: IconButton.styleFrom(
+                    backgroundColor: _catWanders
+                        ? AppColors.blobPeach
+                        : AppColors.bg2,
+                    foregroundColor: _catWanders
+                        ? AppColors.blobPeachAccent
+                        : AppColors.inkSoft,
+                    shape: const CircleBorder(),
+                  ),
+                ),
+                const SizedBox(width: 3),
+                IconButton(
+                  tooltip: _paused ? '정원 움직임 재생' : '정원 움직임 멈추기',
+                  onPressed: () {
+                    setState(() => _paused = !_paused);
+                    _syncMotion();
+                  },
+                  icon: Icon(
+                    _paused ? Icons.play_arrow : Icons.pause,
+                    size: 16,
+                  ),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints.tightFor(
+                    width: 32,
+                    height: 32,
+                  ),
+                  style: IconButton.styleFrom(
+                    backgroundColor: _paused
+                        ? AppColors.bg2
+                        : AppColors.blobRose,
+                    foregroundColor: _paused
+                        ? AppColors.inkSoft
+                        : AppColors.blobRoseAccent,
+                    shape: const CircleBorder(),
+                  ),
+                ),
+                const SizedBox(width: 2),
                 PopupMenuButton<String>(
                   tooltip: '보기 설정',
                   color: AppColors.bg1,
@@ -497,7 +559,7 @@ class _GardenWorldViewState extends State<GardenWorldView>
                                   child: CustomPaint(painter: _GroundGrid()),
                                 ),
                               ),
-                            for (final id in sorted) _item(id),
+                            _sceneLayer(sorted),
                             if (_visibleMemoryCount > 0)
                               Positioned(
                                 left: 1430,
@@ -562,7 +624,6 @@ class _GardenWorldViewState extends State<GardenWorldView>
                                   ),
                                 ),
                               ),
-                            _livingCat(),
                             ..._reactionSprites(),
                             if (_waterTarget != null &&
                                 _items.contains(_waterTarget))
@@ -941,44 +1002,67 @@ class _GardenWorldViewState extends State<GardenWorldView>
     ];
   }
 
-  Widget _livingCat() => AnimatedBuilder(
-    animation: Listenable.merge([_air, _response]),
-    builder: (context, _) {
-      final delta = (_air.value - _lastCatAir + 1) % 1;
-      if (_air.isAnimating && _responseKind == null) _catSeconds += delta * 24;
-      _lastCatAir = _air.value;
-      final plants = _items.where((id) => id.startsWith('seed:'));
-      Offset world(String id) {
-        final p = widget.layout.position(id);
-        return Offset(p.dx * 2400, p.dy * 800);
-      }
+  /// Ground-coordinate obstacles (trees, bench, planted seeds) the walking
+  /// path should bend around, so Mongi never clips through them.
+  List<Offset> _catObstacles() => [
+    for (final id in _items)
+      if (id != 'decor:bench')
+        Offset(
+          widget.layout.position(id).dx * 2400,
+          widget.layout.position(id).dy * 800,
+        ),
+  ];
 
-      var moment = GardenCatMoment.at(
-        _catSeconds,
-        plant: plants.isEmpty ? null : world(plants.first),
-        bench: widget.decorations.contains('bench')
-            ? world('decor:bench')
-            : null,
-        quiet: _quiet,
-        animated: _air.isAnimating && _catWanders,
-      );
-      if (_hasResponse) {
-        final anchor = _responseAnchor ?? moment;
-        moment = GardenCatMoment(
-          anchor.feet,
-          false,
-          0,
-          anchor.size,
-          gardenResponseLabels[_responseKind]!,
+  /// Combines every seed/decoration plus the living cat into one Stack,
+  /// ordered back-to-front by ground position, so a tree correctly hides
+  /// Mongi while passing behind it and reveals it again out front.
+  Widget _sceneLayer(List<String> sorted) => Positioned.fill(
+    child: AnimatedBuilder(
+      animation: Listenable.merge([_air, _response]),
+      builder: (context, _) {
+        final delta = (_air.value - _lastCatAir + 1) % 1;
+        if (_air.isAnimating && _responseKind == null) {
+          _catSeconds += delta * 24;
+        }
+        _lastCatAir = _air.value;
+        final plants = _items.where((id) => id.startsWith('seed:'));
+        Offset world(String id) {
+          final p = widget.layout.position(id);
+          return Offset(p.dx * 2400, p.dy * 800);
+        }
+
+        var moment = GardenCatMoment.at(
+          _catSeconds,
+          plant: plants.isEmpty ? null : world(plants.first),
+          bench: widget.decorations.contains('bench')
+              ? world('decor:bench')
+              : null,
+          obstacles: _catObstacles(),
+          zoneLeftOpen: widget.layout.isOpen(0),
+          zoneRightOpen: widget.layout.isOpen(2),
+          quiet: _quiet,
+          animated: _air.isAnimating && _catWanders,
+          anchor: _catAnchor,
         );
-      }
-      _displayedMoment = moment;
-      return Positioned(
-        left: moment.feet.dx - moment.size / 2,
-        top: moment.feet.dy - moment.size,
-        width: moment.size,
-        height: moment.size,
-        child: Semantics(
+        if (_hasResponse) {
+          final anchor = _responseAnchor ?? moment;
+          moment = GardenCatMoment(
+            anchor.feet,
+            false,
+            0,
+            anchor.size,
+            gardenResponseLabels[_responseKind]!,
+            groundDy: anchor.contactDy,
+          );
+        }
+        // Remember exactly where Mongi is standing whenever motion is
+        // actually progressing, so turning the walk off later settles it
+        // right here instead of snapping back to a start position.
+        if (_air.isAnimating && _catWanders && !_hasResponse) {
+          _catAnchor = moment.feet;
+        }
+        _displayedMoment = moment;
+        final catWidget = Semantics(
           button: true,
           label: companionCopy(moment.label, widget.companionName),
           child: GestureDetector(
@@ -988,40 +1072,96 @@ class _GardenWorldViewState extends State<GardenWorldView>
               night: _night,
               seated: moment.resting && widget.decorations.contains('bench'),
               animate: _air.isAnimating,
-              child: Transform.rotate(
-                angle: moment.tilt,
-                alignment: Alignment.bottomCenter,
-                child: _hasResponse
-                    ? GardenCatResponse(
-                        key: const Key('garden-cat-response'),
-                        kind: _responseKind!,
-                        progress: _response.value,
-                        animated: _air.isAnimating && _catWanders,
-                      )
-                    : moment.walking
-                    ? Transform.flip(
-                        flipX: moment.faceLeft,
-                        child: GardenAtlasArt(
-                          asset: 'assets/living_garden/cat_walk.webp',
-                          column: moment.frame,
-                          rows: 1,
-                        ),
-                      )
-                    : GardenSway(
-                        animation: _air,
-                        cat: true,
-                        child: GardenCatArt(
-                          animation: _air,
-                          blinking: _air.isAnimating,
-                          resting: moment.resting,
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  // A small, soft contact shadow pinned to the ground -
+                  // it never bobs or hops together with the body above it.
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    top:
+                        moment.contactDy -
+                        (moment.feet.dy - moment.size) -
+                        moment.size * .045,
+                    child: Center(
+                      child: Container(
+                        width: moment.size * .44,
+                        height: moment.size * .1,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(999),
+                          gradient: RadialGradient(
+                            colors: [
+                              Colors.black.withValues(
+                                alpha: _night ? .22 : .30,
+                              ),
+                              Colors.black.withValues(alpha: 0),
+                            ],
+                          ),
                         ),
                       ),
+                    ),
+                  ),
+                  Transform.rotate(
+                    angle: moment.tilt,
+                    alignment: Alignment.bottomCenter,
+                    child: _hasResponse
+                        ? GardenCatResponse(
+                            key: const Key('garden-cat-response'),
+                            kind: _responseKind!,
+                            progress: _response.value,
+                            animated: _air.isAnimating && _catWanders,
+                          )
+                        : moment.walking
+                        ? Transform.flip(
+                            flipX: moment.faceLeft,
+                            child: GardenAtlasArt(
+                              asset: 'assets/living_garden/cat_walk.webp',
+                              column: moment.frame,
+                              rows: 1,
+                            ),
+                          )
+                        : GardenSway(
+                            animation: _air,
+                            cat: true,
+                            child: GardenCatArt(
+                              animation: _air,
+                              blinking: _air.isAnimating,
+                              resting: moment.resting,
+                            ),
+                          ),
+                  ),
+                ],
               ),
             ),
           ),
-        ),
-      );
-    },
+        );
+        // Depth-sort every ground item together with the cat by their
+        // ground (contact) y, so trees correctly occlude Mongi walking
+        // behind them and reveal it again once it steps out in front.
+        final entries = <(double dy, Widget child)>[
+          for (final id in sorted)
+            (widget.layout.position(id).dy * 800, _item(id)),
+          (moment.contactDy, catWidget),
+        ]..sort((a, b) => a.$1.compareTo(b.$1));
+        return Stack(
+          clipBehavior: Clip.none,
+          children: [
+            for (final e in entries)
+              if (identical(e.$2, catWidget))
+                Positioned(
+                  left: moment.feet.dx - moment.size / 2,
+                  top: moment.feet.dy - moment.size,
+                  width: moment.size,
+                  height: moment.size,
+                  child: e.$2,
+                )
+              else
+                e.$2,
+          ],
+        );
+      },
+    ),
   );
 
   Widget _item(String id) {
