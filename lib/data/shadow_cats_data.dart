@@ -371,6 +371,7 @@ final List<ShadowCat> shadowCats = [
     emoji: '✏️',
     keyword: '몰입',
     imageAsset: 'assets/cards36/cat_27.png',
+    videoAsset: 'assets/cards36/videos/cat_27_loop.mp4',
     story:
         '커다란 연필을 손에 쥐고 진지한 표정으로 원을 그리는 이 고양이는 자신만의 영역을 만들어가는 중이에요. '
         '하나에 깊이 몰입할 때 시간 가는 줄 모르고, 완성해가는 과정 자체에서 큰 즐거움을 느낀답니다. 몰입은 이 '
@@ -386,6 +387,7 @@ final List<ShadowCat> shadowCats = [
     emoji: '🤩',
     keyword: '신남',
     imageAsset: 'assets/cards36/cat_28.png',
+    videoAsset: 'assets/cards36/videos/cat_28_loop.mp4',
     story:
         '꽃밭 위를 신나게 뛰어다니며, 이 고양이는 기쁨에 가득 차 활기찬 표정을 짓고 있어요. 좋은 일이 생기면 '
         '온몸으로 그 기쁨을 표현하고, 에너지가 넘쳐 가만히 있질 못한답니다. 이 활기가 주변에도 좋은 영향을 준다는 '
