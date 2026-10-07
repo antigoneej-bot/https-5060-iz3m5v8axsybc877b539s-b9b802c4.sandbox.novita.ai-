@@ -336,6 +336,7 @@ final List<ShadowCat> shadowCats = [
     emoji: '😸',
     keyword: '행복',
     imageAsset: 'assets/cards36/cat_25.png',
+    videoAsset: 'assets/cards36/videos/cat_25_loop.mp4',
     story:
         '노란 꽃밭 속에 모여 앉아 서로 어깨를 맞대고, 이 고양이들은 환하게 웃으며 행복해하고 있어요. 함께 있는 '
         '것만으로도 마음이 따뜻해지고, 별것 아닌 순간에도 웃음이 끊이지 않는답니다. 이런 순간들이 삶을 든든하게 '
@@ -351,6 +352,7 @@ final List<ShadowCat> shadowCats = [
     emoji: '🥰',
     keyword: '다정함',
     imageAsset: 'assets/cards36/cat_26.png',
+    videoAsset: 'assets/cards36/videos/cat_26_loop.mp4',
     story:
         '분홍빛 꽃길 사이에서 서로 볼을 비비며, 이 고양이들은 사랑스럽게 안겨 있어요. 마음을 나눌 상대가 곁에 '
         '있다는 것만으로도 큰 위안이 되고, 다정함을 주고받는 법을 잘 알고 있답니다. 그 온기가 하루를 든든하게 '
