@@ -1,4 +1,5 @@
 import '../../utils/companion_name.dart';
+import '../../theme.dart';
 import 'garden_grounded_art.dart';
 import 'garden_cat_response.dart';
 import 'dart:math' as math;
@@ -197,6 +198,16 @@ class _GardenWorldViewState extends State<GardenWorldView>
     if (_undo != null && !_items.contains(_undo!.key)) _undo = null;
   }
 
+  ButtonStyle _chipStyle(Color bg, Color fg, {bool active = false}) =>
+      TextButton.styleFrom(
+        backgroundColor: active ? fg : bg,
+        foregroundColor: active ? Colors.white : fg,
+        textStyle: pathLabelFont(fontSize: 13),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        shape: const StadiumBorder(),
+        minimumSize: const Size(0, 44),
+      );
+
   void _jump(double x, {double? scale}) {
     final s = (scale ?? _camera.value.getMaxScaleOnAxis()).clamp(
       _minScale,
@@ -279,17 +290,30 @@ class _GardenWorldViewState extends State<GardenWorldView>
   Widget build(BuildContext context) => Column(
     children: [
       if (!_quiet)
-        Material(
-          color: const Color(0xFFFFF9ED),
+        Container(
+          decoration: BoxDecoration(
+            color: AppColors.bg0,
+            border: const Border(bottom: BorderSide(color: AppColors.line)),
+          ),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
             child: Row(
               children: [
                 Expanded(
-                  child: DropdownButton<int>(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: AppColors.catSageBg,
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(color: AppColors.sageLine),
+                    ),
+                    child: DropdownButton<int>(
                     value: _zone,
                     isExpanded: true,
                     underline: const SizedBox.shrink(),
+                    dropdownColor: AppColors.bg1,
+                    iconEnabledColor: AppColors.catSage,
+                    style: bodyFont(color: AppColors.ink),
                     items: [
                       for (var zone = 0; zone < 3; zone++)
                         DropdownMenuItem(
@@ -311,20 +335,50 @@ class _GardenWorldViewState extends State<GardenWorldView>
                       setState(() => _zone = zone);
                       _jump((zone + .5) / 3);
                     },
+                    ),
                   ),
                 ),
+                const SizedBox(width: 6),
                 IconButton(
                   tooltip: '정원 축소',
                   onPressed: () => _zoom(.8),
                   icon: const Icon(Icons.remove),
+                  style: IconButton.styleFrom(
+                    backgroundColor: AppColors.blobMint,
+                    foregroundColor: AppColors.blobMintAccent,
+                    shape: const CircleBorder(),
+                  ),
                 ),
+                const SizedBox(width: 4),
                 IconButton(
                   tooltip: '정원 확대',
                   onPressed: () => _zoom(1.25),
                   icon: const Icon(Icons.add),
+                  style: IconButton.styleFrom(
+                    backgroundColor: AppColors.blobMint,
+                    foregroundColor: AppColors.blobMintAccent,
+                    shape: const CircleBorder(),
+                  ),
                 ),
+                const SizedBox(width: 4),
                 PopupMenuButton<String>(
                   tooltip: '보기 설정',
+                  color: AppColors.bg1,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  icon: Container(
+                    padding: const EdgeInsets.all(7),
+                    decoration: const BoxDecoration(
+                      color: AppColors.blobLavender,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.tune,
+                      size: 18,
+                      color: AppColors.blobLavenderAccent,
+                    ),
+                  ),
                   onSelected: (value) {
                     if (value == 'reset') {
                       setState(() => _zone = 1);
@@ -339,21 +393,30 @@ class _GardenWorldViewState extends State<GardenWorldView>
                     }
                   },
                   itemBuilder: (_) => [
-                    const PopupMenuItem(
+                    PopupMenuItem(
                       value: 'reset',
-                      child: Text('기본 크기로 보기'),
+                      child: Text('기본 크기로 보기', style: bodyFont(color: AppColors.ink)),
                     ),
                     PopupMenuItem(
                       value: 'cat',
-                      child: Text(_catWanders ? '고양이 앉아서 쉬기' : '고양이 산책하기'),
+                      child: Text(
+                        _catWanders ? '고양이 앉아서 쉬기' : '고양이 산책하기',
+                        style: bodyFont(color: AppColors.ink),
+                      ),
                     ),
                     PopupMenuItem(
                       value: 'light',
-                      child: Text(_night ? '햇살 정원' : '별빛 정원'),
+                      child: Text(
+                        _night ? '햇살 정원' : '별빛 정원',
+                        style: bodyFont(color: AppColors.ink),
+                      ),
                     ),
                     PopupMenuItem(
                       value: 'motion',
-                      child: Text(_paused ? '정원 움직임 재생' : '정원 움직임 멈추기'),
+                      child: Text(
+                        _paused ? '정원 움직임 재생' : '정원 움직임 멈추기',
+                        style: bodyFont(color: AppColors.ink),
+                      ),
                     ),
                   ],
                 ),
@@ -533,9 +596,12 @@ class _GardenWorldViewState extends State<GardenWorldView>
                                       child: Container(
                                         padding: const EdgeInsets.all(24),
                                         decoration: BoxDecoration(
-                                          color: const Color(0xEFFFF9E8),
+                                          color: AppColors.bg1,
                                           borderRadius: BorderRadius.circular(
                                             24,
+                                          ),
+                                          border: Border.all(
+                                            color: AppColors.sageLine,
                                           ),
                                         ),
                                         child: Column(
@@ -544,26 +610,33 @@ class _GardenWorldViewState extends State<GardenWorldView>
                                             const Icon(
                                               Icons.spa_outlined,
                                               size: 38,
-                                              color: Color(0xFF577451),
+                                              color: AppColors.catSage,
                                             ),
                                             Text(
                                               zone == 0
                                                   ? '조금씩 열리는 꽃밭'
                                                   : '나무를 위한 넓은 뜰',
-                                              style: const TextStyle(
-                                                fontSize: 24,
+                                              style: titleFont(
+                                                fontSize: 22,
+                                                color:
+                                                    AppColors.titlePastelGreen,
                                               ),
                                             ),
                                             const SizedBox(height: 8),
                                             Text(
                                               '씨앗을 심거나 가꾼 횟수 ${zone == 0 ? 3 : 8}회에 열려요',
-                                              style: const TextStyle(
-                                                fontSize: 18,
+                                              textAlign: TextAlign.center,
+                                              style: bodyFont(
+                                                fontSize: 15,
+                                                color: AppColors.ink,
                                               ),
                                             ),
-                                            const Text(
+                                            Text(
                                               '한 번 열린 공간은 그대로 남아요',
-                                              style: TextStyle(fontSize: 16),
+                                              style: bodyFont(
+                                                fontSize: 13,
+                                                color: AppColors.inkSoft,
+                                              ),
                                             ),
                                           ],
                                         ),
@@ -592,8 +665,20 @@ class _GardenWorldViewState extends State<GardenWorldView>
           ),
         ),
       if (!_quiet)
-        Material(
-          color: const Color(0xFFFFF9ED),
+        Container(
+          decoration: BoxDecoration(
+            color: AppColors.bg0,
+            borderRadius: const BorderRadius.vertical(
+              top: Radius.circular(24),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: .05),
+                blurRadius: 10,
+                offset: const Offset(0, -2),
+              ),
+            ],
+          ),
           child: SafeArea(
             top: false,
             child: Padding(
@@ -612,7 +697,7 @@ class _GardenWorldViewState extends State<GardenWorldView>
                               : '${_label(_selected!)} · 옮길 잔디를 눌러 주세요.')
                         : '좌우로 산책하고, 두 손가락으로 가까이 살펴보세요.',
                     textAlign: TextAlign.center,
-                    style: const TextStyle(fontSize: 12),
+                    style: bodyFont(fontSize: 12.5, color: AppColors.inkSoft),
                   ),
                   if (_editing && _items.isNotEmpty)
                     SizedBox(
@@ -641,10 +726,23 @@ class _GardenWorldViewState extends State<GardenWorldView>
                       child: Text('씨앗을 심거나 장식을 놓으면 여기서 옮길 수 있어요.'),
                     ),
                   if (!widget.readOnly)
-                    TextButton.icon(
-                      onPressed: () => setState(() => _toolsOpen = !_toolsOpen),
-                      icon: Icon(_toolsOpen ? Icons.expand_less : Icons.tune),
-                      label: Text(_toolsOpen ? '도구 접기' : '돌보기 · 꾸미기 · 추억'),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: TextButton.icon(
+                        onPressed: () =>
+                            setState(() => _toolsOpen = !_toolsOpen),
+                        style: _chipStyle(
+                          AppColors.catSageBg,
+                          AppColors.catSage,
+                          active: _toolsOpen,
+                        ),
+                        icon: Icon(
+                          _toolsOpen ? Icons.expand_less : Icons.tune,
+                        ),
+                        label: Text(
+                          _toolsOpen ? '도구 접기' : '돌보기 · 꾸미기 · 추억',
+                        ),
+                      ),
                     ),
                   if (!widget.readOnly && _toolsOpen)
                     ConstrainedBox(
@@ -652,9 +750,12 @@ class _GardenWorldViewState extends State<GardenWorldView>
                         maxHeight: MediaQuery.sizeOf(context).height * .28,
                       ),
                       child: SingleChildScrollView(
-                        child: Wrap(
+                        child: Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: Wrap(
                           alignment: WrapAlignment.center,
-                          spacing: 6,
+                          spacing: 8,
+                          runSpacing: 8,
                           children: [
                             TextButton.icon(
                               onPressed: _saving
@@ -664,6 +765,11 @@ class _GardenWorldViewState extends State<GardenWorldView>
                                       _editing = false;
                                       _selected = null;
                                     }),
+                              style: _chipStyle(
+                                AppColors.blobMint,
+                                AppColors.blobMintAccent,
+                                active: _wateringMode,
+                              ),
                               icon: Icon(
                                 _wateringMode
                                     ? Icons.check
@@ -679,6 +785,11 @@ class _GardenWorldViewState extends State<GardenWorldView>
                                       _wateringMode = false;
                                       _selected = null;
                                     }),
+                              style: _chipStyle(
+                                AppColors.blobPeriwinkle,
+                                AppColors.blobPeriwinkleAccent,
+                                active: _editing,
+                              ),
                               icon: Icon(
                                 _editing ? Icons.check : Icons.open_with,
                               ),
@@ -687,37 +798,62 @@ class _GardenWorldViewState extends State<GardenWorldView>
                             if (widget.onMemoryTree != null)
                               TextButton.icon(
                                 onPressed: widget.onMemoryTree,
+                                style: _chipStyle(
+                                  AppColors.blobButter,
+                                  AppColors.blobButterAccent,
+                                ),
                                 icon: const Icon(Icons.park_outlined),
                                 label: const Text('기억의 나무'),
                               ),
                             if (widget.onCheerFlowers != null)
                               TextButton.icon(
                                 onPressed: widget.onCheerFlowers,
+                                style: _chipStyle(
+                                  AppColors.blobRose,
+                                  AppColors.blobRoseAccent,
+                                ),
                                 icon: const Icon(Icons.local_florist_outlined),
                                 label: const Text('응원 꽃'),
                               ),
                             TextButton.icon(
                               onPressed: () => _setQuiet(true),
+                              style: _chipStyle(
+                                AppColors.blobLavender,
+                                AppColors.blobLavenderAccent,
+                              ),
                               icon: const Icon(Icons.weekend_outlined),
                               label: const Text('잠깐 쉬기'),
                             ),
                             TextButton.icon(
                               onPressed: _saving ? null : widget.onPlant,
+                              style: _chipStyle(
+                                AppColors.blobPeach,
+                                AppColors.blobPeachAccent,
+                              ),
                               icon: const Icon(Icons.grass),
                               label: const Text('씨앗 심기'),
                             ),
                             TextButton.icon(
                               onPressed: _saving ? null : widget.onDecorate,
+                              style: _chipStyle(
+                                AppColors.blobButter,
+                                AppColors.blobButterAccent,
+                              ),
                               icon: const Icon(Icons.chair_outlined),
                               label: const Text('장식'),
                             ),
                             if (_undo != null)
                               TextButton.icon(
                                 onPressed: _saving ? null : _undoMove,
+                                style: _chipStyle(
+                                  AppColors.bg2,
+                                  AppColors.inkSoft,
+                                ),
                                 icon: const Icon(Icons.undo),
                                 label: const Text('되돌리기'),
                               ),
                           ],
+                          ),
                         ),
                       ),
                     ),
@@ -941,7 +1077,7 @@ class _GardenWorldViewState extends State<GardenWorldView>
           child: Container(
             decoration: BoxDecoration(
               border: _selected == id
-                  ? Border.all(color: const Color(0xFFFFE7A0), width: 3)
+                  ? Border.all(color: AppColors.gold, width: 3)
                   : null,
               borderRadius: BorderRadius.circular(14),
             ),
@@ -987,17 +1123,15 @@ class _GardenWorldViewState extends State<GardenWorldView>
                       vertical: 2,
                     ),
                     decoration: BoxDecoration(
-                      color: const Color(0xDFFFF9E8),
+                      color: AppColors.bg1.withValues(alpha: .88),
                       borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: AppColors.sageLine),
                     ),
                     child: Text(
                       _label(id),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF405A43),
-                      ),
+                      style: bodyFont(fontSize: 12, color: AppColors.ink),
                     ),
                   ),
                 ),

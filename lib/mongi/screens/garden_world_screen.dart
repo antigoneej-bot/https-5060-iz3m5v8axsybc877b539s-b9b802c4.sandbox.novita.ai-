@@ -21,6 +21,7 @@ import '../integration/plant_memory_editor.dart';
 import '../widgets/garden_world_view.dart';
 import '../widgets/living_garden_scene.dart';
 import '../widgets/garden_decoration_sheet.dart';
+import '../../theme.dart';
 
 class GardenWorldScreen extends StatefulWidget {
   final bool showRecordNote;
@@ -229,23 +230,41 @@ class _GardenWorldScreenState extends State<GardenWorldScreen>
     final garden = context.watch<GardenProvider>();
     final companionName = context.watch<CatCareProvider>().displayName;
     return Scaffold(
-      backgroundColor: const Color(0xFFFFF9ED),
+      backgroundColor: AppColors.bg0,
       appBar: _quiet
           ? null
           : AppBar(
-              title: const Text('나의 넓은 정원'),
-              backgroundColor: const Color(0xFFFFF9ED),
+              title: Text(
+                '나의 넓은 정원',
+                style: titleFont(fontSize: 22, color: AppColors.titlePastelGreen),
+              ),
+              backgroundColor: AppColors.bg0,
+              surfaceTintColor: Colors.transparent,
+              elevation: 0,
               actions: [
                 IconButton(
                   tooltip: '고양이 이름 변경',
                   onPressed: () => editCompanionName(context),
                   icon: const Icon(Icons.edit_outlined),
+                  style: IconButton.styleFrom(
+                    backgroundColor: AppColors.blobPeach,
+                    foregroundColor: AppColors.blobPeachAccent,
+                    shape: const CircleBorder(),
+                  ),
                 ),
                 if (widget.onOpenCollection != null)
-                  IconButton(
-                    tooltip: '고양이와 정원 기록',
-                    onPressed: widget.onOpenCollection,
-                    icon: const Icon(Icons.menu_book_outlined),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 6, right: 8),
+                    child: IconButton(
+                      tooltip: '고양이와 정원 기록',
+                      onPressed: widget.onOpenCollection,
+                      icon: const Icon(Icons.menu_book_outlined),
+                      style: IconButton.styleFrom(
+                        backgroundColor: AppColors.blobButter,
+                        foregroundColor: AppColors.blobButterAccent,
+                        shape: const CircleBorder(),
+                      ),
+                    ),
                   ),
               ],
             ),
