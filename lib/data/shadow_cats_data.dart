@@ -403,6 +403,7 @@ final List<ShadowCat> shadowCats = [
     emoji: '✨',
     keyword: '호기심',
     imageAsset: 'assets/cards36/cat_29.png',
+    videoAsset: 'assets/cards36/videos/cat_29_loop.mp4',
     story:
         '반짝이는 별빛 눈망울로, 이 고양이는 호기심 가득하게 무언가를 바라보고 있어요. 새로운 것을 발견하면 '
         '눈이 반짝이고, "이건 뭘까?" 하는 궁금증이 끊이지 않는답니다. 그 호기심이 이 고양이를 더 넓은 세상으로 '
