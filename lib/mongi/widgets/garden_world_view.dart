@@ -1,6 +1,7 @@
 import '../../utils/companion_name.dart';
 import '../../theme.dart';
 import 'garden_grounded_art.dart';
+import 'garden_cat_shadow.dart';
 import 'garden_cat_response.dart';
 import 'dart:math' as math;
 import 'dart:async';
@@ -1075,29 +1076,14 @@ class _GardenWorldViewState extends State<GardenWorldView>
               child: Stack(
                 clipBehavior: Clip.none,
                 children: [
-                  // A small, soft contact shadow pinned to the ground -
-                  // it never bobs or hops together with the body above it.
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    top:
-                        moment.contactDy -
-                        (moment.feet.dy - moment.size) -
-                        moment.size * .045,
-                    child: Center(
-                      child: Container(
-                        width: moment.size * .44,
-                        height: moment.size * .1,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(999),
-                          gradient: RadialGradient(
-                            colors: [
-                              Colors.black.withValues(
-                                alpha: _night ? .22 : .30,
-                              ),
-                              Colors.black.withValues(alpha: 0),
-                            ],
-                          ),
+                  Positioned.fill(
+                    child: IgnorePointer(
+                      child: CustomPaint(
+                        painter: GardenCatShadowPainter(
+                          walking: moment.walking,
+                          faceLeft: moment.faceLeft,
+                          night: _night,
+                          lift: moment.contactDy - moment.feet.dy,
                         ),
                       ),
                     ),
