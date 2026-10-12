@@ -545,6 +545,7 @@ final List<ShadowCat> shadowCats = [
     emoji: '😮‍💨',
     keyword: '냉소',
     imageAsset: 'assets/cards36/cat_43.png',
+    videoAsset: 'assets/cards36/videos/cat_43_loop.mp4',
     story:
         '한쪽 입꼬리를 슬쩍 올리며, 이 고양이는 흘러가는 풍경을 시큰둥하게 바라보고 있어요. 무심해서가 '
         '아니라, "어차피 다 그런 거지" 하는 씁쓸한 체념이 마음 한켠에 자리 잡은 거예요. 무엇에도 크게 '
@@ -560,6 +561,7 @@ final List<ShadowCat> shadowCats = [
     emoji: '💧',
     keyword: '서운함',
     imageAsset: 'assets/cards36/cat_45.png',
+    videoAsset: 'assets/cards36/videos/cat_45_loop.mp4',
     story:
         '몸을 돌린 채 어깨너머로 살짝 돌아보며, 이 고양이는 눈가에 눈물을 그렁그렁 매달고 있어요. 크게 '
         '소리 내어 울 만큼 슬픈 건 아니지만, "나를 잊었나봐" 하는 서운함이 조용히 마음에 고인답니다. '
@@ -575,6 +577,7 @@ final List<ShadowCat> shadowCats = [
     emoji: '😞',
     keyword: '열등감',
     imageAsset: 'assets/cards36/cat_46.png',
+    videoAsset: 'assets/cards36/videos/cat_46_loop.mp4',
     story:
         '몸을 작게 웅크리고 고개를 푹 숙인 채, 이 고양이는 자기 자신이 한없이 작아 보인다고 느껴요. '
         '누군가와 다투거나 한 번 부러웠던 순간이 아니라, "나는 원래부터 부족한 존재인가봐" 하는 오래된 '
@@ -590,6 +593,7 @@ final List<ShadowCat> shadowCats = [
     emoji: '😱',
     keyword: '두려움',
     imageAsset: 'assets/cards36/cat_47.png',
+    videoAsset: 'assets/cards36/videos/cat_47_loop.mp4',
     story:
         '몸을 바짝 낮추고 얼어붙은 채, 이 고양이는 눈을 커다랗게 뜨고 꼼짝도 못 하고 있어요. 그저 조금 '
         '불안한 정도가 아니라, 지금 당장 무언가 위협적인 일이 닥칠 것 같은 강렬한 공포가 온몸을 덮친 '
