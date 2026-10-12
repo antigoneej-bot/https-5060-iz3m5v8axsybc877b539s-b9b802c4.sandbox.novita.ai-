@@ -506,6 +506,7 @@ final List<ShadowCat> shadowCats = [
     emoji: '🕳️',
     keyword: '허무함',
     imageAsset: 'assets/cards36/cat_39.png',
+    videoAsset: 'assets/cards36/videos/cat_39_loop.mp4',
     story:
         '먼 곳을 멍하니 바라보며, 이 고양이는 몸에 힘을 하나도 주지 않고 늘어져 있어요. 기운이 없어서가 '
         '아니라, 무엇을 해도 다 무슨 의미인지 흐릿해져 버린 것 같은 기분이랍니다. 눈앞의 것들이 초점 없이 '
@@ -521,6 +522,7 @@ final List<ShadowCat> shadowCats = [
     emoji: '🙏',
     keyword: '감사',
     imageAsset: 'assets/cards36/cat_40.png',
+    videoAsset: 'assets/cards36/videos/cat_40_loop.mp4',
     story:
         '두 앞발을 가만히 모으고 눈을 살짝 감은 채, 이 고양이는 조용히 미소 짓고 있어요. 화려하게 표현하지 '
         '않아도, 오늘 있었던 작은 것들에 마음이 따뜻해진답니다. 소란스럽지 않은 이 잔잔한 기쁨이, 하루를 '
