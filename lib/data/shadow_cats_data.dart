@@ -423,6 +423,7 @@ final List<ShadowCat> shadowCats = [
     emoji: '💭',
     keyword: '모르겠어',
     imageAsset: 'assets/cards36/cat_32.png',
+    videoAsset: 'assets/cards36/videos/cat_32_loop.mp4',
     story:
         '아름다운 푸른 꽃 아치 아래에서, 이 고양이는 나비들을 물끄러미 올려다보고 있어요. 시선은 또렷하지 않고 '
         '표정도 흐릿한 채로, 지금 이 마음이 슬픔인지 반가움인지 조차 스스로도 알기 어렵답니다. 굳이 이름 붙이려 '
@@ -438,6 +439,7 @@ final List<ShadowCat> shadowCats = [
     emoji: '🌙',
     keyword: '평온',
     imageAsset: 'assets/cards36/cat_33.png',
+    videoAsset: 'assets/cards36/videos/cat_33_loop.mp4',
     story:
         '은은하게 빛나는 초승달 앞에서 눈을 지긋이 감은 채, 이 고양이는 평온하게 휴식을 취하고 있어요. 소란스러운 '
         '마음이 잦아들고 고요함이 찾아온 이 순간, 무엇에도 흔들리지 않는 편안함을 느낀답니다. 평온함은 애써 만드는 '
@@ -453,6 +455,7 @@ final List<ShadowCat> shadowCats = [
     emoji: '🌈',
     keyword: '만족',
     imageAsset: 'assets/cards36/cat_36.png',
+    videoAsset: 'assets/cards36/videos/cat_36_loop.mp4',
     story:
         '무지개와 달빛 아래, 이 고양이들은 단란하게 함께 앉아 고요하고 만족스러운 시간을 보내고 있어요. 특별한 '
         '일이 없어도 지금 이 순간에 감사할 줄 알고, 있는 그대로의 하루에 편안함을 느낀답니다. 만족은 큰 것에서 '
