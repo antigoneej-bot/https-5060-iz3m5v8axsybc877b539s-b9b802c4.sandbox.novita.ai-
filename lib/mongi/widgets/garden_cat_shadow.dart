@@ -25,7 +25,7 @@ class GardenCatShadowPainter extends CustomPainter {
     final center = Offset(unit * centerX, baseline + lift - unit * .008);
     final heightAboveGround = (lift / unit).clamp(0.0, .35).toDouble();
     final softness = 1 + heightAboveGround * 3;
-    final density = night ? .72 : 1.0;
+    final density = night ? 1.35 : 1.0;
 
     void ellipse(double width, double height, double blur, double opacity,
         {double dy = 0}) {
