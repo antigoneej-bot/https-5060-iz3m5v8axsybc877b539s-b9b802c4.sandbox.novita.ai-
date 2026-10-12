@@ -474,6 +474,7 @@ final List<ShadowCat> shadowCats = [
     emoji: '🙈',
     keyword: '수치심',
     imageAsset: 'assets/cards36/cat_37.png',
+    videoAsset: 'assets/cards36/videos/cat_37_loop.mp4',
     story:
         '몸을 살짝 웅크리고 시선을 피한 채, 이 고양이는 자꾸 작아지고 있어요. 무언가를 잘못해서가 아니라, '
         '그냥 "나 자신이 충분하지 않다"는 낯선 감각이 마음 깊은 곳에서 스며든답니다. 잘못을 따지기보다, '
@@ -489,6 +490,7 @@ final List<ShadowCat> shadowCats = [
     emoji: '😦',
     keyword: '억울함',
     imageAsset: 'assets/cards36/cat_38.png',
+    videoAsset: 'assets/cards36/videos/cat_38_loop.mp4',
     story:
         '두 눈을 크게 뜨고 입을 꾹 다문 채, 이 고양이는 하고 싶은 말을 삼키며 가만히 서 있어요. 화를 내며 '
         '달려들기보다, 억울한 마음을 안으로 꾹꾹 눌러 참고 견디는 쪽이랍니다. 아무도 몰라줄까 봐, 숨이 막힐 '
