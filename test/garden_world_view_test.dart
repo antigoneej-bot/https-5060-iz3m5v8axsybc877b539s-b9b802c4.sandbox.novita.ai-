@@ -127,17 +127,20 @@ void main() {
     await tester.tap(find.byTooltip('고양이 산책하기'));
     await tester.pump();
     await tester.pump(const Duration(seconds: 2));
-    final before = tester.getTopLeft(find.byType(GardenCatPose));
+    // Measure the bottom-anchored foot point, not the top-left: resting
+    // keeps a slight idle breathing scale that bulges upward from the
+    // feet, so the top edge jitters by design while the feet stay put.
+    final before = tester.getBottomLeft(find.byType(GardenCatPose));
     await tester.tap(find.byTooltip('고양이 앉아서 쉬기'));
     await tester.pump();
     await tester.pump(const Duration(seconds: 8));
-    expect((tester.getTopLeft(find.byType(GardenCatPose)) - before).distance,
+    expect((tester.getBottomLeft(find.byType(GardenCatPose)) - before).distance,
         lessThan(.01));
     expect(tester.widget<GardenBenchMoonlight>(find.byType(GardenBenchMoonlight)).seated,
         isFalse);
     await tester.tap(find.byTooltip('고양이 산책하기'));
     await tester.pump();
-    expect((tester.getTopLeft(find.byType(GardenCatPose)) - before).distance,
+    expect((tester.getBottomLeft(find.byType(GardenCatPose)) - before).distance,
         lessThan(.01));
     await tester.pumpWidget(const SizedBox.shrink());
   });

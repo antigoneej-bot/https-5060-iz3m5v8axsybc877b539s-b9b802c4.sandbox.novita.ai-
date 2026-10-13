@@ -897,8 +897,7 @@ class _GardenWorldViewState extends State<GardenWorldView>
       _responseKind = kind;
       _responseDeadline = reaction.expiresAt;
     });
-    _response.value = 0;
-    if (_air.isAnimating) _response.forward();
+    _response.forward(from: 0);
   }
 
   List<Widget> _reactionSprites() {
