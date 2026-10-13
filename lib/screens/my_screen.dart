@@ -21,6 +21,8 @@ import 'about_app_screen.dart';
 import 'app_tutorial_screen.dart';
 import '../widgets/feature_scaffold.dart';
 import 'analytics_debug_screen.dart';
+import '../mongi/screens/public_garden_settings_screen.dart';
+import '../mongi/screens/garden_bloom_news_screen.dart';
 
 /// 마이 탭 - 나의 성장 현황, 방문 기록, 사운드 설정 등을 관리하는 화면
 class MyScreen extends StatefulWidget {
@@ -58,6 +60,20 @@ class _MyScreenState extends State<MyScreen> {
           onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SubscriberJourneysScreen()))),
         const SizedBox(height: 16),
         GrowthHeader(state: context.watch<CatCareProvider>().state),
+        const SizedBox(height: 20),
+        Padding(
+          padding: const EdgeInsets.only(left: 6),
+          child: Text(
+            '🌼 이웃과 정원',
+            style: pathLabelFont(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: AppColors.ink,
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        const _NeighborGardenCard(),
         const SizedBox(height: 20),
         Padding(
           padding: const EdgeInsets.only(left: 6),
@@ -856,6 +872,114 @@ class _FeedbackCardState extends State<_FeedbackCard> {
                   color: AppColors.blobMintAccent,
                   size: 20,
                 ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 이웃과의 응원·선물 교환, 정원 공개 설정, 받은 꽃 소식 등 "opt-in"
+/// 소셜 기능으로 들어가는 입구 카드. 기본값은 항상 비공개이며, 이 카드는
+/// 단지 해당 설정 화면들로 가는 길을 보여줄 뿐이다.
+class _NeighborGardenCard extends StatelessWidget {
+  const _NeighborGardenCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassBlob(
+      accent: AppColors.blobMintAccent,
+      background: AppColors.blobMint,
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      child: Column(
+        children: [
+          _neighborRow(
+            context,
+            emoji: '🌷',
+            label: '정원 공개 · 이웃 응원',
+            subtitle: '정원을 공개하고 이웃과 응원을 나눠요',
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const PublicGardenSettingsScreen(),
+                ),
+              );
+            },
+          ),
+          Divider(
+            height: 1,
+            color: AppColors.blobMintAccent.withValues(alpha: 0.18),
+          ),
+          _neighborRow(
+            context,
+            emoji: '💌',
+            label: '내가 건넨 꽃 소식',
+            subtitle: '선물한 꽃이 이웃 정원에 핀 소식을 확인해요',
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const GardenBloomNewsScreen(),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _neighborRow(
+    BuildContext context, {
+    required String emoji,
+    required String label,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withValues(alpha: 0.6),
+                ),
+                child: Text(emoji, style: const TextStyle(fontSize: 16)),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label,
+                      style: pathLabelFont(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.ink,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: bodyFont(fontSize: 11, color: AppColors.inkSoft),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: AppColors.blobMintAccent,
+                size: 20,
+              ),
             ],
           ),
         ),
