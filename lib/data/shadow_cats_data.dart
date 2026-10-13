@@ -609,6 +609,7 @@ final List<ShadowCat> shadowCats = [
     emoji: '😓',
     keyword: '죄책감',
     imageAsset: 'assets/cards36/cat_48.png',
+    videoAsset: 'assets/cards36/videos/cat_48_loop.mp4',
     story:
         '앞발을 가슴에 얹고 고개를 숙인 채, 이 고양이는 걱정스러운 눈빛으로 위를 슬쩍 올려다보고 있어요. '
         '자신을 몰아세우기보다, "그때 그 말은 하지 말았어야 했는데" 하며 누군가에게 미안한 마음이 자꾸 '
