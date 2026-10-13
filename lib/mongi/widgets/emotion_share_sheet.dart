@@ -9,7 +9,6 @@ import 'package:share_plus/share_plus.dart';
 
 import '../l10n/emotion_l10n.dart';
 import '../l10n/gen/app_localizations.dart';
-import '../l10n/purchase_l10n.dart';
 import '../l10n/share_frame_l10n.dart';
 import '../models/emotion.dart';
 import '../providers/garden_provider.dart';
