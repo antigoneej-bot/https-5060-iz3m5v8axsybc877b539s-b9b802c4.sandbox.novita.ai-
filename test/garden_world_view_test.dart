@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_app/mongi/widgets/garden_cat_pose.dart';
+import 'package:flutter_app/mongi/widgets/garden_grounded_art.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_app/mongi/models/garden_gifts.dart';
 import 'package:flutter_app/mongi/widgets/garden_cat_response.dart';
@@ -119,6 +121,26 @@ void main() {
     await tester.tap(find.text(label));
     await tester.pump();
   }
+
+  testWidgets('resting the cat freezes the route and resumes at the same place', (tester) async {
+    await showWorld(tester, reduced: false);
+    await tester.tap(find.byTooltip('고양이 산책하기'));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 2));
+    final before = tester.getTopLeft(find.byType(GardenCatPose));
+    await tester.tap(find.byTooltip('고양이 앉아서 쉬기'));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 8));
+    expect((tester.getTopLeft(find.byType(GardenCatPose)) - before).distance,
+        lessThan(.01));
+    expect(tester.widget<GardenBenchMoonlight>(find.byType(GardenBenchMoonlight)).seated,
+        isFalse);
+    await tester.tap(find.byTooltip('고양이 산책하기'));
+    await tester.pump();
+    expect((tester.getTopLeft(find.byType(GardenCatPose)) - before).distance,
+        lessThan(.01));
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
 
   testWidgets('camera pans, zooms and can return home', (tester) async {
     await showWorld(tester);

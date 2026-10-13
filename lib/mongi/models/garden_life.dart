@@ -23,7 +23,7 @@ class _Stop {
 
 class GardenCatMoment {
   final Offset feet;
-  final bool resting, walking, faceLeft;
+  final bool resting, walking, faceLeft, onBench;
   final int frame;
   final double tilt, size;
   final String label;
@@ -38,6 +38,7 @@ class GardenCatMoment {
     this.tilt,
     this.size,
     this.label, {
+    this.onBench = false,
     this.walking = false,
     this.faceLeft = false,
     this.frame = 0,
@@ -213,6 +214,7 @@ class GardenCatMoment {
         0,
         seat != null ? depthSize(pos.dy) * .73 : depthSize(pos.dy),
         '몽이가 곁에서 쉬고 있어요',
+        onBench: seat != null,
       );
     }
     if (!animated) {
@@ -289,6 +291,7 @@ class GardenCatMoment {
             0,
             depthSize(seat.dy) * .73,
             '잠깐 졸고 있는 몽이',
+            onBench: true,
           );
         }
         t -= benchRest;

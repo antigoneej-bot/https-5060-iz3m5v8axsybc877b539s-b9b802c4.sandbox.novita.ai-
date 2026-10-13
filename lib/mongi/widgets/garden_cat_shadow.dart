@@ -1,11 +1,10 @@
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 
-/// Ground footprint in the same square coordinates used by GardenAtlasArt.
-/// The walking cells contain bottom padding: the paws are at ~434/512,
-/// not at the bottom of the widget. Keep this independent of body bobbing.
+/// Ground footprint shared by every normalized GardenCatPose.
+/// Pose artwork aligns its physical feet with the bottom of this canvas.
 class GardenCatShadowPainter extends CustomPainter {
-  final bool walking, faceLeft, night;
+  final bool walking, faceLeft, night, onBench;
   final double lift;
 
   const GardenCatShadowPainter({
@@ -13,14 +12,14 @@ class GardenCatShadowPainter extends CustomPainter {
     required this.faceLeft,
     required this.night,
     required this.lift,
+    this.onBench = false,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
     if (size.isEmpty) return;
     final unit = size.width;
-    // Idle artwork has a different transparent margin (1213/1254).
-    final baseline = size.height * (walking ? 434 / 512 : 1213 / 1254);
+    final baseline = size.height;
     final centerX = walking ? (faceLeft ? .51 : .49) : .49;
     final center = Offset(unit * centerX, baseline + lift - unit * .008);
     final heightAboveGround = (lift / unit).clamp(0.0, .35).toDouble();
@@ -43,8 +42,10 @@ class GardenCatShadowPainter extends CustomPainter {
 
     // drawOval gives a real elliptical footprint, unlike a radial gradient
     // whose radius is limited by the shortest side of a shallow container.
-    ellipse((walking ? .68 : .48) * softness, .085 * softness,
-        .024 * softness, .15 / softness);
+    if (!onBench) {
+      ellipse((walking ? .62 : .48) * softness, .085 * softness,
+          .024 * softness, .15 / softness);
+    }
     // Contact is close and darker; it fades during a hop while the broad
     // footprint stays on the ground. No new motion is applied to the cat.
     final contact = (1 - heightAboveGround * 8).clamp(0.0, 1.0).toDouble();
@@ -55,6 +56,7 @@ class GardenCatShadowPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant GardenCatShadowPainter oldDelegate) =>
+      onBench != oldDelegate.onBench ||
       walking != oldDelegate.walking ||
       faceLeft != oldDelegate.faceLeft ||
       night != oldDelegate.night ||

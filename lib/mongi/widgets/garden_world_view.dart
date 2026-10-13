@@ -2,6 +2,7 @@ import '../../utils/companion_name.dart';
 import '../../theme.dart';
 import 'garden_grounded_art.dart';
 import 'garden_cat_shadow.dart';
+import 'garden_cat_pose.dart';
 import 'garden_cat_response.dart';
 import 'dart:math' as math;
 import 'dart:async';
@@ -104,9 +105,7 @@ class _GardenWorldViewState extends State<GardenWorldView>
     });
     widget.onQuietChanged?.call(value);
     _jump(
-      widget.decorations.contains('bench')
-          ? widget.layout.position('decor:bench').dx
-          : .5,
+      (_displayedMoment?.feet.dx ?? 1200) / 2400,
     );
   }
 
@@ -144,19 +143,17 @@ class _GardenWorldViewState extends State<GardenWorldView>
   }
 
   void _syncMotion() {
-    if (!_foreground) {
-      _response.stop();
-    } else if (_responseKind != null &&
-        !_response.isAnimating &&
-        _response.value < 1) {
-      _response.forward();
-    }
     final enabled =
         widget.motionEnabled &&
         !_paused &&
         _foreground &&
         !MediaQuery.disableAnimationsOf(context) &&
         TickerMode.of(context);
+    if (!enabled) {
+      _response.stop();
+    } else if (_responseKind != null && !_response.isAnimating && _response.value < 1) {
+      _response.forward();
+    }
     if (enabled) {
       if (!_air.isAnimating) _air.repeat();
       if (!_daylight.isAnimating) _daylight.repeat();
@@ -561,70 +558,6 @@ class _GardenWorldViewState extends State<GardenWorldView>
                                 ),
                               ),
                             _sceneLayer(sorted),
-                            if (_visibleMemoryCount > 0)
-                              Positioned(
-                                left: 1430,
-                                top: 370,
-                                width: 155,
-                                height: 170,
-                                child: Semantics(
-                                  button: true,
-                                  label: widget.readOnly
-                                      ? '기억의 나무'
-                                      : '기억의 나무, 기록한 날 ${widget.memoryDays}일',
-                                  child: GestureDetector(
-                                    key: const Key('garden-memory-tree'),
-                                    onTap: _quiet || widget.readOnly
-                                        ? null
-                                        : widget.onMemoryTree,
-                                    child: GardenPlantArt(
-                                      seed: SeedType.byId('cherry'),
-                                      count: _visibleMemoryCount,
-                                      night: _night,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            if (_visibleFlowerCount > 0)
-                              Positioned(
-                                left: 970,
-                                top: 575,
-                                width: 180,
-                                height: 115,
-                                child: Semantics(
-                                  button: true,
-                                  label: '받은 응원의 꽃밭',
-                                  child: GestureDetector(
-                                    key: const Key('garden-cheer-flowers'),
-                                    onTap: _quiet || widget.readOnly
-                                        ? null
-                                        : widget.onCheerFlowers,
-                                    child: Stack(
-                                      children: [
-                                        for (
-                                          var i = 0;
-                                          i < math.min(_visibleFlowerCount, 9);
-                                          i++
-                                        )
-                                          Positioned(
-                                            left: (i % 3) * 48.0,
-                                            top: (i ~/ 3) * 20.0,
-                                            width: 76,
-                                            height: 76,
-                                            child: GardenFlowerArt(
-                                              night: _night,
-                                              kind:
-                                                  i < widget.flowerKinds.length
-                                                  ? widget.flowerKinds[i]
-                                                  : gardenFlowerNames.keys
-                                                        .elementAt(i % 5),
-                                            ),
-                                          ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
                             ..._reactionSprites(),
                             if (_waterTarget != null &&
                                 _items.contains(_waterTarget))
@@ -964,7 +897,8 @@ class _GardenWorldViewState extends State<GardenWorldView>
       _responseKind = kind;
       _responseDeadline = reaction.expiresAt;
     });
-    _response.forward(from: 0);
+    _response.value = 0;
+    if (_air.isAnimating) _response.forward();
   }
 
   List<Widget> _reactionSprites() {
@@ -1006,6 +940,8 @@ class _GardenWorldViewState extends State<GardenWorldView>
   /// Ground-coordinate obstacles (trees, bench, planted seeds) the walking
   /// path should bend around, so Mongi never clips through them.
   List<Offset> _catObstacles() => [
+    if (_visibleMemoryCount > 0) const Offset(1507.5, 523),
+    if (_visibleFlowerCount > 0) const Offset(1060, 650),
     for (final id in _items)
       if (id != 'decor:bench')
         Offset(
@@ -1022,7 +958,7 @@ class _GardenWorldViewState extends State<GardenWorldView>
       animation: Listenable.merge([_air, _response]),
       builder: (context, _) {
         final delta = (_air.value - _lastCatAir + 1) % 1;
-        if (_air.isAnimating && _responseKind == null) {
+        if (_air.isAnimating && _catWanders && !_quiet && _responseKind == null) {
           _catSeconds += delta * 24;
         }
         _lastCatAir = _air.value;
@@ -1045,6 +981,14 @@ class _GardenWorldViewState extends State<GardenWorldView>
           animated: _air.isAnimating && _catWanders,
           anchor: _catAnchor,
         );
+        if ((!_air.isAnimating || !_catWanders || _quiet) && _displayedMoment != null) {
+          final previous = _displayedMoment!;
+          moment = (!_air.isAnimating && !_quiet)
+              ? previous
+              : GardenCatMoment(previous.feet, false, 0, previous.size,
+                  '곁에서 쉬는 몽이', onBench: previous.onBench,
+                  groundDy: previous.contactDy);
+        }
         if (_hasResponse) {
           final anchor = _responseAnchor ?? moment;
           moment = GardenCatMoment(
@@ -1054,6 +998,7 @@ class _GardenWorldViewState extends State<GardenWorldView>
             anchor.size,
             gardenResponseLabels[_responseKind]!,
             groundDy: anchor.contactDy,
+            onBench: anchor.onBench,
           );
         }
         // Remember exactly where Mongi is standing whenever motion is
@@ -1071,7 +1016,7 @@ class _GardenWorldViewState extends State<GardenWorldView>
                 _message(companionCopy(moment.label, widget.companionName)),
             child: GardenBenchMoonlight(
               night: _night,
-              seated: moment.resting && widget.decorations.contains('bench'),
+              seated: moment.onBench,
               animate: _air.isAnimating,
               child: Stack(
                 clipBehavior: Clip.none,
@@ -1084,14 +1029,24 @@ class _GardenWorldViewState extends State<GardenWorldView>
                           faceLeft: moment.faceLeft,
                           night: _night,
                           lift: moment.contactDy - moment.feet.dy,
+                          onBench: moment.onBench,
                         ),
                       ),
                     ),
                   ),
                   Transform.rotate(
-                    angle: moment.tilt,
+                    angle: moment.walking ? moment.tilt : 0,
                     alignment: Alignment.bottomCenter,
-                    child: _hasResponse
+                    child: Transform.scale(
+                      alignment: Alignment.bottomCenter,
+                      scaleY: !moment.walking && !_hasResponse
+                          ? 1 + math.sin(_air.value * math.pi * 12) * .006
+                          : 1,
+                      child: GardenCatPose(
+                      walking: moment.walking,
+                      frame: moment.frame,
+                      reaction: _hasResponse ? _responseKind : null,
+                      child: _hasResponse
                         ? GardenCatResponse(
                             key: const Key('garden-cat-response'),
                             kind: _responseKind!,
@@ -1107,15 +1062,13 @@ class _GardenWorldViewState extends State<GardenWorldView>
                               rows: 1,
                             ),
                           )
-                        : GardenSway(
-                            animation: _air,
-                            cat: true,
-                            child: GardenCatArt(
+                        : GardenCatArt(
                               animation: _air,
                               blinking: _air.isAnimating,
                               resting: moment.resting,
                             ),
-                          ),
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -1126,6 +1079,68 @@ class _GardenWorldViewState extends State<GardenWorldView>
         // ground (contact) y, so trees correctly occlude Mongi walking
         // behind them and reveal it again once it steps out in front.
         final entries = <(double dy, Widget child)>[
+          if (_visibleMemoryCount > 0) (523.0, Positioned(
+                                left: 1430,
+                                top: 370,
+                                width: 155,
+                                height: 170,
+                                child: Semantics(
+                                  button: true,
+                                  label: widget.readOnly
+                                      ? '기억의 나무'
+                                      : '기억의 나무, 기록한 날 ${widget.memoryDays}일',
+                                  child: GestureDetector(
+                                    key: const Key('garden-memory-tree'),
+                                    onTap: _quiet || widget.readOnly
+                                        ? null
+                                        : widget.onMemoryTree,
+                                    child: GardenPlantArt(
+                                      seed: SeedType.byId('cherry'),
+                                      count: _visibleMemoryCount,
+                                      night: _night,
+                                    ),
+                                  ),
+                                ),
+                              )),
+          if (_visibleFlowerCount > 0) (683.0, Positioned(
+                                left: 970,
+                                top: 575,
+                                width: 180,
+                                height: 115,
+                                child: Semantics(
+                                  button: true,
+                                  label: '받은 응원의 꽃밭',
+                                  child: GestureDetector(
+                                    key: const Key('garden-cheer-flowers'),
+                                    onTap: _quiet || widget.readOnly
+                                        ? null
+                                        : widget.onCheerFlowers,
+                                    child: Stack(
+                                      children: [
+                                        for (
+                                          var i = 0;
+                                          i < math.min(_visibleFlowerCount, 9);
+                                          i++
+                                        )
+                                          Positioned(
+                                            left: (i % 3) * 48.0,
+                                            top: (i ~/ 3) * 20.0,
+                                            width: 76,
+                                            height: 76,
+                                            child: GardenFlowerArt(
+                                              night: _night,
+                                              kind:
+                                                  i < widget.flowerKinds.length
+                                                  ? widget.flowerKinds[i]
+                                                  : gardenFlowerNames.keys
+                                                        .elementAt(i % 5),
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              )),
           for (final id in sorted)
             (widget.layout.position(id).dy * 800, _item(id)),
           (moment.contactDy, catWidget),
