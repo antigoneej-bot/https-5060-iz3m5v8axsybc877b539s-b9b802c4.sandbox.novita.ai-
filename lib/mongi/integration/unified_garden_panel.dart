@@ -113,8 +113,14 @@ class _UnifiedGardenPanelState extends State<UnifiedGardenPanel> {
                   children: SeedType.all
                       .map(
                         (seed) => OutlinedButton(
-                          onPressed: _busy || ((data.seeds[seed.id] ?? 0) == 0
-                              ? data.seedTokens == 0 : data.wateredToday(seed.id, DateTime.now()))
+                          onPressed:
+                              _busy ||
+                                  ((data.seeds[seed.id] ?? 0) == 0
+                                      ? data.seedTokens == 0
+                                      : data.wateredToday(
+                                          seed.id,
+                                          DateTime.now(),
+                                        ))
                               ? null
                               : () => _act(() async {
                                   if ((data.seeds[seed.id] ?? 0) > 0) {
@@ -124,7 +130,11 @@ class _UnifiedGardenPanelState extends State<UnifiedGardenPanel> {
                                   }
                                 }),
                           child: Text(
-                            '${seed.growthStages.last} ${seed.label} · ${(data.seeds[seed.id] ?? 0) == 0 ? '심기' : data.wateredToday(seed.id, DateTime.now()) ? '오늘 돌봄 완료' : '물 주기'}',
+                            '${seed.growthStages.last} ${seed.label} · ${(data.seeds[seed.id] ?? 0) == 0
+                                ? '심기'
+                                : data.wateredToday(seed.id, DateTime.now())
+                                ? '오늘 돌봄 완료'
+                                : '물 주기'}',
                           ),
                         ),
                       )

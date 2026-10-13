@@ -27,7 +27,7 @@ import 'cat_shop_screen.dart';
 const bool kShowMochiDebugPanel = false;
 
 /// 마음 돌보기 (다마고치식) - 매일 몸(밥/물/목욕/청소)과 마음(호흡명상/걷기명상/
-/// 마음기록/감사쓰기)을 함께 돌보며 나의 그림자 고양이를 키우고 마음 온도를
+/// 마음기록/감사쓰기)을 함께 돌보며 나의 그림자 고양이를 키우고 돌봄 온기를
 /// 유지하는 화면. 쉬었던 날에는 온도를 깎지 않습니다.
 /// 처음엔 아기 고양이로 시작해서, 정성껏 돌본 날이 쌓일수록 청년을 거쳐
 /// 내가 고른 그림자 고양이의 모습으로 다 자라납니다.
@@ -130,7 +130,7 @@ class _PetCareScreenState extends State<PetCareScreen> {
         ),
         const SizedBox(height: 6),
         Text(
-          '몸과 마음을 함께 돌보며 $name${topicParticle(name)} 마음 온도를 지켜주세요',
+          '몸과 마음을 함께 돌보며 $name${topicParticle(name)} 돌봄 온기를 지켜주세요',
           textAlign: TextAlign.center,
           style: bodyFont(fontSize: 12.5, color: AppColors.inkSoft),
         ),
@@ -317,7 +317,7 @@ class _PetCareScreenState extends State<PetCareScreen> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    '오늘의 작은 돌봄을 마쳤어요! 마음 온도가 올라갔어요.',
+                    '오늘의 작은 돌봄을 마쳤어요! 돌봄 온기가 올라갔어요.',
                     style: pathLabelFont(
                       fontSize: 13.5,
                       fontWeight: FontWeight.w700,
@@ -343,7 +343,7 @@ class _PetCareScreenState extends State<PetCareScreen> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    '오늘 ${care.state.completedCountToday}가지 실천 · 한 가지면 충분해요. 나머지는 선택이에요.\n마음 온도는 돌봄 활동의 표시이며 심리 점수가 아니에요.',
+                    '오늘 ${care.state.completedCountToday}가지 실천 · 한 가지면 충분해요. 나머지는 선택이에요.\n돌봄 온기는 돌봄 활동의 표시이며 심리 점수가 아니에요.',
                     style: bodyFont(fontSize: 11.5, color: AppColors.inkSoft),
                   ),
                 ),
@@ -468,7 +468,7 @@ class _MochiGreetingHero extends StatelessWidget {
   }
 }
 
-/// 마음 온도가 100도에 도달할 때마다 적립되는 포인트를 보여주는 배지.
+/// 돌봄 온기가 100도에 도달할 때마다 적립되는 포인트를 보여주는 배지.
 /// 유료구독자(정원 플러스)에게만 노출됩니다.
 class _PointsBadge extends StatelessWidget {
   final int points;
@@ -509,7 +509,7 @@ class _PointsBadge extends StatelessWidget {
                 ),
                 Text(
                   isPremium
-                      ? '마음 온도가 100도에 닿을 때마다, 또 오늘의 방울 터뜨리기로도 포인트가 쌓여요'
+                      ? '돌봄 온기가 100도에 닿을 때마다, 또 오늘의 방울 터뜨리기로도 포인트가 쌓여요'
                       : '오늘의 그림자 방울 터뜨리기로 포인트를 모을 수 있어요 · 정원 플러스 구독 시 온도로도 쌓여요',
                   style: bodyFont(fontSize: 10.5, color: AppColors.inkSoft),
                 ),
@@ -743,7 +743,7 @@ class _CompanionCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        '마음 온도',
+                        '돌봄 온기',
                         style: bodyFont(fontSize: 11, color: AppColors.moon),
                       ),
                       Text(

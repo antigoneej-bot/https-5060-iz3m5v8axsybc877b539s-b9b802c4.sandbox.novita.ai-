@@ -33,8 +33,8 @@ void main() {
   });
   test('random card comparison never becomes a diagnosis', () {
     expect(ConsciousnessInsightService.build(consciousCatId: null, unconsciousCatId: 'sad'), isNull);
-    for (final chosen in ['sad', 'angry', 'dreamy']) {
-      for (final drawn in ['sad', 'angry', 'dreamy']) {
+    for (final chosen in ['sad', 'angry', 'sleepy']) {
+      for (final drawn in ['sad', 'angry', 'sleepy']) {
         final result = ConsciousnessInsightService.build(consciousCatId: chosen, unconsciousCatId: drawn)!;
         expect(result.stateDescription, contains('재미용'));
         expect(result.comfort, contains('그냥 넘겨도'));

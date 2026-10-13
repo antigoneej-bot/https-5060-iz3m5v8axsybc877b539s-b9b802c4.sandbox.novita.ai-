@@ -1,4 +1,5 @@
 import { validGardenGift, liveReactions, newGardenReaction } from './garden-gifts.js';
+import { readOwnPublicGardenStatus } from './public-garden-status.js';
 import { confirmGardenBloom } from './garden-blooms.js';
 import { acceptsGiftAmount, beginCheerDelivery, acknowledgeCheerDelivery } from './cheer-delivery.js';
 import { removeAccountReservations } from './account-reservations.js';
@@ -140,6 +141,9 @@ export const gardenApi = onRequest({region:'asia-northeast3', maxInstances:3, ti
       res.json({envelope:JSON.parse(bytes.toString('utf8'))});return;
     }
     // ── 3단계: 공개정원 / 응원 (opt-in, read-only visits, no ranking) ──
+    if (action === 'getMyPublicGardenStatus') {
+      res.json(await readOwnPublicGardenStatus(db, uid));return;
+    }
     if (action === 'publishGarden') {
       const snapshot = req.body.snapshot;
       if (!validatePublicSnapshot(snapshot)) {res.status(400).json({error:'invalid-snapshot'});return;}
@@ -157,11 +161,11 @@ export const gardenApi = onRequest({region:'asia-northeast3', maxInstances:3, ti
         // gardens reshuffle into new random draws (no popularity ranking).
         rand: Math.random(),
       }, {merge: true});
-      res.json({published:true});return;
+      res.json({published:true, nickname});return;
     }
     if (action === 'unpublishGarden') {
       await db.doc(`publicGardens/${uid}`).delete();
-      res.json({published:false});return;
+      res.json({published:false, nickname:null});return;
     }
     if (action === 'listPublicGardens') {
       const limit = 12;

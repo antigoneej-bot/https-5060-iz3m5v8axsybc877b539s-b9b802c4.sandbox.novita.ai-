@@ -6,10 +6,16 @@ import '../mongi/integration/mongi_backup_schema.dart';
 import '../mongi/integration/plant_memory.dart';
 import '../mongi/integration/mongi_garden_data.dart';
 import 'draft_service.dart';
+import 'meditation_completion_service.dart';
+import 'meditation_check_in_store.dart';
+import 'meditation_course_store.dart';
+import '../data/meditation_media_data.dart';
+import '../models/meditation_check_in_record.dart';
 import 'dart:convert';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/letter_entry.dart';
+import '../models/self_care_entry.dart';
 import '../models/reflection_letter_entry.dart';
 import '../models/daily_draw_entry.dart';
 import '../models/bubble_memo_entry.dart';
@@ -26,6 +32,8 @@ import 'hive_encryption.dart';
 class BackupService {
   static const boxes = [
     'letter_entries',
+    'self_care',
+    'meditation_checkins',
     'reflection_letters',
     'daily_draw_entries',
     'bubble_memo_entries',
@@ -54,6 +62,9 @@ class BackupService {
   };
   static String? prefType(String key) {
     const globalTypes = {
+      'meditation.favorites': 'strings',
+      'meditation.recent': 'strings',
+      'meditation.courses': 'string',
       'mongi_last_emotions': 'strings',
       'mongi_last_intensity': 'double',
       'companion_name': 'string',
@@ -141,7 +152,10 @@ class BackupService {
 
   static Future<Map<String, dynamic>> snapshot() async {
     await DraftTextController.flushAll();
-    return MongiGardenStore.instance.consistentRead(_snapshotCommitted);
+    await MeditationCheckInStore.instance.prepareBackup();
+    return MeditationCompletionService.instance.consistentRead(
+      () => MongiGardenStore.instance.consistentRead(_snapshotCommitted),
+    );
   }
 
   static Future<Map<String, dynamic>> _snapshotCommitted() async {
@@ -239,6 +253,14 @@ class BackupService {
             throw const FormatException('잘못된 답장 기록이에요.');
           continue;
         }
+        if (entry.key == 'meditation_checkins') {
+          if (value is! Map) throw const FormatException('잘못된 명상 후기예요.');
+          final record = MeditationCheckInRecord.fromMap(value);
+          if (row['key'] != record.session) {
+            throw const FormatException('명상 후기가 일치하지 않아요.');
+          }
+          continue;
+        }
         if (entry.key == 'garden_layout') {
           if (row['key'] != 'layout' || value is! Map) {
             throw const FormatException('잘못된 정원 배치 기록이에요.');
@@ -272,11 +294,19 @@ class BackupService {
           continue;
         }
         if (value is! Map) throw const FormatException('잘못된 기록이에요.');
-        if (value.containsKey('catId') && !catIds.contains(value['catId']))
+        if (value.containsKey('catId') &&
+            !(entry.key == 'self_care' && value['catId'] == null) &&
+            !catIds.contains(value['catId']))
           throw const FormatException('지원하지 않는 고양이 기록이에요.');
         switch (entry.key) {
           case 'letter_entries':
             LetterEntry.fromMap(value);
+            break;
+          case 'self_care':
+            final care = SelfCareEntry.fromMap(value);
+            if (care.id != row['key']) {
+              throw const FormatException('돌봄 기록이 일치하지 않아요.');
+            }
             break;
           case 'reflection_letters':
             ReflectionLetterEntry.fromMap(value);
@@ -321,6 +351,38 @@ class BackupService {
       };
       if (!valid || entry.value['type'] != prefType(entry.key as String))
         throw const FormatException('설정 값이 올바르지 않아요.');
+      if (entry.key == 'meditation.favorites' ||
+          entry.key == 'meditation.recent') {
+        if (!(v as List).every(meditationMedia.containsKey)) {
+          throw const FormatException('명상 목록이 올바르지 않아요.');
+        }
+      }
+      if (entry.key == 'meditation.courses') {
+        final data = jsonDecode(v as String);
+        final courses = {for (final c in meditationCourses) c.id: c};
+        if (data is! Map ||
+            data['progress'] is! Map ||
+            data['days'] is! Map ||
+            (data['active'] != null && !courses.containsKey(data['active']))) {
+          throw const FormatException('명상 과정 기록이 올바르지 않아요.');
+        }
+        for (final progress in (data['progress'] as Map).entries) {
+          final course = courses[progress.key];
+          if (course == null ||
+              progress.value is! int ||
+              progress.value < 0 ||
+              progress.value > course.guides.length) {
+            throw const FormatException('명상 과정 순서가 올바르지 않아요.');
+          }
+        }
+        for (final day in (data['days'] as Map).entries) {
+          if (!courses.containsKey(day.key) ||
+              day.value is! String ||
+              DateTime.tryParse(day.value as String) == null) {
+            throw const FormatException('명상 과정 날짜가 올바르지 않아요.');
+          }
+        }
+      }
       if (entry.key == 'local_user_mongi_garden_v1') {
         MongiGardenData.fromJson(
           Map<String, dynamic>.from(jsonDecode(v as String) as Map),
@@ -436,6 +498,9 @@ class BackupService {
     for (final entry in (data['settings'] as Map).entries) {
       // Also protect snapshots written since a restore was queued, including
       // journals created by an older app version with restoreProfile=true.
+      if ((entry.key as String).startsWith('meditation.') &&
+          prefs.containsKey(entry.key))
+        continue;
       if (entry.key == 'local_user_mongi_garden_v1' &&
           prefs.containsKey(entry.key)) {
         continue;

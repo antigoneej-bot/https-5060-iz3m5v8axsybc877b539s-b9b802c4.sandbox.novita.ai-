@@ -27,6 +27,8 @@ Future<({int message, String flower, String? reaction})?> composeGardenCheer(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text('정원에 응원 남기기', style: TextStyle(fontSize: 22)),
+                      const SizedBox(height: 8),
+                      const Text('상대의 마음 기록은 보이지 않아요. 답례를 기다리지 않고 작은 응원을 전해요.'),
                       const SizedBox(height: 16),
                       const Text('오래 남는 꽃'),
                       Wrap(
@@ -102,7 +104,9 @@ Future<({int message, String flower, String? reaction})?> composeGardenCheer(
                     flower: flower,
                     reaction: reaction,
                   )),
-                  child: const Text('응원 보내기'),
+                  child: Text(
+                    '${gardenFlowerNames[flower]}${reaction == null ? '' : ' · ${gardenReactionEmoji[reaction]}'} 응원 보내기',
+                  ),
                 ),
               ),
             ],

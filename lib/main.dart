@@ -1,3 +1,8 @@
+import 'dart:async';
+import 'services/app_reload_service.dart';
+import 'services/meditation_completion_service.dart';
+import 'services/media_coordinator.dart';
+import 'mongi/services/sound_manager.dart';
 import 'mongi/providers/garden_provider.dart';
 import 'mongi/integration/postcard_attribution.dart';
 import 'mongi/l10n/gen/app_localizations.dart' as mongi;
@@ -41,6 +46,7 @@ const String _localUserId = 'local_user';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  AppReloadService.reloadApp = _reloadAppAfterRestore;
   try {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
@@ -65,10 +71,6 @@ Future<void> main() async {
 }
 
 Future<void> _launchGarden() async {
-  if (CloudService.enabled) {
-    try { await FirebaseAppCheck.instance.activate(androidProvider: AndroidProvider.playIntegrity); }
-    catch (_) { /* Cloud requests remain unavailable until attestation succeeds. */ }
-  }
   await StorageService.recordInstallDateIfNeeded();
   // guest → local_user 누적 데이터 복구 후, Storage도 처음부터 local_user로 연다.
   await StorageService.migrateGuestScopeIfNeeded(_localUserId);
@@ -80,13 +82,108 @@ Future<void> _launchGarden() async {
   await SpecialLetterService.setCurrentUser(_localUserId);
   await AnalyticsService().logRetentionMilestoneIfNeeded();
   await SoundService().init();
-  await NotificationService().init();
-  await NotificationService().restoreIfEnabled();
-  await SubscriptionService().init();
   await initializeDateFormatting('ko_KR', null);
+  _startSubscriptionCheck();
   runApp(const MysticCatApp());
-  AutoBackupService.instance.start();
-  PostcardAttribution.check();
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    _startOptionalServices();
+  });
+}
+
+// Network/store availability never gates the first local screen.
+void _startOptionalServices() {
+  unawaited(
+    _optional('알림 복원', () async {
+      await NotificationService().init();
+      await NotificationService().restoreIfEnabled();
+      NotificationService().deepLinkChanges.fire();
+    }),
+  );
+  unawaited(
+    _optional('명상 완료 복구', () async {
+      await MeditationCompletionService.instance.retry();
+    }),
+  );
+}
+
+void _startSubscriptionCheck() {
+  unawaited(
+    _optional('구독 확인', () async {
+      await SubscriptionService().startStartupCheck(
+        prepareCloud: () async {
+          if (CloudService.enabled) {
+            try {
+              await FirebaseAppCheck.instance.activate(
+                androidProvider: AndroidProvider.playIntegrity,
+              );
+            } catch (_) {
+              /* A valid attestation is still required by the server. */
+            }
+          }
+        },
+      );
+      CloudService.entitlementChanges.value++;
+      AutoBackupService.instance.start();
+      PostcardAttribution.check();
+    }),
+  );
+}
+
+Future<void> _optional(String task, Future<void> Function() action) async {
+  try {
+    await action();
+  } catch (_) {
+    debugPrint('$task: 다시 시도할 수 있어요.');
+  }
+}
+
+Future<void> _reloadAppAfterRestore() async {
+  await MediaCoordinator.instance.stopAll();
+  await _optional('배경음 정리', SoundService().stopAll);
+  await _optional('게임 소리 정리', SoundManager.instance.pauseAllForBackground);
+  // Unmount old controllers/providers before reloading their backing stores.
+  runApp(
+    const MaterialApp(
+      home: Scaffold(body: Center(child: Text('복원한 기록을 다시 불러오고 있어요.'))),
+    ),
+  );
+  await WidgetsBinding.instance.endOfFrame;
+  try {
+    await AppReloadService.reloadStores();
+    SoundService().gardenSuspended = false;
+    runApp(MysticCatApp(key: UniqueKey()));
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _startOptionalServices(),
+    );
+  } catch (_) {
+    // The previous route has been disposed, so its dialog cannot show an error.
+    // Keep a root-level retry path instead of leaving a permanent loading page.
+    runApp(
+      MaterialApp(
+        home: Scaffold(
+          body: SafeArea(
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('기록을 다시 불러오지 못했어요. 저장된 기록은 유지돼요.'),
+                  FilledButton(
+                    onPressed: () {
+                      unawaited(
+                        _optional('기록 다시 불러오기', AppReloadService.reload),
+                      );
+                    },
+                    child: const Text('다시 불러오기'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    rethrow;
+  }
 }
 
 class MysticCatApp extends StatelessWidget {
@@ -139,12 +236,36 @@ class _AppRootState extends State<_AppRoot> {
   @override
   void initState() {
     super.initState();
+    CloudService.entitlementChanges.addListener(_onEntitlementChanged);
     // main()에서 이미 setCurrentUser 했지만, 위젯 재생성 시에도 동기 UID를 보장합니다.
     // (Hive 비동기 오픈은 _bootstrap에서 await)
     CatCareService.setCurrentUser(_localUserId);
     DailyCardService.setCurrentUser(_localUserId);
     BubbleGardenService.setCurrentUser(_localUserId);
     _bootstrap();
+  }
+
+  void _onEntitlementChanged() {
+    if (!mounted) return;
+    unawaited(_optional('구독 상태 반영', _refreshSubscriptionFlags));
+  }
+
+  Future<void> _refreshSubscriptionFlags() async {
+    if (!mounted) return;
+    final app = context.read<AppStateProvider>();
+    final care = context.read<CatCareProvider>();
+    final promise = context.read<PromiseProvider>();
+    await Future.wait([
+      app.refreshSubscription(),
+      care.refreshSubscription(),
+      promise.refreshSubscription(),
+    ]);
+  }
+
+  @override
+  void dispose() {
+    CloudService.entitlementChanges.removeListener(_onEntitlementChanged);
+    super.dispose();
   }
 
   Future<void> _bootstrap() async {
@@ -163,15 +284,23 @@ class _AppRootState extends State<_AppRoot> {
       final promise = context.read<PromiseProvider>();
       final buriedEmotion = context.read<BuriedEmotionProvider>();
       await appState.init(_localUserId);
-      await catCare.load();
+      await catCare.loadCached();
       await dailyCard.load();
       await promise.load();
       await buriedEmotion.load();
-      if (mounted) setState(() {
-        _needsWelcomeIntro = !signedUp;
-        _introChecked = true;
-        _dataLoaded = true;
-      });
+      await _refreshSubscriptionFlags();
+      unawaited(
+        _optional('돌봄 상태 반영', () async {
+          await SubscriptionService().waitForStartupCheck();
+          if (mounted) await catCare.load();
+        }),
+      );
+      if (mounted)
+        setState(() {
+          _needsWelcomeIntro = !signedUp;
+          _introChecked = true;
+          _dataLoaded = true;
+        });
     } catch (_) {
       if (mounted) setState(() => _bootstrapFailed = true);
     }
@@ -188,12 +317,23 @@ class _AppRootState extends State<_AppRoot> {
 
   @override
   Widget build(BuildContext context) {
-    if (_bootstrapFailed) return Scaffold(body: SafeArea(child: Center(child: Column(
-      mainAxisSize: MainAxisSize.min, children: [
-        const Text('기록을 불러오지 못했어요. 기록을 삭제하지 않고 다시 시도할 수 있어요.'),
-        FilledButton(onPressed: _bootstrap, child: const Text('다시 불러오기')),
-      ],
-    ))));
+    if (_bootstrapFailed)
+      return Scaffold(
+        body: SafeArea(
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('기록을 불러오지 못했어요. 기록을 삭제하지 않고 다시 시도할 수 있어요.'),
+                FilledButton(
+                  onPressed: _bootstrap,
+                  child: const Text('다시 불러오기'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 500),
       switchInCurve: Curves.easeIn,

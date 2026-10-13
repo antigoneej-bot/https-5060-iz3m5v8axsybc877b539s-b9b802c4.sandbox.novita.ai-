@@ -18,12 +18,28 @@ class _MeditationAudioPlayerState extends State<MeditationAudioPlayer> {
   String get _asset => 'assets/audio/meditation/${widget.guideKey}.mp3';
   bool _available = false;
   bool _busy = false;
+  bool _routeVisible = true;
   double? _volumeDraft;
   final _audio = MeditationAudioService.instance;
   @override
   void initState() {
     super.initState();
     _check();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final visible = ModalRoute.of(context)?.isCurrent ?? true;
+    if (_routeVisible && !visible) {
+      final asset = _asset;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && !_routeVisible) {
+          unawaited(_audio.pause(asset).catchError((Object _) {}));
+        }
+      });
+    }
+    _routeVisible = visible;
   }
 
   @override
@@ -112,7 +128,9 @@ class _MeditationAudioPlayerState extends State<MeditationAudioPlayer> {
                   OutlinedButton.icon(
                     onPressed: _busy
                         ? null
-                        : () => _run(() => _audio.toggle(_asset)),
+                        : () => _run(() async {
+                            if (_routeVisible) await _audio.toggle(_asset);
+                          }),
                     icon: Icon(playing ? Icons.pause : Icons.headphones),
                     label: Text(
                       playing
@@ -129,6 +147,14 @@ class _MeditationAudioPlayerState extends State<MeditationAudioPlayer> {
                           : () => _run(() => _audio.restart(_asset)),
                       icon: const Icon(Icons.replay),
                       label: const Text('처음으로'),
+                    ),
+                  if (active)
+                    TextButton.icon(
+                      onPressed: _busy
+                          ? null
+                          : () => _run(() => _audio.finish(_asset)),
+                      icon: const Icon(Icons.stop_circle_outlined),
+                      label: const Text('듣기 마치기'),
                     ),
                 ],
               ),
@@ -207,7 +233,7 @@ class _MeditationAudioPlayerState extends State<MeditationAudioPlayer> {
                   allowRepeat: widget.guideKey == 'rainThunderRest',
                 ),
               Text(
-                '화면을 떠나면 잠시 멈춰요. 돌아와 이어 들을 수 있어요.',
+                '앱 안에서 다른 화면을 열면 잠시 멈춰요. 돌아와 이어 들을 수 있어요.\n휴대폰 화면을 잠가도 오디오는 이어져요. 원할 때 듣기를 마쳐도 괜찮아요.',
                 style: bodyFont(fontSize: 12, color: AppColors.inkSoft),
               ),
             ],

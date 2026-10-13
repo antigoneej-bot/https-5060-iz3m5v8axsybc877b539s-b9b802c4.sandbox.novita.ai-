@@ -31,6 +31,8 @@ class _PublicGardenBrowseScreenState extends State<PublicGardenBrowseScreen> {
   String? _error;
   List<PublicGarden> _gardens = const [];
   final Set<String> _cheeredThisVisit = {};
+  final Set<String> _sending = {};
+  bool _composing = false;
 
   @override
   void initState() {
@@ -61,14 +63,23 @@ class _PublicGardenBrowseScreenState extends State<PublicGardenBrowseScreen> {
   }
 
   Future<void> _openCheerDialog(PublicGarden target) async {
-    final picked = await composeGardenCheer(context);
-    if (picked == null || !mounted) return;
-    await _sendCheer(
-      target,
-      picked.message,
-      flowerKind: picked.flower,
-      reaction: picked.reaction,
-    );
+    if (_composing ||
+        _sending.contains(target.gardenId) ||
+        _cheeredThisVisit.contains(target.gardenId))
+      return;
+    _composing = true;
+    try {
+      final picked = await composeGardenCheer(context);
+      if (picked == null || !mounted) return;
+      await _sendCheer(
+        target,
+        picked.message,
+        flowerKind: picked.flower,
+        reaction: picked.reaction,
+      );
+    } finally {
+      _composing = false;
+    }
   }
 
   Future<void> _sendCheer(
@@ -77,6 +88,8 @@ class _PublicGardenBrowseScreenState extends State<PublicGardenBrowseScreen> {
     String flowerKind = 'daisy',
     String? reaction,
   }) async {
+    if (_sending.contains(target.gardenId)) return;
+    setState(() => _sending.add(target.gardenId));
     final l10n = AppLocalizations.of(context);
     final garden = context.read<GardenProvider>();
     try {
@@ -96,9 +109,11 @@ class _PublicGardenBrowseScreenState extends State<PublicGardenBrowseScreen> {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(e.toString())));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('응원을 보내지 못했어요. 연결과 오늘 보낸 응원을 확인해 주세요.')),
+      );
+    } finally {
+      if (mounted) setState(() => _sending.remove(target.gardenId));
     }
   }
 
@@ -199,7 +214,9 @@ class _PublicGardenBrowseScreenState extends State<PublicGardenBrowseScreen> {
               child: PublicGardenCard(
                 garden: g,
                 alreadyCheeredToday: _cheeredThisVisit.contains(g.gardenId),
-                onCheer: () => _openCheerDialog(g),
+                onCheer: _sending.contains(g.gardenId)
+                    ? null
+                    : () => _openCheerDialog(g),
               ),
             ),
           ),

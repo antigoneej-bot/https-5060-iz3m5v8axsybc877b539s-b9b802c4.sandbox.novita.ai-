@@ -1,4 +1,6 @@
 import '../mongi/widgets/garden_record_card.dart';
+import 'self_care_entry_screen.dart';
+import 'self_care_screen.dart';
 import '../mongi/screens/garden_world_screen.dart';
 import '../models/reply_style.dart';
 import '../widgets/reply_style_picker.dart';
@@ -364,7 +366,7 @@ class _LetterStageState extends State<_LetterStage> {
 
 /// 편지를 보낸 뒤 이어지는, 완전히 선택사항인 명상 단계.
 /// 편지는 이미 저장되었고 답장도 예약되었으므로, 여기서는 아무것도
-/// 하지 않고 건너뛰어도 전혀 문제가 없습니다. 실천하면 마음 온도가
+/// 하지 않고 건너뛰어도 전혀 문제가 없습니다. 실천하면 돌봄 온기가
 /// 추가로 +1도 더 오릅니다.
 class _MeditationStage extends StatefulWidget {
   final ShadowCat cat;
@@ -449,6 +451,25 @@ class _MeditationStageState extends State<_MeditationStage> {
           ),
           const SizedBox(height: 12),
           const GardenRecordCard(),
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) =>
+                    SelfCareEntryScreen(initialCatId: widget.cat.id),
+              ),
+            ),
+            icon: const Icon(Icons.spa_outlined),
+            label: const Text('이 마음 돌아보고, 작은 돌봄 고르기'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const SelfCareScreen()),
+            ),
+            child: const Text('내 돌봄 기록 · 해본 뒤 후기 남기기'),
+          ),
           const SizedBox(height: 18),
           Center(
             child: AnimatedCatArt(imageAsset: widget.cat.imageAsset, size: 88),
@@ -496,7 +517,7 @@ class _MeditationStageState extends State<_MeditationStage> {
               child: Text(
                 _selectedKey == null
                     ? '실천할 명상을 골라주세요'
-                    : '실천했어요, 마음 온도 1도 더 올리기',
+                    : '실천했어요, 돌봄 온기 1도 더 올리기',
                 style: pathLabelFont(fontSize: 15, color: Colors.white),
               ),
             ),
@@ -620,7 +641,7 @@ class _DoneStage extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           Text(
-            '마음 온도 ${care.state.temperature} / 100°  ·  ${care.state.growthStageLabel}',
+            '돌봄 온기 ${care.state.temperature} / 100°  ·  ${care.state.growthStageLabel}',
             style: bodyFont(
               fontSize: 12,
               color: AppColors.blobPeachAccent,

@@ -98,7 +98,8 @@ class _MongiExperienceState extends State<MongiExperience>
         if (snapshot.connectionState != ConnectionState.done)
           return const Center(child: CircularProgressIndicator());
         return NavigatorPopHandler<Object?>(
-          onPopWithResult: (result) => _navigator.currentState?.pop(result),
+          onPopWithResult: (result) =>
+              _navigator.currentState?.maybePop(result),
           child: MaterialApp(
             navigatorKey: _navigator,
             debugShowCheckedModeBanner: false,

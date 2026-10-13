@@ -1,5 +1,6 @@
 import '../../theme.dart' show AppColors;
 import '../integration/session_transaction.dart';
+import '../integration/garden_navigation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -40,7 +41,9 @@ class _QuietModeScreenState extends State<QuietModeScreen>
     with SingleTickerProviderStateMixin {
   _QuietStage _stage = _QuietStage.greet;
   final TextEditingController _noteController = TextEditingController();
-  double _intensity = 3;
+  int? _intensity;
+  bool _saving = false, _allowPop = false, _confirming = false;
+  bool _breathingBusy = false;
   bool _saved = false;
   bool _saveFailed = false;
   final String _sessionId = SessionTransaction.newId();
@@ -71,61 +74,111 @@ class _QuietModeScreenState extends State<QuietModeScreen>
   }
 
   Future<void> _startBreathing() async {
+    if (_breathingBusy) return;
+    setState(() => _breathingBusy = true);
     final completed = await BreathingInterstitial.show(
       context,
       technique: _technique,
     );
     if (!mounted) return;
     if (completed) {
-      await context.read<GardenProvider>().completeBreathingTechnique(
-        _technique,
-      );
+      try {
+        await context.read<GardenProvider>().completeBreathingTechnique(
+          _technique,
+        );
+      } catch (_) {
+        if (mounted)
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('숨 고르기 기록을 저장하지 못했어요. 마음 기록은 이어서 남길 수 있어요.'),
+            ),
+          );
+      }
     }
     if (!mounted) return;
+    setState(() => _breathingBusy = false);
     _goTo(_QuietStage.reflect);
   }
 
   void _startPlanting() {
+    if (_stage != _QuietStage.reflect || _saving || _saved) return;
+    FocusScope.of(context).unfocus();
     _goTo(_QuietStage.planting);
     _plantController.forward(from: 0);
   }
 
   Future<void> _finishPlanting() async {
-    if (_saved) return;
-    _saved = true;
-    if (mounted) setState(() => _saveFailed = false);
+    if (_saved || _saving || !mounted) return;
+    setState(() {
+      _saving = true;
+      _saveFailed = false;
+    });
     final name = widget.targetName?.trim();
     try {
       await context.read<GardenProvider>().recordQuietSession(
         widget.emotions.map((e) => e.type).toList(),
         targetName: (name == null || name.isEmpty) ? null : name,
         note: _noteController.text,
-        intensity: _intensity.round(),
+        intensity: _intensity,
         sessionId: _sessionId,
       );
+      _saved = true;
       if (mounted) _goTo(_QuietStage.done);
     } catch (_) {
       _saved = false;
       if (mounted) setState(() => _saveFailed = true);
+    } finally {
+      if (mounted) setState(() => _saving = false);
     }
   }
 
-  void _goHome() {
-    Navigator.of(context).pop();
+  bool get _blocked =>
+      _saving ||
+      _breathingBusy ||
+      (_stage == _QuietStage.planting && !_saveFailed);
+
+  Future<void> _goHome() async {
+    if (_blocked || _confirming || _allowPop) return;
+    if (!_saved &&
+        (_noteController.text.trim().isNotEmpty || _intensity != null)) {
+      _confirming = true;
+      final discard = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('작성 중인 마음을 닫을까요?'),
+          content: const Text('아직 심지 않은 기록은 저장되지 않아요.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('계속 쓰기'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('닫기'),
+            ),
+          ],
+        ),
+      );
+      _confirming = false;
+      if (discard != true) return;
+    }
+    if (!mounted) return;
+    setState(() => _allowPop = true);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) Navigator.of(context).pop();
+    });
   }
 
   /// 고요 모드 결과 화면을 "나의 정원"으로 대체한다(pushReplacement) -
   /// 되돌아갈 결과 화면이 애초에 의미가 없으므로, 뒤로가기 한 번으로 바로
   /// 감정 입력 화면까지 돌아가도록 스택에 쌓지 않는다.
   void _openGarden() {
+    final meetCat = gardenCatSelectionReturn(context);
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
         builder: (_) => FeatureScaffold(
           title: '나의 정원',
-          child: MyGardenScreen(
-            onGoMeetCat: () =>
-                Navigator.of(context).popUntil((route) => route.isFirst),
-          ),
+          child: MyGardenScreen(onGoMeetCat: meetCat),
         ),
       ),
     );
@@ -133,37 +186,43 @@ class _QuietModeScreenState extends State<QuietModeScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFFEFF3FF), Color(0xFFF6F0FF)],
+    return PopScope(
+      canPop: _allowPop,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) _goHome();
+      },
+      child: Scaffold(
+        body: Container(
+          width: double.infinity,
+          height: double.infinity,
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Color(0xFFEFF3FF), Color(0xFFF6F0FF)],
+            ),
           ),
-        ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              _buildHeader(),
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 400),
-                    child: switch (_stage) {
-                      _QuietStage.greet => _buildGreet(),
-                      _QuietStage.breathe => _buildBreathe(),
-                      _QuietStage.reflect => _buildReflect(),
-                      _QuietStage.planting => _buildPlanting(),
-                      _QuietStage.done => _buildDone(),
-                    },
+          child: SafeArea(
+            child: Column(
+              children: [
+                _buildHeader(),
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 400),
+                      child: switch (_stage) {
+                        _QuietStage.greet => _buildGreet(),
+                        _QuietStage.breathe => _buildBreathe(),
+                        _QuietStage.reflect => _buildReflect(),
+                        _QuietStage.planting => _buildPlanting(),
+                        _QuietStage.done => _buildDone(),
+                      },
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -182,7 +241,7 @@ class _QuietModeScreenState extends State<QuietModeScreen>
               showBack ? Icons.close : Icons.arrow_back,
               color: AppColors.ink,
             ),
-            onPressed: _goHome,
+            onPressed: _blocked ? null : _goHome,
           ),
           const SizedBox(width: 4),
           Text(
@@ -344,7 +403,7 @@ class _QuietModeScreenState extends State<QuietModeScreen>
             width: double.infinity,
             height: 52,
             child: ElevatedButton(
-              onPressed: _startBreathing,
+              onPressed: _breathingBusy ? null : _startBreathing,
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF6FA8A0),
                 foregroundColor: Colors.white,
@@ -363,7 +422,7 @@ class _QuietModeScreenState extends State<QuietModeScreen>
           ),
           const SizedBox(height: 8),
           TextButton(
-            onPressed: () => _goTo(_QuietStage.reflect),
+            onPressed: _breathingBusy ? null : () => _goTo(_QuietStage.reflect),
             child: Text(
               l10n.quietModeBreatheSkipButton,
               style: const TextStyle(
@@ -387,7 +446,6 @@ class _QuietModeScreenState extends State<QuietModeScreen>
       l10n.choiceIntensityStrong,
       l10n.choiceIntensityVeryStrong,
     ];
-    final index = _intensity.round().clamp(1, 5) - 1;
     return _card(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -431,33 +489,20 @@ class _QuietModeScreenState extends State<QuietModeScreen>
               color: Colors.grey.shade600,
             ),
           ),
-          SliderTheme(
-            data: SliderTheme.of(context).copyWith(
-              activeTrackColor: const Color(0xFF9B8FE0),
-              inactiveTrackColor: const Color(0xFFEDE7FA),
-              thumbColor: const Color(0xFF9B8FE0),
-              overlayColor: const Color(0x229B8FE0),
-              trackHeight: 4,
-            ),
-            child: Slider(
-              value: _intensity,
-              min: 1,
-              max: 5,
-              divisions: 4,
-              label: labels[index],
-              onChanged: (v) => setState(() => _intensity = v),
-            ),
-          ),
-          Align(
-            alignment: Alignment.center,
-            child: Text(
-              labels[index],
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: AppColors.inkSoft,
-              ),
-            ),
+          const SizedBox(height: 8),
+          const Text('선택하지 않으면 강도는 기록하지 않아요.'),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              for (var i = 0; i < labels.length; i++)
+                ChoiceChip(
+                  label: Text('${i + 1} · ${labels[i]}'),
+                  selected: _intensity == i + 1,
+                  onSelected: (selected) =>
+                      setState(() => _intensity = selected ? i + 1 : null),
+                ),
+            ],
           ),
           const SizedBox(height: 20),
           SizedBox(
@@ -495,7 +540,7 @@ class _QuietModeScreenState extends State<QuietModeScreen>
           const Text('마음을 저장하지 못했어요. 다시 시도해 주세요.'),
           const SizedBox(height: 12),
           FilledButton(
-            onPressed: _finishPlanting,
+            onPressed: _saving ? null : _finishPlanting,
             child: const Text('다시 저장하기'),
           ),
         ],
@@ -606,7 +651,7 @@ class _QuietModeScreenState extends State<QuietModeScreen>
             children: [
               Expanded(
                 child: OutlinedButton(
-                  onPressed: _goHome,
+                  onPressed: _blocked ? null : _goHome,
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(

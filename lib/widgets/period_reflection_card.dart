@@ -38,8 +38,16 @@ class _PeriodReflectionCardState extends State<PeriodReflectionCard> {
   @override
   Widget build(BuildContext context) {
     final prompts = widget.monthly
-        ? ['이번 달에 기억하고 싶은 장면', '나에게 도움이 되었던 일', '다음 달에도 이어가고 싶은 작은 실천']
-        : ['이번 주에 기억하고 싶은 장면', '나에게 도움이 되었던 일', '다음 주에 해보고 싶은 작은 실천'];
+        ? [
+            '이번 달, 힘들었거나 기억하고 싶은 상황',
+            '도움이 되었던 돌봄이나 사람',
+            '다음 달에도 지키고 싶은 작은 실천 하나',
+          ]
+        : [
+            '이번 주, 힘들었거나 기억하고 싶은 상황',
+            '도움이 되었던 돌봄이나 사람',
+            '다음 주에 해보고 싶은 작은 실천 하나',
+          ];
     return Card(
       margin: const EdgeInsets.only(bottom: 20),
       color: AppColors.blobMint,

@@ -56,7 +56,7 @@ class AppTutorialScreen extends StatelessWidget {
             _FeatureBullet(
               emoji: '🔗',
               title: '8개의 정원 산책로 카드',
-              desc: '명상·움직임, 마음온도기록, 마음 돌보기, 오늘의 고양이 카드, '
+              desc: '명상·움직임, 돌봄 온기 기록, 마음 돌보기, 오늘의 고양이 카드, '
                   '오늘의 약속, 그림자 방울 터뜨리기, 주간 그림자 지도, 하루 닫기까지 '
                   '아래로 하나씩 이어져 있어요. 카드를 누르면 각 기능으로 이동해요.',
             ),
@@ -101,8 +101,8 @@ class AppTutorialScreen extends StatelessWidget {
             ),
             _FeatureBullet(
               emoji: '5️⃣',
-              title: '마음 온도 체크 · 완료',
-              desc: '편지를 쓰기 전/후 마음 온도를 기록해 변화를 남겨요.',
+              title: '돌봄 온기 체크 · 완료',
+              desc: '편지를 쓰기 전/후 돌봄 온기를 기록해 변화를 남겨요.',
             ),
           ],
         ),
@@ -144,8 +144,8 @@ class AppTutorialScreen extends StatelessWidget {
           items: const [
             _FeatureBullet(
               emoji: '📈',
-              title: '마음온도기록',
-              desc: '그동안 기록한 마음 온도를 주간/월간 그래프로 볼 수 있어요.',
+              title: '돌봄 온기 기록',
+              desc: '그동안 기록한 돌봄 온기를 주간/월간 그래프로 볼 수 있어요.',
               badge: _Badge.free,
             ),
             _FeatureBullet(
@@ -211,7 +211,7 @@ class AppTutorialScreen extends StatelessWidget {
             _FeatureBullet(
               emoji: '🍚',
               title: '밥 주기 · 물 주기 · 목욕 · 청소',
-              desc: '하루 동안 모찌를 돌보며 마음 온도를 조금씩 올려요.',
+              desc: '하루 동안 모찌를 돌보며 돌봄 온기를 조금씩 올려요.',
               badge: _Badge.free,
             ),
             _FeatureBullet(
@@ -230,7 +230,7 @@ class AppTutorialScreen extends StatelessWidget {
             _FeatureBullet(
               emoji: '🛍️',
               title: '정원 플러스 상점',
-              desc: '마음 온도가 100도에 닿을 때마다 쌓이는 포인트로 먹거리, '
+              desc: '돌봄 온기가 100도에 닿을 때마다 쌓이는 포인트로 먹거리, '
                   '옷·악세서리, 우리집 가구를 구매해요.',
             ),
             _FeatureBullet(

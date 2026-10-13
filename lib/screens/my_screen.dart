@@ -56,8 +56,13 @@ class _MyScreenState extends State<MyScreen> {
         _ProfileCard(streak: app.streak, totalLetters: app.history.length),
         const SizedBox(height: 14),
         const _PremiumCard(),
-        _InfoLinkRow(icon: Icons.auto_stories_outlined, label: '고양이와 함께하는 여정',
-          onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SubscriberJourneysScreen()))),
+        _InfoLinkRow(
+          icon: Icons.auto_stories_outlined,
+          label: '고양이와 함께하는 여정',
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const SubscriberJourneysScreen()),
+          ),
+        ),
         const SizedBox(height: 16),
         GrowthHeader(state: context.watch<CatCareProvider>().state),
         const SizedBox(height: 20),
@@ -92,7 +97,9 @@ class _MyScreenState extends State<MyScreen> {
         _InfoLinkRow(
           icon: Icons.lock_outline,
           label: '기록 보관·백업·잠금',
-          onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const DataSafetyScreen())),
+          onTap: () => Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (_) => const DataSafetyScreen())),
         ),
         const SizedBox(height: 14),
         const _ReminderCard(),
@@ -454,6 +461,7 @@ class _ReminderCard extends StatefulWidget {
 class _ReminderCardState extends State<_ReminderCard> {
   final _notif = NotificationService();
   bool _loading = true;
+  String? _loadError;
 
   bool _morningEnabled = false;
   int _morningHour = 9;
@@ -473,30 +481,63 @@ class _ReminderCardState extends State<_ReminderCard> {
   }
 
   Future<void> _load() async {
-    final morningEnabled = await _notif.isMorningEnabled();
-    final (mh, mm) = await _notif.getMorningTime();
-    final eveningEnabled = await _notif.isEveningEnabled();
-    final (eh, em) = await _notif.getEveningTime();
-    final crisisEnabled = await _notif.isCrisisEnabled();
-    final streakEnabled = await _notif.isStreakEnabled();
     if (!mounted) return;
-    setState(() {
-      _morningEnabled = morningEnabled;
-      _morningHour = mh;
-      _morningMinute = mm;
-      _eveningEnabled = eveningEnabled;
-      _eveningHour = eh;
-      _eveningMinute = em;
-      _crisisEnabled = crisisEnabled;
-      _streakEnabled = streakEnabled;
-      _loading = false;
-    });
+    try {
+      final morningEnabled = await _notif.isMorningEnabled();
+      final (mh, mm) = await _notif.getMorningTime();
+      final eveningEnabled = await _notif.isEveningEnabled();
+      final (eh, em) = await _notif.getEveningTime();
+      final crisisEnabled = await _notif.isCrisisEnabled();
+      final streakEnabled = await _notif.isStreakEnabled();
+      if (!mounted) return;
+      setState(() {
+        _morningEnabled = morningEnabled;
+        _morningHour = mh;
+        _morningMinute = mm;
+        _eveningEnabled = eveningEnabled;
+        _eveningHour = eh;
+        _eveningMinute = em;
+        _crisisEnabled = crisisEnabled;
+        _streakEnabled = streakEnabled;
+        _loading = false;
+        _loadError = null;
+      });
+    } catch (_) {
+      if (mounted)
+        setState(() {
+          _loading = false;
+          _loadError = '알림 설정을 불러오지 못했어요.';
+        });
+    }
   }
 
   void _showPermissionDenied() {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('알림 권한이 필요해요. 기기 설정에서 알림을 허용해주세요.')),
     );
+  }
+
+  bool _updating = false;
+  Future<void> _change(Future<void> Function() action) async {
+    if (_updating) return;
+    setState(() => _updating = true);
+    try {
+      await action();
+      await _load();
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('알림 변경을 완료하지 못했어요. 설정을 확인하고 다시 시도해 주세요.'),
+          ),
+        );
+      }
+      try {
+        await _load();
+      } catch (_) {}
+    } finally {
+      if (mounted) setState(() => _updating = false);
+    }
   }
 
   Future<void> _onToggleMorning(bool v) async {
@@ -540,23 +581,17 @@ class _ReminderCardState extends State<_ReminderCard> {
   }
 
   Future<void> _pickMorningTime() async {
+    if (_updating) return;
     final picked = await _showTimePicker(_morningHour, _morningMinute);
-    if (picked == null) return;
-    setState(() {
-      _morningHour = picked.hour;
-      _morningMinute = picked.minute;
-    });
-    await _notif.updateMorningTime(picked.hour, picked.minute);
+    if (picked == null || !mounted) return;
+    await _change(() => _notif.updateMorningTime(picked.hour, picked.minute));
   }
 
   Future<void> _pickEveningTime() async {
+    if (_updating) return;
     final picked = await _showTimePicker(_eveningHour, _eveningMinute);
-    if (picked == null) return;
-    setState(() {
-      _eveningHour = picked.hour;
-      _eveningMinute = picked.minute;
-    });
-    await _notif.updateEveningTime(picked.hour, picked.minute);
+    if (picked == null || !mounted) return;
+    await _change(() => _notif.updateEveningTime(picked.hour, picked.minute));
   }
 
   Future<TimeOfDay?> _showTimePicker(int hour, int minute) {
@@ -618,7 +653,13 @@ class _ReminderCardState extends State<_ReminderCard> {
                 child: CircularProgressIndicator(strokeWidth: 2),
               ),
             )
-          else ...[
+          else if (_loadError != null) ...[
+            Text(_loadError!),
+            TextButton(
+              onPressed: _updating ? null : _load,
+              child: const Text('다시 불러오기'),
+            ),
+          ] else ...[
             Divider(
               height: 1,
               color: AppColors.blobPeachAccent.withValues(alpha: 0.18),
@@ -627,7 +668,7 @@ class _ReminderCardState extends State<_ReminderCard> {
               emoji: '🌤️',
               label: '아침 알림',
               value: _morningEnabled,
-              onChanged: _onToggleMorning,
+              onChanged: (v) => _change(() => _onToggleMorning(v)),
               timeLabel: _morningEnabled
                   ? _timeLabel(_morningHour, _morningMinute)
                   : null,
@@ -641,7 +682,7 @@ class _ReminderCardState extends State<_ReminderCard> {
               emoji: '🌙',
               label: '저녁 알림',
               value: _eveningEnabled,
-              onChanged: _onToggleEvening,
+              onChanged: (v) => _change(() => _onToggleEvening(v)),
               timeLabel: _eveningEnabled
                   ? _timeLabel(_eveningHour, _eveningMinute)
                   : null,
@@ -653,13 +694,9 @@ class _ReminderCardState extends State<_ReminderCard> {
             ),
             _reminderRow(
               emoji: '🐈‍⬛',
-              label: '위기 알림 (3일 이상 미접속 시)',
+              label: '다시 쉬어가기 (3일 동안 방문이 없을 때)',
               value: _crisisEnabled,
-              onChanged: (v) async {
-                await _notif.setCrisisEnabled(v);
-                if (!mounted) return;
-                setState(() => _crisisEnabled = v);
-              },
+              onChanged: (v) => _change(() => _notif.setCrisisEnabled(v)),
             ),
             Divider(
               height: 1,
@@ -667,13 +704,9 @@ class _ReminderCardState extends State<_ReminderCard> {
             ),
             _reminderRow(
               emoji: '🔥',
-              label: '스트릭 임박 알림 (오늘 미완료 시)',
+              label: '오늘의 돌봄 알림',
               value: _streakEnabled,
-              onChanged: (v) async {
-                await _notif.setStreakEnabled(v);
-                if (!mounted) return;
-                setState(() => _streakEnabled = v);
-              },
+              onChanged: (v) => _change(() => _notif.setStreakEnabled(v)),
             ),
           ],
         ],
@@ -707,7 +740,7 @@ class _ReminderCardState extends State<_ReminderCard> {
               borderRadius: BorderRadius.circular(999),
               child: InkWell(
                 borderRadius: BorderRadius.circular(999),
-                onTap: onPickTime,
+                onTap: _updating ? null : onPickTime,
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 12,
@@ -728,7 +761,7 @@ class _ReminderCardState extends State<_ReminderCard> {
           ],
           Switch(
             value: value,
-            onChanged: onChanged,
+            onChanged: _updating ? null : onChanged,
             activeTrackColor: AppColors.blobPeachAccent,
           ),
         ],

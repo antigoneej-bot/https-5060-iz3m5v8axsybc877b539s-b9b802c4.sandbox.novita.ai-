@@ -12,25 +12,8 @@ import '../theme.dart';
 import '../utils/cat_palette.dart';
 import '../widgets/garden_path_card.dart';
 
-/// '나의 정원' - 몽이와 함께 가꾸는 단 하나의 정원 화면.
-///
-/// 정원 통합(2024년, "몽이네 정원"(구 GardenScreen)과 "마음냥 정원"(이 화면)을
-/// 하나로 합침) 이후, 이 화면이 앱에서 '정원 보기'로 들어오는 모든 경로의
-/// 유일한 목적지가 되었다. 두 화면이 보여주던 데이터는 애초에 같은
-/// 저장소([GardenProvider] -> [GardenStorage]/[MongiGardenStore])를 공유했으므로
-/// 통합으로 인한 데이터 손실은 없으며, 이 화면 하나에서 위에서 아래 순서로:
-///
-/// 1. 상단 [GardenActivityMenuButton] - 마음 리포트/감정 도감/성장 마일스톤/
-///    정원 공유/감정 캘린더/감정 다이어리로 가는 '기록·활동' 통합 메뉴
-/// 2. [UnifiedGardenPanel] - 실제로 가꾸는 정원(심은 씨앗, 장착한 장식, 몽이의
-///    성장나무, 정원 이야기/엽서 만들기)
-/// 3. [GardenFlowerBedSection] - 구 GardenScreen에만 있던 "감정별 꽃밭" 시각화
-///    (감정을 마주할 때마다 쌓인 [GardenProvider.flowerCounts]를 그대로 보여줌)
-/// 4. 지금까지 만난 그림자 고양이 도감(컬렉션) 그리드
-///
-/// 를 모두 이어서 보여준다. [showMongiPanel]은 과거 GardenScreen 내부에
-/// 중복 없이 고양이 도감만 끼워 넣기 위해 쓰이던 옵션으로, GardenScreen이
-/// 삭제된 지금은 항상 기본값(true)으로만 호출된다(하위 호환을 위해 유지).
+/// 정원으로 입장하고, 기록·활동 도구창에서 꽃밭과 고양이 도감을 엽니다.
+/// [showMongiPanel]이 false인 내부 화면은 도감만 표시해 중복 정원을 막습니다.
 class MyGardenScreen extends StatelessWidget {
   final VoidCallback onGoMeetCat;
   final bool showMongiPanel;
@@ -54,13 +37,19 @@ class MyGardenScreen extends StatelessWidget {
         onOpenCollection: () => showGardenToolSheet(
           context,
           title: '기록·활동',
-          builder: (_) => Column(
+          builder: (sheetContext) => Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const GardenActivityMenuButton(),
               const SizedBox(height: 12),
               const UnifiedGardenPanel(section: 'records'),
-              MyGardenScreen(onGoMeetCat: onGoMeetCat, showMongiPanel: false),
+              MyGardenScreen(
+                onGoMeetCat: () {
+                  Navigator.of(sheetContext).pop();
+                  onGoMeetCat();
+                },
+                showMongiPanel: false,
+              ),
             ],
           ),
         ),

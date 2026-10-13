@@ -85,6 +85,11 @@ class PublicGardenCard extends StatelessWidget {
               ),
             ],
           ),
+          const SizedBox(height: 8),
+          const Text(
+            '정원 모습만 함께 봐요 · 마음 기록은 비공개',
+            style: TextStyle(fontSize: 12, color: AppColors.inkSoft),
+          ),
           const SizedBox(height: 12),
           if (garden.layout != null)
             OutlinedButton.icon(

@@ -1,4 +1,5 @@
 import 'package:shared_preferences/shared_preferences.dart';
+import '../integration/garden_navigation.dart';
 import '../../theme.dart' show AppColors;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -209,7 +210,7 @@ class _EmotionInputScreenState extends State<EmotionInputScreen> {
     // 종료 버튼으로 나온 경우 SoundManager.stopEverything()이 새소리/
     // 물소리 앰비언트까지 꺼놨을 수 있으니, 홈 화면으로 돌아온 시점에
     // 다시 살려준다(이미 재생 중이면 내부 가드로 조용히 무시됨).
-    SoundManager.instance.startAmbientNature();
+    if (mounted) SoundManager.instance.startAmbientNature();
   }
 
   /// 2번(벤치마킹 제안: 감정 선택 -> 맞춤 호흡 자동 제안 흐름 연결) - 게임
@@ -256,7 +257,7 @@ class _EmotionInputScreenState extends State<EmotionInputScreen> {
     );
     // 종료 버튼으로 나온 경우 대비 - 스테이지 모드와 동일하게 앰비언트를
     // 다시 살려준다.
-    SoundManager.instance.startAmbientNature();
+    if (mounted) SoundManager.instance.startAmbientNature();
     if (mounted) {
       setState(() {
         _nameController.clear();
@@ -597,11 +598,7 @@ class _EmotionInputScreenState extends State<EmotionInputScreen> {
                 isActive: true,
                 onTap: null,
               ),
-              _navItem(
-                emoji: '🌷',
-                label: l10n.navGarden,
-                onTap: _openGarden,
-              ),
+              _navItem(emoji: '🌷', label: l10n.navGarden, onTap: _openGarden),
               _navItem(
                 emoji: '🎁',
                 label: l10n.navShop,
@@ -964,9 +961,11 @@ class _EmotionInputScreenState extends State<EmotionInputScreen> {
   /// push만으로도 뒤로가기 한 번에 다시 이 화면으로 돌아오며 스택이 쌓이지
   /// 않는다.
   void _openGarden() {
-    pushFullScreen(context, '나의 정원', MyGardenScreen(onGoMeetCat: () {
-      Navigator.of(context).popUntil((route) => route.isFirst);
-    }));
+    pushFullScreen(
+      context,
+      '나의 정원',
+      MyGardenScreen(onGoMeetCat: gardenCatSelectionReturn(context)),
+    );
   }
 
   Widget _buildGardenBadge(GardenProvider garden) {

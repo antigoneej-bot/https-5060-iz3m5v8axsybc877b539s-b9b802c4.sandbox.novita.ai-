@@ -1,3 +1,5 @@
+import 'dart:async';
+import '../models/public_garden_status.dart';
 import '../integration/session_transaction.dart';
 import '../integration/cheer_flower_store.dart';
 
@@ -69,6 +71,8 @@ class GardenProvider extends ChangeNotifier {
 
   @override
   void dispose() {
+    _disposed = true;
+    _publicAccountChanges?.cancel();
     MongiGardenStore.instance.removeListener(_sharedChanged);
     super.dispose();
   }
@@ -360,58 +364,189 @@ class GardenProvider extends ChangeNotifier {
   // 번으로 제한되며, 받는 쪽에 "답장 의무"를 지우지 않는다. 인기순위(방문수/
   // 응원수 정렬)는 서버도 클라이언트도 만들지 않는다.
 
-  /// 지금 내 정원을 공개해 두었는지.
-  bool isGardenPublished = false;
+  final PublicGardenStatus _publication = PublicGardenStatus();
+  StreamSubscription<User?>? _publicAccountChanges;
+  Future<void>? _publicRefresh;
+  String? _publicRefreshOwner;
+  bool _publicMutationPending = false;
+  bool _disposed = false;
 
-  /// 공개정원에 보여줄 닉네임(비어있으면 화면에서 기본 문구를 쓴다).
-  String? gardenPublicNickname;
-
-  /// 정원 공개를 켠다(또는 이미 켜져 있다면 최신 정원 모습으로 갱신한다).
-  /// 서버가 연결되어 있지 않으면 안내 문구용으로 false를 반환한다.
-  Future<bool> publishGarden({String? nickname}) async {
-    if (!CloudService.enabled) return false;
-    await MongiGardenStore.instance.reconcileRecordedDays();
-    await GardenLayoutStore.instance.reload();
-    final layout = GardenLayoutStore.instance.value.grow(
-      seedCounts.values.fold<int>(0, (sum, n) => sum + n),
-    );
-    await CheerFlowerStore.instance.reload();
-    await CloudService.publishGarden(
-      layout: layout.toJson(),
-      seedCounts: seedCounts,
-      equippedDecorationIds: equippedDecorationIds,
-      treeStageIndex: treeStageIndex,
-      flowerKinds: CheerFlowerStore.instance
-          .forOwner(FirebaseAuth.instance.currentUser?.uid)
-          .where((f) => f.planted)
-          .map((f) => f.flowerKind)
-          .toSet()
-          .take(5)
-          .toList(),
-      memoryTreeStage: SeedType.byId(
-        'cherry',
-      ).tierForCount(MongiGardenStore.instance.value.recordDays.length),
-      hasCheerFlowers: CheerFlowerStore.instance
-          .forOwner(FirebaseAuth.instance.currentUser?.uid)
-          .any((f) => f.planted),
-      nickname: nickname,
-    );
-    await _storage.setGardenPublished(true);
-    await _storage.setGardenPublicNickname(nickname);
-    isGardenPublished = true;
-    gardenPublicNickname = nickname?.trim().isEmpty ?? true ? null : nickname;
-    notifyListeners();
-    return true;
+  String? get _publicOwner {
+    if (!CloudService.enabled) return null;
+    try {
+      return FirebaseAuth.instance.currentUser?.uid;
+    } catch (_) {
+      return null;
+    }
   }
 
-  /// 정원 공개를 끈다. 방문자 목록에서 즉시 사라진다.
-  Future<void> unpublishGarden() async {
-    if (CloudService.enabled) {
-      await CloudService.unpublishGarden();
+  /// null means unconfirmed, including after failed requests or account changes.
+  bool? get gardenPublication =>
+      _publication.owner == _publicOwner ? _publication.published : null;
+  bool get isGardenPublished => gardenPublication == true;
+  bool get isGardenPublicationKnown => gardenPublication != null;
+  bool get isGardenPublicationLoading =>
+      _publication.owner == _publicOwner && _publication.loading;
+  String? get publicGardenAccount => _publicOwner;
+  String? get gardenPublicNickname =>
+      _publication.owner == _publicOwner ? _publication.nickname : null;
+
+  void _notifyPublication() {
+    if (!_disposed) notifyListeners();
+  }
+
+  void _selectPublicAccount(String? owner) {
+    _publication.selectOwner(
+      owner,
+      cachedNickname: owner == null || !_initialized
+          ? null
+          : _storage.publicGardenNicknameFor(owner),
+    );
+  }
+
+  void _watchPublicAccount() {
+    if (!CloudService.enabled || _publicAccountChanges != null) return;
+    try {
+      _publicAccountChanges = FirebaseAuth.instance.authStateChanges().listen((
+        user,
+      ) {
+        if (_disposed) return;
+        if (_publication.owner != user?.uid) {
+          _selectPublicAccount(user?.uid);
+          _notifyPublication();
+        }
+        if (user != null && gardenPublication == null) {
+          unawaited(refreshPublicGardenStatus().catchError((Object _) {}));
+        }
+      });
+    } catch (_) {
+      // Firebase may be unavailable; publication remains unknown.
     }
-    await _storage.setGardenPublished(false);
-    isGardenPublished = false;
-    notifyListeners();
+  }
+
+  Future<void> refreshPublicGardenStatus() async {
+    if (!_initialized) await ensureInitialized();
+    final owner = _publicOwner;
+    if (owner == null) {
+      _selectPublicAccount(null);
+      _notifyPublication();
+      return;
+    }
+    if (_publicMutationPending) return;
+    if (_publicRefresh != null && _publicRefreshOwner == owner) {
+      await _publicRefresh!;
+      return;
+    }
+    _publicRefreshOwner = owner;
+    final pending = _readPublicGardenStatus(owner);
+    _publicRefresh = pending;
+    try {
+      await pending;
+    } finally {
+      if (identical(_publicRefresh, pending)) {
+        _publicRefresh = null;
+        _publicRefreshOwner = null;
+      }
+    }
+  }
+
+  Future<void> _readPublicGardenStatus(String owner) async {
+    final request = _publication.begin(owner);
+    _notifyPublication();
+    try {
+      final result = await CloudService.getMyPublicGardenStatus(owner: owner);
+      await _acceptPublication(request, owner, result);
+    } catch (_) {
+      _publication.fail(request, owner);
+      _notifyPublication();
+      rethrow;
+    }
+  }
+
+  Future<void> _acceptPublication(
+    int request,
+    String owner,
+    PublicGardenStatusSnapshot result,
+  ) async {
+    if (_disposed) return;
+    if (_publicOwner != owner) throw const CloudException('account-changed');
+    if (!_publication.apply(request, owner, result)) return;
+    _notifyPublication();
+    // A cache write failure cannot overturn an acknowledged server decision.
+    try {
+      await _storage.cachePublicGardenNickname(owner, result.nickname);
+    } catch (_) {}
+  }
+
+  /// Publishes only after the user confirms the exact public content.
+  Future<bool> publishGarden({String? nickname}) async {
+    if (!CloudService.enabled) return false;
+    if (!_initialized) await ensureInitialized();
+    final owner = _publicOwner;
+    if (owner == null) throw StateError('먼저 로그인해 주세요.');
+    if (_publicMutationPending) throw StateError('공개 상태를 바꾸는 중이에요.');
+    _publicMutationPending = true;
+    final request = _publication.begin(owner);
+    _notifyPublication();
+    try {
+      await MongiGardenStore.instance.reconcileRecordedDays();
+      await GardenLayoutStore.instance.reload();
+      final layout = GardenLayoutStore.instance.value.grow(
+        seedCounts.values.fold<int>(0, (sum, n) => sum + n),
+      );
+      await CheerFlowerStore.instance.reload();
+      final flowers = CheerFlowerStore.instance.forOwner(owner);
+      final result = await CloudService.publishGarden(
+        owner: owner,
+        layout: layout.toJson(),
+        seedCounts: seedCounts,
+        equippedDecorationIds: equippedDecorationIds,
+        treeStageIndex: treeStageIndex,
+        flowerKinds: flowers
+            .where((f) => f.planted)
+            .map((f) => f.flowerKind)
+            .toSet()
+            .take(5)
+            .toList(),
+        memoryTreeStage: SeedType.byId(
+          'cherry',
+        ).tierForCount(MongiGardenStore.instance.value.recordDays.length),
+        hasCheerFlowers: flowers.any((f) => f.planted),
+        nickname: nickname,
+      );
+      if (!result.published) throw StateError('정원 공개를 확인하지 못했어요.');
+      await _acceptPublication(request, owner, result);
+      return true;
+    } catch (_) {
+      _publication.fail(request, owner);
+      _notifyPublication();
+      rethrow;
+    } finally {
+      _publicMutationPending = false;
+    }
+  }
+
+  /// Available even when the current publication state could not be fetched.
+  /// Deleting a nonexistent publication is an idempotent server operation.
+  Future<void> unpublishGarden() async {
+    if (!_initialized) await ensureInitialized();
+    final owner = _publicOwner;
+    if (owner == null) throw StateError('먼저 로그인해 주세요.');
+    if (_publicMutationPending) throw StateError('공개 상태를 바꾸는 중이에요.');
+    _publicMutationPending = true;
+    final request = _publication.begin(owner);
+    _notifyPublication();
+    try {
+      final result = await CloudService.unpublishGarden(owner: owner);
+      if (result.published) throw StateError('공개 중단을 확인하지 못했어요.');
+      await _acceptPublication(request, owner, result);
+    } catch (_) {
+      _publication.fail(request, owner);
+      _notifyPublication();
+      rethrow;
+    } finally {
+      _publicMutationPending = false;
+    }
   }
 
   /// 다른 사람들이 공개한 정원을 무작위 순서로 가져온다(순위 없음). 서버가
@@ -466,7 +601,11 @@ class GardenProvider extends ChangeNotifier {
     if (owner == null) throw StateError('먼저 로그인해 주세요.');
     await CloudService.ensureGardenOwner(owner, bind: true);
     final deviceId = await CloudService.cheerDeliveryDevice();
-    final delivery = await CloudService.claimCheer(id, owner: owner, deviceId: deviceId);
+    final delivery = await CloudService.claimCheer(
+      id,
+      owner: owner,
+      deviceId: deviceId,
+    );
     final receipt = delivery.receipt;
     if (receipt == null) return 0;
     final credited = await MongiGardenStore.instance.receiveCheerGift(
@@ -478,7 +617,12 @@ class GardenProvider extends ChangeNotifier {
     notifyListeners();
     // If ACK fails, leave the server receipt pending. Retrying cannot issue
     // currency twice in this persisted garden; it just retries the ACK.
-    await CloudService.acknowledgeCheer(id, receipt, owner: owner, deviceId: deviceId);
+    await CloudService.acknowledgeCheer(
+      id,
+      receipt,
+      owner: owner,
+      deviceId: deviceId,
+    );
     return credited;
   }
 
@@ -770,6 +914,8 @@ class GardenProvider extends ChangeNotifier {
     await _storage.refreshDailyMissionsIfNeeded();
     _loadFromStorage();
     _initialized = true;
+    _selectPublicAccount(_publicOwner);
+    _watchPublicAccount();
     MongiGardenStore.instance.removeListener(_sharedChanged);
     MongiGardenStore.instance.addListener(_sharedChanged);
     notifyListeners();
@@ -1027,6 +1173,50 @@ class GardenProvider extends ChangeNotifier {
     }
   }
 
+  /// A once-per-run optional seed, separate from already committed play rewards.
+  /// Using the result ID as a prerequisite prevents orphan seed/bonus grants.
+  /// Returns whether the seed went into inventory (already planted).
+  Future<bool> plantRunnerSeed({
+    required String resultSessionId,
+    required String seedId,
+  }) async {
+    if (!SeedType.all.any((seed) => seed.id == seedId)) {
+      throw ArgumentError.value(seedId, 'seedId');
+    }
+    try {
+      final result = await MongiGardenStore.instance.commitSession(
+        '$resultSessionId:seed',
+        () async {
+          final draft = SessionTransaction.draft!;
+          final receipts = Map<String, dynamic>.from(
+            draft.get(SessionTransaction.receiptsKey, defaultValue: {}) as Map,
+          );
+          if (!receipts.containsKey(resultSessionId)) {
+            throw StateError('Save the completed run before planting.');
+          }
+          _loadFromStorage();
+          final stored = (_storage.seedCounts[seedId] ?? 0) > 0;
+          final before = _storage.progress;
+          await _storage.recordEaten(0, bonus: 0.1);
+          await _storage.plantSeed(seedId);
+          await _addDailyMissionProgress(DailyMissionType.plantedLove, 1);
+          final bloomed = before < 1 && _storage.progress >= 1;
+          if (bloomed && !_storage.hasBloomedOnce)
+            await _storage.markBloomedOnce();
+          return {'stored': stored};
+        },
+      );
+      _loadFromStorage();
+      notifyListeners();
+      await _syncHomeWidget();
+      return result['stored'] as bool;
+    } catch (_) {
+      _loadFromStorage();
+      notifyListeners();
+      rethrow;
+    }
+  }
+
   Future<bool> _recordSessionDraft(
     Map<EmotionType, int> eatenByType, {
     required bool choseLove,
@@ -1197,8 +1387,7 @@ class GardenProvider extends ChangeNotifier {
     hasReceivedCheerToday = _storage.hasReceivedCheerToday;
     todayCheerReceivedIndex = _storage.todayCheerReceivedIndex;
     cheerSentTotalCount = _storage.cheerSentTotalCount;
-    isGardenPublished = _storage.gardenPublished;
-    gardenPublicNickname = _storage.gardenPublicNickname;
+    _selectPublicAccount(_publicOwner);
     hasBreathingRewardToday = _storage.hasBreathingRewardToday;
     breathingLibraryTotalCompletions =
         _storage.breathingLibraryTotalCompletions;
@@ -1720,16 +1909,20 @@ class GardenProvider extends ChangeNotifier {
   /// lightEssenceCost])를 내고 즉시 부활한다. 화폐가 부족하면 false를
   /// 반환하고 아무 것도 차감하지 않는다(호출부에서 "화폐가 모자라요" 안내로
   /// 처리).
-  Future<bool> buyReviveWithLightEssence() async {
+  Future<bool> buyReviveWithLightEssence({String? sessionId}) async {
     if (!AccessPolicy.itemAllowed(await SubscriptionService().isPremium()))
       return false;
-    final spent = await _storage.spendLightEssence(
-      ReviveService.lightEssenceCost,
+    final result = await MongiGardenStore.instance.commitSession(
+      sessionId ?? SessionTransaction.newId(),
+      () async => {
+        'spent': await _storage.spendLightEssence(
+          ReviveService.lightEssenceCost,
+        ),
+      },
     );
-    if (!spent) return false;
     lightEssence = _storage.lightEssence;
     notifyListeners();
-    return true;
+    return result['spent'] as bool;
   }
 
   // ── 파워 부적(소모품 인벤토리) ─────────────────────────

@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:math';
+import '../mongi/models/public_garden_status.dart';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
@@ -134,10 +135,16 @@ class CloudService {
   // [enabled]==false라서 호출부에서 사전에 걸러지며, 여기서도 다시 한 번
   // StateError를 던져 안전하게 막는다) ─────────────────────────────
 
-  /// 내 정원을 공개한다(또는 이미 공개된 내용을 최신화한다). [snapshot]은
-  /// 씨앗 수/장착 장식/나무 단계만 담아야 한다 - 일기·기록 내용은 절대
-  /// 포함하지 않는다(서버도 알려진 필드만 받아들이도록 검증한다).
-  static Future<void> publishGarden({
+  /// 현재 로그인 계정의 서버 공개 여부를 확인한다. 조회 실패는 비공개가 아니다.
+  static Future<PublicGardenStatusSnapshot> getMyPublicGardenStatus({
+    required String owner,
+  }) async => PublicGardenStatusSnapshot.fromJson(
+    await call('getMyPublicGardenStatus', const {}, owner),
+  );
+
+  /// 씨앗·장식·성장 단계만 공개한다. 개인 기록은 서버 스키마에서 거부한다.
+  static Future<PublicGardenStatusSnapshot> publishGarden({
+    required String owner,
     Map<String, dynamic>? layout,
     required Map<String, int> seedCounts,
     required List<String> equippedDecorationIds,
@@ -147,7 +154,7 @@ class CloudService {
     List<String> flowerKinds = const [],
     String? nickname,
   }) async {
-    await call('publishGarden', {
+    final result = await call('publishGarden', {
       'snapshot': {
         if (layout != null) 'layout': layout,
         'seedCounts': seedCounts,
@@ -158,11 +165,16 @@ class CloudService {
         'flowerKinds': flowerKinds,
       },
       if (nickname != null) 'nickname': nickname,
-    });
+    }, owner);
+    return PublicGardenStatusSnapshot.fromJson(result);
   }
 
   /// 공개를 멈춘다. 방문자 목록에서 즉시 사라진다.
-  static Future<void> unpublishGarden() => call('unpublishGarden');
+  static Future<PublicGardenStatusSnapshot> unpublishGarden({
+    required String owner,
+  }) async => PublicGardenStatusSnapshot.fromJson(
+    await call('unpublishGarden', const {}, owner),
+  );
 
   /// 다른 사람들이 공개한 정원을 무작위 순서로 가져온다(인기순/최신순
   /// 정렬 없음 - 순서 자체가 매번 새로 섞인다).
@@ -230,8 +242,10 @@ class CloudService {
       return stored;
     }
     final random = Random.secure();
-    final id = List.generate(24, (_) => random.nextInt(256)
-        .toRadixString(16).padLeft(2, '0')).join();
+    final id = List.generate(
+      24,
+      (_) => random.nextInt(256).toRadixString(16).padLeft(2, '0'),
+    ).join();
     await _secure.write(key: key, value: id);
     return id;
   }
@@ -241,13 +255,20 @@ class CloudService {
     required String owner,
     required String deviceId,
   }) async {
-    final result = await call('claimCheerV2', {'id': id, 'deviceId': deviceId}, owner);
+    final result = await call('claimCheerV2', {
+      'id': id,
+      'deviceId': deviceId,
+    }, owner);
     final amount = result['amount'];
     final receipt = result['receipt'];
-    if (result['claimed'] != true || amount is! int || amount < 0 || amount > 5 ||
+    if (result['claimed'] != true ||
+        amount is! int ||
+        amount < 0 ||
+        amount > 5 ||
         (amount > 0 && receipt == null) ||
-        (receipt != null && (receipt is! String ||
-          !RegExp(r'^[a-zA-Z0-9_-]{1,128}$').hasMatch(receipt)))) {
+        (receipt != null &&
+            (receipt is! String ||
+                !RegExp(r'^[a-zA-Z0-9_-]{1,128}$').hasMatch(receipt)))) {
       throw const CloudException('invalid-delivery-receipt');
     }
     return (amount: amount, receipt: receipt as String?);
@@ -259,7 +280,11 @@ class CloudService {
     required String owner,
     required String deviceId,
   }) async {
-    final result = await call('ackCheer', {'id': id, 'receipt': receipt, 'deviceId': deviceId}, owner);
+    final result = await call('ackCheer', {
+      'id': id,
+      'receipt': receipt,
+      'deviceId': deviceId,
+    }, owner);
     if (result['acknowledged'] != true) {
       throw const CloudException('temporarily-unavailable');
     }
@@ -365,7 +390,8 @@ class CloudException implements Exception {
     'authentication-required' => '로그인 상태를 확인한 뒤 다시 시도해 주세요.',
     'currency-gifts-unavailable' => '지금은 꽃과 이모티콘으로 응원을 전할 수 있어요.',
     'client-update-required' => '앱을 업데이트한 뒤 선물을 받아 주세요.',
-    'delivery-other-device' => '이 선물은 다른 기기에서 받는 중이에요. 처음 수령한 기기에서 다시 시도해 주세요. 그 기기를 사용할 수 없다면 문의해 주세요.',
+    'delivery-other-device' =>
+      '이 선물은 다른 기기에서 받는 중이에요. 처음 수령한 기기에서 다시 시도해 주세요. 그 기기를 사용할 수 없다면 문의해 주세요.',
     'invalid-delivery-device' => '이 기기의 선물 수령 정보를 확인하지 못했어요. 다시 시도해 주세요.',
     'invalid-delivery-receipt' => '선물 수령을 확인하지 못했어요. 다시 시도해 주세요.',
     'cheer-not-found' => '이 응원을 찾을 수 없어요. 목록을 새로고침해 주세요.',

@@ -105,7 +105,8 @@ class _LivingGardenSceneState extends State<LivingGardenScene>
         !_paused &&
         _foreground &&
         !MediaQuery.disableAnimationsOf(context) &&
-        TickerMode.of(context);
+        TickerMode.of(context) &&
+        (ModalRoute.of(context)?.isCurrent ?? true);
     if (_animate) {
       if (!_air.isAnimating) _air.repeat();
     } else {

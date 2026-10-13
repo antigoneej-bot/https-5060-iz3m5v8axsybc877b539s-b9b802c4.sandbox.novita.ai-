@@ -1,3 +1,4 @@
+import 'support/private_storage_test_setup.dart';
 import 'package:flutter_app/services/meditation_course_store.dart';
 import 'package:flutter_app/services/meditation_sleep_service.dart';
 import 'package:flutter_app/services/meditation_library_store.dart';
@@ -18,6 +19,7 @@ import 'support/fake_audioplayers_platform.dart';
 import 'support/fake_global_audioplayers_platform.dart';
 
 void main() {
+  usePrivateStorageForTests('meditation_audio_test-');
   TestWidgetsFlutterBinding.ensureInitialized();
   test(
     'audio controls preserve pause, restart, settings and lifecycle order',
@@ -187,6 +189,19 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 20));
       await media.run(() async {});
       expect(MeditationCourseStore.instance.progress['first7'], 1);
+      final completedBeforeStop =
+          MeditationCompletionService.instance.completed.value;
+      await audio.toggle(rain);
+      await audio.finish(forest); // A stale widget cannot stop another track.
+      expect(audio.playing.value, rain);
+      await audio.finish(rain);
+      expect(audio.activeAsset, isNull);
+      expect(audio.playing.value, isNull);
+      expect(audio.position, Duration.zero);
+      expect(
+        MeditationCompletionService.instance.completed.value,
+        completedBeforeStop,
+      );
       await media.stopAll();
       temp.deleteSync(recursive: true);
     },

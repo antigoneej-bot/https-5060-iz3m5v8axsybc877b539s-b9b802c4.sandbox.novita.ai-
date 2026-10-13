@@ -1,3 +1,6 @@
+import 'dart:io';
+import 'package:flutter/services.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -9,6 +12,20 @@ import 'package:flutter_app/services/meditation_completion_service.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  late Directory directory;
+  setUpAll(() async {
+    directory = await Directory.systemTemp.createTemp('meditation-library-');
+    Hive.init(directory.path);
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+          const MethodChannel('plugins.it_nomads.com/flutter_secure_storage'),
+          (_) async => null,
+        );
+  });
+  tearDownAll(() async {
+    await Hive.close();
+    await directory.delete(recursive: true);
+  });
   setUp(() {
     SharedPreferences.setMockInitialValues({});
     GoogleFonts.config.allowRuntimeFetching = false;
@@ -72,6 +89,20 @@ void main() {
         home: Scaffold(body: MeditationCheckIn(guideKey: 'forestRest')),
       ),
     );
+    await tester.pumpAndSettle();
+    // The check-in widget resolves its saved/unsaved state via real
+    // (encrypted) Hive I/O, which can outlast a single pumpAndSettle pass.
+    // Poll until the choice buttons actually render instead of racing it.
+    for (
+      var attempt = 0;
+      attempt < 50 && find.text('조금 편안해졌어요').evaluate().isEmpty;
+      attempt++
+    ) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 20)),
+      );
+      await tester.pumpAndSettle();
+    }
     expect(find.text('조금 편안해졌어요'), findsOneWidget);
     expect(find.text('비슷해요'), findsOneWidget);
     expect(find.text('더 불편해요'), findsOneWidget);

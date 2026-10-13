@@ -1,9 +1,11 @@
+import 'support/private_storage_test_setup.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_app/services/meditation_course_store.dart';
 import 'package:flutter_app/data/solutions_data.dart';
 
 void main() {
+  usePrivateStorageForTests('meditation_course_test-');
   TestWidgetsFlutterBinding.ensureInitialized();
   test('courses only contain published media', () {
     for (final c in meditationCourses) {

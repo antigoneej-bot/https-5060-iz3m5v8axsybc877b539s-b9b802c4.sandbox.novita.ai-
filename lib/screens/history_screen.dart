@@ -1,3 +1,5 @@
+import 'self_care_screen.dart';
+import 'care_connection_screen.dart';
 import 'dart:async';
 import '../services/access_policy.dart';
 import '../widgets/subscription_gate.dart';
@@ -255,15 +257,33 @@ class _ReflectionEntryRow extends StatelessWidget {
     return Column(
       children: [
         GardenPathCard(
+          emoji: '🌱',
+          title: '돌아보고 돌보기',
+          subtitle: '내가 느낀 마음 · 도움이 되었던 돌봄 · 주간·월간 회고',
+          accent: AppColors.blobMintAccent,
+          background: AppColors.blobMint,
+          floatSeed: 39,
+          onTap: () => Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (_) => const SelfCareScreen())),
+        ),
+        TextButton.icon(
+          onPressed: () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const CareConnectionScreen()),
+          ),
+          icon: const Icon(Icons.support_agent),
+          label: const Text('원할 때 상담·명상 도움 찾기'),
+        ),
+        GardenPathCard(
           emoji: '🌡️',
-          title: '마음온도기록',
-          subtitle: '그동안 기록했던 마음 온도를 주간/월간으로 살펴보세요',
+          title: '돌봄 온기 기록',
+          subtitle: '출석·편지·돌봄으로 쌓인 활동 기록이에요',
           accent: AppColors.blobPeachAccent,
           background: AppColors.blobPeach,
           floatSeed: 40,
           onTap: () => pushFullScreen(
             context,
-            '마음온도기록',
+            '돌봄 온기 기록',
             const MindTemperatureHistoryScreen(),
           ),
         ),
@@ -538,8 +558,8 @@ class _HistoryItemState extends State<_HistoryItem>
                   const SizedBox(height: 14),
                   Text(
                     entry.meditationKey != null
-                        ? '편지를 보내고 명상까지 실천해 마음 온도가 2도 올랐어요 🌱'
-                        : '편지를 보내 마음 온도가 1도 올랐어요 🌱',
+                        ? '편지를 보내고 명상까지 실천해 돌봄 온기가 2도 올랐어요 🌱'
+                        : '편지를 보내 돌봄 온기가 1도 올랐어요 🌱',
                     style: bodyFont(
                       fontSize: 12.5,
                       color: AppColors.blobPeachAccent,

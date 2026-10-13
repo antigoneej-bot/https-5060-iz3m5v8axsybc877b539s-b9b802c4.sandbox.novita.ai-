@@ -3,6 +3,45 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_app/services/meditation_sleep_service.dart';
 
 void main() {
+  test(
+    'short timer is optional and fade failure still stops at deadline',
+    () async {
+      final s = MeditationSleepService(), owner = Object();
+      var stops = 0;
+      s.attach(
+        owner,
+        volume: (v) async {
+          if (v < 1) throw StateError('audio volume unavailable');
+        },
+        stop: () async {
+          stops++;
+        },
+      );
+      expect(s.deadline, isNull);
+      await s.setTimer(3);
+      final end = s.deadline!;
+      await s.tick(now: end.subtract(const Duration(seconds: 5)));
+      expect(s.owner, owner);
+      await s.tick(now: end);
+      expect(stops, 1);
+      expect(s.owner, isNull);
+      await s.tick(now: end);
+      expect(stops, 1);
+    },
+  );
+  test('failed timer setup does not advertise an armed timer', () async {
+    final s = MeditationSleepService(), owner = Object();
+    s.attach(
+      owner,
+      volume: (_) async {
+        throw StateError('volume unavailable');
+      },
+      stop: () async {},
+    );
+    await expectLater(s.setTimer(5), throwsStateError);
+    expect(s.deadline, isNull);
+    s.detach(owner);
+  });
   test('sleep deadline fades and stops exactly once', () async {
     final s = MeditationSleepService(), owner = Object();
     final volumes = <double>[];

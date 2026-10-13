@@ -5,11 +5,11 @@ import '../models/cat_accessory.dart';
 import '../theme.dart';
 import '../widgets/garden_path_card.dart';
 
-/// 정원 플러스 포인트 상점 - 마음 온도가 100도에 닿을 때마다 쌓이는
+/// 정원 플러스 포인트 상점 - 돌봄 온기가 100도에 닿을 때마다 쌓이는
 /// 포인트로 반려 고양이를 돌보고 꾸며줄 수 있는 다양한 아이템을 구매하는
 /// 화면입니다. 아이템은 세 가지로 나뉘어요:
 /// - 먹거리·손질(소모품): 구매해서 보관함에 모아두고, "사용하기"를 누르면
-///   1개가 줄면서 마음 온도가 살짝 올라요.
+///   1개가 줄면서 돌봄 온기가 살짝 올라요.
 /// - 옷·악세서리(착용형): 부위별로 여러 개를 동시에 착용할 수 있어요.
 /// - 우리집 가구: 구매하면 바로 우리 집에 놓인 것으로 취급돼요.
 class CatShopScreen extends StatelessWidget {
@@ -227,7 +227,7 @@ class _ConsumableRow extends StatelessWidget {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: Text(
-                            '${accessory.label}${_particle(accessory.label)} 주었어요! 마음 온도가 살짝 올랐어요.',
+                            '${accessory.label}${_particle(accessory.label)} 주었어요! 돌봄 온기가 살짝 올랐어요.',
                           ),
                           duration: const Duration(seconds: 2),
                         ),

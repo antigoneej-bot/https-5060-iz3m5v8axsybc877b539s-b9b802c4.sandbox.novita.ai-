@@ -49,6 +49,24 @@ async function call(uid,body){
  return result;
 }
 
+const publication={action:'publishGarden',nickname:'Alice garden',snapshot:{
+  seedCounts:{pine:1},equippedDecorationIds:[],treeStageIndex:0,
+}};
+assert.equal((await call('alice',publication)).body.published,true);
+// Even if the publishing device loses its response/local cache, a later
+// authenticated query recovers the committed server decision.
+const ownStatus=await call('alice',{action:'getMyPublicGardenStatus'});
+assert.equal(ownStatus.body.published,true);
+assert.equal(ownStatus.body.nickname,'Alice garden');
+const otherStatus=await call('bob',{action:'getMyPublicGardenStatus',uid:'alice',gardenId:'alice'});
+assert.equal(otherStatus.body.published,false);
+assert.equal(otherStatus.body.nickname,null);
+assert.equal((await call('alice',{action:'unpublishGarden'})).body.published,false);
+assert.equal((await call('alice',{action:'unpublishGarden'})).body.published,false);
+assert.equal((await call('alice',{action:'getMyPublicGardenStatus'})).body.published,false);
+console.log('PASS: publication status is server-authoritative, account-scoped and recoverable after a lost response; stopping publication is idempotent.');
+
+rows.clear();
 rows.set('users/bob/receivedCheers/gift1',{giftLightEssence:5,claimed:false});
 const oldClient = await call('bob',{action:'claimCheer',id:'gift1'});
 assert.equal(oldClient.body.error, 'client-update-required');

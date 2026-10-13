@@ -1,3 +1,4 @@
+import '../integration/session_transaction.dart';
 import '../../theme.dart' show AppColors;
 import '../../widgets/subscription_gate.dart';
 import 'package:flutter/material.dart';
@@ -68,6 +69,8 @@ class _ReviveOfferSheetState extends State<ReviveOfferSheet> {
   bool _watchingAd = false;
   bool _buyingRevive = false;
   bool _insufficientFunds = false;
+  String? _purchaseError;
+  String _purchaseId = SessionTransaction.newId();
 
   Future<void> _watchAd() async {
     await _buyRevive();
@@ -76,25 +79,37 @@ class _ReviveOfferSheetState extends State<ReviveOfferSheet> {
   /// "생명의 물"로 광고 없이 즉시 부활한다. 화폐가 모자라면 안내만 하고
   /// 시트는 그대로 유지한다(다른 선택지를 고를 수 있도록).
   Future<void> _buyRevive() async {
-    if (!await requestSubscription(context, message: '생명의 물 사용은 마음냥 구독에 포함돼요.'))
-      return;
-    if (!mounted) return;
+    if (_buyingRevive) return;
     setState(() {
       _buyingRevive = true;
       _insufficientFunds = false;
+      _purchaseError = null;
     });
-    final bought = await context
-        .read<GardenProvider>()
-        .buyReviveWithLightEssence();
-    if (!mounted) return;
-    if (bought) {
-      Navigator.of(context).pop(true);
-      return;
+    try {
+      if (!await requestSubscription(
+        context,
+        message: '생명의 물 사용은 마음냥 구독에 포함돼요.',
+      ))
+        return;
+      if (!mounted) return;
+      final bought = await context
+          .read<GardenProvider>()
+          .buyReviveWithLightEssence(sessionId: _purchaseId);
+      if (!mounted) return;
+      if (bought) {
+        Navigator.of(context).pop(true);
+      } else {
+        setState(() {
+          _insufficientFunds = true;
+          _purchaseId = SessionTransaction.newId();
+        });
+      }
+    } catch (_) {
+      if (mounted)
+        setState(() => _purchaseError = '처리를 완료하지 못했어요. 다시 누르거나 여기서 마칠 수 있어요.');
+    } finally {
+      if (mounted) setState(() => _buyingRevive = false);
     }
-    setState(() {
-      _buyingRevive = false;
-      _insufficientFunds = true;
-    });
   }
 
   /// 무료 이어하기(광고 불필요) - 버튼을 누르면 곧바로 이어간다.
@@ -258,7 +273,9 @@ class _ReviveOfferSheetState extends State<ReviveOfferSheet> {
       SizedBox(
         width: double.infinity,
         child: ElevatedButton.icon(
-          onPressed: (_buyingRevive || !canAfford) ? null : _buyRevive,
+          onPressed: (_buyingRevive || (!canAfford && _purchaseError == null))
+              ? null
+              : _buyRevive,
           icon: _buyingRevive
               ? const SizedBox(
                   width: 18,
@@ -285,6 +302,11 @@ class _ReviveOfferSheetState extends State<ReviveOfferSheet> {
           ),
         ),
       ),
+      if (_purchaseError != null)
+        Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: Text(_purchaseError!, textAlign: TextAlign.center),
+        ),
       if (_insufficientFunds) ...[
         const SizedBox(height: 6),
         Text(

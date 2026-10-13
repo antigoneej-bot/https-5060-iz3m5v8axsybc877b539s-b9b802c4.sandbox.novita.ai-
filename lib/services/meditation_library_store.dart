@@ -1,7 +1,8 @@
-import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../data/meditation_media_data.dart';
+import '../models/meditation_check_in_record.dart';
+import 'meditation_check_in_store.dart';
 
 class MeditationLibraryStore extends ChangeNotifier {
   static final instance = MeditationLibraryStore();
@@ -16,6 +17,9 @@ class MeditationLibraryStore extends ChangeNotifier {
   });
   Future<void> _load() async {
     final p = await SharedPreferences.getInstance();
+    final history = await MeditationCheckInStore.instance.load();
+    favorites.clear();
+    recent.clear();
     favorites.addAll(
       (p.getStringList('meditation.favorites') ?? []).where(
         meditationMedia.containsKey,
@@ -26,25 +30,20 @@ class MeditationLibraryStore extends ChangeNotifier {
           .where(meditationMedia.containsKey)
           .take(10),
     );
-    try {
-      final raw =
-          jsonDecode(p.getString('meditation.checkins') ?? '[]') as List;
-      checkIns.addAll(
-        raw.whereType<Map>().map((v) => Map<String, dynamic>.from(v)).take(90),
-      );
-    } catch (_) {
-      /* Ignore malformed optional history; never alter the diary. */
-    }
+    checkIns
+      ..clear()
+      ..addAll(history);
     notifyListeners();
   }
 
-  Future<void> _run(Future<void> Function(SharedPreferences) action) {
+  Future<T> _run<T>(Future<T> Function(SharedPreferences) action) {
     final result = _tail.then((_) async {
       await load();
-      await action(await SharedPreferences.getInstance());
+      final value = await action(await SharedPreferences.getInstance());
       notifyListeners();
+      return value;
     });
-    _tail = result.catchError((Object _) {});
+    _tail = result.then<void>((_) {}, onError: (Object _, StackTrace __) {});
     return result;
   }
 
@@ -67,25 +66,42 @@ class MeditationLibraryStore extends ChangeNotifier {
       ..clear()
       ..addAll(next);
   });
-  Future<void> checkIn(String session, String key, String feeling) =>
-      _run((p) async {
-        if (!['better', 'same', 'worse'].contains(feeling) ||
-            !meditationMedia.containsKey(key))
-          return;
-        if (checkIns.any((v) => v['session'] == session)) return;
-        final next = <Map<String, dynamic>>[
-          {
-            'session': session,
-            'guide': key,
-            'feeling': feeling,
-            'at': DateTime.now().toIso8601String(),
-          },
-          ...checkIns,
-        ].take(90).toList();
-        if (!await p.setString('meditation.checkins', jsonEncode(next)))
-          throw StateError('checkin-save');
-        checkIns
-          ..clear()
-          ..addAll(next);
-      });
+  Future<void> removeCheckIn(String session) => _run((_) async {
+    await MeditationCheckInStore.instance.remove(session);
+    checkIns
+      ..clear()
+      ..addAll(await MeditationCheckInStore.instance.load());
+  });
+
+  Future<void> reload() async {
+    await _tail;
+    await (await SharedPreferences.getInstance()).reload();
+    _ready = null;
+    await load();
+  }
+
+  Future<MeditationCheckInRecord?> findCheckIn(String session) =>
+      MeditationCheckInStore.instance.find(session);
+
+  Future<MeditationCheckInRecord> checkIn(
+    String session,
+    String key,
+    String feeling,
+  ) => _run((p) async {
+    if (!['better', 'same', 'worse'].contains(feeling) ||
+        !meditationMedia.containsKey(key))
+      throw ArgumentError('명상 후기 선택을 확인해 주세요.');
+    final saved = await MeditationCheckInStore.instance.save(
+      MeditationCheckInRecord(
+        session: session,
+        guide: key,
+        feeling: feeling,
+        at: DateTime.now(),
+      ),
+    );
+    checkIns
+      ..clear()
+      ..addAll(await MeditationCheckInStore.instance.load());
+    return saved;
+  });
 }

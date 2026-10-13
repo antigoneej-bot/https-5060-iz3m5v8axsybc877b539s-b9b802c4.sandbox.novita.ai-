@@ -31,20 +31,25 @@ class PlantMemoryStore extends ValueNotifier<Map<String, PlantMemory>> {
   }
 
   Future<void> reload() => _serial(_refresh);
-  Future<void> save(String plantId, String name, String note) =>
-      _serial(() async {
-        final data = PlantMemory(
-          plantId: plantId,
-          name: name.trim(),
-          note: note.trim(),
-          updatedAt: DateTime.now(),
-        ).toJson();
-        PlantMemory.fromJson(data);
-        final box = await HiveEncryption.openBox(boxName);
-        await box.put(plantId, data);
-        await box.flush();
-        await _refresh();
-      });
+  Future<void> save(
+    String plantId,
+    String name,
+    String note, {
+    DateTime? memoryDate,
+  }) => _serial(() async {
+    final data = PlantMemory(
+      plantId: plantId,
+      name: name.trim(),
+      note: note.trim(),
+      updatedAt: DateTime.now(),
+      memoryDate: memoryDate,
+    ).toJson();
+    PlantMemory.fromJson(data);
+    final box = await HiveEncryption.openBox(boxName);
+    await box.put(plantId, data);
+    await box.flush();
+    await _refresh();
+  });
   Future<void> remove(String plantId) => _serial(() async {
     final box = await HiveEncryption.openBox(boxName);
     await box.delete(plantId);

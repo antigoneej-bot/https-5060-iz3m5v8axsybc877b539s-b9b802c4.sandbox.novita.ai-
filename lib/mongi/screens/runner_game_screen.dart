@@ -1,3 +1,4 @@
+import '../integration/session_transaction.dart';
 import '../../widgets/subscription_gate.dart';
 import '../../theme.dart' show AppColors;
 import 'dart:async';
@@ -13,11 +14,12 @@ import '../models/time_of_day_ambience.dart';
 import '../providers/garden_provider.dart';
 import '../services/ad_service.dart';
 import '../services/sound_manager.dart';
-import '../widgets/breathing_interstitial.dart';
 import '../widgets/breathing_moment_sheet.dart';
 import '../widgets/power_charm_shop_sheet.dart';
 import '../widgets/revive_offer_sheet.dart';
 import 'choice_screen.dart';
+import '../models/runner_resume_gate.dart';
+import '../widgets/runner_ready_overlay.dart';
 
 /// 러너 게임 플레이 화면.
 /// 조작: 몽이는 항상 자동으로 앞으로 달린다(속도감 있는 러너 게임 리듬).
@@ -45,7 +47,8 @@ class RunnerGameScreen extends StatefulWidget {
   State<RunnerGameScreen> createState() => _RunnerGameScreenState();
 }
 
-class _RunnerGameScreenState extends State<RunnerGameScreen> {
+class _RunnerGameScreenState extends State<RunnerGameScreen>
+    with WidgetsBindingObserver {
   static const int _maxLives = 3;
 
   late RunnerGame _game;
@@ -58,9 +61,37 @@ class _RunnerGameScreenState extends State<RunnerGameScreen> {
   late final int _target;
   final FocusNode _focusNode = FocusNode();
   bool _navigated = false;
+  final _resumeGate = RunnerResumeGate();
+  Timer? _resumeTimer;
+  final Set<int> _punchPointers = {}, _jumpPointers = {};
+  bool _exitDialogOpen = false;
+  bool _allowExit = false;
+  bool _loadFailed = false;
+  final String _sessionId = SessionTransaction.newId();
   bool _showHint = true;
   int _secondsRemaining = -1;
   Timer? _timerTicker;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _resumeGate.setForeground(
+      WidgetsBinding.instance.lifecycleState == null ||
+          WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed,
+    );
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _resumeGate.setForeground(state == AppLifecycleState.resumed);
+    if (!_gameInitialized || _navigated) return;
+    if (state != AppLifecycleState.resumed) {
+      unawaited(_showPauseMenu());
+    } else if (mounted) {
+      setState(() {});
+    }
+  }
 
   /// 파워빛볼 무적 모드 UI 표시용 - [RunnerGame.isPoweredUp]/
   /// [RunnerGame.powerRemainingSeconds]는 게임 쪽 상태라, 배지를 실시간으로
@@ -83,14 +114,13 @@ class _RunnerGameScreenState extends State<RunnerGameScreen> {
     if (_gameInitialized) return;
     _gameInitialized = true;
     _stage = widget.practice ? 1 : context.read<GardenProvider>().stage;
-    // 스테이지가 오를수록 감정 목표 개수도 늘어난다: 1단계=20, 2단계=30, 3단계=40,
-    // 4단계부터는 40 + (stage-3)*10.
+    // Ordinary stages: 20/25/30 targets, within 60–90 seconds.
     _target = widget.practice ? 10 : RunnerGame.targetForStage(_stage);
-    _game = _createGame();
+    _game = _createGame()..setUserPaused(true);
+    unawaited(SoundManager.instance.pauseForUser());
     _secondsRemaining = _game.secondsRemaining;
-    _scheduleHintHide();
     if (!widget.practice)
-      AdService.instance.init(); // 부활 광고를 미리 로드해둔다(Android만, 웹은 no-op).
+      AdService.instance.init(); // Optional between-run ads.
     // 남은 시간 HUD를 매초 최신화한다.
     _timerTicker = Timer.periodic(const Duration(milliseconds: 200), (_) {
       if (!mounted) return;
@@ -109,11 +139,8 @@ class _RunnerGameScreenState extends State<RunnerGameScreen> {
     });
   }
 
-  /// 목숨을 다 썼을 때 "이어하기"를 제안한다. 처음 [RunnerGame.freeRevivesPerRun]번은
-  /// 광고 없이 바로 이어갈 수 있고([requiresAd]=false), 그 이후부터는 광고를
-  /// 끝까지 봐야만 이어갈 수 있다([requiresAd]=true). 사용자가 이어하기로
-  /// 결정하면 true를, 거절하거나(무료 이어하기 취소) 광고 시청에 실패하면
-  /// false를 반환한다.
+  /// Three free revives, then optional subscriber currency use. Declining ends
+  /// the run and opens the automatically saved result.
   Future<bool> _offerRevive(
     int reviveCountThisRun, {
     required bool requiresAd,
@@ -132,7 +159,7 @@ class _RunnerGameScreenState extends State<RunnerGameScreen> {
   bool _usingPowerCharm = false;
   Future<void> _usePowerCharm() async {
     if (widget.practice) return;
-    if (_usingPowerCharm) return;
+    if (_usingPowerCharm || !_game.acceptsGameplayInput) return;
     _usingPowerCharm = true;
     _game.pauseEngine();
     try {
@@ -216,6 +243,12 @@ class _RunnerGameScreenState extends State<RunnerGameScreen> {
         setState(() => _combo = combo);
       },
       onLivesExhausted: _offerRevive,
+      onReady: () {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted || _navigated) return;
+          setState(() => _resumeGate.ready = true);
+        });
+      },
       onBreathingMomentStart: _handleBreathingMomentStart,
       onStageComplete: (count, {bool earlyStop = false}) {
         if (_navigated) return;
@@ -243,14 +276,6 @@ class _RunnerGameScreenState extends State<RunnerGameScreen> {
             if (mounted) Navigator.of(context).pop();
             return;
           }
-          // 빠른 속도로 달리던 흐름을 곧바로 결과 화면으로 넘기지 않고,
-          // 가끔(BreathingScheduler가 정한 타이밍에만) 잠깐 숨을 고르는
-          // 인터스티셜을 먼저 보여준다("건너뛰기"로 언제든 바로 넘어갈 수
-          // 있어 강요처럼 느껴지지 않는다).
-          if (BreathingScheduler.instance.shouldShow()) {
-            await BreathingInterstitial.show(context);
-          }
-          if (!mounted) return;
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(
               builder: (_) => ChoiceScreen(
@@ -261,6 +286,7 @@ class _RunnerGameScreenState extends State<RunnerGameScreen> {
                 earlyStop: earlyStop,
                 target: _target,
                 playedStage: _stage,
+                sessionId: _sessionId,
               ),
             ),
           );
@@ -272,8 +298,11 @@ class _RunnerGameScreenState extends State<RunnerGameScreen> {
   @override
   void dispose() {
     _timerTicker?.cancel();
+    _resumeTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
     _focusNode.dispose();
     SoundManager.instance.stopBgm();
+    SoundManager.instance.releaseUserPause(resume: false);
     super.dispose();
   }
 
@@ -287,6 +316,7 @@ class _RunnerGameScreenState extends State<RunnerGameScreen> {
   /// 웹/데스크톱 테스트용 키보드 조작. 몽이는 항상 자동으로 달리므로, 여기서는
   /// 오직 점프/주먹 액션만 즉시 트리거한다(더 이상 홀드 상태를 만들지 않음).
   KeyEventResult _handleKey(FocusNode node, KeyEvent event) {
+    if (!_game.acceptsGameplayInput) return KeyEventResult.ignored;
     if (!_relevantKeys.contains(event.logicalKey)) {
       return KeyEventResult.ignored;
     }
@@ -349,7 +379,7 @@ class _RunnerGameScreenState extends State<RunnerGameScreen> {
       // 효과음이 계속 들리는" 버그로 이어졌다. canPop: false로 시스템
       // pop을 우선 막고, 항상 _confirmExit()(소리 완전 정지 포함)을 거치게
       // 통일한다.
-      canPop: false,
+      canPop: _allowExit,
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
         _confirmExit();
@@ -361,7 +391,14 @@ class _RunnerGameScreenState extends State<RunnerGameScreen> {
           autofocus: true,
           onKeyEvent: _handleKey,
           onFocusChange: (focused) {
-            if (!focused) _game.clearGameplayInput();
+            if (!focused) {
+              _game.clearGameplayInput();
+              if (mounted)
+                setState(() {
+                  _punchPointers.clear();
+                  _jumpPointers.clear();
+                });
+            }
           },
           child: Stack(
             children: [
@@ -373,39 +410,46 @@ class _RunnerGameScreenState extends State<RunnerGameScreen> {
                   // 없는 회색으로만 보이는 문제가 있었다. 앞으로 비슷한
                   // 문제가 생겨도 사용자가 원인을 알아채고 다시 시도할 수
                   // 있도록 안내 UI를 보여준다.
-                  errorBuilder: (context, error) => Container(
-                    color: const Color(0xFFEAF6FF),
-                    alignment: Alignment.center,
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Text('😿', style: TextStyle(fontSize: 48)),
-                        const SizedBox(height: 12),
-                        Text(
-                          AppLocalizations.of(context).gameLoadErrorTitle,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(fontWeight: FontWeight.w700),
-                        ),
-                        const SizedBox(height: 16),
-                        ElevatedButton(
-                          onPressed: () => Navigator.of(context).maybePop(),
-                          child: Text(
-                            AppLocalizations.of(context).gameLoadErrorButton,
+                  errorBuilder: (context, error) {
+                    if (!_loadFailed)
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        if (mounted) setState(() => _loadFailed = true);
+                      });
+                    return Container(
+                      color: const Color(0xFFEAF6FF),
+                      alignment: Alignment.center,
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text('😿', style: TextStyle(fontSize: 48)),
+                          const SizedBox(height: 12),
+                          Text(
+                            AppLocalizations.of(context).gameLoadErrorTitle,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(fontWeight: FontWeight.w700),
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
+                          const SizedBox(height: 16),
+                          ElevatedButton(
+                            onPressed: () => Navigator.of(context).maybePop(),
+                            child: Text(
+                              AppLocalizations.of(context).gameLoadErrorButton,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
                 ),
               ),
-              _buildTapHint(),
+              if (!_loadFailed) _buildTapHint(),
               _buildHud(),
               _buildTimeOfDayBadge(),
               if (!widget.practice) _buildTimeBadge(),
               _buildComboBadge(),
               _buildPowerModeBadge(),
               _buildCloseButton(),
+              _buildPauseButton(),
               if (!widget.practice) _buildPowerCharmButton(),
               if (widget.practice)
                 const Positioned(
@@ -427,6 +471,20 @@ class _RunnerGameScreenState extends State<RunnerGameScreen> {
                 ),
               _buildPunchButton(),
               _buildJumpButton(),
+              if (_resumeGate.blocked && !_navigated && !_loadFailed)
+                Positioned.fill(
+                  child: RunnerReadyOverlay(
+                    ready: _resumeGate.ready,
+                    started: _resumeGate.started,
+                    practice: widget.practice,
+                    countdown: _resumeGate.countdown,
+                    target: _target,
+                    seconds: _game.timeLimitSeconds,
+                    onStart: _startCountdown,
+                    onPause: _showPauseMenu,
+                    onExit: _confirmExit,
+                  ),
+                ),
             ],
           ),
         ),
@@ -445,14 +503,26 @@ class _RunnerGameScreenState extends State<RunnerGameScreen> {
         top: false,
         child: Listener(
           behavior: HitTestBehavior.opaque,
-          onPointerDown: (_) {
+          onPointerDown: (event) {
+            if (!_game.acceptsGameplayInput) return;
+            setState(() => _punchPointers.add(event.pointer));
             if (_showHint) setState(() => _showHint = false);
             _handlePunchInput();
           },
-          child: _buildActionButton(
-            emoji: '✊',
-            label: AppLocalizations.of(context).gamePunchLabel,
-            color: const Color(0xFFFF8FAB),
+          onPointerUp: (event) =>
+              setState(() => _punchPointers.remove(event.pointer)),
+          onPointerCancel: (event) =>
+              setState(() => _punchPointers.remove(event.pointer)),
+          child: Semantics(
+            button: true,
+            label: '주먹 · 작은 장애물 치우기',
+            onTap: _handlePunchInput,
+            child: _buildActionButton(
+              pressed: _punchPointers.isNotEmpty,
+              emoji: '✊',
+              label: AppLocalizations.of(context).gamePunchLabel,
+              color: const Color(0xFFFF8FAB),
+            ),
           ),
         ),
       ),
@@ -472,15 +542,29 @@ class _RunnerGameScreenState extends State<RunnerGameScreen> {
         child: Listener(
           behavior: HitTestBehavior.opaque,
           onPointerDown: (event) {
+            if (!_game.acceptsGameplayInput) return;
+            setState(() => _jumpPointers.add(event.pointer));
             if (_showHint) setState(() => _showHint = false);
             _handleJumpInput(source: ('pointer', event.pointer));
           },
-          onPointerUp: _handleJumpPointerRelease,
-          onPointerCancel: _handleJumpPointerRelease,
-          child: _buildActionButton(
-            emoji: '🦘',
-            label: AppLocalizations.of(context).gameJumpLabel,
-            color: const Color(0xFF8FD3FF),
+          onPointerUp: (event) {
+            _handleJumpPointerRelease(event);
+            setState(() => _jumpPointers.remove(event.pointer));
+          },
+          onPointerCancel: (event) {
+            _handleJumpPointerRelease(event);
+            setState(() => _jumpPointers.remove(event.pointer));
+          },
+          child: Semantics(
+            button: true,
+            label: '점프 · 큰 장애물 넘기',
+            onTap: _game.jump,
+            child: _buildActionButton(
+              pressed: _jumpPointers.isNotEmpty,
+              emoji: '🦘',
+              label: AppLocalizations.of(context).gameJumpLabel,
+              color: const Color(0xFF8FD3FF),
+            ),
           ),
         ),
       ),
@@ -491,43 +575,48 @@ class _RunnerGameScreenState extends State<RunnerGameScreen> {
   /// 그림자를 주고, 이모지 + 한글 라벨을 함께 표시해 어느 버튼이 어떤
   /// 동작인지 한눈에 알 수 있게 한다.
   Widget _buildActionButton({
+    required bool pressed,
     required String emoji,
     required String label,
     required Color color,
   }) {
-    return Container(
-      width: 86 + (MediaQuery.textScalerOf(context).scale(26) - 26),
-      height: 86 + (MediaQuery.textScalerOf(context).scale(26) - 26) * 2,
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.92),
-        borderRadius: BorderRadius.circular(32),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.9),
-          width: 3,
-        ),
-        boxShadow: const [
-          BoxShadow(
-            color: Colors.black26,
-            blurRadius: 10,
-            offset: Offset(0, 4),
+    return AnimatedScale(
+      scale: pressed ? 0.94 : 1,
+      duration: const Duration(milliseconds: 70),
+      child: Container(
+        width: 86 + (MediaQuery.textScalerOf(context).scale(26) - 26),
+        height: 86 + (MediaQuery.textScalerOf(context).scale(26) - 26) * 2,
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: pressed ? 1 : 0.92),
+          borderRadius: BorderRadius.circular(32),
+          border: Border.all(
+            color: Colors.white.withValues(alpha: 0.9),
+            width: 3,
           ),
-        ],
-      ),
-      alignment: Alignment.center,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(emoji, style: const TextStyle(fontSize: 26)),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            style: const TextStyle(
-              color: AppColors.ink,
-              fontWeight: FontWeight.w800,
-              fontSize: 13,
+          boxShadow: const [
+            BoxShadow(
+              color: Colors.black26,
+              blurRadius: 10,
+              offset: Offset(0, 4),
             ),
-          ),
-        ],
+          ],
+        ),
+        alignment: Alignment.center,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(emoji, style: const TextStyle(fontSize: 26)),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: const TextStyle(
+                color: AppColors.ink,
+                fontWeight: FontWeight.w800,
+                fontSize: 13,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -850,6 +939,77 @@ class _RunnerGameScreenState extends State<RunnerGameScreen> {
     );
   }
 
+  Widget _buildPauseButton() => SafeArea(
+    child: Align(
+      alignment: Alignment.topLeft,
+      child: Padding(
+        padding: const EdgeInsets.only(left: 62, top: 62),
+        child: Material(
+          color: Colors.white.withValues(alpha: 0.88),
+          shape: const CircleBorder(),
+          child: IconButton(
+            key: const ValueKey('runner-pause'),
+            tooltip: '잠깐 쉬기',
+            icon: const Icon(Icons.pause, color: Color(0xFF6B6058)),
+            onPressed: _showPauseMenu,
+          ),
+        ),
+      ),
+    ),
+  );
+
+  Future<void> _showPauseMenu() async {
+    if (_navigated) return;
+    _resumeTimer?.cancel();
+    _resumeGate.interrupt();
+    _game.setUserPaused(true);
+    _punchPointers.clear();
+    _jumpPointers.clear();
+    if (mounted) setState(() {});
+    await SoundManager.instance.pauseForUser();
+  }
+
+  void _startCountdown() {
+    if (_navigated || _exitDialogOpen || !_resumeGate.begin()) return;
+    setState(() {});
+    _resumeTimer?.cancel();
+    _resumeTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted || _navigated) {
+        timer.cancel();
+        return;
+      }
+      final released = _resumeGate.tick();
+      setState(() {});
+      if (released) {
+        timer.cancel();
+        unawaited(_resumePreparedRun());
+      }
+    });
+  }
+
+  Future<void> _resumePreparedRun() async {
+    if (!mounted || _navigated || _resumeGate.blocked) return;
+    // Audio loading must not delay controls after the countdown has finished.
+    _game.setUserPaused(false);
+    _game.resumeEngine();
+    _focusNode.requestFocus();
+    _scheduleHintHide();
+    await SoundManager.instance.releaseUserPause();
+    if (!mounted || _navigated || _resumeGate.blocked) return;
+    await SoundManager.instance.startBgm();
+    if (!mounted || _navigated || _resumeGate.blocked) return;
+    await SoundManager.instance.startAmbientNature();
+  }
+
+  Future<void> _exitRun() async {
+    _navigated = true;
+    await SoundManager.instance.stopEverything();
+    if (!mounted) return;
+    setState(() => _allowExit = true);
+    await WidgetsBinding.instance.endOfFrame;
+    if (mounted) Navigator.of(context).pop();
+  }
+
   Widget _buildCloseButton() {
     return SafeArea(
       child: Align(
@@ -925,7 +1085,10 @@ class _RunnerGameScreenState extends State<RunnerGameScreen> {
   /// 남기지 않고 전부 멈춘 뒤 게임 화면 자체를 완전히 벗어난다("소리도
   /// 안나게 만들어줘" 요구사항).
   Future<void> _confirmExit() async {
-    _game.pauseEngine();
+    if (_exitDialogOpen || _navigated) return;
+    _exitDialogOpen = true;
+    await _showPauseMenu();
+    if (!mounted) return;
     final l10n = AppLocalizations.of(context);
     final shouldExit = await showDialog<bool>(
       context: context,
@@ -951,13 +1114,10 @@ class _RunnerGameScreenState extends State<RunnerGameScreen> {
       ),
     );
     if (!mounted) return;
+    _exitDialogOpen = false;
     if (shouldExit != true) {
-      _game.resumeEngine();
       return;
     }
-    _navigated = true; // onStageComplete 콜백이 뒤늦게 불려도 무시하도록.
-    await SoundManager.instance.stopEverything();
-    if (!mounted) return;
-    Navigator.of(context).pop();
+    await _exitRun();
   }
 }

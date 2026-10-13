@@ -43,6 +43,58 @@ class _MeditationVideoPlayerState extends State<MeditationVideoPlayer>
   bool _completionRecorded = false;
   bool _sessionCompleted = false;
   bool _foreground = true;
+  bool _routeVisible = true, _busy = false;
+  String? _error;
+  double _volume = .75;
+  double? _volumeDraft;
+
+  bool _canPlay(VideoPlayerController controller) =>
+      mounted &&
+      _expanded &&
+      _foreground &&
+      _routeVisible &&
+      identical(controller, _controller);
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final visible = ModalRoute.of(context)?.isCurrent ?? true;
+    if (_routeVisible && !visible) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && !_routeVisible) {
+          unawaited(_pause().catchError((Object _) {}));
+        }
+      });
+    }
+    _routeVisible = visible;
+  }
+
+  Future<void> _run(Future<void> Function() action) async {
+    if (_busy) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      await action();
+    } catch (_) {
+      try {
+        await _pause();
+      } catch (_) {
+        MeditationSleepService.instance.detach(this);
+        MediaCoordinator.instance.release(this);
+      }
+      if (mounted)
+        setState(() => _error = '영상을 재생하지 못했어요. 재생 버튼으로 다시 시도해 주세요.');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _pause() => MediaCoordinator.instance.run(() async {
+    await _pauseDirect();
+    MediaCoordinator.instance.release(this);
+  });
 
   @override
   void initState() {
@@ -77,38 +129,50 @@ class _MeditationVideoPlayerState extends State<MeditationVideoPlayer>
     await _controller?.pause();
   }
 
-  Future<void> _play(VideoPlayerController controller) =>
-      MediaCoordinator.instance.run(() async {
-        if (!mounted || !_expanded || !_foreground) return;
-        final key = widget.assetPath.split('/').last.split('.').first;
-        if (!AccessPolicy.meditationAllowed(
-          key,
-          await SubscriptionService().isPremium(),
-        )) {
-          if (mounted) await requestSubscription(context);
-          return;
-        }
-        await MediaCoordinator.instance.claim(this, _pauseDirect);
-        await controller.setVolume(1);
-        await controller.play();
-        MeditationSleepService.instance.attach(
-          this,
-          volume: (factor) => MediaCoordinator.instance.run(() async {
-            if (mounted &&
-                identical(MeditationSleepService.instance.owner, this))
-              await controller.setVolume(factor);
-          }),
-          stop: () => MediaCoordinator.instance.run(() async {
-            await _pauseDirect();
-            MediaCoordinator.instance.release(this);
-          }),
-        );
-        unawaited(
-          MeditationLibraryStore.instance
-              .played(widget.assetPath.split('/').last.split('.').first)
-              .catchError((Object _) {}),
-        );
-      });
+  Future<void> _play(VideoPlayerController controller) async {
+    if (!_canPlay(controller)) return;
+    final key = widget.assetPath.split('/').last.split('.').first;
+    if (!AccessPolicy.meditationAllowed(
+      key,
+      await SubscriptionService().isPremium(),
+    )) {
+      // Keep route navigation outside the serialized playback lane.
+      if (mounted) await requestSubscription(context);
+      return;
+    }
+    await MediaCoordinator.instance.run(() async {
+      if (!_canPlay(controller)) return;
+      await MediaCoordinator.instance.claim(this, _pauseDirect);
+      if (!_canPlay(controller)) {
+        MediaCoordinator.instance.release(this);
+        return;
+      }
+      await controller.setVolume(_volume);
+      await controller.play();
+      if (!_canPlay(controller)) {
+        await _pauseDirect();
+        MediaCoordinator.instance.release(this);
+        return;
+      }
+      MeditationSleepService.instance.attach(
+        this,
+        volume: (factor) => MediaCoordinator.instance.run(() async {
+          if (mounted && identical(MeditationSleepService.instance.owner, this))
+            await controller.setVolume(_volume * factor);
+        }),
+        stop: () => MediaCoordinator.instance.run(() async {
+          await _pauseDirect();
+          MediaCoordinator.instance.release(this);
+        }),
+      );
+      unawaited(
+        MeditationLibraryStore.instance
+            .played(widget.assetPath.split('/').last.split('.').first)
+            .catchError((Object _) {}),
+      );
+    });
+  }
+
   void _onProgress() {
     final value = _controller?.value;
     if (value == null || _completionRecorded || value.duration == Duration.zero)
@@ -118,7 +182,11 @@ class _MeditationVideoPlayerState extends State<MeditationVideoPlayer>
       final key = widget.assetPath.split('/').last.split('.').first;
       if (!_sessionCompleted) {
         _sessionCompleted = true;
-        unawaited(MeditationCompletionService.instance.complete(guideKey: key));
+        unawaited(
+          MeditationCompletionService.instance
+              .complete(guideKey: key)
+              .catchError((Object _) {}),
+        );
       }
       final sleep = MeditationSleepService.instance;
       if (key == 'fireplaceRest' &&
@@ -126,18 +194,31 @@ class _MeditationVideoPlayerState extends State<MeditationVideoPlayer>
           sleep.repeat &&
           (sleep.deadline == null || sleep.remaining > Duration.zero)) {
         unawaited(
-          MediaCoordinator.instance.run(() async {
-            if (!mounted || !_foreground || !identical(sleep.owner, this))
-              return;
-            await _controller!.seekTo(Duration.zero);
-            if (!AccessPolicy.meditationAllowed(
-              key,
-              await SubscriptionService().isPremium(),
-            ))
-              return;
-            await _controller!.play();
-            _completionRecorded = false;
-          }),
+          MediaCoordinator.instance
+              .run(() async {
+                if (!mounted ||
+                    !_foreground ||
+                    !_routeVisible ||
+                    !identical(sleep.owner, this))
+                  return;
+                await _controller!.seekTo(Duration.zero);
+                if (!AccessPolicy.meditationAllowed(
+                  key,
+                  await SubscriptionService().isPremium(),
+                ))
+                  return;
+                if (!mounted ||
+                    !_foreground ||
+                    !_routeVisible ||
+                    !identical(sleep.owner, this))
+                  return;
+                await _controller!.play();
+                _completionRecorded = false;
+              })
+              .catchError((Object _) {
+                if (mounted)
+                  setState(() => _error = '반복 재생이 멈췄어요. 다시 재생할 수 있어요.');
+              }),
         );
       } else {
         sleep.detach(this);
@@ -150,12 +231,7 @@ class _MeditationVideoPlayerState extends State<MeditationVideoPlayer>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     _foreground = state == AppLifecycleState.resumed;
     if (state != AppLifecycleState.resumed) {
-      unawaited(
-        MediaCoordinator.instance.run(() async {
-          await _pauseDirect();
-          MediaCoordinator.instance.release(this);
-        }),
-      );
+      unawaited(_pause().catchError((Object _) {}));
     }
   }
 
@@ -191,12 +267,13 @@ class _MeditationVideoPlayerState extends State<MeditationVideoPlayer>
       } catch (_) {
         MediaCoordinator.instance.release(this);
         _controller = null;
-        controller.dispose();
+        controller.removeListener(_onProgress);
+        await controller.dispose();
         if (!mounted) return;
         setState(() {
           _initializing = false;
           _expanded = false;
-          _exists = false; // 로드 실패 시 텍스트 가이드만 남기고 조용히 숨김
+          _error = '영상을 불러오지 못했어요. 아래 버튼으로 다시 시도해 주세요. 글 안내로 쉬어도 괜찮아요.';
         });
       }
     } else {
@@ -204,13 +281,30 @@ class _MeditationVideoPlayerState extends State<MeditationVideoPlayer>
         await _pauseDirect();
         MediaCoordinator.instance.release(this);
       });
-      _controller?.dispose();
+      _controller?.removeListener(_onProgress);
+      await _controller?.dispose();
       if (!mounted) return;
       setState(() {
         _controller = null;
         _expanded = false;
       });
     }
+  }
+
+  String _time(Duration value) =>
+      '${value.inMinutes}:${(value.inSeconds % 60).toString().padLeft(2, '0')}';
+
+  Future<void> _restart() async {
+    final controller = _controller;
+    if (controller == null) return;
+    await _pause();
+    if (!mounted || !identical(_controller, controller)) return;
+    await controller.seekTo(Duration.zero);
+    _sessionCompleted = false;
+    _completionRecorded = false;
+    await MeditationCompletionService.instance.begin(
+      widget.assetPath.split('/').last.split('.').first,
+    );
   }
 
   @override
@@ -233,32 +327,115 @@ class _MeditationVideoPlayerState extends State<MeditationVideoPlayer>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          if (_error != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Text(
+                _error!,
+                style: bodyFont(fontSize: 13, color: AppColors.ink),
+              ),
+            ),
           if (_controller != null && _controller!.value.isInitialized)
             ValueListenableBuilder<VideoPlayerValue>(
               valueListenable: _controller!,
-              builder: (context, value, child) => TextButton.icon(
-                icon: Icon(value.isPlaying ? Icons.pause : Icons.play_arrow),
-                label: Text(value.isPlaying ? '일시정지' : '재생'),
-                onPressed: () async {
-                  final controller = _controller;
-                  if (controller == null) return;
-                  if (value.isPlaying) {
-                    await MediaCoordinator.instance.run(() async {
-                      await _pauseDirect();
-                      MediaCoordinator.instance.release(this);
-                    });
-                  } else {
-                    if (value.position >= value.duration) {
-                      _sessionCompleted = false;
-                      await MeditationCompletionService.instance.begin(
-                        widget.assetPath.split('/').last.split('.').first,
-                      );
-                      _completionRecorded = false;
-                      await controller.seekTo(Duration.zero);
-                    }
-                    await _play(controller);
-                  }
-                },
+              builder: (context, value, child) => Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Wrap(
+                    spacing: 8,
+                    children: [
+                      TextButton.icon(
+                        icon: Icon(
+                          value.isPlaying ? Icons.pause : Icons.play_arrow,
+                        ),
+                        label: Text(
+                          value.isPlaying
+                              ? '일시정지'
+                              : value.isCompleted
+                              ? '다시 재생'
+                              : '재생',
+                        ),
+                        onPressed: _busy
+                            ? null
+                            : () => _run(() async {
+                                final controller = _controller;
+                                if (controller == null) return;
+                                if (value.isPlaying) {
+                                  await _pause();
+                                } else {
+                                  if (value.isCompleted ||
+                                      value.position >= value.duration) {
+                                    await _restart();
+                                  }
+                                  await _play(controller);
+                                }
+                              }),
+                      ),
+                      TextButton.icon(
+                        onPressed: _busy ? null : () => _run(_restart),
+                        icon: const Icon(Icons.replay),
+                        label: const Text('처음으로'),
+                      ),
+                      TextButton.icon(
+                        onPressed: _busy ? null : () => _run(_togglePlay),
+                        icon: const Icon(Icons.stop_circle_outlined),
+                        label: const Text('영상 마치기'),
+                      ),
+                    ],
+                  ),
+                  LinearProgressIndicator(
+                    value: value.duration.inMilliseconds > 0
+                        ? (value.position.inMilliseconds /
+                                  value.duration.inMilliseconds)
+                              .clamp(0.0, 1.0)
+                        : 0,
+                    semanticsLabel: '명상 영상 진행',
+                  ),
+                  const SizedBox(height: 5),
+                  Text('${_time(value.position)} / ${_time(value.duration)}'),
+                  Row(
+                    children: [
+                      const Icon(Icons.volume_down_outlined),
+                      Expanded(
+                        child: Slider(
+                          value: _volumeDraft ?? _volume,
+                          divisions: 10,
+                          label:
+                              '${((_volumeDraft ?? _volume) * 100).round()}%',
+                          semanticFormatterCallback: (v) =>
+                              '음량 ${(v * 100).round()}퍼센트',
+                          onChanged: _busy
+                              ? null
+                              : (v) => setState(() => _volumeDraft = v),
+                          onChangeEnd: (v) async {
+                            await _run(
+                              () => MediaCoordinator.instance.run(() async {
+                                final controller = _controller;
+                                if (controller == null) return;
+                                final timer = MeditationSleepService.instance;
+                                await controller.setVolume(
+                                  v *
+                                      (identical(timer.owner, this)
+                                          ? timer.factor
+                                          : 1),
+                                );
+                                if (mounted) setState(() => _volume = v);
+                              }),
+                            );
+                            if (mounted) setState(() => _volumeDraft = null);
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                  const Text('다른 화면을 열거나 앱을 나가면 멈춰요. 돌아와 재생을 눌러 이어갈 수 있어요.'),
+                  if (value.hasError)
+                    TextButton(
+                      onPressed: _busy ? null : () => _run(_togglePlay),
+                      child: const Text('재생 오류 · 닫고 다시 열기'),
+                    ),
+                  const SizedBox(height: 8),
+                ],
               ),
             ),
           if (_expanded)
@@ -283,7 +460,7 @@ class _MeditationVideoPlayerState extends State<MeditationVideoPlayer>
                             bottom: 8,
                             child: _MiniIconButton(
                               icon: Icons.close_rounded,
-                              onTap: _togglePlay,
+                              onTap: () => _run(_togglePlay),
                             ),
                           ),
                         ],
@@ -308,7 +485,7 @@ class _MeditationVideoPlayerState extends State<MeditationVideoPlayer>
             )
           else
             GestureDetector(
-              onTap: _togglePlay,
+              onTap: () => _run(_togglePlay),
               child: Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 14,
@@ -354,21 +531,14 @@ class _MiniIconButton extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;
   const _MiniIconButton({required this.icon, required this.onTap});
-
   @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 28,
-        height: 28,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: Colors.black.withValues(alpha: 0.45),
-          shape: BoxShape.circle,
-        ),
-        child: Icon(icon, color: Colors.white, size: 16),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => Material(
+    color: Colors.black54,
+    shape: const CircleBorder(),
+    child: IconButton(
+      tooltip: '영상 닫기',
+      onPressed: onTap,
+      icon: Icon(icon, color: Colors.white),
+    ),
+  );
 }

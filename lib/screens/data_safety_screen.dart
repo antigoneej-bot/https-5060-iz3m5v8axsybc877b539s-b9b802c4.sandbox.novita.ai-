@@ -6,14 +6,21 @@ import '../providers/cat_care_provider.dart';
 import '../providers/promise_provider.dart';
 import '../mongi/providers/garden_provider.dart';
 import 'dart:convert';
-import 'dart:io';
 import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/backup_codec.dart';
 import '../services/backup_service.dart';
+import '../services/backup_file_reader.dart';
+import '../services/app_reload_service.dart';
+import '../services/draft_service.dart';
+import '../services/media_coordinator.dart';
+import '../services/meditation_completion_service.dart';
+import '../services/storage_service.dart';
+import '../widgets/restore_complete_dialog.dart';
 import '../services/cloud_service.dart';
 import '../services/auto_backup_service.dart';
 import '../services/subscription_service.dart';
@@ -55,7 +62,7 @@ class _DataSafetyScreenState extends State<DataSafetyScreen> {
               : '완료하지 못했어요. 암호·파일·저장 공간과 연결을 확인해 주세요. 기존 기록은 지우지 않았어요.',
         );
     } finally {
-      AutoBackupService.instance.paused = false;
+      AutoBackupService.instance.paused = AppReloadService.needsReload;
       if (mounted) {
         if (CloudService.enabled) {
           final app = context.read<AppStateProvider>();
@@ -168,7 +175,7 @@ class _DataSafetyScreenState extends State<DataSafetyScreen> {
           '백업 날짜: ${data['createdAt']}\n기록·초안·답장 항목: ${BackupService.count(data)}개\n\n'
           '기존 항목과 같은 ID는 현재 기록을 유지하고, 없는 항목만 추가해요.\n'
           '${existing ? '현재 정원 이름·성장 설정은 유지해요.' : '새 정원에는 백업의 이름·성장 설정도 가져와요.'}\n'
-          '복원 후 앱을 다시 열어 주세요.',
+          '복원을 마치면 복원한 정원을 바로 열 수 있어요.',
         ),
         actions: [
           TextButton(
@@ -185,25 +192,27 @@ class _DataSafetyScreenState extends State<DataSafetyScreen> {
     if (ok != true) return;
     if (cloudUid != null)
       await CloudService.ensureGardenOwner(cloudUid, bind: true);
+    await _prepareRestore();
     final added = await BackupService.restore(data);
+    if (!mounted) return;
+    await _showRestoreComplete(added);
+  }
+
+  Future<void> _prepareRestore() async {
+    await MediaCoordinator.instance.stopAll();
+    await DraftTextController.flushAll();
+    await MeditationCompletionService.instance.prepareForBackup();
+  }
+
+  Future<void> _showRestoreComplete(int added, {String title = '복원 완료'}) async {
     if (!mounted) return;
     await showDialog<void>(
       context: context,
       barrierDismissible: false,
-      builder: (context) => PopScope(
-        canPop: false,
-        child: AlertDialog(
-          title: const Text('복원 완료'),
-          content: Text(
-            '$added개 항목을 추가했어요. 같은 ID는 현재 기록을 유지했어요. 앱을 닫은 뒤 다시 열어 주세요.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => SystemNavigator.pop(),
-              child: const Text('앱 닫기'),
-            ),
-          ],
-        ),
+      builder: (_) => RestoreCompleteDialog(
+        title: title,
+        added: added,
+        reload: AppReloadService.reload,
       ),
     );
   }
@@ -211,13 +220,65 @@ class _DataSafetyScreenState extends State<DataSafetyScreen> {
   Future<void> _import() async {
     final selected = await FilePicker.platform.pickFiles(
       type: FileType.any,
-      withData: false,
+      withData: kIsWeb,
     );
-    if (selected == null || selected.files.single.path == null) return;
-    final file = File(selected.files.single.path!);
-    if (await file.length() > BackupCodec.maxBytes)
-      throw const FormatException('파일이 너무 커요.');
-    await _restoreBytes(await file.readAsBytes());
+    if (selected == null || selected.files.isEmpty) return;
+    final file = selected.files.single;
+    final bytes = await readBackupFileBytes(
+      declaredSize: file.size,
+      maxBytes: BackupCodec.maxBytes,
+      bytes: file.bytes,
+      // A browser's PlatformFile may not expose a native path at all.
+      path: kIsWeb ? null : file.path,
+    );
+    await _restoreBytes(bytes);
+  }
+
+  Future<void> _recoverLegacyRecords() async {
+    final summary = await StorageService.getLegacyRecoverySummary();
+    if (!mounted) return;
+    if (summary.isEmpty) {
+      setState(() => _message = '이전 버전에서 추가로 가져올 기록이 없어요.');
+      return;
+    }
+    final total = summary.values.fold<int>(0, (sum, count) => sum + count);
+    final accepted = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('이전 버전의 기록 확인'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (final entry in summary.entries)
+                Text(
+                  '${StorageService.legacyRecoveryLabels[entry.key] ?? entry.key}: ${entry.value}개',
+                ),
+              const SizedBox(height: 16),
+              const Text(
+                '이전 버전에서 남아 있는 기록이에요. 이미 삭제했던 기록이 포함될 수 있어요. '
+                '확인하면 현재 없는 기록만 추가하고 같은 ID는 현재 기록을 유지해요.',
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('취소'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text('확인하고 $total개 복원'),
+          ),
+        ],
+      ),
+    );
+    if (accepted != true) return;
+    await _prepareRestore();
+    final added = await StorageService.restoreLegacyGuestData();
+    await _showRestoreComplete(added, title: '이전 기록 복원 완료');
   }
 
   Future<void> _cloudRestore() async {
@@ -339,6 +400,10 @@ class _DataSafetyScreenState extends State<DataSafetyScreen> {
               onPressed: _busy ? null : () => _work(_import),
               child: const Text('백업 파일에서 복원'),
             ),
+            TextButton(
+              onPressed: _busy ? null : () => _work(_recoverLegacyRecords),
+              child: const Text('이전 버전의 누락 기록 확인'),
+            ),
             const Divider(height: 32),
             ValueListenableBuilder<bool>(
               valueListenable: AnalyticsService.sharingEnabled,
@@ -379,31 +444,14 @@ class _DataSafetyScreenState extends State<DataSafetyScreen> {
               onPressed: _busy
                   ? null
                   : () => _work(() async {
-                      if (!await BackupService.hasDeferred()) {
+                      if (!await BackupService.hasDeferred() &&
+                          !await BackupService.hasPending()) {
                         if (mounted) setState(() => _message = '보류한 복원이 없어요.');
                         return;
                       }
+                      await _prepareRestore();
                       final added = await BackupService.retryDeferred();
-                      if (!mounted) return;
-                      await showDialog<void>(
-                        context: context,
-                        barrierDismissible: false,
-                        builder: (context) => PopScope(
-                          canPop: false,
-                          child: AlertDialog(
-                            title: const Text('보류한 복원 완료'),
-                            content: Text(
-                              '$added개 항목을 추가했어요. 앱을 닫은 뒤 다시 열어 주세요.',
-                            ),
-                            actions: [
-                              TextButton(
-                                onPressed: () => SystemNavigator.pop(),
-                                child: const Text('앱 닫기'),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
+                      await _showRestoreComplete(added, title: '보류한 복원 완료');
                     }),
               child: const Text('보류한 복원 다시 시도'),
             ),

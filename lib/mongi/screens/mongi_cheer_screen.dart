@@ -125,7 +125,9 @@ class _MongiCheerScreenState extends State<MongiCheerScreen> {
                   ),
                   const SizedBox(height: 3),
                   Text(
-                    published
+                    !garden.isGardenPublicationKnown
+                        ? '정원 공개 상태를 확인해 주세요.'
+                        : published
                         ? l10n.publicGardenPublishedNotice
                         : l10n.publicGardenNotPublishedNotice,
                     style: const TextStyle(
@@ -137,11 +139,7 @@ class _MongiCheerScreenState extends State<MongiCheerScreen> {
                 ],
               ),
             ),
-            const Icon(
-              Icons.chevron_right,
-              color: AppColors.inkSoft,
-              size: 20,
-            ),
+            const Icon(Icons.chevron_right, color: AppColors.inkSoft, size: 20),
           ],
         ),
       ),

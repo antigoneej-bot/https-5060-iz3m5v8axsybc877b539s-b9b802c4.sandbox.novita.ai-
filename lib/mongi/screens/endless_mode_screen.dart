@@ -1,3 +1,6 @@
+import 'dart:async';
+import '../models/runner_resume_gate.dart';
+import '../widgets/runner_ready_overlay.dart';
 import '../../widgets/subscription_gate.dart';
 import '../../theme.dart' show AppColors;
 import 'package:flame/game.dart';
@@ -41,7 +44,8 @@ class EndlessModeScreen extends StatefulWidget {
   State<EndlessModeScreen> createState() => _EndlessModeScreenState();
 }
 
-class _EndlessModeScreenState extends State<EndlessModeScreen> {
+class _EndlessModeScreenState extends State<EndlessModeScreen>
+    with WidgetsBindingObserver {
   static const int _maxLives = 3;
 
   late RunnerGame _game;
@@ -51,6 +55,10 @@ class _EndlessModeScreenState extends State<EndlessModeScreen> {
   int _elapsedSeconds = 0;
   final FocusNode _focusNode = FocusNode();
   bool _navigated = false;
+  bool _allowExit = false, _exitDialogOpen = false, _loadFailed = false;
+  final _resumeGate = RunnerResumeGate();
+  Timer? _resumeTimer;
+  final Set<int> _punchPointers = {}, _jumpPointers = {};
   bool _showHint = true;
   bool _isPoweredUp = false;
   int _powerSecondsRemaining = 0;
@@ -64,14 +72,35 @@ class _EndlessModeScreenState extends State<EndlessModeScreen> {
   /// 점프를 발동시킨 손가락(포인터)의 id. 그 손가락이 버튼에서 떨어질 때만
   /// [RunnerGame.setJumpHeld]를 꺼주기 위해 구분한다.
 
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _resumeGate.setForeground(
+      WidgetsBinding.instance.lifecycleState == null ||
+          WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed,
+    );
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _resumeGate.setForeground(state == AppLifecycleState.resumed);
+    if (!_gameInitialized || _navigated) return;
+    if (state != AppLifecycleState.resumed) {
+      unawaited(_showPauseMenu());
+    } else if (mounted) {
+      setState(() {});
+    }
+  }
+
   bool _gameInitialized = false;
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (_gameInitialized) return;
     _gameInitialized = true;
-    _game = _createGame();
-    _scheduleHintHide();
+    _game = _createGame()..setUserPaused(true);
+    unawaited(SoundManager.instance.pauseForUser());
     _startTicker();
     AdService.instance.init(); // 부활 광고를 미리 로드해둔다(Android만, 웹은 no-op).
   }
@@ -103,7 +132,7 @@ class _EndlessModeScreenState extends State<EndlessModeScreen> {
   /// 구매 시트를 열어준다.
   bool _usingPowerCharm = false;
   Future<void> _usePowerCharm() async {
-    if (_usingPowerCharm) return;
+    if (_usingPowerCharm || !_game.acceptsGameplayInput) return;
     _usingPowerCharm = true;
     _game.pauseEngine();
     try {
@@ -170,6 +199,12 @@ class _EndlessModeScreenState extends State<EndlessModeScreen> {
         setState(() => _combo = combo);
       },
       onLivesExhausted: _offerRevive,
+      onReady: () {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted || _navigated) return;
+          setState(() => _resumeGate.ready = true);
+        });
+      },
       onStageComplete: (count, {bool earlyStop = false}) {
         if (_navigated) return;
         _navigated = true;
@@ -203,6 +238,9 @@ class _EndlessModeScreenState extends State<EndlessModeScreen> {
 
   @override
   void dispose() {
+    _resumeTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    SoundManager.instance.releaseUserPause(resume: false);
     _focusNode.dispose();
     SoundManager.instance.stopBgm();
     super.dispose();
@@ -218,6 +256,7 @@ class _EndlessModeScreenState extends State<EndlessModeScreen> {
   /// 웹/데스크톱 테스트용 키보드 조작 - 스테이지 모드와 동일하게 점프는
   /// 누른 키별로 점프 홀드를 관리하고, 엔터·아래 방향키로 주먹을 실행한다.
   KeyEventResult _handleKey(FocusNode node, KeyEvent event) {
+    if (!_game.acceptsGameplayInput) return KeyEventResult.ignored;
     if (!_relevantKeys.contains(event.logicalKey)) {
       return KeyEventResult.ignored;
     }
@@ -284,7 +323,7 @@ class _EndlessModeScreenState extends State<EndlessModeScreen> {
       // 효과음이 계속 들리는" 버그로 이어졌다. canPop: false로 시스템
       // pop을 우선 막고, 항상 _confirmExit()(소리 완전 정지 포함)을 거치게
       // 통일한다.
-      canPop: false,
+      canPop: _allowExit,
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
         _confirmExit();
@@ -296,20 +335,77 @@ class _EndlessModeScreenState extends State<EndlessModeScreen> {
           autofocus: true,
           onKeyEvent: _handleKey,
           onFocusChange: (focused) {
-            if (!focused) _game.clearGameplayInput();
+            if (!focused) {
+              _game.clearGameplayInput();
+              if (mounted)
+                setState(() {
+                  _punchPointers.clear();
+                  _jumpPointers.clear();
+                });
+            }
           },
           child: Stack(
             children: [
-              Positioned.fill(child: GameWidget(game: _game)),
-              _buildTapHint(),
+              Positioned.fill(
+                child: GameWidget(
+                  game: _game,
+                  errorBuilder: (context, error) {
+                    if (!_loadFailed)
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        if (mounted) setState(() => _loadFailed = true);
+                      });
+                    return Container(
+                      color: const Color(0xFFEAF6FF),
+                      alignment: Alignment.center,
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text('😿', style: TextStyle(fontSize: 48)),
+                          const SizedBox(height: 12),
+                          Text(
+                            AppLocalizations.of(context).gameLoadErrorTitle,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                          const SizedBox(height: 16),
+                          ElevatedButton(
+                            onPressed: () => Navigator.of(context).maybePop(),
+                            child: Text(
+                              AppLocalizations.of(context).gameLoadErrorButton,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+              if (!_loadFailed) _buildTapHint(),
               _buildHud(),
               _buildTimeOfDayBadge(),
               _buildComboBadge(),
               _buildPowerModeBadge(),
               _buildCloseButton(),
+              _buildPauseButton(),
               _buildPowerCharmButton(),
               _buildPunchButton(),
               _buildJumpButton(),
+              if (_resumeGate.blocked && !_navigated && !_loadFailed)
+                Positioned.fill(
+                  child: RunnerReadyOverlay(
+                    ready: _resumeGate.ready,
+                    started: _resumeGate.started,
+                    practice: false,
+                    endless: true,
+                    countdown: _resumeGate.countdown,
+                    target: 0,
+                    seconds: 0,
+                    onStart: _startCountdown,
+                    onPause: _showPauseMenu,
+                    onExit: _confirmExit,
+                  ),
+                ),
             ],
           ),
         ),
@@ -326,21 +422,36 @@ class _EndlessModeScreenState extends State<EndlessModeScreen> {
         top: false,
         child: Listener(
           behavior: HitTestBehavior.opaque,
-          onPointerDown: (_) {
+          onPointerDown: (event) {
+            if (!_game.acceptsGameplayInput) return;
+            setState(() => _punchPointers.add(event.pointer));
             if (_showHint) setState(() => _showHint = false);
             _handlePunchInput();
           },
-          child: _buildActionButton(
-            emoji: '✊',
-            label: AppLocalizations.of(context).gamePunchLabel,
-            color: const Color(0xFFFF8FAB),
+          onPointerUp: (event) =>
+              setState(() => _punchPointers.remove(event.pointer)),
+          onPointerCancel: (event) =>
+              setState(() => _punchPointers.remove(event.pointer)),
+          child: Semantics(
+            button: true,
+            label: '주먹 · 작은 장애물 치우기',
+            onTap: _handlePunchInput,
+            child: _buildActionButton(
+              pressed: _punchPointers.isNotEmpty,
+              emoji: '✊',
+              label: AppLocalizations.of(context).gamePunchLabel,
+              color: const Color(0xFFFF8FAB),
+            ),
           ),
         ),
       ),
     );
   }
 
-  /// 화면 하단 오른쪽에 항상 떠 있는 "🦘 점프" 버튼(스테이지 모드와 동일).
+  /// 화면 하단 오른쪽에 항상 떠 있는 "🦘 점프" 버튼. 이 버튼을 누르고 있는
+  /// 동안(pointerUp/cancel까지)은 [_handleJumpInput]/[_handleJumpPointerRelease]로
+  /// 차지 점프가 이어진다. 손가락이 버튼 밖으로 미끄러져 나가도 Flutter의
+  /// 포인터 라우팅 덕분에 이 [Listener]가 계속 up/cancel을 전달받는다.
   Widget _buildJumpButton() {
     return Positioned(
       right: 22,
@@ -350,60 +461,81 @@ class _EndlessModeScreenState extends State<EndlessModeScreen> {
         child: Listener(
           behavior: HitTestBehavior.opaque,
           onPointerDown: (event) {
+            if (!_game.acceptsGameplayInput) return;
+            setState(() => _jumpPointers.add(event.pointer));
             if (_showHint) setState(() => _showHint = false);
             _handleJumpInput(source: ('pointer', event.pointer));
           },
-          onPointerUp: _handleJumpPointerRelease,
-          onPointerCancel: _handleJumpPointerRelease,
-          child: _buildActionButton(
-            emoji: '🦘',
-            label: AppLocalizations.of(context).gameJumpLabel,
-            color: const Color(0xFF8FD3FF),
+          onPointerUp: (event) {
+            _handleJumpPointerRelease(event);
+            setState(() => _jumpPointers.remove(event.pointer));
+          },
+          onPointerCancel: (event) {
+            _handleJumpPointerRelease(event);
+            setState(() => _jumpPointers.remove(event.pointer));
+          },
+          child: Semantics(
+            button: true,
+            label: '점프 · 큰 장애물 넘기',
+            onTap: _game.jump,
+            child: _buildActionButton(
+              pressed: _jumpPointers.isNotEmpty,
+              emoji: '🦘',
+              label: AppLocalizations.of(context).gameJumpLabel,
+              color: const Color(0xFF8FD3FF),
+            ),
           ),
         ),
       ),
     );
   }
 
-  /// 주먹/점프 버튼 공통 원형 스타일(스테이지 모드와 동일한 디자인).
+  /// 주먹/점프 버튼 공통 원형 스타일. 눈에 확실히 보이도록 흰 테두리와
+  /// 그림자를 주고, 이모지 + 한글 라벨을 함께 표시해 어느 버튼이 어떤
+  /// 동작인지 한눈에 알 수 있게 한다.
   Widget _buildActionButton({
+    required bool pressed,
     required String emoji,
     required String label,
     required Color color,
   }) {
-    return Container(
-      width: 86,
-      height: 86,
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.92),
-        shape: BoxShape.circle,
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.9),
-          width: 3,
-        ),
-        boxShadow: const [
-          BoxShadow(
-            color: Colors.black26,
-            blurRadius: 10,
-            offset: Offset(0, 4),
+    return AnimatedScale(
+      scale: pressed ? 0.94 : 1,
+      duration: const Duration(milliseconds: 70),
+      child: Container(
+        width: 86 + (MediaQuery.textScalerOf(context).scale(26) - 26),
+        height: 86 + (MediaQuery.textScalerOf(context).scale(26) - 26) * 2,
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: pressed ? 1 : 0.92),
+          borderRadius: BorderRadius.circular(32),
+          border: Border.all(
+            color: Colors.white.withValues(alpha: 0.9),
+            width: 3,
           ),
-        ],
-      ),
-      alignment: Alignment.center,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(emoji, style: const TextStyle(fontSize: 26)),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w800,
-              fontSize: 13,
+          boxShadow: const [
+            BoxShadow(
+              color: Colors.black26,
+              blurRadius: 10,
+              offset: Offset(0, 4),
             ),
-          ),
-        ],
+          ],
+        ),
+        alignment: Alignment.center,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(emoji, style: const TextStyle(fontSize: 26)),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: const TextStyle(
+                color: AppColors.ink,
+                fontWeight: FontWeight.w800,
+                fontSize: 13,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -670,6 +802,77 @@ class _EndlessModeScreenState extends State<EndlessModeScreen> {
     );
   }
 
+  Widget _buildPauseButton() => SafeArea(
+    child: Align(
+      alignment: Alignment.topLeft,
+      child: Padding(
+        padding: const EdgeInsets.only(left: 62, top: 62),
+        child: Material(
+          color: Colors.white.withValues(alpha: 0.88),
+          shape: const CircleBorder(),
+          child: IconButton(
+            key: const ValueKey('runner-pause'),
+            tooltip: '잠깐 쉬기',
+            icon: const Icon(Icons.pause, color: Color(0xFF6B6058)),
+            onPressed: _showPauseMenu,
+          ),
+        ),
+      ),
+    ),
+  );
+
+  Future<void> _showPauseMenu() async {
+    if (_navigated) return;
+    _resumeTimer?.cancel();
+    _resumeGate.interrupt();
+    _game.setUserPaused(true);
+    _punchPointers.clear();
+    _jumpPointers.clear();
+    if (mounted) setState(() {});
+    await SoundManager.instance.pauseForUser();
+  }
+
+  void _startCountdown() {
+    if (_navigated || _exitDialogOpen || !_resumeGate.begin()) return;
+    setState(() {});
+    _resumeTimer?.cancel();
+    _resumeTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted || _navigated) {
+        timer.cancel();
+        return;
+      }
+      final released = _resumeGate.tick();
+      setState(() {});
+      if (released) {
+        timer.cancel();
+        unawaited(_resumePreparedRun());
+      }
+    });
+  }
+
+  Future<void> _resumePreparedRun() async {
+    if (!mounted || _navigated || _resumeGate.blocked) return;
+    // Audio loading must not delay controls after the countdown has finished.
+    _game.setUserPaused(false);
+    _game.resumeEngine();
+    _focusNode.requestFocus();
+    _scheduleHintHide();
+    await SoundManager.instance.releaseUserPause();
+    if (!mounted || _navigated || _resumeGate.blocked) return;
+    await SoundManager.instance.startBgm();
+    if (!mounted || _navigated || _resumeGate.blocked) return;
+    await SoundManager.instance.startAmbientNature();
+  }
+
+  Future<void> _exitRun() async {
+    _navigated = true;
+    await SoundManager.instance.stopEverything();
+    if (!mounted) return;
+    setState(() => _allowExit = true);
+    await WidgetsBinding.instance.endOfFrame;
+    if (mounted) Navigator.of(context).pop();
+  }
+
   Widget _buildCloseButton() {
     return SafeArea(
       child: Align(
@@ -739,7 +942,10 @@ class _EndlessModeScreenState extends State<EndlessModeScreen> {
   /// 스테이지 모드(runner_game_screen.dart)와 동일한 종료 확인 다이얼로그.
   /// "종료"를 선택하면 재생 중인 모든 소리를 완전히 멈추고 화면을 벗어난다.
   Future<void> _confirmExit() async {
-    _game.pauseEngine();
+    if (_exitDialogOpen || _navigated) return;
+    _exitDialogOpen = true;
+    await _showPauseMenu();
+    if (!mounted) return;
     final l10n = AppLocalizations.of(context);
     final shouldExit = await showDialog<bool>(
       context: context,
@@ -765,13 +971,10 @@ class _EndlessModeScreenState extends State<EndlessModeScreen> {
       ),
     );
     if (!mounted) return;
+    _exitDialogOpen = false;
     if (shouldExit != true) {
-      _game.resumeEngine();
       return;
     }
-    _navigated = true;
-    await SoundManager.instance.stopEverything();
-    if (!mounted) return;
-    Navigator.of(context).pop();
+    await _exitRun();
   }
 }

@@ -37,9 +37,7 @@ class SubscriptionService {
 
   /// 관리자 계정(구독 없이 전체 이용). Firebase Auth 로그인 이메일이 여기
   /// 포함되면 [isPremium]이 항상 true를 반환합니다.
-  static const Set<String> adminEmails = {
-    'antigone.ej@gmail.com',
-  };
+  static const Set<String> adminEmails = {'antigone.ej@gmail.com'};
 
   /// Firebase가 아직 초기화되지 않았거나(예: 시작 직후, 오프라인) 접근에
   /// 실패하는 경우에도 절대 예외를 밖으로 던지지 않습니다. 이 값은 매우
@@ -75,6 +73,16 @@ class SubscriptionService {
   final Map<String, ProductDetails> _products = {};
   Completer<bool>? _purchaseCompleter;
   bool _initialized = false;
+  Future<void>? _initializing;
+  Future<void>? _startupCheck;
+  bool get hasStartupCheck => _startupCheck != null;
+
+  /// Reserve the first check before rendering. Local reading stays available,
+  /// while reward writes can wait for this attempt without trusting a false
+  /// default for a returning subscriber.
+  Future<void> startStartupCheck({Future<void> Function()? prepareCloud}) =>
+      _startupCheck ??= init(prepareCloud: prepareCloud);
+  Future<void> waitForStartupCheck() => _startupCheck ?? Future.value();
 
   /// restorePurchases 동안 활성 구독을 한 건이라도 봤는지.
   /// 오류 없는 Android 조회가 비어 있을 때만 로컬 프리미엄을 끕니다.
@@ -143,8 +151,16 @@ class SubscriptionService {
       : '무료체험이 확인되지 않았어요. 결제 전 스토어의 가격과 조건을 확인해 주세요.';
 
   /// 앱 시작 시 한 번 호출: 스토어 연결 + 미완료 구매 처리 + 상품 조회.
-  Future<void> init() async {
-    if (_initialized) return;
+  Future<void> init({Future<void> Function()? prepareCloud}) {
+    if (_initializing != null) return _initializing!;
+    if (_initialized) return Future.value();
+    return _initializing = Future<void>(() async {
+      if (prepareCloud != null) await prepareCloud();
+      await _initialize();
+    }).whenComplete(() => _initializing = null);
+  }
+
+  Future<void> _initialize() async {
     _initialized = true;
 
     if (kIsWeb) return;

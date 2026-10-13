@@ -23,7 +23,7 @@ import '../services/cat_care_service.dart';
 /// selecting: 7마리 중 지금 내 기분과 닮은 고양이 선택
 /// story: 고양이의 사연(제3자 시점)
 /// letter: 고양이에게 편지 쓰기 (위로 + 해결 방법) - 전송 즉시 저장되고
-///         마음 온도가 +1도 오릅니다.
+///         돌봄 온기가 +1도 오릅니다.
 /// meditation: 편지를 보낸 뒤, 원한다면(완전히 선택사항) 추천 명상/움직임을
 ///         실천해서 추가로 +1도를 더 올릴 수 있는 단계. 건너뛰어도 편지와
 ///         답장 예약은 이미 확정되어 있어 전혀 영향이 없습니다.
@@ -31,6 +31,27 @@ import '../services/cat_care_service.dart';
 enum FlowStage { selecting, story, letter, meditation, done }
 
 class AppStateProvider extends ChangeNotifier {
+  bool _subscriptionDisposed = false;
+  int _subscriptionRevision = 0;
+
+  /// Refresh access only; never reload records or repeat daily care/rewards.
+  Future<void> refreshSubscription() async {
+    if (_subscriptionDisposed) return;
+    final revision = ++_subscriptionRevision;
+    final premium = await SubscriptionService().isPremium();
+    if (_subscriptionDisposed || revision != _subscriptionRevision) return;
+    if (isPremiumUser == premium) return;
+    isPremiumUser = premium;
+    notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _subscriptionDisposed = true;
+    _subscriptionRevision++;
+    super.dispose();
+  }
+
   int streak = 0;
   List<LetterEntry> history = [];
 
@@ -86,10 +107,7 @@ class AppStateProvider extends ChangeNotifier {
 
   /// 구독 상태를 SubscriptionService에서 다시 읽어와 반영합니다.
   /// 앱 시작 시(init) 및 구독 시작/해지 직후에 호출해주세요.
-  Future<void> refreshPremiumStatus() async {
-    isPremiumUser = await SubscriptionService().isPremium();
-    notifyListeners();
-  }
+  Future<void> refreshPremiumStatus() => refreshSubscription();
 
   void triggerFirstMeetingBanner() {
     showFirstMeetingBanner = true;
@@ -137,7 +155,7 @@ class AppStateProvider extends ChangeNotifier {
     final (points, elapsed) = await StorageService.getGrowthProgress();
     growthPoints = points;
     growthElapsedDays = elapsed;
-    isPremiumUser = await SubscriptionService().isPremium();
+    await refreshSubscription();
     notifyListeners();
   }
 
@@ -263,7 +281,7 @@ class AppStateProvider extends ChangeNotifier {
       entry.replyStyle == style;
 
   /// 편지를 쓰고 "보내기"를 누른 즉시(=명상/온도체크와 완전히 독립적으로)
-  /// 편지를 저장하고, 마음 온도를 자동으로 +1도 올립니다. 사용자가 직접
+  /// 편지를 저장하고, 돌봄 온기를 자동으로 +1도 올립니다. 사용자가 직접
   /// 온도 값을 입력하는 절차는 없습니다 - 편지를 보냈다는 사실 자체가
   /// 온도가 오르는 이유입니다.
   ///

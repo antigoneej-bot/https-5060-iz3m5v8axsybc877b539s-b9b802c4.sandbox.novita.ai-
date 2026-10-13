@@ -1,4 +1,5 @@
 import '../services/meditation_audio_service.dart';
+import '../services/meditation_completion_service.dart';
 import 'package:flutter/material.dart';
 import '../services/meditation_course_store.dart';
 import '../services/media_coordinator.dart';
@@ -25,7 +26,8 @@ class _MeditationCoursesCardState extends State<MeditationCoursesCard> {
   Future<void> _load() async {
     try {
       await store.load();
-      await store.retry();
+      await MeditationCompletionService.instance.retry();
+      if (mounted) setState(() => _error = null);
     } catch (_) {
       if (mounted) setState(() => _error = '과정 기록을 불러오지 못했어요.');
     }
@@ -37,7 +39,9 @@ class _MeditationCoursesCardState extends State<MeditationCoursesCard> {
     try {
       await MediaCoordinator.instance.stopAll();
       await MeditationAudioService.instance.stopForNewSession();
+      await MeditationCompletionService.instance.prepareForBackup();
       await store.activate(c.id);
+      if (store.doneToday(c)) return;
       final index = store.step(c);
       if (!mounted || index >= c.guides.length) return;
       final key = c.guides[index];
@@ -93,7 +97,10 @@ class _MeditationCoursesCardState extends State<MeditationCoursesCard> {
           style: bodyFont(fontSize: 13, color: AppColors.lavenderInk),
         ),
         children: [
-          if (_error != null) Text(_error!),
+          if (_error != null) ...[
+            Text(_error!),
+            TextButton(onPressed: _load, child: const Text('과정 다시 불러오기')),
+          ],
           for (final c in meditationCourses) _course(c),
         ],
       ),

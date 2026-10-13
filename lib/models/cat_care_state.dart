@@ -6,20 +6,20 @@
 /// 항상 [baby]만 반환하므로 실제로는 도달하지 않습니다.
 enum CatGrowthStage { baby, teen, young, adult }
 
-/// 마음 온도에 따른 상태(감정) 표현.
-/// 숫자보다 직관적으로 지금 상태를 전달하기 위한 4단계 표현입니다.
+/// 돌봄 보상에 따른 가상 고양이의 표정 상태.
+/// 이용자의 감정이나 건강 상태를 추정하는 값이 아닙니다.
 enum CatMoodState { warm, calm, tired, recovering }
 
 /// 성장 단계 하나에 필요한 출석일수(30일 단위)
 const int kDaysPerGrowthStage = 30;
 
 /// 다마고치식 '마음 돌보기'의 현재 상태
-/// - temperature: 마음 온도 (0~100). 하루 한 가지 돌봄을 실천하면 +1도,
+/// - temperature: 돌봄 온기 (0~100). 하루 한 가지 돌봄을 실천하면 +1도,
 ///   출석(앱을 연 날)마다 +1도, 약속을 지킬 때마다 +1도가 오르고, 100도에 도달하면
 ///   (구독자에 한해) 포인트로 적립되며 온도는 다시 0도로 시작합니다.
 ///   쉬었던 날에는 온도가 내려가지 않습니다. 심리 상태 측정값이 아닙니다.
 /// - growthDays: 누적 출석일수. 이 값에 따라 0→1→2→3단계로 자라납니다.
-/// - points: 마음 온도가 100도에 도달할 때마다(구독자 한정) 적립되는 포인트.
+/// - points: 돌봄 온기가 100도에 도달할 때마다(구독자 한정) 적립되는 포인트.
 class CatCareState {
   final int temperature;
   final bool fedToday;
@@ -94,7 +94,7 @@ class CatCareState {
   /// 성장 단계 이름. 항상 '아기 고양이' 라벨을 반환합니다.
   String get growthStageLabel => '아기 고양이';
 
-  /// 마음 온도에 따른 상태(4단계)
+  /// 돌봄 온기에 따른 상태(4단계)
   CatMoodState get moodState {
     if (temperature >= 75) return CatMoodState.warm;
     if (temperature >= 50) return CatMoodState.calm;

@@ -1,3 +1,4 @@
+import '../models/runner_session_policy.dart';
 import 'dart:math' as math;
 import 'package:flame/components.dart';
 import 'package:flame/collisions.dart';
@@ -277,6 +278,7 @@ class RunnerGame extends FlameGame with HasCollisionDetection {
   final void Function(int eatenCount) onProgressChanged;
   final void Function(int lives) onLivesChanged;
   final void Function(int combo) onComboChanged;
+  final VoidCallback? onReady;
 
   /// 6번(호흡 미니게임): "숨결 구슬"에 닿아 호흡 순간이 시작될 때 화면
   /// 쪽(RunnerGameScreen)에 알린다. 화면은 이 콜백을 받으면
@@ -320,6 +322,7 @@ class RunnerGame extends FlameGame with HasCollisionDetection {
     this.onLivesChanged = _noopLives,
     this.onComboChanged = _noopLives,
     this.onLivesExhausted,
+    this.onReady,
     this.onBreathingMomentStart = _noop,
     this.targetEatenCount = 10,
     this.stage = 1,
@@ -378,15 +381,9 @@ class RunnerGame extends FlameGame with HasCollisionDetection {
   static void _noop() {}
   static void _noopLives(int lives) {}
 
-  /// 스테이지별 감정 목표 개수: 1단계부터 기본 20개로 시작해, 2단계=30개,
-  /// 3단계=40개, 4단계부터는 40 + (stage-3)*10개씩 늘어난다
-  /// (예: 4단계=50, 5단계=60...).
-  static int targetForStage(int stage) {
-    if (stage <= 1) return 20;
-    if (stage == 2) return 30;
-    if (stage == 3) return 40;
-    return 40 + (stage - 3) * 10;
-  }
+  /// Keep ordinary runs short even for returning players at higher stages.
+  static int targetForStage(int stage) =>
+      RunnerSessionPolicy.targetForStage(stage);
 
   /// 작은 돌과 낙엽은 첫 스테이지부터 주먹으로 처리한다.
   bool get canPunchSmallRocks => true;
@@ -525,20 +522,9 @@ class RunnerGame extends FlameGame with HasCollisionDetection {
   double elapsedTime = 0;
   int get elapsedSeconds => elapsedTime.toInt();
 
-  /// 일반 스테이지 모드(엔드리스 아님)에서 이번 판에 주어진 시간 제한(초).
-  ///
-  /// "스테이지마다 1분 가량"이라는 원래 의도를 따라, 1단계(목표 20개)는
-  /// 정확히 60초를 준다. 목표 개수가 커지는 뒤 스테이지는 그만큼 더
-  /// 여유를 주도록 선형으로 늘린다(스테이지가 올라 몬스터/장애물이 더
-  /// 필요해지는 만큼 시간도 함께 늘어난다). 엔드리스 모드는 시간이
-  /// 지날수록 빨라지는 자체 압박이 이미 있으므로 이 제한을 적용하지 않는다.
-  /// `targetEatenCount`가 20보다 훨씬 작은 값으로 주어지는 경우(예: 테스트
-  /// 코드가 극단적으로 짧은 목표를 설정하는 경우) 계산식이 음수가 되어
-  /// "시작하자마자 시간 초과"가 되는 것을 막기 위해 최소 20초를 보장한다.
-  /// 실제 게임에서는 [targetForStage]가 항상 20 이상을 반환하므로 이 clamp는
-  /// 정상 플레이에는 영향을 주지 않는다.
+  /// Ordinary runs last at most 90 seconds. Practice/endless ignore this limit.
   int get timeLimitSeconds =>
-      (60 + (targetEatenCount - 20) * 4).clamp(20, 1 << 30);
+      RunnerSessionPolicy.secondsForTarget(targetEatenCount);
 
   /// 일반 스테이지 모드에서, 시간 제한까지 남은 시간(초). 엔드리스 모드에서는
   /// 항상 -1(표시하지 않음).
@@ -871,10 +857,11 @@ class RunnerGame extends FlameGame with HasCollisionDetection {
     setHolding(true);
 
     // 귀여운 배경음악 시작 (실패해도 게임 진행에는 영향 없음).
-    SoundManager.instance.startBgm();
+    if (!_userPaused) SoundManager.instance.startBgm();
     // 새소리/물소리 앰비언트도 계속 이어지도록 보장한다(이미 홈 화면에서
     // 시작되어 있다면 내부 가드에 의해 조용히 무시됨 - 소리가 겹치지 않음).
-    SoundManager.instance.startAmbientNature();
+    if (!_userPaused) SoundManager.instance.startAmbientNature();
+    onReady?.call();
   }
 
   @override
@@ -913,6 +900,18 @@ class RunnerGame extends FlameGame with HasCollisionDetection {
     _jumpSources.clear();
     setJumpHeld(false);
     consumePunchReady();
+  }
+
+  bool _userPaused = false;
+  void setUserPaused(bool value) {
+    _userPaused = value;
+    if (value) pauseEngine();
+  }
+
+  @override
+  void resumeEngine() {
+    if (_userPaused) return;
+    super.resumeEngine();
   }
 
   @override

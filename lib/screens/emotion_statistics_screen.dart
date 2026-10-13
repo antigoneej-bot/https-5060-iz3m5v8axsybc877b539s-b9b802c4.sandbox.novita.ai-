@@ -1,5 +1,6 @@
 import '../widgets/subscription_gate.dart';
 import '../widgets/period_reflection_card.dart';
+import 'self_care_screen.dart';
 import 'monthly_shadow_reflection_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -220,6 +221,7 @@ class _EmotionStatisticsScreenState extends State<EmotionStatisticsScreen> {
                       ),
                     ],
                   ),
+                  SelfCarePeriodCard(start: start, end: end, monthly: true),
                   PeriodReflectionCard(
                     key: ValueKey('month_${_month.toIso8601String()}'),
                     periodKey: 'month_${_month.toIso8601String()}',
@@ -594,6 +596,11 @@ class _EmotionStatisticsScreenState extends State<EmotionStatisticsScreen> {
                           ] else
                             ..._comparison(history, start, end, records),
                         ], background: AppColors.catLavenderBg),
+                      SelfCarePeriodCard(
+                        start: start,
+                        end: end,
+                        monthly: _monthly,
+                      ),
                       PeriodReflectionCard(
                         key: ValueKey(
                           '${_monthly ? 'month' : 'week'}_${start.toIso8601String()}',
