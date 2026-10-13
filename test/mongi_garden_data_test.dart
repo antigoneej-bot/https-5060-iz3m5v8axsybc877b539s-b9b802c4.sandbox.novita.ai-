@@ -20,7 +20,9 @@ void main() {
     expect(data.seedTokens, 0);
     expect(data.seeds['pine'], 1);
     expect(data.plant('pine').seeds['pine'], 1);
-    expect(data.clearStage(2).plant('pine').seeds['pine'], 2);
+    final repeated = data.clearStage(2).plant('pine');
+    expect(repeated.seeds['pine'], 1);
+    expect(repeated.seedTokens, 1); // already planted: keep the unused seed
   });
   test('unknown plant cannot consume a seed', () {
     final data = MongiGardenData().clearStage(1).plant('not-a-tree');

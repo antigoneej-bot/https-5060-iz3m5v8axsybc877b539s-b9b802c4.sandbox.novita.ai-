@@ -39,14 +39,18 @@ class NoticeService {
             .toList();
 
   /// 서버에서 정원소식 목록(최신순)을 가져온다. 실패하면 마지막 캐시를
-  /// 그대로 돌려준다.
-  static Future<List<Notice>> fetchNotices() async {
-    if (!CloudService.enabled) return _cache;
+  /// 그대로 돌려준다. 목록 화면은 reportErrors로 실패와 빈 목록을 구별한다.
+  static Future<List<Notice>> fetchNotices({bool reportErrors = false}) async {
+    if (!CloudService.enabled) {
+      if (reportErrors) throw StateError('정원소식 연결을 준비 중이에요.');
+      return _cache;
+    }
     try {
       final raw = await CloudService.listGardenNews();
       _cache = raw.map(Notice.fromJson).toList();
       return _cache;
     } catch (_) {
+      if (reportErrors) rethrow;
       return _cache;
     }
   }

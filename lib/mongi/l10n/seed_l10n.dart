@@ -30,3 +30,14 @@ String seedDescription(AppLocalizations l10n, SeedType seed) {
       return seed.description;
   }
 }
+
+String storedSeedMessage(AppLocalizations l10n) => switch (l10n.localeName.split('_').first) {
+  'ko' => '이미 심은 식물이에요. 씨앗 1개를 보관함에 모아둘게요.',
+  'ja' => 'この植物は植えてあります。種1個を保管します。',
+  _ => 'Already planted. One seed will be saved for later.',
+};
+String savedSeedTitle(AppLocalizations l10n) => switch (l10n.localeName.split('_').first) {
+  'ko' => '다음에 심을 씨앗을 모았어요',
+  'ja' => '次に植える種を集めました',
+  _ => 'A seed saved for another day',
+};

@@ -423,7 +423,7 @@ class GardenProvider extends ChangeNotifier {
     return raw.map(PublicGarden.fromJson).toList();
   }
 
-  /// 공개정원 하나에 응원(+선택적으로 소량의 빛의 정수 선물)을 보낸다.
+  /// 공개정원 하나에 응원 꽃과 이모티콘을 보낸다.
   /// 같은 상대에게는 하루 한 번만 보낼 수 있다(서버가 강제, 실패하면 예외가
   /// 그대로 전파되어 호출부에서 안내 문구를 보여줄 수 있다).
   Future<void> sendPublicCheer({
@@ -434,32 +434,15 @@ class GardenProvider extends ChangeNotifier {
     String? reaction,
   }) async {
     if (!CloudService.enabled) throw StateError('온라인 정원 연결을 확인해 주세요.');
-    final gift = giftLightEssence.clamp(0, kMaxCheerGiftLightEssence);
-    if (gift > 0) {
-      final spent = await _storage.spendLightEssence(gift);
-      if (!spent) {
-        throw StateError('빛의 정수가 부족해요.');
-      }
-      lightEssence = _storage.lightEssence;
-      notifyListeners();
+    if (giftLightEssence != 0) {
+      throw const CloudException('currency-gifts-unavailable');
     }
-    try {
-      await CloudService.sendPublicCheer(
-        gardenId: gardenId,
-        messageIndex: messageIndex,
-        giftLightEssence: gift,
-        flowerKind: flowerKind,
-        reaction: reaction,
-      );
-    } catch (e) {
-      // 선물을 이미 차감했는데 전송이 실패했다면 되돌려준다(사용자 손해 방지).
-      if (gift > 0) {
-        await _storage.addLightEssence(gift);
-        lightEssence = _storage.lightEssence;
-        notifyListeners();
-      }
-      rethrow;
-    }
+    await CloudService.sendPublicCheer(
+      gardenId: gardenId,
+      messageIndex: messageIndex,
+      flowerKind: flowerKind,
+      reaction: reaction,
+    );
   }
 
   /// 내가 아직 확인하지 않은 받은 응원 목록을 서버에서 가져온다.
@@ -475,19 +458,28 @@ class GardenProvider extends ChangeNotifier {
     return cheers;
   }
 
-  /// 받은 응원 하나를 확인 처리하고, 함께 온 빛의 정수 선물을 수령한다.
-  /// 서버와 로컬 양쪽에서 멱등성을 보장하므로 중복 수령되지 않는다.
+  /// A failed response can be retried. Receipt and currency commit together;
+  /// the server removes the pending delivery only after that write succeeds.
   Future<int> claimPublicCheer(String id) async {
     if (!CloudService.enabled) return 0;
-    if (_storage.claimedCheerIds.contains(id)) return 0;
-    final amount = await CloudService.claimCheer(id);
-    await _storage.markCheerClaimedLocally(id);
-    if (amount > 0) {
-      await _storage.addLightEssence(amount);
-      lightEssence = _storage.lightEssence;
-      notifyListeners();
-    }
-    return amount;
+    final owner = FirebaseAuth.instance.currentUser?.uid;
+    if (owner == null) throw StateError('먼저 로그인해 주세요.');
+    await CloudService.ensureGardenOwner(owner, bind: true);
+    final deviceId = await CloudService.cheerDeliveryDevice();
+    final delivery = await CloudService.claimCheer(id, owner: owner, deviceId: deviceId);
+    final receipt = delivery.receipt;
+    if (receipt == null) return 0;
+    final credited = await MongiGardenStore.instance.receiveCheerGift(
+      receipt,
+      _storage.claimedCheerIds.contains(id) ? 0 : delivery.amount,
+      isCurrentOwner: () => FirebaseAuth.instance.currentUser?.uid == owner,
+    );
+    lightEssence = _storage.lightEssence;
+    notifyListeners();
+    // If ACK fails, leave the server receipt pending. Retrying cannot issue
+    // currency twice in this persisted garden; it just retries the ACK.
+    await CloudService.acknowledgeCheer(id, receipt, owner: owner, deviceId: deviceId);
+    return credited;
   }
 
   // ── 시즌 패스("몽이의 마음여정") ─────────────────────────

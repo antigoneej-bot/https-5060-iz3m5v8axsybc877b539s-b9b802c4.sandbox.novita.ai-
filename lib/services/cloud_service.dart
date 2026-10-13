@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
@@ -172,7 +173,7 @@ class CloudService {
     return gardens.map((e) => Map<String, dynamic>.from(e as Map)).toList();
   }
 
-  /// 특정 공개정원에 응원(+선택적으로 소량의 빛의 정수 선물)을 보낸다.
+  /// 특정 공개정원에 응원 꽃과 이모티콘을 보낸다.
   /// 같은 상대에게는 하루에 한 번만 보낼 수 있다(서버가 강제).
   static Future<void> sendPublicCheer({
     required String gardenId,
@@ -213,9 +214,55 @@ class CloudService {
         .toList();
   }
 
-  static Future<int> claimCheer(String id) async {
-    final result = await call('claimCheer', {'id': id});
-    return (result['amount'] as num?)?.toInt() ?? 0;
+  static Future<String>? _deliveryDevicePending;
+
+  /// Installation-scoped ID is deliberately excluded from garden backups.
+  /// A pending legacy currency gift may only finish on its claiming device.
+  static Future<String> cheerDeliveryDevice() =>
+      _deliveryDevicePending ??= _loadDeliveryDevice().whenComplete(() {
+        _deliveryDevicePending = null;
+      });
+
+  static Future<String> _loadDeliveryDevice() async {
+    const key = 'cheer_delivery_device_v1';
+    final stored = await _secure.read(key: key);
+    if (stored != null && RegExp(r'^[a-zA-Z0-9_-]{32,128}$').hasMatch(stored)) {
+      return stored;
+    }
+    final random = Random.secure();
+    final id = List.generate(24, (_) => random.nextInt(256)
+        .toRadixString(16).padLeft(2, '0')).join();
+    await _secure.write(key: key, value: id);
+    return id;
+  }
+
+  static Future<({int amount, String? receipt})> claimCheer(
+    String id, {
+    required String owner,
+    required String deviceId,
+  }) async {
+    final result = await call('claimCheerV2', {'id': id, 'deviceId': deviceId}, owner);
+    final amount = result['amount'];
+    final receipt = result['receipt'];
+    if (result['claimed'] != true || amount is! int || amount < 0 || amount > 5 ||
+        (amount > 0 && receipt == null) ||
+        (receipt != null && (receipt is! String ||
+          !RegExp(r'^[a-zA-Z0-9_-]{1,128}$').hasMatch(receipt)))) {
+      throw const CloudException('invalid-delivery-receipt');
+    }
+    return (amount: amount, receipt: receipt as String?);
+  }
+
+  static Future<void> acknowledgeCheer(
+    String id,
+    String receipt, {
+    required String owner,
+    required String deviceId,
+  }) async {
+    final result = await call('ackCheer', {'id': id, 'receipt': receipt, 'deviceId': deviceId}, owner);
+    if (result['acknowledged'] != true) {
+      throw const CloudException('temporarily-unavailable');
+    }
   }
 
   // ── 정원소식(= 기존 "공지") 관리자 CRUD + 경량 예약 ────────────────
@@ -315,6 +362,13 @@ class CloudException implements Exception {
     'account-changed' => '작업 중 계정이 바뀌었어요. 다시 시도해 주세요.',
     'account-busy' => '이 계정의 다른 작업이 진행 중이에요. 잠시 후 다시 시도해 주세요.',
     'account-deleting' => '계정 삭제가 진행 중이에요. 삭제를 다시 시도해 마무리해 주세요.',
+    'authentication-required' => '로그인 상태를 확인한 뒤 다시 시도해 주세요.',
+    'currency-gifts-unavailable' => '지금은 꽃과 이모티콘으로 응원을 전할 수 있어요.',
+    'client-update-required' => '앱을 업데이트한 뒤 선물을 받아 주세요.',
+    'delivery-other-device' => '이 선물은 다른 기기에서 받는 중이에요. 처음 수령한 기기에서 다시 시도해 주세요. 그 기기를 사용할 수 없다면 문의해 주세요.',
+    'invalid-delivery-device' => '이 기기의 선물 수령 정보를 확인하지 못했어요. 다시 시도해 주세요.',
+    'invalid-delivery-receipt' => '선물 수령을 확인하지 못했어요. 다시 시도해 주세요.',
+    'cheer-not-found' => '이 응원을 찾을 수 없어요. 목록을 새로고침해 주세요.',
     'verify-email' => '이메일 인증을 완료한 뒤 다시 시도해 주세요.',
     'subscription-required' =>
       '자동 백업은 구독 중에 이용할 수 있어요. 수동 백업과 기존 백업 복원은 계속 가능해요.',

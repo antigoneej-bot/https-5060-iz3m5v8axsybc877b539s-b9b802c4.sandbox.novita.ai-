@@ -76,6 +76,7 @@ class _ChoiceScreenState extends State<ChoiceScreen>
   bool _leveledUp = false;
   int _newStageNumber = 1;
   String? _chosenSeedId;
+  bool _seedStored = false;
   final TextEditingController _noteController = TextEditingController();
 
   // 감정 강도(1~5, 선택) - 기본값 3(보통)에서 시작해 유저가 슬라이더로 조절.
@@ -316,11 +317,15 @@ class _ChoiceScreenState extends State<ChoiceScreen>
   /// 씨앗을 고르면 결과 화면으로 곧장 넘어가지 않고, 먼저 물뿌리개로 물을 주고
   /// 새싹이 돋아나는 짧은 애니메이션([SeedPlantingAnimation])을 보여준다.
   /// 실제 데이터 기록(recordSession)은 애니메이션이 끝난 뒤에 한다.
-  void _chooseSeed(SeedType seed) {
+  Future<void> _chooseSeed(SeedType seed) async {
+    if (_recording || _recorded) return;
+    final stored = (context.read<GardenProvider>().seedCounts[seed.id] ?? 0) > 0;
     setState(() {
       _chosenSeedId = seed.id;
-      _stage = _Stage.planting;
+      _seedStored = stored;
+      if (!stored) _stage = _Stage.planting;
     });
+    if (stored) await _choose(true, seedType: seed.id);
   }
 
   Future<void> _onPlantingFinished() async {
@@ -787,7 +792,7 @@ class _ChoiceScreenState extends State<ChoiceScreen>
   }
 
   /// "네, 심을래요"를 고른 뒤 나오는 씨앗 선택 단계. 용서/사랑/평안 중 하나를 고르면
-  /// 그 씨앗에 물을 한 번 주는 셈으로 몽이의 작은 정원에서 눈에 보이게 자라난다.
+  /// 새 식물은 심고, 이미 있는 식물의 보상 씨앗은 보관한다. 성장은 하루 한 번 물주기로 한다.
   Widget _buildSeedSelect() {
     final l10n = AppLocalizations.of(context);
     final garden = context.watch<GardenProvider>();
@@ -862,7 +867,7 @@ class _ChoiceScreenState extends State<ChoiceScreen>
                                   const SizedBox(height: 2),
                                   Text(
                                     count > 0
-                                        ? l10n.choiceSeedWateredCount(count)
+                                        ? storedSeedMessage(l10n)
                                         : seedDescription(l10n, seed),
                                     style: const TextStyle(
                                       fontSize: 11.5,
@@ -1058,7 +1063,7 @@ class _ChoiceScreenState extends State<ChoiceScreen>
     final title = _justBloomed
         ? l10n.choiceResultTitleBloomed
         : (chosenSeed != null
-              ? l10n.choiceResultTitleSeedPlanted(seedLabel(l10n, chosenSeed))
+              ? (_seedStored ? savedSeedTitle(l10n) : l10n.choiceResultTitleSeedPlanted(seedLabel(l10n, chosenSeed)))
               : (_choseLove
                     ? l10n.choiceResultTitlePlanted
                     : l10n.choiceResultTitleGentle));
@@ -1194,7 +1199,7 @@ class _ChoiceScreenState extends State<ChoiceScreen>
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        l10n.choiceResultSeedGrown(seedLabel(l10n, chosenSeed)),
+                        _seedStored ? savedSeedTitle(l10n) : l10n.choiceResultSeedGrown(seedLabel(l10n, chosenSeed)),
                         style: TextStyle(
                           fontSize: 12.5,
                           fontWeight: FontWeight.w700,

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
 /// 스테이지 클리어 후 "마음을 심기로" 선택했을 때, 구체적으로 어떤 마음의
-/// 씨앗을 심을지 고르는 항목. 씨앗마다 독립적으로 누적 횟수가 쌓이고,
-/// 그 누적 횟수에 따라 몽이의 작은 정원에서 눈으로 보이는 성장 단계가 달라진다.
+/// 씨앗을 심을지 고르는 항목. 씨앗은 처음 심을 때 사용하며, 이후 하루 한 번 물주기 기록에 따라
+/// 몽이의 작은 정원에서 눈으로 보이는 성장 단계가 달라진다.
 ///
 /// 확장성: 새로운 씨앗 종류(예: '감사', '희망')를 추가하고 싶다면 이 파일의
 /// [SeedType.all] 리스트에 항목 하나만 추가하면 된다 - 화면(ChoiceScreen,
@@ -32,7 +32,7 @@ class SeedType {
     this.sceneAnchor = Alignment.center,
   });
 
-  /// 지금까지 심은(물을 준) 횟수 [count]에 해당하는 성장 단계 인덱스.
+  /// 심기 1회와 하루 한 번 물주기로 쌓인 성장 기록 [count]의 단계.
   /// 0,1-2,3-5,6-9,10+ 총 5단계 - growthStages가 5개 미만이면 자동으로 clamp된다.
   int tierForCount(int count) {
     int tier;
@@ -49,6 +49,17 @@ class SeedType {
     }
     return tier.clamp(0, growthStages.length - 1);
   }
+
+  int careUntilNextTier(int count) {
+    if (count <= 0) return 0;
+    for (final threshold in [3, 6, 10]) {
+      if (count < threshold) return threshold - count;
+    }
+    return 0;
+  }
+
+  String growthLabel(int count) => count <= 0 ? '아직 심기 전'
+      : ['아직 심기 전', '새싹', '자라는 중', '무성해졌어요', '다 자랐어요'][tierForCount(count)];
 
   String emojiForCount(int count) => growthStages[tierForCount(count)];
 

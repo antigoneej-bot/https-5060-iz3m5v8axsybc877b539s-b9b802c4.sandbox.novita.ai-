@@ -7,6 +7,9 @@ import 'package:timezone/timezone.dart' as tz;
 import '../data/shadow_cats_data.dart';
 import '../utils/feature_flags.dart';
 import 'storage_service.dart';
+import 'special_letter_service.dart';
+import '../models/special_letter_entry.dart';
+import 'reply_notification_plan.dart';
 
 /// 로컬 알림 리마인더 서비스.
 /// 서버/네트워크 없이 기기 안에서만 예약 · 반복되며, 사용자가 마이 탭에서
@@ -99,7 +102,11 @@ class NotificationService {
     const androidSettings = AndroidInitializationSettings(
       '@mipmap/ic_launcher',
     );
-    const iosSettings = DarwinInitializationSettings();
+    const iosSettings = DarwinInitializationSettings(
+      requestAlertPermission: false,
+      requestBadgePermission: false,
+      requestSoundPermission: false,
+    );
     const initSettings = InitializationSettings(
       android: androidSettings,
       iOS: iosSettings,
@@ -284,10 +291,10 @@ class NotificationService {
         );
         return granted ?? true;
       }
-      return true;
+      return !kIsWeb;
     } catch (e) {
       if (kDebugMode) debugPrint('NotificationService 권한 요청 실패: $e');
-      return true;
+      return false;
     }
   }
 
@@ -529,25 +536,47 @@ class NotificationService {
     return true;
   }
 
-  /// 앱 시작/설정 변경 시, 아직 답장을 열어보지 않은 그림자 고양이 편지 중
-  /// 가장 이른 도착 시각을 기준으로 답장 알림을 다시 예약합니다(알림은
-  /// 한 번에 하나만 유지되므로 가장 가까운 답장을 기준으로 잡습니다).
+  /// 앱 시작/설정 변경 시, 아직 도착하지 않은 미확인 답장을 다시 예약합니다.
+  /// 그림자 고양이와 마음편지는 각각 가장 가까운 알림을 하나씩 유지합니다.
   Future<void> restoreReplyNotification() async {
     if (kIsWeb || !await replyNotificationsEnabled()) return;
+    await init();
     try {
-      final upcoming = StorageService.getAllLetters()
-          .where((entry) => !entry.replySeen)
-          .toList()
-        ..sort((a, b) => a.replyAvailableAt.compareTo(b.replyAvailableAt));
-      if (upcoming.isEmpty) return;
-      final next = upcoming.first;
-      final cat = shadowCatById(next.catId);
-      await scheduleCatReplyNotification(
-        catName: cat.nameKr,
-        scheduledAt: next.replyAvailableAt,
+      final next = nextScheduledReply(
+        StorageService.getAllLetters(),
+        now: DateTime.now(),
+        isSeen: (entry) => entry.replySeen,
+        availableAt: (entry) => entry.replyAvailableAt,
       );
+      if (next == null) {
+        await _plugin.cancel(_catReplyId);
+      } else {
+        await scheduleCatReplyNotification(
+          catName: shadowCatById(next.catId).nameKr,
+          scheduledAt: next.replyAvailableAt,
+        );
+      }
     } catch (e) {
       if (kDebugMode) debugPrint('NotificationService 답장 알림 복원 실패: $e');
+    }
+    // A separate channel/ID preserves both kinds of replies after re-enabling.
+    try {
+      final next = nextScheduledReply(
+        SpecialLetterService.getAllEntries(),
+        now: DateTime.now(),
+        isSeen: (entry) => entry.replySeen,
+        availableAt: (entry) => entry.replyAvailableAt,
+      );
+      if (next == null) {
+        await _plugin.cancel(_heartLetterReplyId);
+      } else {
+        await scheduleHeartLetterReplyNotification(
+          typeLabel: next.type.label,
+          scheduledAt: next.replyAvailableAt,
+        );
+      }
+    } catch (e) {
+      if (kDebugMode) debugPrint('마음편지 알림 복원 실패: $e');
     }
   }
 
@@ -566,7 +595,6 @@ class NotificationService {
     if (kIsWeb || !await replyNotificationsEnabled()) return;
     await init();
     try {
-      await _plugin.cancel(_catReplyId);
       final effectiveAt = FeatureFlags.debugInstantReply
           ? DateTime.now().add(
               const Duration(
@@ -575,6 +603,7 @@ class NotificationService {
             )
           : scheduledAt;
       if (effectiveAt.isBefore(DateTime.now())) return;
+      await _plugin.cancel(_catReplyId);
       final scheduled = tz.TZDateTime.from(effectiveAt, tz.local);
       await _plugin.zonedSchedule(
         _catReplyId,
@@ -614,7 +643,6 @@ class NotificationService {
     if (kIsWeb || !await replyNotificationsEnabled()) return;
     await init();
     try {
-      await _plugin.cancel(_heartLetterReplyId);
       final effectiveAt = FeatureFlags.debugInstantReply
           ? DateTime.now().add(
               const Duration(
@@ -623,6 +651,7 @@ class NotificationService {
             )
           : scheduledAt;
       if (effectiveAt.isBefore(DateTime.now())) return;
+      await _plugin.cancel(_heartLetterReplyId);
       final scheduled = tz.TZDateTime.from(effectiveAt, tz.local);
       await _plugin.zonedSchedule(
         _heartLetterReplyId,

@@ -164,7 +164,18 @@ class MongiGardenStore extends ValueNotifier<MongiGardenData> {
 
   Future<void> completeStage(int stage) =>
       _change((data) => data.clearStage(stage));
-  Future<void> plant(String id) => _change((data) => data.plant(id));
+  Future<void> plant(String id, {DateTime? now}) => _change((data) => data.plant(id, now: now));
+
+  Future<bool> waterPlant(String id, {DateTime? now}) async {
+    var cared = false;
+    final day = now ?? DateTime.now();
+    await _change((data) {
+      final next = data.waterPlant(id, day);
+      cared = !identical(next, data);
+      return next;
+    });
+    return cared;
+  }
 
   /// Premium decorations are subscriber gifts; already received gifts stay owned.
   Future<void> obtain(GardenDecoration item) async {
@@ -192,11 +203,22 @@ class MongiGardenStore extends ValueNotifier<MongiGardenData> {
 
   Future<void> advanceOriginalStage() =>
       _change((data) => data.copy(stage: data.stage + 1));
-  Future<void> plantOriginalReward(String id) => _change((data) {
-    if (!SeedType.all.any((seed) => seed.id == id))
-      throw ArgumentError.value(id);
-    return data.copy(seeds: {...data.seeds, id: (data.seeds[id] ?? 0) + 1});
-  });
+  Future<void> plantOriginalReward(String id) =>
+      _change((data) => data.plantReward(id));
+  Future<int> receiveCheerGift(String receipt, int amount, {
+    required bool Function() isCurrentOwner,
+  }) async {
+    var credited = 0;
+    await _change((data) {
+      // Re-check inside the serialized write, after waiting for other saves.
+      if (!isCurrentOwner()) throw StateError('로그인 상태가 바뀌었어요. 다시 시도해 주세요.');
+      final next = data.receiveGift(receipt, amount);
+      credited = next.essence - data.essence;
+      return next;
+    });
+    return credited;
+  }
+
   Future<void> addOriginalEssence(int amount) => _change(
     (data) => amount <= 0 ? data : data.copy(essence: data.essence + amount),
   );

@@ -1,5 +1,7 @@
 import { validGardenGift, liveReactions, newGardenReaction } from './garden-gifts.js';
 import { confirmGardenBloom } from './garden-blooms.js';
+import { acceptsGiftAmount, beginCheerDelivery, acknowledgeCheerDelivery } from './cheer-delivery.js';
+import { removeAccountReservations } from './account-reservations.js';
 import { randomUUID } from 'node:crypto';
 import { initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
@@ -10,7 +12,7 @@ import { onRequest } from 'firebase-functions/v2/https';
 import { onMessagePublished } from 'firebase-functions/v2/pubsub';
 import { GoogleAuth } from 'google-auth-library';
 import { PACKAGE, PRODUCTS, entitlement, assertOwner, tokenHash, validEnvelope, nextAccountLease, accountHash,
-  sanitizeNickname, validatePublicSnapshot, PUBLIC_CHEER_MESSAGE_COUNT, MAX_CHEER_GIFT_LIGHT_ESSENCE,
+  sanitizeNickname, validatePublicSnapshot, PUBLIC_CHEER_MESSAGE_COUNT,
   isAdminEmail, validateGardenNewsInput, sanitizeReservationNote } from './policy.js';
 initializeApp();
 const db = getFirestore();
@@ -190,26 +192,31 @@ export const gardenApi = onRequest({region:'asia-northeast3', maxInstances:3, ti
       if (!validGardenGift(req.body)) {res.status(400).json({error:'invalid-garden-gift'});return;}
       const flowerKind = req.body.flowerKind ?? 'daisy';
       const reaction = newGardenReaction(req.body.reaction);
-      if (typeof targetId !== 'string' || !targetId) {res.status(400).json({error:'invalid-target'});return;}
+      if (typeof targetId !== 'string' || !targetId || targetId.includes('/') || targetId.length > 128) {res.status(400).json({error:'invalid-target'});return;}
       if (targetId === uid) {res.status(400).json({error:'cannot-cheer-self'});return;}
       if (!Number.isInteger(messageIndex) || messageIndex < 0 || messageIndex >= PUBLIC_CHEER_MESSAGE_COUNT) {
         res.status(400).json({error:'invalid-message'});return;
       }
-      const giftLightEssence = Math.min(
-        Math.max(0, Math.trunc(Number(req.body.giftLightEssence) || 0)),
-        MAX_CHEER_GIFT_LIGHT_ESSENCE,
-      );
-      const targetDoc = await db.doc(`publicGardens/${targetId}`).get();
-      if (!targetDoc.exists) {res.status(404).json({error:'garden-not-found'});return;}
-      const today = new Date().toISOString().slice(0, 10);
+      if (!acceptsGiftAmount(req.body.giftLightEssence)) {
+        res.status(403).json({error:'currency-gifts-unavailable'});return;
+      }
+      const giftLightEssence = 0;
+      const today = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
+      const fingerprint = JSON.stringify([messageIndex, flowerKind, req.body.reaction ?? null]);
       const logRef = db.doc(`cheerSentLog/${uid}_${targetId}`);
       await db.runTransaction(async tx => {
         const log = await tx.get(logRef);
         const gardenRef = db.doc(`publicGardens/${targetId}`);
         const target = await tx.get(gardenRef);
-        if (!target.exists) throw new Error('garden-not-found');
-        if (log.data()?.date === today) throw new Error('cheer-already-sent-today');
-        tx.set(logRef, {date: today});
+        const targetLock = await tx.get(db.doc(`accountLocks/${accountHash(targetId)}`));
+        if (!target.exists || targetLock.data()?.deleting || targetLock.data()?.deleted) {
+          throw new Error('garden-not-found');
+        }
+        if (log.data()?.date === today) {
+          if (log.data()?.fingerprint === fingerprint) return; // Lost response: replay success.
+          throw new Error('cheer-already-sent-today');
+        }
+        tx.set(logRef, {date: today, fingerprint});
         if (reaction) tx.update(gardenRef, {reactions: [...liveReactions(target.data()?.reactions), reaction].slice(-12)});
         const receivedRef = db.collection(`users/${targetId}/receivedCheers`).doc();
         tx.set(receivedRef, {
@@ -223,7 +230,8 @@ export const gardenApi = onRequest({region:'asia-northeast3', maxInstances:3, ti
       // Sort in memory (not orderBy) to avoid requiring a composite index.
       const unclaimed = await db.collection(`users/${uid}/receivedCheers`).where('claimed','==',false).limit(30).get();
       const active = await db.collection(`users/${uid}/receivedCheers`).where('reaction.expiresAt','>',new Date().toISOString()).limit(30).get();
-      const docs = new Map([...unclaimed.docs, ...active.docs].map(d => [d.id, d]));
+      const pending = await db.collection(`users/${uid}/receivedCheers`).where('deliveryPending','==',true).limit(30).get();
+      const docs = new Map([...unclaimed.docs, ...active.docs, ...pending.docs].map(d => [d.id, d]));
       const cheers = [...docs.values()]
         .map(doc => ({id: doc.id, messageIndex: doc.data().messageIndex,
           giftLightEssence: doc.data().giftLightEssence,
@@ -240,18 +248,11 @@ export const gardenApi = onRequest({region:'asia-northeast3', maxInstances:3, ti
       const snap = await db.collection(`users/${uid}/flowerBlooms`).orderBy('createdAt','desc').limit(30).get();
       res.json({blooms:snap.docs.map(doc => ({id:doc.id, flowerKind:doc.data().flowerKind, createdAt:doc.data().createdAt?.toDate().toISOString() ?? null}))});return;
     }
-    if (action === 'claimCheer') {
-      const id = req.body.id;
-      if (typeof id !== 'string' || !id) {res.status(400).json({error:'invalid-id'});return;}
-      const ref = db.doc(`users/${uid}/receivedCheers/${id}`);
-      const amount = await db.runTransaction(async tx => {
-        const doc = await tx.get(ref);
-        if (!doc.exists) throw new Error('invalid-id');
-        if (doc.data().claimed) return 0; // Idempotent: already credited locally once.
-        tx.update(ref, {claimed: true});
-        return doc.data().giftLightEssence ?? 0;
-      });
-      res.json({claimed:true, amount});return;
+    if (action === 'claimCheer' || action === 'claimCheerV2') {
+      res.json(await beginCheerDelivery(db, uid, req.body.id, {legacy: action === 'claimCheer', deviceId: req.body.deviceId}));return;
+    }
+    if (action === 'ackCheer') {
+      res.json(await acknowledgeCheerDelivery(db, uid, req.body.id, req.body.receipt, req.body.deviceId));return;
     }
     // ── 정원소식(= 기존 "공지") 관리자 CRUD + 경량 예약 ────────────────
     // 읍일전용 조회는 모든 로그인 사용자가 할 수 있고, 작성/수정/삭제는
@@ -357,6 +358,7 @@ export const gardenApi = onRequest({region:'asia-northeast3', maxInstances:3, ti
     if (action === 'deleteCloudAccount') {
       if (Date.now()/1000 - identity.auth_time > 300) {res.status(403).json({error:'recent-login-required'});return;}
       await lease.ref.set({deleting:true}, {merge:true});
+      await removeAccountReservations(db, uid);
       await getStorage().bucket().deleteFiles({prefix:`backups/${uid}/`});
       // publicGardens lives outside users/{uid}; remove it explicitly so a
       // deleted account's garden immediately stops appearing to visitors.
@@ -373,11 +375,14 @@ export const gardenApi = onRequest({region:'asia-northeast3', maxInstances:3, ti
   } catch (error) {
     const expected = ['purchase-owner-mismatch','purchase-migration-required','rate-limit','account-busy',
       'invalid-bloom','cheer-not-found','account-deleting','cheer-already-sent-today','news-not-found','already-reserved',
-      'reservation-closed','reservation-not-available','reservation-full'];
+      'reservation-closed','reservation-not-available','reservation-full',
+      'garden-not-found','invalid-id','invalid-garden-gift','invalid-delivery-receipt','client-update-required',
+      'delivery-other-device','invalid-delivery-device'];
     const code = expected.includes(error.message) ? error.message : 'temporarily-unavailable';
     const statusCode = code === 'rate-limit' ? 429
       : ['cheer-already-sent-today','already-reserved'].includes(code) ? 409
-      : code === 'news-not-found' ? 404
+      : ['news-not-found','garden-not-found','cheer-not-found'].includes(code) ? 404
+      : ['invalid-id','invalid-garden-gift','invalid-delivery-receipt','invalid-delivery-device'].includes(code) ? 400
       : code === 'temporarily-unavailable' ? 503 : 403;
     res.status(statusCode).json({error:code});
   } finally {

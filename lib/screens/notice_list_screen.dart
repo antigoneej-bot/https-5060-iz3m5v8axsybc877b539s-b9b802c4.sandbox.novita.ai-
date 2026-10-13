@@ -36,16 +36,22 @@ class _NoticeListScreenState extends State<NoticeListScreen> {
   }
 
   Future<void> _load() async {
+    if (!mounted) return;
     setState(() {
       _loading = true;
       _error = null;
     });
     try {
-      final notices = await NoticeService.fetchNotices();
+      final notices = await NoticeService.fetchNotices(reportErrors: true);
       await NoticeService.markAllAsRead();
       if (mounted) setState(() => _notices = notices);
     } catch (e) {
-      if (mounted) setState(() => _error = e.toString());
+      final message = e is CloudException
+          ? e.toString()
+          : e is StateError
+          ? e.message.toString()
+          : '소식을 불러오지 못했어요. 연결을 확인한 뒤 다시 시도해 주세요.';
+      if (mounted) setState(() => _error = message);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -158,22 +164,30 @@ class _NoticeListScreenState extends State<NoticeListScreen> {
           ],
         ),
         const SizedBox(height: 4),
+        if (_error != null)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(_error!, style: bodyFont(fontSize: 13, color: AppColors.inkSoft)),
+                if (_notices.isNotEmpty)
+                  Text('이전에 불러온 소식을 보여드리고 있어요.',
+                    style: bodyFont(fontSize: 12, color: AppColors.inkSoft)),
+                TextButton.icon(
+                  onPressed: _loading ? null : _load,
+                  icon: const Icon(Icons.refresh_rounded, size: 18),
+                  label: const Text('다시 불러오기'),
+                ),
+              ],
+            ),
+          ),
         if (_loading && _notices.isEmpty)
           const Padding(
             padding: EdgeInsets.only(top: 60),
             child: Center(child: CircularProgressIndicator()),
           )
-        else if (_error != null && _notices.isEmpty)
-          Padding(
-            padding: const EdgeInsets.only(top: 60),
-            child: Center(
-              child: Text(
-                _error!,
-                style: bodyFont(fontSize: 13, color: AppColors.inkSoft),
-              ),
-            ),
-          )
-        else if (_notices.isEmpty)
+        else if (_error == null && _notices.isEmpty)
           Padding(
             padding: const EdgeInsets.only(top: 60),
             child: Center(

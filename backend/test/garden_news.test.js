@@ -89,3 +89,9 @@ test('known type/status sets are sane (regression guard against silent drift)', 
   assert.ok(GARDEN_NEWS_STATUSES.has('closed'));
   assert.ok(ADMIN_EMAILS.has('antigone.ej@gmail.com'));
 });
+
+test('notice paragraphs and CRLF survive sanitization without control bytes', () => {
+  const result = validateGardenNewsInput({title: '제목\n', body: ' 첫 줄\r\n\r\n둘째 줄\t안내\u0000 '});
+  assert.equal(result.body, '첫 줄\n\n둘째 줄\t안내');
+  assert.equal(result.title, '제목');
+});

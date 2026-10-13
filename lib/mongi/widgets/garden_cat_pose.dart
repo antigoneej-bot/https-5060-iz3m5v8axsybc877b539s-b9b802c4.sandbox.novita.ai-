@@ -25,16 +25,16 @@ class GardenCatPose extends StatelessWidget {
         _ => 1213 / 1254,
       };
     }
-    return walking ? const [432, 438, 437, 437][frame % 4] / 512
+    return walking ? 1.0
         : 1213 / 1254;
   }
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(builder: (context, box) {
-    // Walking source cells are 384x512. Match visible height to idle without
-    // stretching them into squares or cutting up the original artwork.
-    final h = box.maxHeight * (walking ? 1.28 : 1.0);
-    final w = walking ? h * 384 / 512 : box.maxWidth;
+    // The walking painter already aligns whole-frame paws with this baseline.
+    if (walking) return SizedBox.expand(child: child);
+    final h = box.maxHeight;
+    final w = box.maxWidth;
     return Stack(clipBehavior: Clip.none, children: [
       Positioned(
         left: (box.maxWidth - w) / 2,

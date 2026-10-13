@@ -106,18 +106,25 @@ class _UnifiedGardenPanelState extends State<UnifiedGardenPanel> {
                 Text('심을 씨앗 ${data.seedTokens}개 · 빛의 정수 ${data.essence}개'),
                 const SizedBox(height: 12),
 
-                const Text('씨앗 심기 · 같은 식물에 다시 심으면 자라요.'),
+                const Text('씨앗은 처음 한 번, 물주기는 식물마다 하루 한 번이에요.'),
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
                   children: SeedType.all
                       .map(
                         (seed) => OutlinedButton(
-                          onPressed: _busy || data.seedTokens == 0
+                          onPressed: _busy || ((data.seeds[seed.id] ?? 0) == 0
+                              ? data.seedTokens == 0 : data.wateredToday(seed.id, DateTime.now()))
                               ? null
-                              : () => _act(() => store.plant(seed.id)),
+                              : () => _act(() async {
+                                  if ((data.seeds[seed.id] ?? 0) > 0) {
+                                    await store.waterPlant(seed.id);
+                                  } else {
+                                    await store.plant(seed.id);
+                                  }
+                                }),
                           child: Text(
-                            '${seed.growthStages.last} ${seed.label}',
+                            '${seed.growthStages.last} ${seed.label} · ${(data.seeds[seed.id] ?? 0) == 0 ? '심기' : data.wateredToday(seed.id, DateTime.now()) ? '오늘 돌봄 완료' : '물 주기'}',
                           ),
                         ),
                       )

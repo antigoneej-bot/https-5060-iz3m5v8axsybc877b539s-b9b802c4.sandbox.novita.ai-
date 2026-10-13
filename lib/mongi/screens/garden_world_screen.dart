@@ -132,7 +132,7 @@ class _GardenWorldScreenState extends State<GardenWorldScreen>
 
   Future<void> _grow() async {
     if (!mounted) return;
-    final count = context.read<GardenProvider>().seedCounts.values.fold<int>(
+    final count = MongiGardenStore.instance.value.seeds.values.fold<int>(
       0,
       (a, b) => a + b,
     );
@@ -149,6 +149,7 @@ class _GardenWorldScreenState extends State<GardenWorldScreen>
           context: context,
           builder: (_) => PlantMemoryEditor(plant: seed),
         );
+        await _grow();
       }
     } catch (_) {
       if (mounted) _message('추억을 불러오지 못했어요. 다시 시도해 주세요.');
@@ -177,7 +178,7 @@ class _GardenWorldScreenState extends State<GardenWorldScreen>
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                   const SizedBox(height: 8),
-                  const Text('처음 심으면 식물이 생기고, 같은 씨앗을 다시 심으면 그 식물이 자라요.'),
+                  const Text('씨앗은 처음 심을 때만 사용해요. 이후에는 하루 한 번 물을 주며 키워요. 쉬는 날에도 성장은 그대로 남아요.'),
                   if (store.value.seedTokens == 0)
                     const Padding(
                       padding: EdgeInsets.symmetric(vertical: 10),
@@ -191,10 +192,13 @@ class _GardenWorldScreenState extends State<GardenWorldScreen>
                         child: GardenPlantArt(seed: seed, count: 1),
                       ),
                       title: Text(seed.label),
-                      subtitle: Text(seed.description),
-                      trailing: const Icon(Icons.add_circle_outline),
-                      enabled: !busy && store.value.seedTokens > 0,
-                      onTap: busy || store.value.seedTokens == 0
+                      subtitle: Text((store.value.seeds[seed.id] ?? 0) > 0
+                        ? '${seed.growthLabel(store.value.seeds[seed.id]!)} · 정원에서 물을 주세요'
+                        : seed.description),
+                      trailing: (store.value.seeds[seed.id] ?? 0) > 0
+                        ? const Text('심은 식물') : const Icon(Icons.add_circle_outline),
+                      enabled: !busy && store.value.seedTokens > 0 && (store.value.seeds[seed.id] ?? 0) == 0,
+                      onTap: busy || store.value.seedTokens == 0 || (store.value.seeds[seed.id] ?? 0) > 0
                           ? null
                           : () async {
                               update(() => busy = true);
@@ -322,6 +326,11 @@ class _GardenWorldScreenState extends State<GardenWorldScreen>
                 seeds: garden.seedCounts,
                 decorations: garden.equippedDecorationIds,
                 onMemory: _memory,
+                onWater: (id) async {
+                  final cared = await MongiGardenStore.instance.waterPlant(id);
+                  await _grow();
+                  return cared;
+                },
                 onPlant: _plant,
                 onDecorate: () => showGardenDecorationSheet(context),
                 onMove: (id, point) async {

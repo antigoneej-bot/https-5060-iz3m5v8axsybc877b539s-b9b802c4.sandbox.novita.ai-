@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/seed.dart';
 import 'plant_memory_store.dart';
+import 'mongi_garden_store.dart';
 
 class PlantMemoryEditor extends StatefulWidget {
   final SeedType plant;
@@ -60,6 +61,18 @@ class _PlantMemoryEditorState extends State<PlantMemoryEditor> {
     }
   }
 
+  Future<void> _water() async {
+    if (_busy) return;
+    setState(() { _busy = true; _error = null; });
+    try {
+      await MongiGardenStore.instance.waterPlant(widget.plant.id);
+    } catch (_) {
+      if (mounted) setState(() => _error = '물주기를 저장하지 못했어요. 다시 시도해 주세요.');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) => PopScope(
     canPop: !_busy || _done,
@@ -69,6 +82,28 @@ class _PlantMemoryEditorState extends State<PlantMemoryEditor> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            Builder(builder: (_) {
+              final data = MongiGardenStore.instance.value;
+              final id = widget.plant.id, count = data.seeds[id] ?? 0;
+              final next = widget.plant.careUntilNextTier(count);
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Text([
+                  if (data.plantedOn[id] != null) '심은 날 · ${data.plantedOn[id]}',
+                  widget.plant.growthLabel(count),
+                  if (next > 0) '다음 성장까지 물주기 $next번',
+                  data.wateredToday(id, DateTime.now()) ? '오늘 물주기 완료' : '오늘도 물을 주며 돌볼 수 있어요.',
+                ].join('\n'), style: Theme.of(context).textTheme.bodySmall),
+              );
+            }),
+            FilledButton.tonalIcon(
+              onPressed: _busy || MongiGardenStore.instance.value.wateredToday(
+                widget.plant.id, DateTime.now()) ? null : _water,
+              icon: const Icon(Icons.water_drop_outlined),
+              label: Text(MongiGardenStore.instance.value.wateredToday(widget.plant.id, DateTime.now())
+                ? '오늘 물주기 완료' : '물 주기'),
+            ),
+            const SizedBox(height: 12),
             TextField(
               controller: _name,
               enabled: !_busy,

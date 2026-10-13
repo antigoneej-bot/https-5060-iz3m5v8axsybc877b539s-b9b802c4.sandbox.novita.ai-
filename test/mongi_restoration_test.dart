@@ -45,8 +45,10 @@ void main() {
     await original.plantSeed('love');
     await shared.plant('pine');
     await shared.reload();
-    expect(original.seedCounts, {'pine': 5, 'love': 1});
-    expect(shared.value.seedTokens, 1);
+    expect(original.seedCounts, {'pine': 4, 'love': 1});
+    expect(shared.value.seedTokens, 2);
+    await shared.waterPlant('pine', now: DateTime(2026, 10, 13));
+    expect(original.seedCounts['pine'], 5);
     await original.advanceStage();
     expect(shared.value.stage, 10);
   });

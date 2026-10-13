@@ -3,6 +3,7 @@ import '../../theme.dart';
 import 'garden_grounded_art.dart';
 import 'garden_cat_shadow.dart';
 import 'garden_cat_pose.dart';
+import 'garden_walking_cat.dart';
 import 'garden_cat_response.dart';
 import 'dart:math' as math;
 import 'dart:async';
@@ -34,8 +35,12 @@ class GardenWorldView extends StatefulWidget {
   final Future<void> Function(String id, Offset position) onMove;
   final ValueChanged<SeedType> onMemory;
   final VoidCallback onPlant, onDecorate;
+  final Future<bool> Function(String id)? onWater;
+  final bool preview;
   const GardenWorldView({
     super.key,
+    this.preview = false,
+    this.onWater,
     this.companionName = '고양이',
     this.readOnly = false,
     this.publicMemoryStage = 0,
@@ -109,11 +114,29 @@ class _GardenWorldViewState extends State<GardenWorldView>
     );
   }
 
-  void _waterPlant(String id) {
-    if (widget.readOnly || !id.startsWith('seed:')) return;
-    setState(() => _waterTarget = id);
-    if (_air.isAnimating) _water.forward(from: 0);
-    _message('${_label(id)}에 물을 주었어요. 잎사귀가 촉촉해졌어요.');
+  bool _waterSaving = false;
+  Future<void> _waterPlant(String id) async {
+    if (widget.readOnly || _waterSaving || !id.startsWith('seed:')) return;
+    if (widget.onWater == null) {
+      _message('정원 연결을 확인한 뒤 다시 시도해 주세요.');
+      return;
+    }
+    setState(() => _waterSaving = true);
+    try {
+      final cared = await widget.onWater!(id.substring(5));
+      if (!mounted) return;
+      if (!cared) {
+        _message('${_label(id)}에는 오늘 이미 물을 주었어요. 내일 다시 돌봐 주세요.');
+        return;
+      }
+      setState(() => _waterTarget = id);
+      if (_air.isAnimating) _water.forward(from: 0);
+      _message('${_label(id)}에 물을 주었어요. 오늘의 돌봄을 기억할게요.');
+    } catch (_) {
+      if (mounted) _message('물주기를 저장하지 못했어요. 다시 시도해 주세요.');
+    } finally {
+      if (mounted) setState(() => _waterSaving = false);
+    }
   }
 
   @override
@@ -288,7 +311,7 @@ class _GardenWorldViewState extends State<GardenWorldView>
   @override
   Widget build(BuildContext context) => Column(
     children: [
-      if (!_quiet)
+      if (!_quiet && !widget.preview)
         Container(
           decoration: BoxDecoration(
             color: AppColors.bg0,
@@ -370,57 +393,6 @@ class _GardenWorldViewState extends State<GardenWorldView>
                   ),
                 ),
                 const SizedBox(width: 3),
-                // Always-visible status toggles, so walk/motion state no
-                // longer requires opening the "보기 설정" menu to find.
-                IconButton(
-                  tooltip: _catWanders ? '고양이 앉아서 쉬기' : '고양이 산책하기',
-                  onPressed: () => setState(() => _catWanders = !_catWanders),
-                  icon: Icon(
-                    _catWanders ? Icons.directions_walk : Icons.weekend,
-                    size: 16,
-                  ),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints.tightFor(
-                    width: 32,
-                    height: 32,
-                  ),
-                  style: IconButton.styleFrom(
-                    backgroundColor: _catWanders
-                        ? AppColors.blobPeach
-                        : AppColors.bg2,
-                    foregroundColor: _catWanders
-                        ? AppColors.blobPeachAccent
-                        : AppColors.inkSoft,
-                    shape: const CircleBorder(),
-                  ),
-                ),
-                const SizedBox(width: 3),
-                IconButton(
-                  tooltip: _paused ? '정원 움직임 재생' : '정원 움직임 멈추기',
-                  onPressed: () {
-                    setState(() => _paused = !_paused);
-                    _syncMotion();
-                  },
-                  icon: Icon(
-                    _paused ? Icons.play_arrow : Icons.pause,
-                    size: 16,
-                  ),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints.tightFor(
-                    width: 32,
-                    height: 32,
-                  ),
-                  style: IconButton.styleFrom(
-                    backgroundColor: _paused
-                        ? AppColors.bg2
-                        : AppColors.blobRose,
-                    foregroundColor: _paused
-                        ? AppColors.inkSoft
-                        : AppColors.blobRoseAccent,
-                    shape: const CircleBorder(),
-                  ),
-                ),
-                const SizedBox(width: 2),
                 PopupMenuButton<String>(
                   tooltip: '보기 설정',
                   color: AppColors.bg1,
@@ -484,11 +456,32 @@ class _GardenWorldViewState extends State<GardenWorldView>
             ),
           ),
         ),
+      if (!_quiet && !widget.preview)
+        Padding(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
+          child: Wrap(spacing: 8, runSpacing: 4, children: [
+            Tooltip(message: _catWanders ? '고양이 앉아서 쉬기' : '고양이 산책하기',
+              child: FilterChip(selected: _catWanders,
+                avatar: Icon(_catWanders ? Icons.directions_walk : Icons.weekend, size: 18),
+                label: Text(_catWanders ? '산책 켜짐' : '산책 꺼짐'),
+                onSelected: (v) => setState(() => _catWanders = v))),
+            Tooltip(message: _paused ? '정원 움직임 재생' : '정원 움직임 멈추기',
+              child: ActionChip(
+                avatar: Icon(_air.isAnimating ? Icons.pause : Icons.play_arrow, size: 18),
+                label: Text(_air.isAnimating ? '움직임 켜짐' : '움직임 꺼짐'),
+                onPressed: () {
+                  if (!widget.motionEnabled || MediaQuery.disableAnimationsOf(context)) {
+                    _message('앱 또는 기기의 움직임 설정이 꺼져 있어요. 설정에서 켜 주세요.');
+                    return;
+                  }
+                  setState(() => _paused = !_paused);
+                  _syncMotion();
+                })),
+          ])),
       Expanded(
         child: Center(
           child: AspectRatio(
             // A landscape viewport avoids portrait-height-driven magnification.
-            aspectRatio: 1.25,
+            aspectRatio: widget.preview ? 2.35 : 1.25,
             child: LayoutBuilder(
               builder: (context, box) {
                 final size = box.biggest;
@@ -650,7 +643,7 @@ class _GardenWorldViewState extends State<GardenWorldView>
           ),
         ),
       ),
-      if (_quiet)
+      if (_quiet && !widget.preview)
         SafeArea(
           top: false,
           child: TextButton.icon(
@@ -659,7 +652,7 @@ class _GardenWorldViewState extends State<GardenWorldView>
             label: const Text('쉬기 마치기'),
           ),
         ),
-      if (!_quiet)
+      if (!_quiet && !widget.preview)
         Container(
           decoration: BoxDecoration(
             color: AppColors.bg0,
@@ -685,7 +678,7 @@ class _GardenWorldViewState extends State<GardenWorldView>
                     _saving
                         ? '위치를 저장하고 있어요…'
                         : _wateringMode
-                        ? '물을 줄 꽃이나 나무를 눌러 주세요.'
+                        ? '꽃이나 나무를 눌러 주세요. 하루 한 번 돌보면 자라요.'
                         : _editing
                         ? (_selected == null
                               ? '아이템을 고른 뒤, 원하는 잔디를 눌러 주세요.'
@@ -770,7 +763,7 @@ class _GardenWorldViewState extends State<GardenWorldView>
                                     ? Icons.check
                                     : Icons.water_drop_outlined,
                               ),
-                              label: Text(_wateringMode ? '물주기 완료' : '물 주기'),
+                              label: Text(_waterSaving ? '돌봄 저장 중…' : _wateringMode ? '물주기 마치기' : '물 주기'),
                             ),
                             TextButton.icon(
                               onPressed: _saving
@@ -1025,6 +1018,8 @@ class _GardenWorldViewState extends State<GardenWorldView>
                       child: CustomPaint(
                         painter: GardenCatShadowPainter(
                           walking: moment.walking,
+                          frame: moment.frame,
+                          facingDepth: moment.facing != GardenCatFacing.side,
                           faceLeft: moment.faceLeft,
                           night: _night,
                           lift: moment.contactDy - moment.feet.dy,
@@ -1053,13 +1048,10 @@ class _GardenWorldViewState extends State<GardenWorldView>
                             animated: _air.isAnimating && _catWanders,
                           )
                         : moment.walking
-                        ? Transform.flip(
-                            flipX: moment.faceLeft,
-                            child: GardenAtlasArt(
-                              asset: 'assets/living_garden/cat_walk.webp',
-                              column: moment.frame,
-                              rows: 1,
-                            ),
+                        ? GardenWalkingCat(
+                            frame: moment.frame,
+                            facing: moment.facing,
+                            faceLeft: moment.faceLeft,
                           )
                         : GardenCatArt(
                               animation: _air,

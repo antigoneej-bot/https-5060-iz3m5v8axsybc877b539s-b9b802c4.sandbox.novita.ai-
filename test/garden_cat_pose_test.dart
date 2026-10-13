@@ -6,7 +6,7 @@ import 'package:flutter_app/mongi/models/garden_life.dart';
 void main() {
   testWidgets('all walk frames preserve aspect ratio and share idle ground',
       (tester) async {
-    for (final frame in [-1, 0, 1, 2, 3]) {
+    for (final frame in [-1, 0, 1, 2, 3, 4, 5, 6, 7]) {
       final walking = frame >= 0;
       await tester.pumpWidget(MaterialApp(home: Center(child: SizedBox(
         key: const Key('ground-box'), width: 160, height: 160,
@@ -18,7 +18,7 @@ void main() {
       final foot = art.top + art.height * GardenCatPose.footFraction(
         walking: walking, frame: walking ? frame : 0);
       expect(foot, closeTo(box.bottom, .001));
-      expect(art.width / art.height, closeTo(walking ? .75 : 1, .001));
+      expect(art.width / art.height, closeTo(1, .001));
     }
   });
 

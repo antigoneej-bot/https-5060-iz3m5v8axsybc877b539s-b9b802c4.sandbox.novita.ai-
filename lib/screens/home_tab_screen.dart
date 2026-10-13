@@ -18,7 +18,7 @@ import '../widgets/growth_header.dart';
 import '../widgets/garden_path_card.dart';
 import '../widgets/mochi_cat.dart';
 import '../widgets/feature_scaffold.dart';
-import '../mongi/widgets/garden_scene_view.dart';
+import '../mongi/widgets/garden_home_preview.dart';
 import 'pet_care_screen.dart';
 import 'daily_card_screen.dart';
 import 'todays_promise_screen.dart';
@@ -103,33 +103,6 @@ class HomeTabScreen extends StatelessWidget {
           ),
           const SizedBox(height: 16),
         ],
-        Text(
-          'MIND CAT GARDEN',
-          textAlign: TextAlign.center,
-          style: bodyFont(
-            fontSize: 12,
-            color: AppColors.titlePastelGreenSoft,
-            letterSpacing: 4,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const SizedBox(height: 10),
-        Text(
-          '마음냥 정원',
-          textAlign: TextAlign.center,
-          style: brandFont(fontSize: 30, color: AppColors.titlePastelGreen),
-        ),
-        const SizedBox(height: 10),
-        Text(
-          '37마리 그림자 고양이를 한 마리씩 만나며,\n내 감정을 스스로 알아차리는 시간',
-          textAlign: TextAlign.center,
-          style: bodyFont(
-            fontSize: 13.5,
-            color: AppColors.inkSoft,
-            height: 1.7,
-          ),
-        ),
-        const SizedBox(height: 22),
         // 작은 정원 미리보기 + 진입 버튼 - 입체 연출이 있는 '살아있는 정원'
         // 전체 씬은 정원 화면(나의 정원)에서만 보여주고, 홈에는 가볍게
         // 탭해서 들어가는 입구만 둔다.
@@ -141,7 +114,7 @@ class HomeTabScreen extends StatelessWidget {
               '나의 정원',
               MyGardenScreen(onGoMeetCat: onGoToCatSelect),
             ),
-            child: const GardenSceneView(interactive: false, height: 150),
+            child: const GardenHomePreview(),
           ),
         ),
         const SizedBox(height: 16),

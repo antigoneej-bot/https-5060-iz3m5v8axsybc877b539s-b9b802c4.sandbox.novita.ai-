@@ -103,6 +103,15 @@ void main() {
       );
     },
   );
+  test('walk uses whole eight-frame cycles and all depth directions', () {
+    final poses = List.generate(4000, (i) => GardenCatMoment.at(i / 20,
+      zoneLeftOpen: true, zoneRightOpen: true));
+    final moving = poses.where((p) => p.walking);
+    expect(moving.any((p) => p.frame >= 4), isTrue);
+    expect(moving.map((p) => p.facing).toSet(), containsAll(GardenCatFacing.values));
+    expect(moving.every((p) => p.frame >= 0 && p.frame < 8), isTrue);
+  });
+
   test(
     'received flowers persist, stay unique and remain isolated by owner',
     () async {

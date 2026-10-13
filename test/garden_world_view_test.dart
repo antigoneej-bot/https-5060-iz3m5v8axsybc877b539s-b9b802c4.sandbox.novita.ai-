@@ -26,6 +26,7 @@ void main() {
     VoidCallback? memoryTree,
     VoidCallback? flowers,
     Future<void> Function(String, Offset)? move,
+    Future<bool> Function(String)? water,
   }) async {
     tester.view.physicalSize = Size(width, height);
     tester.view.devicePixelRatio = 1;
@@ -57,6 +58,7 @@ void main() {
                 seeds: const {'love': 3, 'peace': 8, 'pine': 2},
                 decorations: const ['bench'],
                 onMemory: (_) {},
+                onWater: water ?? (_) async => true,
                 onPlant: () {},
                 onDecorate: () {},
                 onMove: (id, p) async {
@@ -281,14 +283,26 @@ void main() {
         .single;
     expect(drops.progress.value, greaterThan(0));
     expect(drops.progress.value, lessThan(1));
-    expect(find.text('사랑에 물을 주었어요. 잎사귀가 촉촉해졌어요.'), findsOneWidget);
+    expect(find.text('사랑에 물을 주었어요. 오늘의 돌봄을 기억할게요.'), findsOneWidget);
     await tester.pump(const Duration(seconds: 3));
     expect(drops.progress.value, 1);
     await tester.tap(find.text('배치 모드'));
     await tester.pump();
-    expect(find.text('물주기 완료'), findsNothing);
+    expect(find.text('물주기 마치기'), findsNothing);
     await tester.pumpWidget(const SizedBox());
   });
+  testWidgets('failed watering does not show a saved growth or water effect', (tester) async {
+    await showWorld(tester, water: (_) async => throw StateError('disk failure'));
+    await openTools(tester);
+    await tester.tap(find.text('물 주기'));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('world-item-seed:love')));
+    await tester.pumpAndSettle();
+    expect(find.text('물주기를 저장하지 못했어요. 다시 시도해 주세요.'), findsOneWidget);
+    expect(tester.widgetList<CustomPaint>(find.byType(CustomPaint))
+      .map((w) => w.painter).whereType<GardenWaterDrops>(), isEmpty);
+  });
+
   testWidgets('watering works without animation under reduced motion', (
     tester,
   ) async {

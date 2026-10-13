@@ -21,10 +21,13 @@ class _Stop {
   const _Stop(this.to, this.rest, this.arriveLabel, {this.walkLabel = '천천히 걷는 몽이'});
 }
 
+enum GardenCatFacing { side, toward, away }
+
 class GardenCatMoment {
   final Offset feet;
   final bool resting, walking, faceLeft, onBench;
   final int frame;
+  final GardenCatFacing facing;
   final double tilt, size;
   final String label;
 
@@ -42,6 +45,7 @@ class GardenCatMoment {
     this.walking = false,
     this.faceLeft = false,
     this.frame = 0,
+    this.facing = GardenCatFacing.side,
     this.groundDy,
   });
   double get contactDy => groundDy ?? feet.dy;
@@ -90,7 +94,14 @@ class GardenCatMoment {
         }
       }
     }
-    return bend == null ? [a, b] : [a, bend, b];
+    if (bend == null) return [a, b];
+    // Round the detour corner so direction never changes at a sharp elbow.
+    final rounding = math.min(26.0, math.min((bend - a).distance, (b - bend).distance) * .25);
+    final entry = Offset.lerp(bend, a, rounding / (bend - a).distance)!;
+    final exit = Offset.lerp(bend, b, rounding / (b - bend).distance)!;
+    return [a, entry, for (var i = 1; i <= 10; i++)
+      entry * math.pow(1 - i / 10, 2).toDouble() +
+      bend * (2 * (1 - i / 10) * i / 10) + exit * math.pow(i / 10, 2).toDouble(), b];
   }
 
   static double _pathLength(List<Offset> path) {
@@ -104,11 +115,11 @@ class GardenCatMoment {
   /// Walking seconds scale with real distance, so a far destination simply
   /// takes longer rather than teleporting a fast-moving body.
   static double _legSeconds(Offset a, Offset b, List<Offset> obstacles) =>
-      _pathLength(_path(a, b, obstacles)) / 66 + .5;
+      _pathLength(_path(a, b, obstacles)) / 52 + .5;
 
   /// Moves along the (possibly bent) path by eased arc length, so the paws
-  /// advance by exactly as much ground as the body actually covers - no
-  /// more "feet sliding while the body glides" moonwalk effect.
+  /// follow the body's traveled distance instead of running on a separate
+  /// clock. The source animation still determines each paw's contact pose.
   static ({Offset pos, double traveled, bool faceLeft}) _advance(
     List<Offset> path,
     double easedFraction,
@@ -148,8 +159,12 @@ class GardenCatMoment {
     // Smooth acceleration/deceleration; distance (not a fixed clock) sets pace.
     final eased = p * p * (3 - 2 * p);
     final step = _advance(path, eased);
-    const stride = 34.0; // ground distance per walk-cycle frame
-    final frame = (step.traveled / stride).floor() % 4;
+    final stride = 8.5 * depthSize(step.pos.dy) / 148;
+    final frame = (step.traveled / stride).floor() % 8;
+    final direction = to - from;
+    final facing = direction.dy.abs() > direction.dx.abs() * .55
+        ? (direction.dy > 0 ? GardenCatFacing.toward : GardenCatFacing.away)
+        : GardenCatFacing.side;
     return GardenCatMoment(
       step.pos,
       false,
@@ -159,6 +174,7 @@ class GardenCatMoment {
       walking: true,
       faceLeft: step.faceLeft,
       frame: frame,
+      facing: facing,
     );
   }
 
@@ -205,6 +221,8 @@ class GardenCatMoment {
     final flowerBed = zoneLeftOpen ? const Offset(560, 525) : null;
     final treeYard = zoneRightOpen ? const Offset(1840, 505) : null;
     const frontLawn = Offset(1000, 645);
+    const nearPath = Offset(1000, 450);
+    const backLawn = Offset(1200, 460);
 
     if (quiet) {
       final pos = seat ?? anchor ?? home;
@@ -240,7 +258,9 @@ class GardenCatMoment {
 
     if (flowerBed != null) addStop(flowerBed, 4, '꽃밭을 구경하는 몽이');
     if (sniff != null) addStop(sniff, 5, '꽃향기를 맡는 몽이');
+    addStop(nearPath, 2, '마당을 둘러보는 몽이');
     addStop(frontLawn, 3, '앞마당을 거니는 몽이');
+    addStop(backLawn, 2, '오솔길을 살펴보는 몽이');
     if (treeYard != null) addStop(treeYard, 4, '나무 그늘을 즐기는 몽이');
     if (ground != null) {
       addStop(ground, 0, '', walkLabel: '벤치로 가는 몽이');

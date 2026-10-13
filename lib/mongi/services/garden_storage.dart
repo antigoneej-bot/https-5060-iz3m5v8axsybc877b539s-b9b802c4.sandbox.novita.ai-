@@ -443,7 +443,7 @@ class GardenStorage {
     await _box.put(_keyPremiumFrameInterest, premiumFrameInterestCount + 1);
   }
 
-  /// 씨앗 종류(id)별로 지금까지 물을 준(=심은) 누적 횟수. 이 숫자가 쌓일수록
+  /// 식물 종류(id)별 성장 기록: 처음 심기와 하루 한 번의 물주기. 이 숫자가 쌓일수록
   /// "몽이의 작은 정원" 화면에서 해당 씨앗이 눈에 보이게 성장한다.
   Map<String, int> get seedCounts =>
       Map.of(MongiGardenStore.instance.value.seeds);

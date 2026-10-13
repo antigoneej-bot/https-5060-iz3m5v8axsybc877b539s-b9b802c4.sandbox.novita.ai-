@@ -31,10 +31,12 @@ export const MAX_CHEER_GIFT_LIGHT_ESSENCE = 5;
 // 비어있으면 null(= "값 없음")을 돌려준다. 공개정원 닉네임, 정원소식의
 // 제목/본문 등 "운영자/사용자가 직접 입력한 짧은 텍스트"를 다루는 모든
 // 곳에서 공유하는 기본 정리 함수다.
-function sanitizeText(raw, maxLen) {
+function sanitizeText(raw, maxLen, multiline = false) {
   if (typeof raw !== 'string') return null;
   // eslint-disable-next-line no-control-regex
-  const cleaned = raw.replace(/[\u0000-\u001f\u007f]/g, '').trim();
+  const normalized = raw.replace(/\r\n?/g, '\n');
+  const controls = multiline ? /[\u0000-\u0008\u000b-\u001f\u007f]/g : /[\u0000-\u001f\u007f]/g;
+  const cleaned = normalized.replace(controls, '').trim();
   if (!cleaned) return null;
   return cleaned.slice(0, maxLen);
 }
@@ -106,7 +108,7 @@ export const GARDEN_NEWS_STATUSES = new Set(['recruiting', 'ongoing', 'closed'])
 export function validateGardenNewsInput(value) {
   if (!value || typeof value !== 'object') return null;
   const title = sanitizeText(value.title, 80);
-  const body = sanitizeText(value.body, 4000);
+  const body = sanitizeText(value.body, 4000, true);
   if (!title || !body) return null;
   const emoji = sanitizeText(value.emoji, 8) ?? '📌';
   const type = GARDEN_NEWS_TYPES.has(value.type) ? value.type : 'info';
