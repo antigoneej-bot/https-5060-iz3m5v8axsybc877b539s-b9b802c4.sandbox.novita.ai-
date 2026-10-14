@@ -2,12 +2,18 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_app/services/notification_service.dart';
 import '../tool/notification_consent_contract.dart' as contract;
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  // Outside a real app, no platform implementation auto-registers itself
+  // behind FlutterLocalNotificationsPlatform.instance, so resolving the
+  // Android-specific implementation (used for cancel/initialize/etc.) would
+  // throw LateInitializationError. Register it once for the whole suite.
+  AndroidFlutterLocalNotificationsPlugin.registerWith();
   const channel = MethodChannel('dexterous.com/flutter/local_notifications');
   final calls = <MethodCall>[];
   Completer<void>? scheduleGate;

@@ -84,7 +84,9 @@ void main() {
     expect(tester.binding.transientCallbackCount, 0);
     await tester.tap(find.byKey(const Key('living-cat')));
     await tester.pump();
-    expect(find.text('몽이가 손에 살며시 기대어요.'), findsOneWidget);
+    // showScene doesn't pass companionName, so the widget falls back to its
+    // default ('고양이') for the companion-name placeholder in the copy.
+    expect(find.text('고양이가 손에 살며시 기대어요.'), findsOneWidget);
     await tester.pumpAndSettle(const Duration(seconds: 3));
     expect(tester.takeException(), isNull);
   });
@@ -129,10 +131,17 @@ void main() {
       const MaterialApp(home: Scaffold(body: LivingGardenScene())),
     );
     await tester.pump(const Duration(seconds: 1));
+    // Idle blinking runs by default; the wind/body animation starts paused
+    // (feedback-driven default), so the control shows a play icon first.
     expect(tester.binding.transientCallbackCount, greaterThan(0));
+    expect(find.byIcon(Icons.play_arrow_rounded), findsOneWidget);
+    await tester.tap(find.byIcon(Icons.play_arrow_rounded));
+    await tester.pump();
+    expect(find.byIcon(Icons.pause_rounded), findsOneWidget);
+    await tester.pump(const Duration(seconds: 1));
     await tester.tap(find.byIcon(Icons.pause_rounded));
-    await tester.pumpAndSettle();
-    expect(tester.binding.transientCallbackCount, 0);
+    await tester.pump();
+    expect(find.byIcon(Icons.play_arrow_rounded), findsOneWidget);
     await tester.pumpWidget(const SizedBox());
     await tester.pump(const Duration(minutes: 2));
     expect(tester.takeException(), isNull);
