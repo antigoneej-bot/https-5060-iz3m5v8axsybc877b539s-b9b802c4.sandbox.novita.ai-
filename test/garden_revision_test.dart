@@ -65,7 +65,11 @@ void main() {
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    // GardenWorldView defaults motionEnabled to true, which keeps its wind
+    // (_air) and daylight (_daylight) AnimationControllers repeating forever
+    // once mounted — pumpAndSettle() would hang waiting for them to finish.
+    // A single pump() is enough to let the widget build.
+    await tester.pump();
     expect(find.text('배치 모드'), findsNothing);
     expect(find.text('씨앗 심기'), findsNothing);
     await tester.tap(find.byKey(const ValueKey('world-item-seed:pine')));
