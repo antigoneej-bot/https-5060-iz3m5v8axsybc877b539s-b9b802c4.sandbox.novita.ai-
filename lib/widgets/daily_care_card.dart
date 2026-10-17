@@ -68,117 +68,115 @@ class _DailyCareCardState extends State<DailyCareCard>
       ];
       return Container(
         padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            color: AppColors.catSageBg.withValues(alpha: .72),
-            borderRadius: BorderRadius.circular(30),
-            border: Border.all(color: AppColors.catSage.withValues(alpha: .18)),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.catSage.withValues(alpha: 0.14),
-                blurRadius: 22,
-                offset: const Offset(0, 10),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '오늘의 마음 돌봄',
-                style: titleFont(fontSize: 21, color: AppColors.titlePastelGreen),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                '지금 끌리는 것 하나면 충분해요.',
-                style: pathLabelFont(fontSize: 13, color: AppColors.moon),
-              ),
-              const SizedBox(height: 14),
-              LayoutBuilder(
-                builder: (context, box) {
-                  final columns =
-                      box.maxWidth < 240 ||
-                          MediaQuery.textScalerOf(context).scale(13) > 26
-                      ? 1
-                      : 2;
-                  final width = (box.maxWidth - (columns - 1) * 8) / columns;
-                  return Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      for (final choice in choices)
-                        SizedBox(
-                          width: width,
-                          child: OutlinedButton(
-                            onPressed: choice.tap,
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 5,
-                                vertical: 12,
-                              ),
-                              foregroundColor: AppColors.catSage,
-                              backgroundColor: Colors.white.withValues(
-                                alpha: .7,
-                              ),
-                              side: BorderSide(color: AppColors.sageLine),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(22),
-                              ),
-                              elevation: 0,
-                            ).copyWith(
-                              shadowColor: WidgetStateProperty.all(
-                                AppColors.catSage.withValues(alpha: 0.2),
-                              ),
-                            ),
-                            child: Column(
-                              children: [
-                                Icon(choice.icon, size: 23),
-                                const SizedBox(height: 7),
-                                Text(
-                                  choice.label,
-                                  textAlign: TextAlign.center,
-                                  style: pathLabelFont(
-                                    fontSize: 12,
-                                    color: AppColors.moon,
-                                  ),
+        decoration: BoxDecoration(
+          color: AppColors.catSageBg.withValues(alpha: .72),
+          borderRadius: BorderRadius.circular(30),
+          border: Border.all(color: AppColors.catSage.withValues(alpha: .18)),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.catSage.withValues(alpha: 0.14),
+              blurRadius: 22,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '오늘의 마음 돌봄',
+              style: titleFont(fontSize: 21, color: AppColors.titlePastelGreen),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              '지금 끌리는 것 하나면 충분해요.',
+              style: pathLabelFont(fontSize: 13, color: AppColors.moon),
+            ),
+            const SizedBox(height: 14),
+            LayoutBuilder(
+              builder: (context, box) {
+                final columns =
+                    box.maxWidth < 240 ||
+                        MediaQuery.textScalerOf(context).scale(13) > 26
+                    ? 1
+                    : 2;
+                final width = (box.maxWidth - (columns - 1) * 8) / columns;
+                return Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    for (final choice in choices)
+                      SizedBox(
+                        width: width,
+                        child: OutlinedButton(
+                          onPressed: choice.tap,
+                          style:
+                              OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 5,
+                                  vertical: 12,
                                 ),
-                              ],
-                            ),
+                                foregroundColor: AppColors.catSage,
+                                backgroundColor: Colors.white.withValues(
+                                  alpha: .7,
+                                ),
+                                side: BorderSide(color: AppColors.sageLine),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(22),
+                                ),
+                                elevation: 0,
+                              ).copyWith(
+                                shadowColor: WidgetStateProperty.all(
+                                  AppColors.catSage.withValues(alpha: 0.2),
+                                ),
+                              ),
+                          child: Column(
+                            children: [
+                              Icon(choice.icon, size: 23),
+                              const SizedBox(height: 7),
+                              Text(
+                                choice.label,
+                                textAlign: TextAlign.center,
+                                style: pathLabelFont(
+                                  fontSize: 12,
+                                  color: AppColors.moon,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                    ],
-                  );
-                },
-              ),
-              const SizedBox(height: 6),
-              Wrap(
-                alignment: WrapAlignment.spaceBetween,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  TextButton.icon(
-                    onPressed: widget.onGarden,
-                    icon: const Icon(Icons.local_florist_outlined, size: 17),
-                    label: Text(
-                      '내 정원으로 가기',
-                      style: pathLabelFont(
-                        fontSize: 13,
-                        color: AppColors.titlePastelGreen,
                       ),
+                  ],
+                );
+              },
+            ),
+            const SizedBox(height: 6),
+            Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                TextButton.icon(
+                  onPressed: widget.onGarden,
+                  icon: const Icon(Icons.local_florist_outlined, size: 17),
+                  label: Text(
+                    '내 정원으로 가기',
+                    style: pathLabelFont(
+                      fontSize: 13,
+                      color: AppColors.titlePastelGreen,
                     ),
                   ),
-                  if (_failed)
-                    TextButton(
-                      onPressed: _load,
-                      child: const Text('돌봄 기록 다시 확인'),
-                    )
-                  else if (_loaded && done)
-                    Text(
-                      '오늘의 돌봄 완료 🌱',
-                      style: pathLabelFont(fontSize: 12, color: AppColors.moon),
-                    ),
-                ],
-              ),
-            ],
-          ),
+                ),
+                if (_failed)
+                  TextButton(onPressed: _load, child: const Text('돌봄 기록 다시 확인'))
+                else if (_loaded && done)
+                  Text(
+                    '오늘의 돌봄 완료 🌱',
+                    style: pathLabelFont(fontSize: 12, color: AppColors.moon),
+                  ),
+              ],
+            ),
+          ],
+        ),
       );
     },
   );

@@ -125,110 +125,108 @@ class _MeditationRecapCardState extends State<MeditationRecapCard> {
       final period =
           '${recap.from.month}.${recap.from.day}–${recap.through.month}.${recap.through.day}';
       return Container(
-          key: const ValueKey('meditation-weekly-recap'),
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            color: AppColors.blobMint.withValues(alpha: .65),
-            borderRadius: BorderRadius.circular(26),
-            border: Border.all(
-              color: AppColors.sageLine.withValues(alpha: .6),
+        key: const ValueKey('meditation-weekly-recap'),
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: AppColors.blobMint.withValues(alpha: .65),
+          borderRadius: BorderRadius.circular(26),
+          border: Border.all(color: AppColors.sageLine.withValues(alpha: .6)),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.blobMintAccent.withValues(alpha: 0.16),
+              blurRadius: 20,
+              offset: const Offset(0, 10),
             ),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.blobMintAccent.withValues(alpha: 0.16),
-                blurRadius: 20,
-                offset: const Offset(0, 10),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              '이번 주 나를 도운 것',
+              style: titleFont(
+                fontSize: 18,
+                color: AppColors.moon,
+                fontWeight: FontWeight.w700,
               ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                '이번 주 나를 도운 것',
-                style: titleFont(
-                  fontSize: 18,
-                  color: AppColors.moon,
-                  fontWeight: FontWeight.w700,
-                ),
+            ),
+            const SizedBox(height: 5),
+            Text(
+              '명상 후 돌아보기 · 최근 7일 ($period)',
+              style: pathLabelFont(fontSize: 12, color: AppColors.moon),
+            ),
+            const SizedBox(height: 12),
+            if (_loading)
+              const Text('돌아보기 기록을 불러오고 있어요.')
+            else if (_failed) ...[
+              const Text('명상 후 기록을 불러오지 못했어요.'),
+              TextButton(
+                onPressed: () {
+                  setState(() => _loading = true);
+                  _load();
+                },
+                child: const Text('다시 불러오기'),
               ),
-              const SizedBox(height: 5),
-              Text(
-                '명상 후 돌아보기 · 최근 7일 ($period)',
-                style: pathLabelFont(fontSize: 12, color: AppColors.moon),
-              ),
-              const SizedBox(height: 12),
-              if (_loading)
-                const Text('돌아보기 기록을 불러오고 있어요.')
-              else if (_failed) ...[
-                const Text('명상 후 기록을 불러오지 못했어요.'),
-                TextButton(
-                  onPressed: () {
-                    setState(() => _loading = true);
-                    _load();
-                  },
-                  child: const Text('다시 불러오기'),
-                ),
-              ] else ...[
-                if (recap.total == 0)
-                  const Text(
-                    '이번 주에는 명상 후 남긴 응답이 없어요. 짧게 쉬어 보고, 그 후의 느낌을 남겨도 좋아요.',
-                  )
-                else ...[
-                  Text('${recap.recordedDays}일 동안 남긴 ${recap.total}개의 응답'),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
-                    children: [
-                      _count('편안해짐', recap.better),
-                      _count('비슷함', recap.same),
-                      _count('불편함', recap.worse),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '직접 선택한 응답만 모았어요. 응답하지 않은 날의 상태는 추정하지 않아요.',
-                    style: pathLabelFont(fontSize: 12, color: AppColors.moon),
-                  ),
-                ],
-                const SizedBox(height: 14),
-                Text(
-                  recap.suggestPause
-                      ? '가장 최근에는 불편하다고 남겼어요. 오늘은 명상을 이어가기보다 잠시 쉬어도 좋아요.'
-                      : preferred != null
-                      ? '최근에 ‘$guideTitle’ 후 편안해졌다고 남겼어요. 오늘도 마음이 내키면 다시 살펴볼까요?'
-                      : '오늘의 작은 돌봄: 2분 숲 명상을 살펴보거나, 잠깐 쉬어가도 좋아요.',
+            ] else ...[
+              if (recap.total == 0)
+                const Text(
+                  '이번 주에는 명상 후 남긴 응답이 없어요. 짧게 쉬어 보고, 그 후의 느낌을 남겨도 좋아요.',
+                )
+              else ...[
+                Text('${recap.recordedDays}일 동안 남긴 ${recap.total}개의 응답'),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    _count('편안해짐', recap.better),
+                    _count('비슷함', recap.same),
+                    _count('불편함', recap.worse),
+                  ],
                 ),
                 const SizedBox(height: 8),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: TextButton.icon(
-                    onPressed: recap.suggestPause
-                        ? _openPause
-                        : () => _openGuide(guideKey),
-                    icon: Icon(
-                      recap.suggestPause
-                          ? Icons.visibility_outlined
-                          : Icons.spa_outlined,
-                      size: 18,
-                    ),
-                    label: Text(
-                      recap.suggestPause
-                          ? '주변 잠깐 살펴보기'
-                          : preferred != null
-                          ? '그 명상 다시 열기'
-                          : '2분 숲 명상 살펴보기',
-                      style: pathLabelFont(
-                        fontSize: 13,
-                        color: AppColors.titlePastelGreen,
-                      ),
+                Text(
+                  '직접 선택한 응답만 모았어요. 응답하지 않은 날의 상태는 추정하지 않아요.',
+                  style: pathLabelFont(fontSize: 12, color: AppColors.moon),
+                ),
+              ],
+              const SizedBox(height: 14),
+              Text(
+                recap.suggestPause
+                    ? '가장 최근에는 불편하다고 남겼어요. 오늘은 명상을 이어가기보다 잠시 쉬어도 좋아요.'
+                    : preferred != null
+                    ? '최근에 ‘$guideTitle’ 후 편안해졌다고 남겼어요. 오늘도 마음이 내키면 다시 살펴볼까요?'
+                    : '오늘의 작은 돌봄: 2분 숲 명상을 살펴보거나, 잠깐 쉬어가도 좋아요.',
+              ),
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: recap.suggestPause
+                      ? _openPause
+                      : () => _openGuide(guideKey),
+                  icon: Icon(
+                    recap.suggestPause
+                        ? Icons.visibility_outlined
+                        : Icons.spa_outlined,
+                    size: 18,
+                  ),
+                  label: Text(
+                    recap.suggestPause
+                        ? '주변 잠깐 살펴보기'
+                        : preferred != null
+                        ? '그 명상 다시 열기'
+                        : '2분 숲 명상 살펴보기',
+                    style: pathLabelFont(
+                      fontSize: 13,
+                      color: AppColors.titlePastelGreen,
                     ),
                   ),
                 ),
-              ],
+              ),
             ],
-          ),
+          ],
+        ),
       );
     },
   );
