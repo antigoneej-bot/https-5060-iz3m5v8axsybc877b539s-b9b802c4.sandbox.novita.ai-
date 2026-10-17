@@ -17,6 +17,7 @@ import '../services/backup_service.dart';
 import '../services/cloud_service.dart';
 import '../services/auto_backup_service.dart';
 import '../services/social_auth_service.dart';
+import '../services/storage_service.dart';
 import 'account_screen.dart';
 import '../theme.dart';
 
@@ -214,6 +215,74 @@ class _DataSafetyScreenState extends State<DataSafetyScreen> {
     await _restoreBytes(await file.readAsBytes());
   }
 
+  /// 로그인 계정으로 넘어오면서 아직 복사되지 않은 이전 버전(guest 범위) 기록이
+  /// 있는지 확인하고, 사용자가 확인하면 누락된 것만 추가합니다. 같은 ID의
+  /// 기존 기록은 절대 덮어쓰지 않습니다([StorageService.restoreLegacyGuestData]).
+  Future<void> _recoverLegacyRecords() async {
+    final summary = await StorageService.getLegacyRecoverySummary();
+    if (!mounted) return;
+    if (summary.isEmpty) {
+      setState(() => _message = '이전 버전에서 추가로 가져올 기록이 없어요.');
+      return;
+    }
+    final total = summary.values.fold<int>(0, (sum, count) => sum + count);
+    final accepted = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('이전 버전의 기록 확인'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (final entry in summary.entries)
+                Text(
+                  '${StorageService.legacyRecoveryLabels[entry.key] ?? entry.key}: ${entry.value}개',
+                ),
+              const SizedBox(height: 16),
+              const Text(
+                '이전 버전에서 남아 있는 기록이에요. 이미 삭제했던 기록이 포함될 수 있어요. '
+                '확인하면 현재 없는 기록만 추가하고 같은 ID는 현재 기록을 유지해요.',
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('취소'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text('확인하고 $total개 복원'),
+          ),
+        ],
+      ),
+    );
+    if (accepted != true) return;
+    final added = await StorageService.restoreLegacyGuestData();
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => PopScope(
+        canPop: false,
+        child: AlertDialog(
+          title: const Text('이전 기록 복원 완료'),
+          content: Text(
+            '$added개 항목을 추가했어요. 같은 ID의 기존 기록은 유지했어요. 반영된 기록을 보려면 앱을 닫은 뒤 다시 열어 주세요.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => SystemNavigator.pop(),
+              child: const Text('앱 닫기'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _cloudRestore() async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
@@ -307,6 +376,10 @@ class _DataSafetyScreenState extends State<DataSafetyScreen> {
             OutlinedButton(
               onPressed: _busy ? null : () => _work(_import),
               child: const Text('백업 파일에서 복원'),
+            ),
+            TextButton(
+              onPressed: _busy ? null : () => _work(_recoverLegacyRecords),
+              child: const Text('이전 버전의 누락 기록 확인'),
             ),
             const Divider(height: 32),
             ValueListenableBuilder<bool>(
