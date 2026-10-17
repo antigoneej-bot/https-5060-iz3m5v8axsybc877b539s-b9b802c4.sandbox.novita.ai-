@@ -333,8 +333,10 @@ class SubscriptionService {
     // 쿼터 등 특정 상태를 검증하는 테스트를 방해하지 않기 위함).
     if (kDebugMode && override != null) return override;
     // ⚠️ 테스트 전용 스위치. FeatureFlags.debugUnlockAllPremium 을 참고.
-    // 정식 배포(APK/AAB) 전 반드시 false로 되돌려야 합니다.
-    if (kDebugMode && FeatureFlags.debugUnlockAllPremium) return true;
+    // kDebugMode 가드 없이 release 빌드에도 적용되도록 임시로 열어둔
+    // 상태입니다(결제 QA 목적). 정식 배포(스토어 출시) 전 반드시
+    // FeatureFlags.debugUnlockAllPremium = false 로 되돌려야 합니다.
+    if (FeatureFlags.debugUnlockAllPremium) return true;
     if (CloudService.enabled) return CloudService.cachedPremium();
     if (!storeBillingEnabled) {
       await _clearLocalPremiumFlag();

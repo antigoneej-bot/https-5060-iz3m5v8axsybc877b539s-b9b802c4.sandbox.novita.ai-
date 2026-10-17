@@ -32,7 +32,16 @@ class FeatureFlags {
   /// 되돌려야 합니다. [SubscriptionService.isPremium] 에서 확인합니다.
   /// (단위 테스트가 무료 등급 로직을 검증할 수 있도록 const가 아닌
   /// static 변수로 두되, 기본값은 false입니다.)
-  static bool debugUnlockAllPremium = false;
+  ///
+  /// 기본값은 빌드 타임 환경변수 UNLOCK_ALL_PREMIUM으로 결정됩니다.
+  /// `flutter test`에는 이 define이 전달되지 않으므로 항상 false로
+  /// 시작하여 기존 단위/위젯 테스트에 영향을 주지 않습니다. QA용 테스트
+  /// APK를 빌드할 때만
+  /// `flutter build apk --dart-define=UNLOCK_ALL_PREMIUM=true` 로
+  /// 전체 잠금을 해제합니다.
+  static bool debugUnlockAllPremium = const bool.fromEnvironment(
+    'UNLOCK_ALL_PREMIUM',
+  );
 
   /// true: 편지 몇몇 모듈(인사/고양이감정/마무리)에 태그 기반 이모지를
   /// 자동으로 붙입니다(문장 원본은 그대로 두고 조합 단계에서만 덧붙임).
