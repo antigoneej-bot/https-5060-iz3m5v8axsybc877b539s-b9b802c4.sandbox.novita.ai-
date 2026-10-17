@@ -212,10 +212,10 @@ class _WelcomeIntroScreenState extends State<WelcomeIntroScreen> {
           Text(
             data.title,
             textAlign: TextAlign.center,
-            style: serifFont(
-              fontSize: 19,
+            style: titleFont(
+              fontSize: 21,
               fontWeight: FontWeight.w700,
-              color: AppColors.ink,
+              color: AppColors.moon,
               height: 1.5,
             ),
           ),
@@ -226,7 +226,7 @@ class _WelcomeIntroScreenState extends State<WelcomeIntroScreen> {
               textAlign: TextAlign.center,
               style: bodyFont(
                 fontSize: 12.5,
-                color: AppColors.inkSoft,
+                color: AppColors.moon.withValues(alpha: 0.78),
                 height: 1.6,
               ),
             ),
@@ -297,28 +297,66 @@ class _WelcomeIntroScreenState extends State<WelcomeIntroScreen> {
   }
 }
 
-class _ImageArt extends StatelessWidget {
+class _ImageArt extends StatefulWidget {
   final String imageAsset;
   const _ImageArt({required this.imageAsset});
 
   @override
+  State<_ImageArt> createState() => _ImageArtState();
+}
+
+class _ImageArtState extends State<_ImageArt>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _floatController;
+
+  @override
+  void initState() {
+    super.initState();
+    // 이미지마다 살짝 다른 리듬으로 천천히 떠다니는 느낌을 주기 위해
+    // 시작 위상과 속도를 약간 무작위로 섞어줍니다.
+    final rng = Random(identityHashCode(this));
+    _floatController = AnimationController(
+      vsync: this,
+      duration: Duration(milliseconds: 3600 + rng.nextInt(1600)),
+    )..repeat(reverse: true, min: rng.nextDouble(), max: 1);
+  }
+
+  @override
+  void dispose() {
+    _floatController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(28),
-      child: Container(
-        decoration: BoxDecoration(
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.08),
-              blurRadius: 30,
-              offset: const Offset(0, 14),
-            ),
-          ],
-        ),
-        child: Image.asset(
-          imageAsset,
-          fit: BoxFit.cover,
-          width: double.infinity,
+    return AnimatedBuilder(
+      animation: _floatController,
+      builder: (context, child) {
+        final t = _floatController.value;
+        final dy = sin(t * pi) * 5.0;
+        final angle = sin(t * pi) * 0.008;
+        return Transform.translate(
+          offset: Offset(0, dy),
+          child: Transform.rotate(angle: angle, child: child),
+        );
+      },
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(28),
+        child: Container(
+          decoration: BoxDecoration(
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.08),
+                blurRadius: 30,
+                offset: const Offset(0, 14),
+              ),
+            ],
+          ),
+          child: Image.asset(
+            widget.imageAsset,
+            fit: BoxFit.cover,
+            width: double.infinity,
+          ),
         ),
       ),
     );
