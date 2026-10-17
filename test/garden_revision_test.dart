@@ -65,17 +65,24 @@ void main() {
         ),
       ),
     );
-    // GardenWorldView defaults motionEnabled to true, which keeps its wind
-    // (_air) and daylight (_daylight) AnimationControllers repeating forever
-    // once mounted — pumpAndSettle() would hang waiting for them to finish.
-    // A single pump() is enough to let the widget build.
+    // This scene deliberately has continuous ambient animation. Render bounded
+    // frames instead of waiting for all animation to stop.
     await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
     expect(find.text('배치 모드'), findsNothing);
     expect(find.text('씨앗 심기'), findsNothing);
+    expect(find.text('돌보기 · 꾸미기 · 추억'), findsNothing);
+    expect(find.text('물 주기'), findsNothing);
     await tester.tap(find.byKey(const ValueKey('world-item-seed:pine')));
     await tester.pump();
+    // A visitor can inspect the public plant name, without private callbacks.
+    expect(
+      find.descendant(of: find.byType(SnackBar), matching: find.text('소나무')),
+      findsOneWidget,
+    );
     expect(calls, 0);
     expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
   });
   testWidgets('video cards show posters without auto-initializing players', (
     tester,

@@ -1,3 +1,4 @@
+import '../widgets/reply_support_actions.dart';
 import '../models/reply_style.dart';
 import '../widgets/reply_style_picker.dart';
 import '../services/draft_service.dart';
@@ -15,6 +16,39 @@ import 'heart_letter_history_screen.dart';
 class HeartLettersScreen extends StatelessWidget {
   const HeartLettersScreen({super.key});
 
+  Future<void> _openHistory(BuildContext context) async {
+    final type = await showModalBottomSheet<SpecialLetterType>(
+      context: context,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Text(
+                '지난 마음편지',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+              ),
+            ),
+            for (final type in SpecialLetterType.values)
+              ListTile(
+                leading: Text(type.emoji),
+                title: Text(type.label),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => Navigator.pop(sheetContext, type),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (type == null || !context.mounted) return;
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => HeartLetterHistoryScreen(type: type),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -30,6 +64,12 @@ class HeartLettersScreen extends StatelessWidget {
           '짧게 적어보세요. 답장은 내일 아침에 도착해요',
           textAlign: TextAlign.center,
           style: bodyFont(fontSize: 12.5, color: AppColors.inkSoft),
+        ),
+        const SizedBox(height: 12),
+        OutlinedButton.icon(
+          onPressed: () => _openHistory(context),
+          icon: const Icon(Icons.mail_outline),
+          label: const Text('지난 마음편지'),
         ),
         const SizedBox(height: 24),
         _HeartLetterGrid(),
@@ -159,7 +199,9 @@ class _HeartLetterTileState extends State<_HeartLetterTile> {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: Colors.white.withValues(alpha: 0.65),
-                border: Border.all(color: widget.accent.withValues(alpha: 0.35)),
+                border: Border.all(
+                  color: widget.accent.withValues(alpha: 0.35),
+                ),
               ),
               child: Text(type.emoji, style: const TextStyle(fontSize: 20)),
             ),
@@ -207,8 +249,7 @@ class _WriteHeartLetterSheet extends StatefulWidget {
   });
 
   @override
-  State<_WriteHeartLetterSheet> createState() =>
-      _WriteHeartLetterSheetState();
+  State<_WriteHeartLetterSheet> createState() => _WriteHeartLetterSheetState();
 }
 
 class _WriteHeartLetterSheetState extends State<_WriteHeartLetterSheet> {
@@ -218,6 +259,7 @@ class _WriteHeartLetterSheetState extends State<_WriteHeartLetterSheet> {
     super.initState();
     _controller = DraftTextController('heart_${widget.type.storageKey}');
   }
+
   ReplyStyle _replyStyle = ReplyStyle.listen;
   bool _sending = false;
   SpecialLetterEntry? _result;
@@ -236,8 +278,11 @@ class _WriteHeartLetterSheetState extends State<_WriteHeartLetterSheet> {
     if (text.isEmpty || _sending) return;
     setState(() => _sending = true);
     try {
-      if (_submissionId == null || _attemptText != text || _attemptStyle != _replyStyle) {
-        _submissionId = '${DateTime.now().microsecondsSinceEpoch}_${widget.type.storageKey}';
+      if (_submissionId == null ||
+          _attemptText != text ||
+          _attemptStyle != _replyStyle) {
+        _submissionId =
+            '${DateTime.now().microsecondsSinceEpoch}_${widget.type.storageKey}';
         _attemptText = text;
         _attemptStyle = _replyStyle;
       }
@@ -247,7 +292,11 @@ class _WriteHeartLetterSheetState extends State<_WriteHeartLetterSheet> {
         letterText: text,
         replyStyle: _replyStyle,
       );
-      try { await _controller.discard(); } catch (_) { /* Source is already saved. */ }
+      try {
+        await _controller.discard();
+      } catch (_) {
+        /* Source is already saved. */
+      }
       if (!mounted) return;
       setState(() => _result = entry);
     } catch (_) {
@@ -332,7 +381,10 @@ class _WriteHeartLetterSheetState extends State<_WriteHeartLetterSheet> {
                       decoration: InputDecoration(
                         filled: false,
                         hintText: type.hint,
-                        hintStyle: bodyFont(fontSize: 12.5, color: AppColors.inkSoft),
+                        hintStyle: bodyFont(
+                          fontSize: 12.5,
+                          color: AppColors.inkSoft,
+                        ),
                         contentPadding: const EdgeInsets.all(14),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(16),
@@ -341,9 +393,18 @@ class _WriteHeartLetterSheetState extends State<_WriteHeartLetterSheet> {
                       ),
                     ),
                   ),
+                  ValueListenableBuilder<TextEditingValue>(
+                    valueListenable: _controller,
+                    builder: (_, value, __) =>
+                        ReplySupportActions(letterText: value.text),
+                  ),
                   const SizedBox(height: 16),
-                  ReplyStylePicker(value:_replyStyle,enabled:!_sending,onChanged:(value)=>setState(()=>_replyStyle=value)),
-                  const SizedBox(height:16),
+                  ReplyStylePicker(
+                    value: _replyStyle,
+                    enabled: !_sending,
+                    onChanged: (value) => setState(() => _replyStyle = value),
+                  ),
+                  const SizedBox(height: 16),
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
@@ -448,12 +509,15 @@ class _SentConfirmationViewState extends State<_SentConfirmationView>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            ReplySupportActions(letterText: widget.entry.letterText),
             Container(
               padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(22),
                 color: Colors.white.withValues(alpha: 0.75),
-                border: Border.all(color: widget.accent.withValues(alpha: 0.35)),
+                border: Border.all(
+                  color: widget.accent.withValues(alpha: 0.35),
+                ),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -492,7 +556,9 @@ class _SentConfirmationViewState extends State<_SentConfirmationView>
                     onPressed: widget.onHistory,
                     style: OutlinedButton.styleFrom(
                       foregroundColor: widget.accent,
-                      side: BorderSide(color: widget.accent.withValues(alpha: 0.5)),
+                      side: BorderSide(
+                        color: widget.accent.withValues(alpha: 0.5),
+                      ),
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(999),

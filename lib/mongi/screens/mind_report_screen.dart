@@ -1,13 +1,15 @@
 import '../../theme.dart' show AppColors;
+import '../../providers/app_state_provider.dart';
+import '../../services/emotion_summary_service.dart';
+import '../../services/unified_emotion_summary_service.dart';
+import '../../screens/emotion_statistics_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../l10n/emotion_l10n.dart';
 import '../l10n/emotion_trigger_l10n.dart';
 import '../l10n/gen/app_localizations.dart';
 import '../l10n/mood_trend_l10n.dart';
 import '../l10n/weekday_l10n.dart';
-import '../l10n/weekly_observation_l10n.dart';
 import '../l10n/mind_reflection_l10n.dart';
 import '../models/emotion.dart';
 import '../providers/garden_provider.dart';
@@ -20,7 +22,6 @@ import 'gratitude_log_screen.dart';
 import 'mental_health_support_screen.dart';
 import 'mood_trend_screen.dart';
 import 'settings_screen.dart';
-import 'weekly_report_screen.dart';
 
 /// "마음 리포트" - 지금까지 흩어져 있던 감정 기록(주간 리포트, 감정 캘린더,
 /// 감정 도감, 다이어리)을 한 화면에서 미리 볼 수 있는 통합 대시보드.
@@ -35,21 +36,58 @@ import 'weekly_report_screen.dart';
 /// 정신건강 안내([MentalHealthSupportScreen])로 가는 입구도 이 화면에
 /// 항상 노출한다 - 데이터 패턴상 마음이 많이 무거워 보일 때는 더 눈에 띄게,
 /// 그렇지 않을 때도 조용히 항상 열려 있게.
-class MindReportScreen extends StatelessWidget {
+class MindReportScreen extends StatefulWidget {
   const MindReportScreen({super.key});
+  @override
+  State<MindReportScreen> createState() => _MindReportScreenState();
+}
+
+class _MindReportScreenState extends State<MindReportScreen> {
+  bool _gardenLoading = true;
+  bool _gardenFailed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _loadGarden();
+    });
+  }
+
+  Future<void> _loadGarden() async {
+    setState(() {
+      _gardenLoading = true;
+      _gardenFailed = false;
+    });
+    try {
+      final garden = context.read<GardenProvider>();
+      if (!garden.isInitialized) await garden.ensureInitialized();
+    } catch (_) {
+      if (mounted) setState(() => _gardenFailed = true);
+    } finally {
+      if (mounted) setState(() => _gardenLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final garden = context.watch<GardenProvider>();
     final diaryEntries = garden.diaryEntries;
-    final weekly = EmotionInsightService.buildWeeklyReport(
-      diaryEntries: diaryEntries,
-    );
     final now = DateTime.now();
-    final monthly = EmotionInsightService.buildMonthlyInsight(
-      diaryEntries: diaryEntries,
-      month: DateTime(now.year, now.month, 1),
+    final records = UnifiedEmotionSummaryService.read(
+      letters: context.watch<AppStateProvider>().history,
+      gardenDiary: diaryEntries,
+    );
+    final weekly = UnifiedEmotionSummaryService.period(
+      records,
+      EmotionSummaryService.weekStart(now),
+      now,
+    );
+    final monthly = UnifiedEmotionSummaryService.period(
+      records,
+      DateTime(now.year, now.month),
+      now,
     );
     final weekdayPattern = EmotionInsightService.buildWeekdayPattern(
       diaryEntries: diaryEntries,
@@ -91,15 +129,36 @@ class MindReportScreen extends StatelessWidget {
                       ],
                       _buildIntroText(l10n),
                       const SizedBox(height: 18),
-                      _WeeklySummaryCard(report: weekly),
+                      if (_gardenLoading) const LinearProgressIndicator(),
+                      if (_gardenFailed)
+                        TextButton.icon(
+                          onPressed: _loadGarden,
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('정원 일기를 불러오지 못했어요. 다시 시도'),
+                        ),
+                      _UnifiedPeriodCard(summary: weekly),
                       const SizedBox(height: 14),
-                      const _MoodTrendSummaryCard(),
+                      _UnifiedPeriodCard(summary: monthly, monthly: true),
                       const SizedBox(height: 14),
-                      _MonthlySummaryCard(insight: monthly),
-                      const SizedBox(height: 14),
-                      _WeekdayPatternCard(pattern: weekdayPattern),
-                      const SizedBox(height: 14),
-                      _TriggerPatternCard(insight: triggerInsight),
+                      ExpansionTile(
+                        tilePadding: EdgeInsets.zero,
+                        title: const Text('정원 일기만 자세히 살펴보기'),
+                        subtitle: const Text('아래 패턴은 정원 일기 기준이며 편지는 포함하지 않아요.'),
+                        children: [
+                          const Padding(
+                            padding: EdgeInsets.only(bottom: 12),
+                            child: Text(
+                              '마음 흐름은 선택한 감정과 강도로 계산한 참고값이에요. 직접 매긴 기분 점수나 심리 상태의 진단이 아니에요.',
+                            ),
+                          ),
+                          const _MoodTrendSummaryCard(),
+                          const SizedBox(height: 14),
+                          _WeekdayPatternCard(pattern: weekdayPattern),
+                          const SizedBox(height: 14),
+                          _TriggerPatternCard(insight: triggerInsight),
+                          const SizedBox(height: 14),
+                        ],
+                      ),
                       const SizedBox(height: 14),
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -155,7 +214,7 @@ class MindReportScreen extends StatelessWidget {
 
   Widget _buildIntroText(AppLocalizations l10n) {
     return Text(
-      l10n.mindReportIntroText,
+      '편지와 정원 일기에 남긴 마음을 함께 돌아봐요. 기록 횟수는 마음이 좋아지거나 나빠진 정도를 뜻하지 않아요.',
       style: const TextStyle(
         fontSize: 12.5,
         color: AppColors.inkSoft,
@@ -277,67 +336,46 @@ class MindReportScreen extends StatelessWidget {
   }
 }
 
-/// 이번 주 요약 카드 - [WeeklyReportScreen]의 핵심 수치만 미리 보여준다.
-class _WeeklySummaryCard extends StatelessWidget {
-  final WeeklyEmotionReport report;
-
-  const _WeeklySummaryCard({required this.report});
+/// Both entry points use exactly the same dated records as emotion statistics.
+class _UnifiedPeriodCard extends StatelessWidget {
+  final UnifiedEmotionPeriod summary;
+  final bool monthly;
+  const _UnifiedPeriodCard({required this.summary, this.monthly = false});
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
     return _ReportCardShell(
-      onTap: () {
-        Navigator.of(
-          context,
-        ).push(MaterialPageRoute(builder: (_) => const WeeklyReportScreen()));
-      },
-      accentColor: const Color(0xFFE0A72E),
-      emoji: '📊',
-      title: l10n.mindReportWeeklyTitle,
-      child: report.hasEnoughData
-          ? Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Text(
-                      l10n.mindReportWeeklyPositiveLabel(
-                        (report.positiveRatio * 100).round(),
-                      ),
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 15,
-                        color: Color(0xFFE0A72E),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      l10n.mindReportWeeklySessionsLabel(report.totalSessions),
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: AppColors.inkSoft,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  weeklyObservationText(l10n, report.observationResult),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 12.5,
-                    color: AppColors.inkSoft,
-                    height: 1.4,
-                  ),
-                ),
-              ],
-            )
-          : Text(
-              l10n.mindReportWeeklyNotEnoughData,
-              style: const TextStyle(fontSize: 12.5, color: AppColors.inkSoft),
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => EmotionStatisticsScreen(initialMonthly: monthly),
+        ),
+      ),
+      accentColor: const Color(0xFF5FB8AE),
+      emoji: monthly ? '🗓️' : '📊',
+      title: monthly ? '이번 달 함께 모은 마음' : '이번 주 함께 모은 마음',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '${summary.recordedDays}일 · ${summary.records.length}개의 기록',
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 6),
+          Text('편지 ${summary.letterCount}개 · 정원 일기 ${summary.gardenCount}개'),
+          const SizedBox(height: 6),
+          Text(
+            summary.records.isEmpty
+                ? '감정 하나를 골라 남겨도 괜찮아요.'
+                : '날짜를 눌러 당시의 글과 감정을 다시 볼 수 있어요.',
+            style: const TextStyle(fontSize: 12.5, color: AppColors.inkSoft),
+          ),
+          if (monthly)
+            const Text(
+              '월간 상세 분석은 구독으로 이용해요.',
+              style: TextStyle(fontSize: 12, color: AppColors.inkSoft),
             ),
+        ],
+      ),
     );
   }
 }
@@ -377,71 +415,6 @@ class _MoodTrendSummaryCard extends StatelessWidget {
             )
           : Text(
               l10n.mindReportMoodTrendNotEnoughData,
-              style: const TextStyle(fontSize: 12.5, color: AppColors.inkSoft),
-            ),
-    );
-  }
-}
-
-/// 이번 달 요약 카드 - [EmotionCalendarScreen]의 월간 인사이트 미리보기.
-class _MonthlySummaryCard extends StatelessWidget {
-  final MonthlyEmotionInsight insight;
-
-  const _MonthlySummaryCard({required this.insight});
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    final top = insight.topEmotion;
-    return _ReportCardShell(
-      onTap: () {
-        Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const EmotionCalendarScreen()),
-        );
-      },
-      accentColor: const Color(0xFF5FB8AE),
-      emoji: '🗓️',
-      title: l10n.mindReportMonthlyTitle,
-      child: insight.hasEnoughData
-          ? Row(
-              children: [
-                if (top != null) ...[
-                  Text(top.gardenIcon, style: const TextStyle(fontSize: 20)),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      l10n.mindReportMonthlyTopEmotion(
-                        emotionLabel(l10n, top.type),
-                      ),
-                      style: const TextStyle(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.ink,
-                      ),
-                    ),
-                  ),
-                ] else
-                  Expanded(
-                    child: Text(
-                      l10n.mindReportMonthlyNoTopEmotion,
-                      style: const TextStyle(
-                        fontSize: 12.5,
-                        color: AppColors.ink,
-                      ),
-                    ),
-                  ),
-                Text(
-                  l10n.mindReportMonthlyStreak(insight.longestStreak),
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.inkSoft,
-                  ),
-                ),
-              ],
-            )
-          : Text(
-              l10n.mindReportMonthlyNotEnoughData,
               style: const TextStyle(fontSize: 12.5, color: AppColors.inkSoft),
             ),
     );
@@ -532,7 +505,7 @@ class _GratitudeSummaryCard extends StatelessWidget {
     final l10n = AppLocalizations.of(context);
     final garden = context.watch<GardenProvider>();
     final count = garden.gratitudeEntries.length;
-    final doneToday = garden.hasGratitudeEntryToday;
+    final doneToday = garden.isInitialized && garden.hasGratitudeEntryToday;
     return _ReportCardShell(
       onTap: () {
         Navigator.of(

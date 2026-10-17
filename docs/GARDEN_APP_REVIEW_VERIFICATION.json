@@ -1,0 +1,22 @@
+{
+  "date": "2026-10-16",
+  "version": "1.0.14+17",
+  "base_version": "1.0.13+16",
+  "flutter_tests": {
+    "passed": 326,
+    "failed": 0,
+    "skipped": 0
+  },
+  "analysis": {
+    "errors": 0,
+    "warnings": 8,
+    "infos": 202
+  },
+  "web_release_build": "passed",
+  "backend_changed": false,
+  "backend_previous_verified_tests": 116,
+  "live_server_redeployment": false,
+  "actual_two_device_test": false,
+  "actual_store_purchase_test": false,
+  "signed_apk_built": false
+}

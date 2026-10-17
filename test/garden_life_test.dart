@@ -104,11 +104,17 @@ void main() {
     },
   );
   test('walk uses whole eight-frame cycles and all depth directions', () {
-    final poses = List.generate(4000, (i) => GardenCatMoment.at(i / 20,
-      zoneLeftOpen: true, zoneRightOpen: true));
+    final poses = List.generate(
+      4000,
+      (i) =>
+          GardenCatMoment.at(i / 20, zoneLeftOpen: true, zoneRightOpen: true),
+    );
     final moving = poses.where((p) => p.walking);
     expect(moving.any((p) => p.frame >= 4), isTrue);
-    expect(moving.map((p) => p.facing).toSet(), containsAll(GardenCatFacing.values));
+    expect(
+      moving.map((p) => p.facing).toSet(),
+      containsAll(GardenCatFacing.values),
+    );
     expect(moving.every((p) => p.frame >= 0 && p.frame < 8), isTrue);
   });
 
@@ -149,9 +155,12 @@ void main() {
         expect(store.forOwner('owner-a').single.bloomPending, isTrue);
         await store.markBloomSynced('owner-a', cheer.id);
         expect(store.forOwner('owner-a').single.flowerKind, 'hydrangea');
-        await store.plant('owner-a', cheer.id, flowerKind: 'tulip');
+        await expectLater(
+          store.plant('owner-a', cheer.id, flowerKind: 'tulip'),
+          throwsStateError,
+        );
         await store.remember('owner-a', [cheer]);
-        expect(store.forOwner('owner-a').single.flowerKind, 'tulip');
+        expect(store.forOwner('owner-a').single.flowerKind, 'hydrangea');
         expect(store.forOwner('owner-a').single.bloomPending, isFalse);
         expect(store.forOwner('owner-b'), isEmpty);
         expect(store.forOwner(null), isEmpty);

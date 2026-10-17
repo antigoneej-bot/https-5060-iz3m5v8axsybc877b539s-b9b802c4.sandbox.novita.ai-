@@ -1,6 +1,4 @@
-import '../widgets/home_core_actions.dart';
-import '../mongi/integration/mongi_entry_card.dart';
-import '../mongi/integration/garden_navigation.dart';
+import '../widgets/daily_care_card.dart';
 import 'emotion_statistics_screen.dart';
 import 'self_care_screen.dart';
 import 'care_connection_screen.dart';
@@ -20,6 +18,7 @@ import '../widgets/growth_header.dart';
 import '../widgets/garden_path_card.dart';
 import '../widgets/mochi_cat.dart';
 import '../widgets/feature_scaffold.dart';
+import '../mongi/widgets/garden_home_preview.dart';
 import 'pet_care_screen.dart';
 import 'daily_card_screen.dart';
 import 'todays_promise_screen.dart';
@@ -60,21 +59,16 @@ class HomeTabScreen extends StatelessWidget {
     // 안 읽은 답장이 없어도, 가장 최근에 도착한 답장은 "다시 보기" 카드로
     // 계속 남겨둡니다(한 번 읽고 나면 다시 찾아보기 어려웠던 문제 개선).
     final unseenReply = app.letterWithUnseenReadyReply ?? app.latestReadyReply;
-    final unseenHeartReply = SpecialLetterService.unseenReadyReply;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        HomeCoreActions(
+        DailyCareCard(
           onWrite: onGoToCatSelect,
+          onRest: onGoToMeditation,
           onGarden: () => pushFullScreen(
             context,
             '나의 정원',
-            MyGardenScreen(onGoMeetCat: gardenCatSelectionReturn(context)),
-          ),
-          onReflect: () => Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => SelfCareScreen(onOpenRecords: onGoToRecords),
-            ),
+            MyGardenScreen(onGoMeetCat: onGoToCatSelect),
           ),
         ),
         const SizedBox(height: 16),
@@ -89,27 +83,26 @@ class HomeTabScreen extends StatelessWidget {
               child: Text(app.gardenRewardRetrying ? '확인 중…' : '다시 연결'),
             ),
           ),
-        if (unseenReply != null || unseenHeartReply != null)
-          ExpansionTile(
-            key: const PageStorageKey('home-reply-inbox'),
-            leading: const Icon(Icons.mail_outline),
-            title: const Text('편지함'),
-            subtitle: const Text('도착한 답장을 편할 때 열어봐요'),
-            children: [
-              if (unseenReply != null)
-                _CatReplyBanner(entry: unseenReply, onTap: onGoToRecords),
-              if (unseenHeartReply != null)
-                _HeartLetterReplyBanner(
-                  entry: unseenHeartReply,
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) =>
-                          HeartLetterHistoryScreen(type: unseenHeartReply.type),
-                    ),
-                  ),
-                ),
-            ],
+        if (unseenReply != null) ...[
+          _CatReplyBanner(entry: unseenReply, onTap: onGoToRecords),
+          const SizedBox(height: 16),
+        ],
+        const _HeartReplyEntry(),
+        // 작은 정원 미리보기 + 진입 버튼 - 입체 연출이 있는 '살아있는 정원'
+        // 전체 씬은 정원 화면(나의 정원)에서만 보여주고, 홈에는 가볍게
+        // 탭해서 들어가는 입구만 둔다.
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: GestureDetector(
+            onTap: () => pushFullScreen(
+              context,
+              '나의 정원',
+              MyGardenScreen(onGoMeetCat: onGoToCatSelect),
+            ),
+            child: const GardenHomePreview(),
           ),
+        ),
+        const SizedBox(height: 16),
         ExpansionTile(
           key: const PageStorageKey('home-growth'),
           title: const Text('고양이와 함께한 기록'),
@@ -125,7 +118,7 @@ class HomeTabScreen extends StatelessWidget {
               onOpenGarden: () => pushFullScreen(
                 context,
                 '나의 정원',
-                MyGardenScreen(onGoMeetCat: gardenCatSelectionReturn(context)),
+                MyGardenScreen(onGoMeetCat: onGoToCatSelect),
               ),
             ),
             const SizedBox(height: 26),
@@ -149,7 +142,6 @@ class HomeTabScreen extends StatelessWidget {
           key: const PageStorageKey('home-more'),
           title: const Text('마음 돌보기 · 편지 · 더 보기'),
           children: [
-            MongiEntryCard(onGoMeetCat: onGoToCatSelect),
             _PathSignpost(title: '고양이를 만난 뒤엔, 이렇게 돌봐요'),
             const SizedBox(height: 6),
             GardenPathCard(
@@ -268,7 +260,7 @@ class HomeTabScreen extends StatelessWidget {
             GardenPathCard(
               emoji: '📖',
               title: '돌아보기 & 기록',
-              subtitle: '내 마음과 도움이 되었던 돌봄을 돌아보세요',
+              subtitle: '돌봄 온기, 주간 지도, 하루 닫기, 그림자 방울을 살펴보세요',
               accent: AppColors.blobPeachAccent,
               background: AppColors.blobPeach,
               alignX: 0.26,
@@ -282,33 +274,9 @@ class HomeTabScreen extends StatelessWidget {
                     headerSubtitle: '지나온 마음의 흐름을\n천천히 돌아보는 시간이에요',
                     items: [
                       CategoryItem(
-                        emoji: '🌱',
-                        title: '돌아보고 돌보기',
-                        subtitle: '지금 마음 · 작은 돌봄 · 해본 뒤 후기',
-                        accent: AppColors.blobMintAccent,
-                        background: AppColors.blobMint,
-                        onTap: (ctx) => Navigator.of(ctx).push(
-                          MaterialPageRoute(
-                            builder: (_) => const SelfCareScreen(),
-                          ),
-                        ),
-                      ),
-                      CategoryItem(
-                        emoji: '🤝',
-                        title: '사람과 연결',
-                        subtitle: '상담센터 · 명상센터 · 지역 도움 찾기',
-                        accent: AppColors.blobPeachAccent,
-                        background: AppColors.blobPeach,
-                        onTap: (ctx) => Navigator.of(ctx).push(
-                          MaterialPageRoute(
-                            builder: (_) => const CareConnectionScreen(),
-                          ),
-                        ),
-                      ),
-                      CategoryItem(
                         emoji: '🌡️',
-                        title: '지난 기록 보기',
-                        subtitle: '편지와 돌봄 온기를 살펴보세요',
+                        title: '돌봄 온기와 기록 보기',
+                        subtitle: '지난 편지와 활동으로 모은 온기를 돌아보세요',
                         accent: AppColors.blobRoseAccent,
                         background: AppColors.blobRose,
                         onTap: (ctx) {
@@ -351,6 +319,37 @@ class HomeTabScreen extends StatelessWidget {
                           '오늘의 그림자 방울 터뜨리기',
                           const BubbleGardenScreen(),
                         ),
+                      ),
+                      CategoryItem(
+                        emoji: '📝',
+                        title: '돌아보고 돌보기',
+                        subtitle: '주간·월간으로 나를 돌아보고 스스로 돌본 기록을 남겨보세요',
+                        accent: AppColors.blobMintAccent,
+                        background: AppColors.blobMint,
+                        onTap: (ctx) {
+                          Navigator.of(ctx).pop();
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  SelfCareScreen(onOpenRecords: onGoToRecords),
+                            ),
+                          );
+                        },
+                      ),
+                      CategoryItem(
+                        emoji: '🤝',
+                        title: '사람과 연결',
+                        subtitle: '혼자서 버거울 때 도움받을 수 있는 공식 기관을 안내해요',
+                        accent: AppColors.blobRoseAccent,
+                        background: AppColors.blobRose,
+                        onTap: (ctx) {
+                          Navigator.of(ctx).pop();
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const CareConnectionScreen(),
+                            ),
+                          );
+                        },
                       ),
                     ],
                   ),
@@ -396,6 +395,37 @@ class HomeTabScreen extends StatelessWidget {
 /// 홈 화면 최상단, '36 그림자 고양이 여정'을 앱의 핵심 후크로 내세우는
 /// 히어로 섹션. 오늘 만날 고양이 CTA와 도감(수집 진행률) 진입점을 함께
 /// 보여주어, 다른 모든 기능이 이 여정을 중심으로 이어지도록 합니다.
+/// Heart-letter read state is stored independently of AppStateProvider.
+class _HeartReplyEntry extends StatelessWidget {
+  const _HeartReplyEntry();
+
+  @override
+  Widget build(BuildContext context) {
+    final listenable = SpecialLetterService.listenable;
+    if (listenable == null) return const SizedBox.shrink();
+    return ValueListenableBuilder(
+      valueListenable: listenable,
+      builder: (context, _, __) {
+        final entry = SpecialLetterService.unseenReadyReply;
+        if (entry == null) return const SizedBox.shrink();
+        return Column(
+          children: [
+            _HeartLetterReplyBanner(
+              entry: entry,
+              onTap: () => Navigator.of(context).push<void>(
+                MaterialPageRoute<void>(
+                  builder: (_) => HeartLetterHistoryScreen(type: entry.type),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+        );
+      },
+    );
+  }
+}
+
 class _JourneyHero extends StatelessWidget {
   final int metCount;
   final int total;
@@ -599,88 +629,46 @@ class _ReplyNotificationSettingsButton extends StatefulWidget {
 
 class _ReplyNotificationSettingsButtonState
     extends State<_ReplyNotificationSettingsButton> {
-  bool _opening = false;
   Future<void> _openDialog() async {
-    if (_opening) return;
-    _opening = true;
-    try {
-      final enabled = await NotificationService().replyNotificationsEnabled();
-      if (!mounted) return;
-      bool current = enabled, busy = false;
-      String? error;
-      await showDialog<void>(
-        context: context,
-        builder: (dialogContext) => StatefulBuilder(
-          builder: (dialogContext, setDialogState) => AlertDialog(
-            title: const Text('답장 도착 알림'),
-            content: Text(
-              error ??
-                  (current
-                      ? '고양이와 마음편지의 답장이 도착하면 알림으로 알려드려요.'
-                      : '답장이 도착해도 알림을 보내지 않아요. 앱에 들어와서 직접 확인해주세요.'),
-              style: bodyFont(
-                fontSize: 13,
-                color: AppColors.inkSoft,
-                height: 1.5,
-              ),
+    final enabled = await NotificationService().replyNotificationsEnabled();
+    if (!mounted) return;
+    bool current = enabled;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: const Text('답장 도착 알림'),
+          content: Text(
+            current
+                ? '고양이와 마음편지의 답장이 도착하면 알림으로 알려드려요.'
+                : '답장이 도착해도 알림을 보내지 않아요. 앱에 들어와서 직접 확인해주세요.',
+            style: bodyFont(
+              fontSize: 13,
+              color: AppColors.inkSoft,
+              height: 1.5,
             ),
-            actions: [
-              TextButton(
-                onPressed: busy
-                    ? null
-                    : () => Navigator.of(dialogContext).pop(),
-                child: const Text('닫기'),
-              ),
-              TextButton(
-                onPressed: busy
-                    ? null
-                    : () async {
-                        setDialogState(() {
-                          busy = true;
-                          error = null;
-                        });
-                        final next = !current;
-                        try {
-                          final ok = await NotificationService()
-                              .setReplyNotificationsEnabled(next);
-                          if (!dialogContext.mounted) return;
-                          setDialogState(() {
-                            if (ok)
-                              current = next;
-                            else
-                              error = '이 기기에서 알림을 켤 수 없어요. 알림 권한을 확인해 주세요.';
-                          });
-                        } catch (_) {
-                          if (dialogContext.mounted)
-                            setDialogState(
-                              () => error = '변경을 완료하지 못했어요. 다시 시도해 주세요.',
-                            );
-                        } finally {
-                          if (dialogContext.mounted)
-                            setDialogState(() => busy = false);
-                        }
-                      },
-                child: Text(
-                  busy
-                      ? '변경 중…'
-                      : current
-                      ? '알림 끄기'
-                      : '알림 켜기',
-                ),
-              ),
-            ],
           ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('닫기'),
+            ),
+            TextButton(
+              onPressed: () async {
+                final next = !current;
+                final ok = await NotificationService()
+                    .setReplyNotificationsEnabled(next);
+                if (ok) {
+                  setDialogState(() => current = next);
+                }
+              },
+              child: Text(current ? '알림 끄기' : '알림 켜기'),
+            ),
+          ],
         ),
-      );
-    } catch (_) {
-      if (mounted)
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('알림 설정을 불러오지 못했어요. 다시 시도해 주세요.')),
-        );
-    } finally {
-      _opening = false;
-      if (mounted) setState(() {});
-    }
+      ),
+    );
+    if (mounted) setState(() {});
   }
 
   @override

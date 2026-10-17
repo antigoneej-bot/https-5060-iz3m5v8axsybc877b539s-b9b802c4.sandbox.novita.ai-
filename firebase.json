@@ -1,1 +1,1 @@
-{"functions":{"source":"backend"},"firestore":{"rules":"backend/firestore.rules"},"storage":{"rules":"backend/storage.rules"}}
+{"functions":{"source":"backend"},"firestore":{"rules":"backend/firestore.rules","indexes":"backend/firestore.indexes.json"},"storage":{"rules":"backend/storage.rules"}}

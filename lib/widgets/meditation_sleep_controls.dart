@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../services/meditation_sleep_service.dart';
-import '../services/meditation_timer_policy.dart';
 import '../theme.dart';
 
 class MeditationSleepControls extends StatelessWidget {
@@ -28,7 +27,7 @@ class MeditationSleepControls extends StatelessWidget {
           Wrap(
             spacing: 6,
             children: [
-              for (final m in <int?>[null, ...MeditationTimerPolicy.minutes])
+              for (final m in <int?>[null, 15, 30, 60])
                 ActionChip(
                   label: Text(m == null ? '타이머 해제' : '$m분'),
                   onPressed: () async {
@@ -59,7 +58,7 @@ class MeditationSleepControls extends StatelessWidget {
               onChanged: s.setRepeat,
             ),
           Text(
-            '원본 재생 길이는 그대로예요. 타이머보다 먼저 끝날 수 있어요.\n일시정지하거나 다른 명상으로 바꾸면 타이머가 해제돼요.',
+            '일시정지하거나 다른 명상으로 바꾸면 타이머가 해제돼요.',
             style: bodyFont(fontSize: 11, color: AppColors.inkSoft),
           ),
         ],

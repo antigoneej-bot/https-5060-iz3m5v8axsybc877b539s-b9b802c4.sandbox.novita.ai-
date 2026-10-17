@@ -5,7 +5,6 @@ import 'package:in_app_purchase_android/billing_client_wrappers.dart'
     show PricingPhaseWrapper;
 import 'dart:async';
 
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:in_app_purchase_android/in_app_purchase_android.dart';
@@ -17,6 +16,36 @@ import 'package:url_launcher/url_launcher.dart';
 /// Google Play 인앱결제(`in_app_purchase`) 연동.
 /// 상품 ID는 Play Console 구독과 반드시 일치해야 합니다.
 enum SubscriptionPlan { monthly, yearly }
+
+enum SubscriptionRestoreStatus {
+  restored,
+  noActivePurchase,
+  unavailable,
+  signInRequired,
+}
+
+/// A snapshot of one restore attempt. UI must not infer success from a cached
+/// premium flag or read a mutable error flag after another restore has started.
+class SubscriptionRestoreResult {
+  const SubscriptionRestoreResult(this.status, {this.active = false});
+
+  final SubscriptionRestoreStatus status;
+  final bool active;
+
+  bool get unavailable =>
+      status == SubscriptionRestoreStatus.unavailable ||
+      status == SubscriptionRestoreStatus.signInRequired;
+
+  String get message => switch (status) {
+    SubscriptionRestoreStatus.restored => '구독을 복원했어요. 이용 권한을 다시 확인했어요.',
+    SubscriptionRestoreStatus.noActivePurchase =>
+      '이 계정에서 복원할 구독을 찾지 못했어요. 구매할 때 사용한 마음냥 계정과 Play 계정을 확인해 주세요.',
+    SubscriptionRestoreStatus.unavailable =>
+      '구매 내역을 확인하지 못했어요. 기존 이용 상태를 유지했으니 연결 후 다시 시도해 주세요.',
+    SubscriptionRestoreStatus.signInRequired =>
+      '구매할 때 사용한 마음냥 계정으로 로그인한 뒤 다시 시도해 주세요.',
+  };
+}
 
 class SubscriptionService {
   SubscriptionService._();
@@ -49,8 +78,11 @@ class SubscriptionService {
   /// 판단(예: 디버그/운영 확인용 화면 노출)에서도 재사용할 수 있게 합니다.
   static bool get isAdminUser {
     try {
-      final email = FirebaseAuth.instance.currentUser?.email?.toLowerCase();
-      return email != null && adminEmails.contains(email);
+      final user = CloudService.currentUser;
+      final email = user?.email?.toLowerCase();
+      return user?.emailVerified == true &&
+          email != null &&
+          adminEmails.contains(email);
     } catch (_) {
       return false;
     }
@@ -73,22 +105,12 @@ class SubscriptionService {
   final Map<String, ProductDetails> _products = {};
   Completer<bool>? _purchaseCompleter;
   bool _initialized = false;
-  Future<void>? _initializing;
-  Future<void>? _startupCheck;
-  bool get hasStartupCheck => _startupCheck != null;
+  Future<void>? _initialization;
 
-  /// Reserve the first check before rendering. Local reading stays available,
-  /// while reward writes can wait for this attempt without trusting a false
-  /// default for a returning subscriber.
-  Future<void> startStartupCheck({Future<void> Function()? prepareCloud}) =>
-      _startupCheck ??= init(prepareCloud: prepareCloud);
-  Future<void> waitForStartupCheck() => _startupCheck ?? Future.value();
-
-  /// restorePurchases 동안 활성 구독을 한 건이라도 봤는지.
-  /// 오류 없는 Android 조회가 비어 있을 때만 로컬 프리미엄을 끕니다.
-  bool _sawActiveEntitlement = false;
+  /// Compatibility flag for callers that have not adopted the result snapshot.
   bool restoreUnavailable = false;
   Future<bool>? _restoreInFlight;
+  Future<SubscriptionRestoreResult>? _restoreResultInFlight;
 
   bool hasProduct(SubscriptionPlan plan) =>
       _products.containsKey(productIdFor(plan));
@@ -151,22 +173,29 @@ class SubscriptionService {
       : '무료체험이 확인되지 않았어요. 결제 전 스토어의 가격과 조건을 확인해 주세요.';
 
   /// 앱 시작 시 한 번 호출: 스토어 연결 + 미완료 구매 처리 + 상품 조회.
-  Future<void> init({Future<void> Function()? prepareCloud}) {
-    if (_initializing != null) return _initializing!;
-    if (_initialized) return Future.value();
-    return _initializing = Future<void>(() async {
-      if (prepareCloud != null) await prepareCloud();
-      await _initialize();
-    }).whenComplete(() => _initializing = null);
+  Future<void> init() {
+    final pending = _initialization;
+    if (pending != null) return pending;
+    if (_initialized) return Future<void>.value();
+    // Startup, the paywall and a purchase can all ask to initialize. They must
+    // await the same store connection instead of observing an early ready flag.
+    late final Future<void> initialization;
+    initialization = _initialize().whenComplete(() {
+      if (identical(_initialization, initialization)) _initialization = null;
+    });
+    _initialization = initialization;
+    return initialization;
   }
 
   Future<void> _initialize() async {
-    _initialized = true;
-
-    if (kIsWeb) return;
+    if (kIsWeb) {
+      _initialized = true;
+      return;
+    }
 
     if (!storeBillingEnabled) {
       await _clearLocalPremiumFlag();
+      _initialized = true;
       return;
     }
 
@@ -187,6 +216,7 @@ class SubscriptionService {
 
       await _queryProducts();
       await restorePurchases();
+      _initialized = true;
     } catch (e) {
       _initialized = false;
       if (kDebugMode) debugPrint('SubscriptionService init: $e');
@@ -240,7 +270,6 @@ class SubscriptionService {
                       true
                 : false;
             if (ok) {
-              _sawActiveEntitlement = true;
               final plan = purchase.productID == yearlyProductId
                   ? SubscriptionPlan.yearly
                   : SubscriptionPlan.monthly;
@@ -305,7 +334,7 @@ class SubscriptionService {
     if (kDebugMode && override != null) return override;
     // ⚠️ 테스트 전용 스위치. FeatureFlags.debugUnlockAllPremium 을 참고.
     // 정식 배포(APK/AAB) 전 반드시 false로 되돌려야 합니다.
-    if (FeatureFlags.debugUnlockAllPremium) return true;
+    if (kDebugMode && FeatureFlags.debugUnlockAllPremium) return true;
     if (CloudService.enabled) return CloudService.cachedPremium();
     if (!storeBillingEnabled) {
       await _clearLocalPremiumFlag();
@@ -435,45 +464,73 @@ class SubscriptionService {
   /// 스토어에서 과거 구매를 다시 읽어 프리미엄 동기화.
   /// 활성 구독이 없으면 로컬 프리미엄 플래그를 끕니다(만료·해지 반영).
   Future<bool> restorePurchases() {
-    return _restoreInFlight ??= _restoreSafely().whenComplete(() {
-      _restoreInFlight = null;
-    });
+    return _restoreInFlight ??= restorePurchasesWithResult()
+        .then((result) => result.active)
+        .whenComplete(() {
+          _restoreInFlight = null;
+        });
   }
 
-  Future<bool> _restoreSafely() async {
+  Future<SubscriptionRestoreResult> restorePurchasesWithResult() {
+    return _restoreResultInFlight ??= _restoreSafely()
+        .then((result) {
+          // Retained for existing callers; new UI uses the result snapshot above.
+          restoreUnavailable = result.unavailable;
+          return result;
+        })
+        .whenComplete(() {
+          _restoreResultInFlight = null;
+        });
+  }
+
+  Future<SubscriptionRestoreResult> _unavailableRestore() async =>
+      SubscriptionRestoreResult(
+        SubscriptionRestoreStatus.unavailable,
+        active: await isPremium(),
+      );
+
+  Future<SubscriptionRestoreResult> _restoreSafely() async {
     if (kIsWeb) {
-      restoreUnavailable = true;
-      return false;
+      return _unavailableRestore();
     }
-    restoreUnavailable = false;
     if (!storeBillingEnabled) {
       await _clearLocalPremiumFlag();
-      return false;
+      return const SubscriptionRestoreResult(
+        SubscriptionRestoreStatus.unavailable,
+      );
     }
-    _sawActiveEntitlement = false;
+    if (!CloudService.enabled) return _unavailableRestore();
+    final restoringUid = CloudService.currentUser?.uid;
+    if (restoringUid == null) {
+      return const SubscriptionRestoreResult(
+        SubscriptionRestoreStatus.signInRequired,
+      );
+    }
     try {
       if (!await _iap.isAvailable()) {
-        restoreUnavailable = true;
-        return isPremium();
+        return _unavailableRestore();
       }
       if (defaultTargetPlatform != TargetPlatform.android) {
         // This release targets Android. A restore stream has no reliable
         // empty-result completion signal here; never revoke on a timer.
         await _iap.restorePurchases();
-        restoreUnavailable = true;
-        return isPremium();
+        return _unavailableRestore();
       }
       final addition = _iap
           .getPlatformAddition<InAppPurchaseAndroidPlatformAddition>();
       final response = await addition.queryPastPurchases();
       if (response.error != null) {
-        restoreUnavailable = true;
-        return isPremium();
+        return _unavailableRestore();
       }
       if (CloudService.enabled) {
         for (final purchase in response.pastPurchases.where(
           _isActiveSubscription,
         )) {
+          if (CloudService.currentUser?.uid != restoringUid) {
+            return const SubscriptionRestoreResult(
+              SubscriptionRestoreStatus.signInRequired,
+            );
+          }
           try {
             await CloudService.verify(
               purchase.verificationData.serverVerificationData,
@@ -487,6 +544,11 @@ class SubscriptionService {
           if (purchase.pendingCompletePurchase)
             await _iap.completePurchase(purchase);
         }
+        if (CloudService.currentUser?.uid != restoringUid) {
+          return const SubscriptionRestoreResult(
+            SubscriptionRestoreStatus.signInRequired,
+          );
+        }
         final result = await CloudService.refreshEntitlement();
         if (result['active'] == true) {
           await setPlan(
@@ -495,15 +557,34 @@ class SubscriptionService {
                 : SubscriptionPlan.monthly,
           );
         }
-        return result['active'] == true;
+        if (CloudService.currentUser?.uid != restoringUid) {
+          return const SubscriptionRestoreResult(
+            SubscriptionRestoreStatus.signInRequired,
+          );
+        }
+        final active = result['active'] == true;
+        return SubscriptionRestoreResult(
+          active
+              ? SubscriptionRestoreStatus.restored
+              : SubscriptionRestoreStatus.noActivePurchase,
+          active: active,
+        );
       }
-      restoreUnavailable = true;
-      return false;
+      return _unavailableRestore();
     } catch (e) {
-      restoreUnavailable = true;
       if (kDebugMode) debugPrint('SubscriptionService restore: $e');
+      if (e is CloudException &&
+          {
+            'authentication-required',
+            'account-changed',
+            'verify-email',
+          }.contains(e.code)) {
+        return const SubscriptionRestoreResult(
+          SubscriptionRestoreStatus.signInRequired,
+        );
+      }
       // Transport/billing errors do not prove that an entitlement expired.
-      return isPremium();
+      return _unavailableRestore();
     }
   }
 

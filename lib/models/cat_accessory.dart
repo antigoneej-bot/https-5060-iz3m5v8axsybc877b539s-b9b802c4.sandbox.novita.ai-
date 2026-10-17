@@ -7,7 +7,7 @@
 ///   부위([CatWearSlot])별로 슬롯이 나뉘어 있어, 여러 부위를 동시에 착용할 수
 ///   있습니다(예: 모자 + 목도리 + 옷 + 신발을 한꺼번에).
 /// - [CatItemType.consumable]: 사료/츄루/빗질처럼 한 번 사용하면 사라지는
-///   소모품. 사용하면 돌봄 온기가 살짝 오릅니다.
+///   소모품. 사용하면 마음 온도가 살짝 오릅니다.
 /// - [CatItemType.furniture]: 캣타워처럼 고양이가 입는 게 아니라 '우리 집'을
 ///   꾸며주는 가구. 구매하면 바로 방에 놓여집니다.
 enum CatItemType { wearable, consumable, furniture }
@@ -37,7 +37,7 @@ class CatAccessory {
 
 /// 상점에서 판매하는 전체 아이템 목록.
 const List<CatAccessory> catAccessories = [
-  // ── 먹거리 · 손질 (소모품 - 사용하면 돌봄 온기가 살짝 올라요) ──
+  // ── 먹거리 · 손질 (소모품 - 사용하면 마음 온도가 살짝 올라요) ──
   CatAccessory(
     id: 'food_regular',
     emoji: '🍽️',

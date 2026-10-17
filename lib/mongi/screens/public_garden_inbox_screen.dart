@@ -1,285 +1,514 @@
-import '../integration/garden_bloom_sync.dart';
-import '../screens/garden_bloom_news_screen.dart';
+import 'dart:async';
+
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../services/social_auth_service.dart';
+import '../../services/garden_village_service.dart';
+import '../../services/garden_return_store.dart';
 import '../../theme.dart' show AppColors;
+import '../../widgets/account_entry_card.dart';
+import '../integration/cheer_flower_store.dart';
+import '../integration/garden_bloom_sync.dart';
 import '../l10n/gen/app_localizations.dart';
 import '../l10n/public_cheer_l10n.dart';
+import '../models/garden_gifts.dart';
 import '../models/public_garden.dart';
-import '../integration/cheer_flower_store.dart';
+import '../models/garden_village.dart';
+import '../providers/garden_provider.dart';
+import '../widgets/garden_gift_art.dart';
 import '../widgets/garden_keepsake_sheets.dart'
     show currentGardenOwner, showCheerFlowers;
-import '../providers/garden_provider.dart';
+import 'garden_bloom_news_screen.dart';
+import 'garden_visit_screen.dart';
 
-/// "받은 응원함" - 내가 정원을 공개한 뒤 다른 사람들로부터 받은 응원을
-/// 확인하는 화면.
-///
-/// [설계 원칙] 여기엔 "답장하기" 기능이 없다 - 응원을 받았다고 반드시
-/// 되돌려줘야 한다는 압박을 주지 않는다(답례 강요 금지). 확인(claim)하면
-/// 함께 온 빛의 정수 선물을 받을 뿐이다.
 class PublicGardenInboxScreen extends StatefulWidget {
-  const PublicGardenInboxScreen({super.key});
-
+  const PublicGardenInboxScreen({
+    super.key,
+    this.embedded = false,
+    this.accountReady,
+    this.service,
+    this.currentAccount,
+    this.accountChanges,
+  });
+  final bool embedded;
+  final Future<bool> Function()? accountReady;
+  final GardenVillageService? service;
+  final String? Function()? currentAccount;
+  final Stream<String?>? accountChanges;
   @override
   State<PublicGardenInboxScreen> createState() =>
       _PublicGardenInboxScreenState();
 }
 
-class _PublicGardenInboxScreenState extends State<PublicGardenInboxScreen> {
-  bool _loading = true;
-  String? _error;
+class _PublicGardenInboxScreenState extends State<PublicGardenInboxScreen>
+    with WidgetsBindingObserver {
+  bool _loading = true, _needsAccount = false, _loadingMore = false;
+  String? _error, _pageError, _owner, _nextCursor;
+  int _request = 0;
   List<ReceivedCheer> _cheers = const [];
-  final Set<String> _claiming = {};
-  final Set<String> _claimedThisVisit = {};
+  final Set<String> _claiming = {}, _planting = {};
+  StreamSubscription<String?>? _auth;
+
+  String? get _currentOwner => widget.currentAccount != null
+      ? widget.currentAccount!()
+      : widget.service?.accountOwner ?? SocialAuthService.currentUser?.uid;
 
   @override
   void initState() {
     super.initState();
+    _owner = _currentOwner;
+    WidgetsBinding.instance.addObserver(this);
+    final changes =
+        widget.accountChanges ??
+        (SocialAuthService.firebaseReady
+            ? FirebaseAuth.instance.authStateChanges().map((user) => user?.uid)
+            : null);
+    _auth = changes?.listen((owner) {
+      if (!mounted || owner == _owner) return;
+      _owner = owner;
+      _request++;
+      setState(() {
+        _cheers = const [];
+        _nextCursor = null;
+        _pageError = null;
+        _claiming.clear();
+        _planting.clear();
+      });
+      _load();
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) => _load());
   }
 
+  @override
+  void dispose() {
+    _request++;
+    _auth?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _load();
+  }
+
+  bool _isCurrent(int request, String? owner) =>
+      mounted && request == _request && owner == _currentOwner;
+
+  Future<ReceivedCheerBatch> _fetchPage(String? cursor) async {
+    if (widget.service == null) {
+      return context.read<GardenProvider>().loadMyPublicCheersPage(
+        cursor: cursor,
+      );
+    }
+    final owner = _currentOwner;
+    final page = await widget.service!.listReceivedCheers(
+      cursor: cursor,
+      pageSize: 30,
+    );
+    if (owner != _currentOwner) throw StateError('로그인 상태가 바뀌었어요.');
+    if (owner != null) {
+      await CheerFlowerStore.instance.remember(
+        owner,
+        page.cheers,
+        retiredIds: page.retiredIds,
+      );
+      if (owner != _currentOwner) throw StateError('로그인 상태가 바뀌었어요.');
+      try {
+        await GardenReturnStore.instance.observe(
+          owner,
+          page.cheers,
+          retiredIds: page.retiredIds,
+        );
+      } catch (_) {
+        // Read markers are optional; the delivered inbox page remains usable.
+      }
+    }
+    return page;
+  }
+
+  void _seenAfterDisplay(int request, String? owner, ReceivedCheerBatch page) {
+    if (owner == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final lifecycle = WidgetsBinding.instance.lifecycleState;
+      if (!_isCurrent(request, owner) ||
+          (lifecycle != null && lifecycle != AppLifecycleState.resumed) ||
+          ModalRoute.of(context)?.isCurrent == false) {
+        return;
+      }
+      try {
+        await GardenReturnStore.instance.markSeen(
+          owner,
+          page.cheers.map((c) => c.id),
+        );
+      } catch (_) {
+        // An unread-marker write failure must not hide a delivered message.
+      }
+    });
+  }
+
   Future<void> _load() async {
+    if (!mounted) return;
+    final request = ++_request;
+    final owner = _currentOwner;
     setState(() {
       _loading = true;
+      _loadingMore = false;
+      _needsAccount = false;
       _error = null;
+      _pageError = null;
     });
     try {
-      await CheerFlowerStore.instance.reload();
-      if (!mounted) return;
-      final garden = context.read<GardenProvider>();
-      final cheers = await garden.loadMyPublicCheers();
-      final owner = currentGardenOwner();
-      if (owner != null) await GardenBloomSync.flush(owner);
-      if (!mounted) return;
+      final ready =
+          await (widget.accountReady?.call() ??
+              SocialAuthService.isAccountReady());
+      if (!_isCurrent(request, owner)) return;
+      if (!ready) {
+        setState(() {
+          _needsAccount = true;
+          _loading = false;
+          _cheers = const [];
+          _nextCursor = null;
+        });
+        return;
+      }
+      final page = await _fetchPage(null);
+      if (!_isCurrent(request, owner)) return;
       setState(() {
-        _cheers = cheers;
+        _cheers = {
+          for (final cheer in page.cheers)
+            if (!page.retiredIds.contains(cheer.id)) cheer.id: cheer,
+        }.values.toList();
+        _nextCursor = page.nextCursor;
         _loading = false;
       });
-    } catch (e) {
-      if (!mounted) return;
+      _seenAfterDisplay(request, owner, page);
+      if (owner != null && widget.service == null) {
+        try {
+          await GardenBloomSync.flush(owner);
+          if (_isCurrent(request, owner)) setState(() {});
+        } catch (_) {
+          // A pending bloom sync must not hide an already received gift.
+        }
+      }
+    } catch (error) {
+      if (_isCurrent(request, owner)) {
+        setState(() {
+          _error = error.toString();
+          _loading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _loadMore() async {
+    final cursor = _nextCursor;
+    if (_loading || _loadingMore || cursor == null) return;
+    final request = _request;
+    final owner = _currentOwner;
+    setState(() {
+      _loadingMore = true;
+      _pageError = null;
+    });
+    try {
+      final page = await _fetchPage(cursor);
+      if (!_isCurrent(request, owner)) return;
+      if (page.nextCursor == cursor) {
+        throw const FormatException('이전 마음을 불러오지 못했어요. 다시 시도해 주세요.');
+      }
       setState(() {
-        _error = e.toString();
-        _loading = false;
+        _cheers = {
+          for (final cheer in [..._cheers, ...page.cheers])
+            if (!page.retiredIds.contains(cheer.id)) cheer.id: cheer,
+        }.values.toList();
+        _nextCursor = page.nextCursor;
       });
+      _seenAfterDisplay(request, owner, page);
+    } catch (error) {
+      if (_isCurrent(request, owner))
+        setState(() => _pageError = error.toString());
+    } finally {
+      if (_isCurrent(request, owner)) setState(() => _loadingMore = false);
+    }
+  }
+
+  void _message(String message) {
+    if (mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
     }
   }
 
   Future<void> _claim(ReceivedCheer cheer) async {
-    final l10n = AppLocalizations.of(context);
+    if (_claiming.contains(cheer.id)) return;
+    final request = _request;
     setState(() => _claiming.add(cheer.id));
     try {
-      final garden = context.read<GardenProvider>();
-      final amount = await garden.claimPublicCheer(cheer.id);
-      if (!mounted) return;
-      setState(() => _claimedThisVisit.add(cheer.id));
-      if (amount > 0) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.publicGardenInboxGiftReceived(amount))),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(e.toString())));
-      }
+      final amount = await context.read<GardenProvider>().claimPublicCheer(
+        cheer.id,
+      );
+      if (!mounted || request != _request) return;
+      _message(
+        amount > 0
+            ? '선물로 빛의 정수 $amount개를 받았어요.'
+            : '받은 마음을 확인했어요. 나중에 다시 볼 수 있어요.',
+      );
+      await _load();
+    } catch (error) {
+      if (mounted && request == _request) _message(error.toString());
     } finally {
       if (mounted) setState(() => _claiming.remove(cheer.id));
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    return Scaffold(
-      backgroundColor: AppColors.bg0,
-      appBar: AppBar(
-        backgroundColor: AppColors.bg0,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.ink),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: Text(
-          l10n.publicGardenInboxTitle,
-          style: const TextStyle(
-            color: AppColors.ink,
-            fontWeight: FontWeight.w800,
-            fontSize: 16,
-          ),
-        ),
-        centerTitle: true,
-      ),
-      body: Column(
-        children: [
-          TextButton.icon(
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => const GardenBloomNewsScreen(),
-              ),
-            ),
-            icon: const Icon(Icons.mark_email_read_outlined),
-            label: const Text('내가 건넨 꽃 소식'),
-          ),
-          TextButton.icon(
-            onPressed: () => showCheerFlowers(context),
-            icon: const Icon(Icons.local_florist_outlined),
-            label: const Text('보관한 응원 꽃 보기'),
-          ),
-          Expanded(
-            child: RefreshIndicator(onRefresh: _load, child: _buildBody(l10n)),
-          ),
-        ],
-      ),
-    );
+  Future<void> _plant(ReceivedCheer cheer) async {
+    if (_planting.contains(cheer.id)) return;
+    final owner = currentGardenOwner();
+    if (owner == null) {
+      _message('로그인 상태를 다시 확인해 주세요.');
+      return;
+    }
+    final request = _request;
+    setState(() => _planting.add(cheer.id));
+    try {
+      await plantGardenFlower(owner, cheer.id);
+      if (!mounted || request != _request) return;
+      _message('받은 꽃을 내 정원에 심었어요. 보내준 이웃과 날짜도 함께 남아요.');
+      setState(() {});
+    } catch (error) {
+      if (mounted && request == _request) _message(error.toString());
+    } finally {
+      if (mounted) setState(() => _planting.remove(cheer.id));
+    }
   }
 
-  Widget _buildBody(AppLocalizations l10n) {
-    if (_loading) {
+  String _date(DateTime? date) {
+    if (date == null) return '';
+    final local = date.toLocal();
+    return '${local.year}.${local.month.toString().padLeft(2, '0')}.${local.day.toString().padLeft(2, '0')}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final body = RefreshIndicator(onRefresh: _load, child: _body());
+    return widget.embedded
+        ? body
+        : Scaffold(
+            backgroundColor: AppColors.bg0,
+            appBar: AppBar(
+              title: const Text('받은 마음'),
+              backgroundColor: AppColors.bg0,
+            ),
+            body: body,
+          );
+  }
+
+  Widget _body() {
+    if (_loading && _cheers.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }
-    if (_error != null) {
+    if (_needsAccount) {
       return ListView(
+        padding: const EdgeInsets.all(20),
         children: [
-          const SizedBox(height: 80),
-          Icon(Icons.error_outline, size: 40, color: Colors.grey.shade400),
+          const Text('로그인하면 나에게 도착한 응원과 선물을 볼 수 있어요.'),
           const SizedBox(height: 12),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Text(
-              _error!,
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: AppColors.inkSoft),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Center(
-            child: ElevatedButton(onPressed: _load, child: const Text('다시 시도')),
-          ),
+          AccountEntryCard(onChanged: _load),
         ],
       );
     }
-    if (_cheers.isEmpty) {
+    if (_error != null && _cheers.isEmpty) {
       return ListView(
+        padding: const EdgeInsets.all(24),
         children: [
-          const SizedBox(height: 100),
-          Center(
-            child: Text(
-              l10n.publicGardenInboxEmpty,
-              style: const TextStyle(color: AppColors.inkSoft),
-            ),
-          ),
+          const Icon(Icons.cloud_off_outlined, size: 40),
+          const SizedBox(height: 16),
+          Text(_error!, textAlign: TextAlign.center),
+          OutlinedButton(onPressed: _load, child: const Text('다시 연결하기')),
         ],
       );
     }
-    return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-      itemCount: _cheers.length,
-      separatorBuilder: (_, _) => const SizedBox(height: 12),
-      itemBuilder: (context, index) {
-        final cheer = _cheers[index];
-        final claimed = _claimedThisVisit.contains(cheer.id);
-        final claiming = _claiming.contains(cheer.id);
-        return Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFFFFE3EC), Color(0xFFFFC9DB)],
+    final l10n = AppLocalizations.of(context);
+    final planted = CheerFlowerStore.instance
+        .forOwner(_currentOwner)
+        .where((f) => f.planted)
+        .map((f) => f.id)
+        .toSet();
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+      children: [
+        if (_loading) const LinearProgressIndicator(),
+        if (_error != null) ...[
+          Text(_error!),
+          TextButton(onPressed: _load, child: const Text('새로고침 다시 시도')),
+        ],
+        const Text(
+          '나에게 도착한 마음',
+          style: TextStyle(fontWeight: FontWeight.w700, fontSize: 17),
+        ),
+        const SizedBox(height: 6),
+        const Text(
+          '응원 이모티콘은 정원에 24시간 머물고, 받은 마음은 여기서 다시 볼 수 있어요. 꽃은 원하는 때 직접 심어요.',
+          style: TextStyle(color: AppColors.inkSoft, height: 1.5),
+        ),
+        Wrap(
+          spacing: 8,
+          children: [
+            TextButton.icon(
+              onPressed: () => showCheerFlowers(context),
+              icon: const Icon(Icons.local_florist_outlined, size: 18),
+              label: const Text('꽃 보관함'),
             ),
-            borderRadius: BorderRadius.circular(18),
+            TextButton.icon(
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const GardenBloomNewsScreen(),
+                ),
+              ),
+              icon: const Icon(Icons.mark_email_read_outlined, size: 18),
+              label: const Text('내가 건넨 꽃 소식'),
+            ),
+          ],
+        ),
+        if (_cheers.isEmpty && _nextCursor == null)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 40),
+            child: Text(
+              '아직 도착한 마음이 없어요.\n이웃 정원에 먼저 작은 응원을 남겨 보세요.',
+              textAlign: TextAlign.center,
+              style: TextStyle(height: 1.6),
+            ),
           ),
-          child: Row(
-            children: [
-              const Text('💌', style: TextStyle(fontSize: 22)),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      publicCheerOptionText(l10n, cheer.messageIndex),
-                      style: const TextStyle(
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.ink,
-                        height: 1.4,
-                      ),
-                    ),
-                    TextButton.icon(
-                      onPressed: () async {
-                        final owner = currentGardenOwner();
-                        if (owner == null) return;
-                        try {
-                          await plantGardenFlower(owner, cheer.id);
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('응원이 정원에 꽃으로 남았어요.'),
+        ..._cheers.map((cheer) {
+          final isPlanted = planted.contains(cheer.id) || cheer.bloomConfirmed;
+          final sender = cheer.senderNickname?.trim().isNotEmpty == true
+              ? cheer.senderNickname!
+              : '이웃';
+          return Card(
+            margin: const EdgeInsets.only(bottom: 12),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (cheer.hasFlower)
+                        SizedBox(
+                          width: 52,
+                          height: 52,
+                          child: GardenFlowerArt(kind: cheer.flowerKind),
+                        )
+                      else
+                        Padding(
+                          padding: const EdgeInsets.all(8),
+                          child: Text(
+                            gardenReactionEmoji[cheer.reaction?.kind] ?? '💛',
+                            style: const TextStyle(fontSize: 28),
+                          ),
+                        ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '$sender님이 ${cheer.hasFlower ? '꽃을 선물했어요' : '응원을 보냈어요'}',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
                               ),
-                            );
-                          }
-                        } catch (_) {
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('꽃을 저장하지 못했어요. 다시 시도해 주세요.'),
+                            ),
+                            if (cheer.createdAt != null)
+                              Text(
+                                _date(cheer.createdAt),
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.inkSoft,
+                                ),
                               ),
-                            );
-                          }
-                        }
-                      },
-                      icon: const Icon(Icons.local_florist_outlined),
-                      label: const Text('정원에 꽃으로 남기기'),
-                    ),
-                    if (cheer.giftLightEssence > 0) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        '✨ +${cheer.giftLightEssence}',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF9A3A5C),
+                            const SizedBox(height: 6),
+                            Text(
+                              publicCheerOptionText(l10n, cheer.messageIndex),
+                              style: const TextStyle(height: 1.5),
+                            ),
+                          ],
                         ),
                       ),
                     ],
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              SizedBox(
-                height: 34,
-                child: ElevatedButton(
-                  onPressed: claimed || claiming ? null : () => _claim(cheer),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFB1466E),
-                    foregroundColor: Colors.white,
-                    disabledBackgroundColor: const Color(0xFFE6DDD6),
-                    padding: const EdgeInsets.symmetric(horizontal: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
                   ),
-                  child: claiming
-                      ? const SizedBox(
-                          width: 14,
-                          height: 14,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
+                  const SizedBox(height: 8),
+                  if (cheer.hasFlower)
+                    OutlinedButton.icon(
+                      onPressed: isPlanted || _planting.contains(cheer.id)
+                          ? null
+                          : () => _plant(cheer),
+                      icon: const Icon(Icons.local_florist_outlined, size: 18),
+                      label: Text(
+                        isPlanted
+                            ? '내 정원에 심은 꽃'
+                            : _planting.contains(cheer.id)
+                            ? '심고 있어요…'
+                            : '${gardenFlowerNames[cheer.flowerKind] ?? '받은 꽃'} 심기',
+                      ),
+                    ),
+                  Wrap(
+                    spacing: 8,
+                    children: [
+                      if (!cheer.claimed)
+                        TextButton(
+                          onPressed: _claiming.contains(cheer.id)
+                              ? null
+                              : () => _claim(cheer),
+                          child: Text(
+                            _claiming.contains(cheer.id) ? '확인 중…' : '마음 확인하기',
                           ),
-                        )
-                      : Icon(
-                          claimed ? Icons.check : Icons.card_giftcard,
-                          size: 16,
                         ),
-                ),
+                      if (cheer.senderGardenId != null)
+                        TextButton.icon(
+                          onPressed: () => Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => GardenVisitScreen(
+                                gardenId: cheer.senderGardenId!,
+                                nickname: cheer.senderNickname,
+                              ),
+                            ),
+                          ),
+                          icon: const Icon(Icons.landscape_outlined, size: 18),
+                          label: const Text('보내준 이웃 방문'),
+                        ),
+                    ],
+                  ),
+                ],
               ),
-            ],
+            ),
+          );
+        }),
+        if (_pageError != null) Text(_pageError!),
+        if (_nextCursor != null)
+          OutlinedButton.icon(
+            key: const Key('received-cheers-more'),
+            onPressed: _loadingMore || _loading ? null : _loadMore,
+            icon: _loadingMore
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.expand_more),
+            label: Text(
+              _loadingMore
+                  ? '이전 마음을 불러오고 있어요…'
+                  : _pageError != null
+                  ? '이전 마음 다시 불러오기'
+                  : '이전 마음 더 보기',
+            ),
           ),
-        );
-      },
+      ],
     );
   }
 }

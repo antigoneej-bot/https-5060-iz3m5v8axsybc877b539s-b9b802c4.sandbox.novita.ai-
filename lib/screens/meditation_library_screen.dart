@@ -1,5 +1,5 @@
 import '../widgets/meditation_courses_card.dart';
-import '../widgets/meditation_check_in.dart';
+import '../widgets/meditation_recap_card.dart';
 import 'package:flutter/material.dart';
 import '../theme.dart';
 import '../data/solutions_data.dart';
@@ -18,90 +18,13 @@ class _MeditationLibraryScreenState extends State<MeditationLibraryScreen> {
   final store = MeditationLibraryStore.instance;
   String _duration = 'all', _voice = 'all', _shelf = 'all';
   String? _error;
-  bool _deleting = false;
   @override
   void initState() {
     super.initState();
-    _load();
+    store.load().catchError((Object _) {
+      if (mounted) setState(() => _error = '저장된 목록을 불러오지 못했어요.');
+    });
   }
-
-  Future<void> _load() async {
-    try {
-      await store.load();
-      if (mounted) setState(() => _error = null);
-    } catch (_) {
-      if (mounted)
-        setState(() => _error = '저장된 목록을 불러오지 못했어요. 기록은 그대로 보관돼 있어요.');
-    }
-  }
-
-  Future<void> _deleteCheckIn(Map<String, dynamic> record) async {
-    if (_deleting) return;
-    setState(() => _deleting = true);
-    try {
-      final remove = await showDialog<bool>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('이 명상 후기를 삭제할까요?'),
-          content: const Text('완료 보상과 정원 성장은 그대로 유지돼요. 이전에 만든 백업에는 남을 수 있어요.'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('취소'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('삭제'),
-            ),
-          ],
-        ),
-      );
-      if (remove == true)
-        await store.removeCheckIn(record['session'] as String);
-    } catch (_) {
-      if (mounted)
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('후기를 삭제하지 못했어요. 다시 시도해 주세요.')),
-        );
-    } finally {
-      if (mounted) setState(() => _deleting = false);
-    }
-  }
-
-  Widget _history() => ExpansionTile(
-    title: const Text('명상 후 남긴 마음'),
-    subtitle: const Text('최근 90개 · 나에게만 보여요'),
-    children: [
-      ConstrainedBox(
-        constraints: const BoxConstraints(maxHeight: 320),
-        child: ListView.builder(
-          shrinkWrap: true,
-          primary: false,
-          itemCount: store.checkIns.length,
-          itemBuilder: (context, index) {
-            final record = store.checkIns[index];
-            return ListTile(
-              title: Text(
-                const {
-                  'better': '조금 편안해졌어요',
-                  'same': '비슷해요',
-                  'worse': '더 불편해요',
-                }[record['feeling']]!,
-              ),
-              subtitle: Text(
-                '${(record['at'] as String).split('T').first} · ${breathingGuide[record['guide']]?.title ?? '명상'}',
-              ),
-              trailing: IconButton(
-                tooltip: '명상 후기 삭제',
-                onPressed: _deleting ? null : () => _deleteCheckIn(record),
-                icon: const Icon(Icons.delete_outline),
-              ),
-            );
-          },
-        ),
-      ),
-    ],
-  );
 
   Widget chips(
     Map<String, String> values,
@@ -149,9 +72,9 @@ class _MeditationLibraryScreenState extends State<MeditationLibraryScreen> {
             textAlign: TextAlign.center,
             style: titleFont(fontSize: 24, color: AppColors.titlePastelGreen),
           ),
-          const MeditationCompletionNotice(),
+          const SizedBox(height: 16),
+          const MeditationRecapCard(),
           const MeditationCoursesCard(),
-          if (store.checkIns.isNotEmpty) _history(),
           const SizedBox(height: 12),
           chips(
             const {'all': '전체', 'favorites': '즐겨찾기', 'recent': '최근 들은 명상'},
@@ -175,10 +98,7 @@ class _MeditationLibraryScreenState extends State<MeditationLibraryScreen> {
             _voice,
             (v) => _voice = v,
           ),
-          if (_error != null) ...[
-            Text(_error!),
-            TextButton(onPressed: _load, child: const Text('다시 불러오기')),
-          ],
+          if (_error != null) Text(_error!),
           const SizedBox(height: 14),
           Text(
             '${keys.length}개의 명상',

@@ -1,5 +1,4 @@
 import 'dart:async';
-import '../models/public_garden_status.dart';
 import '../integration/session_transaction.dart';
 import '../integration/cheer_flower_store.dart';
 
@@ -23,8 +22,12 @@ import '../models/mongi_cheer.dart';
 import '../models/mongi_costume.dart';
 import '../models/power_item.dart';
 import '../models/public_garden.dart';
+import '../models/public_garden_status.dart';
+import '../models/public_garden_appearance.dart';
+import '../models/garden_village.dart';
 import '../integration/garden_layout_store.dart';
 import '../../services/cloud_service.dart';
+import '../../services/garden_return_store.dart';
 import '../../services/subscription_service.dart';
 import '../../services/access_policy.dart';
 import '../models/season_pass.dart';
@@ -49,6 +52,13 @@ const String _kWidgetStreak = 'garden_streak';
 /// 이 Provider는 "한 판이 끝난 뒤의 결과"만 저장/반영한다.
 class GardenProvider extends ChangeNotifier {
   bool _subscriptionActive = false;
+
+  void setAccountPremium(bool value) {
+    if (_subscriptionActive == value) return;
+    _subscriptionActive = value;
+    notifyListeners();
+  }
+
   Future<void> refreshSubscription() async {
     _subscriptionActive = await SubscriptionService().isPremium();
     notifyListeners();
@@ -72,7 +82,7 @@ class GardenProvider extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
-    _publicAccountChanges?.cancel();
+    unawaited(_publicAccountChanges?.cancel());
     MongiGardenStore.instance.removeListener(_sharedChanged);
     super.dispose();
   }
@@ -374,7 +384,8 @@ class GardenProvider extends ChangeNotifier {
   String? get _publicOwner {
     if (!CloudService.enabled) return null;
     try {
-      return FirebaseAuth.instance.currentUser?.uid;
+      final user = CloudService.currentUser;
+      return user == null || user.isAnonymous ? null : user.uid;
     } catch (_) {
       return null;
     }
@@ -384,6 +395,12 @@ class GardenProvider extends ChangeNotifier {
   bool? get gardenPublication =>
       _publication.owner == _publicOwner ? _publication.published : null;
   bool get isGardenPublished => gardenPublication == true;
+
+  /// Sharing with accepted neighbors is not the same as public discovery.
+  GardenVisibility? get gardenVisibility =>
+      _publication.owner == _publicOwner ? _publication.visibility : null;
+  bool? get gardenDiscoveryOptIn =>
+      _publication.owner == _publicOwner ? _publication.discoveryOptIn : null;
   bool get isGardenPublicationKnown => gardenPublication != null;
   bool get isGardenPublicationLoading =>
       _publication.owner == _publicOwner && _publication.loading;
@@ -391,17 +408,83 @@ class GardenProvider extends ChangeNotifier {
   String? get gardenPublicNickname =>
       _publication.owner == _publicOwner ? _publication.nickname : null;
 
+  DateTime? get gardenPublishedAt =>
+      _publication.owner == _publicOwner ? _publication.updatedAt : null;
+
+  bool get canUpdatePublishedGardenAppearance =>
+      _publicOwner != null &&
+      _publication.owner == _publicOwner &&
+      _publication.snapshot != null &&
+      _publication.published != null;
+
+  /// Unknown on a failed/legacy response or after an account switch. Never
+  /// describe an old account's cached appearance as this person's publication.
+  bool? get hasUnpublishedGardenChanges {
+    final owner = _publicOwner;
+    final saved = _publication.snapshot;
+    if (owner == null || _publication.owner != owner || saved == null) {
+      return null;
+    }
+    return PublicGardenAppearance.fingerprint(saved) !=
+        PublicGardenAppearance.fingerprint(_currentPublicAppearance(owner));
+  }
+
+  Map<String, dynamic> _currentPublicAppearance(String owner) {
+    final flowers = CheerFlowerStore.instance.forOwner(owner);
+    return {
+      'layout': GardenLayoutStore.instance.value
+          .grow(seedCounts.values.fold<int>(0, (sum, n) => sum + n))
+          .toJson(),
+      'seedCounts': Map<String, int>.from(seedCounts),
+      'equippedDecorationIds': List<String>.from(equippedDecorationIds),
+      'treeStageIndex': treeStageIndex,
+      'flowerKinds': flowers
+          .where((f) => f.planted)
+          .map((f) => f.flowerKind)
+          .toSet()
+          .take(5)
+          .toList(),
+      'memoryTreeStage': SeedType.byId(
+        'cherry',
+      ).tierForCount(MongiGardenStore.instance.value.recordDays.length),
+      'hasCheerFlowers': flowers.any((f) => f.planted),
+    };
+  }
+
+  /// Sequential preparation avoids competing account-lease requests and
+  /// compares the persisted local appearance with this account's server copy.
+  Future<void> refreshPublicGardenAppearance() async {
+    final owner = _publicOwner;
+    if (owner == null) return;
+    await ensureInitialized();
+    await MongiGardenStore.instance.reconcileRecordedDays();
+    await GardenLayoutStore.instance.reload();
+    await CheerFlowerStore.instance.reload();
+    if (_disposed || owner != _publicOwner) return;
+    await refreshPublicGardenStatus();
+  }
+
   void _notifyPublication() {
     if (!_disposed) notifyListeners();
   }
 
   void _selectPublicAccount(String? owner) {
-    _publication.selectOwner(
-      owner,
-      cachedNickname: owner == null || !_initialized
-          ? null
-          : _storage.publicGardenNicknameFor(owner),
-    );
+    // Legacy publication flags/nicknames are device-wide and must not identify
+    // the currently signed-in person's server garden.
+    _publication.selectOwner(owner);
+    // A logout/login cycle may return to the same UID while its old request is
+    // still running. Do not reuse that previous login session's pending read.
+    _publicRefresh = null;
+    _publicRefreshOwner = null;
+  }
+
+  void _finishPublicMutation() {
+    _publicMutationPending = false;
+    // An account switch or a lost response can leave the new screen unknown.
+    // Re-read once after the pending write finishes, for the current UID only.
+    if (!_disposed && _publicOwner != null && gardenPublication == null) {
+      unawaited(refreshPublicGardenStatus().catchError((Object _) {}));
+    }
   }
 
   void _watchPublicAccount() {
@@ -411,11 +494,12 @@ class GardenProvider extends ChangeNotifier {
         user,
       ) {
         if (_disposed) return;
-        if (_publication.owner != user?.uid) {
-          _selectPublicAccount(user?.uid);
+        final owner = _publicOwner;
+        if (_publication.owner != owner) {
+          _selectPublicAccount(owner);
           _notifyPublication();
         }
-        if (user != null && gardenPublication == null) {
+        if (owner != null && gardenPublication == null) {
           unawaited(refreshPublicGardenStatus().catchError((Object _) {}));
         }
       });
@@ -472,14 +556,41 @@ class GardenProvider extends ChangeNotifier {
     if (_publicOwner != owner) throw const CloudException('account-changed');
     if (!_publication.apply(request, owner, result)) return;
     _notifyPublication();
-    // A cache write failure cannot overturn an acknowledged server decision.
-    try {
-      await _storage.cachePublicGardenNickname(owner, result.nickname);
-    } catch (_) {}
   }
 
   /// Publishes only after the user confirms the exact public content.
-  Future<bool> publishGarden({String? nickname}) async {
+  Future<bool> publishGarden({
+    String? nickname,
+    GardenVisibility? visibility,
+    bool? discoveryOptIn,
+    bool? receiveGifts,
+  }) => _publishGarden(
+    nickname: nickname,
+    visibility: visibility,
+    discoveryOptIn: discoveryOptIn,
+    receiveGifts: receiveGifts,
+  );
+
+  /// Refresh only the visible garden. The server preserves its latest privacy,
+  /// discovery, nickname and receiving settings, even if another device edited
+  /// them after this screen was opened.
+  Future<bool> updatePublishedGardenAppearance() {
+    // Old servers do not understand appearanceOnly. Require the new owner-only
+    // snapshot response before sending it, otherwise omitted legacy settings
+    // could be interpreted as a fresh publication.
+    if (!canUpdatePublishedGardenAppearance) {
+      throw StateError('저장된 정원 모습을 먼저 확인해 주세요. 서버 업데이트가 필요할 수 있어요.');
+    }
+    return _publishGarden(appearanceOnly: true);
+  }
+
+  Future<bool> _publishGarden({
+    String? nickname,
+    GardenVisibility? visibility,
+    bool? discoveryOptIn,
+    bool? receiveGifts,
+    bool appearanceOnly = false,
+  }) async {
     if (!CloudService.enabled) return false;
     if (!_initialized) await ensureInitialized();
     final owner = _publicOwner;
@@ -489,32 +600,36 @@ class GardenProvider extends ChangeNotifier {
     final request = _publication.begin(owner);
     _notifyPublication();
     try {
+      await CloudService.ensureGardenOwner(owner, bind: true);
       await MongiGardenStore.instance.reconcileRecordedDays();
       await GardenLayoutStore.instance.reload();
-      final layout = GardenLayoutStore.instance.value.grow(
-        seedCounts.values.fold<int>(0, (sum, n) => sum + n),
-      );
       await CheerFlowerStore.instance.reload();
-      final flowers = CheerFlowerStore.instance.forOwner(owner);
+      final appearance = _currentPublicAppearance(owner);
       final result = await CloudService.publishGarden(
         owner: owner,
-        layout: layout.toJson(),
-        seedCounts: seedCounts,
-        equippedDecorationIds: equippedDecorationIds,
-        treeStageIndex: treeStageIndex,
-        flowerKinds: flowers
-            .where((f) => f.planted)
-            .map((f) => f.flowerKind)
-            .toSet()
-            .take(5)
-            .toList(),
-        memoryTreeStage: SeedType.byId(
-          'cherry',
-        ).tierForCount(MongiGardenStore.instance.value.recordDays.length),
-        hasCheerFlowers: flowers.any((f) => f.planted),
+        layout: appearance['layout'] as Map<String, dynamic>,
+        seedCounts: appearance['seedCounts'] as Map<String, int>,
+        equippedDecorationIds:
+            appearance['equippedDecorationIds'] as List<String>,
+        treeStageIndex: appearance['treeStageIndex'] as int,
+        flowerKinds: appearance['flowerKinds'] as List<String>,
+        memoryTreeStage: appearance['memoryTreeStage'] as int,
+        hasCheerFlowers: appearance['hasCheerFlowers'] as bool,
+        appearanceOnly: appearanceOnly,
         nickname: nickname,
+        visibility: visibility,
+        discoveryOptIn:
+            visibility != null && visibility != GardenVisibility.public
+            ? false
+            : discoveryOptIn,
+        receiveGifts: receiveGifts,
       );
-      if (!result.published) throw StateError('정원 공개를 확인하지 못했어요.');
+      if ((visibility == GardenVisibility.private && result.published) ||
+          (visibility != null &&
+              visibility != GardenVisibility.private &&
+              !result.published)) {
+        throw StateError('정원 공개 설정을 확인하지 못했어요.');
+      }
       await _acceptPublication(request, owner, result);
       return true;
     } catch (_) {
@@ -522,7 +637,7 @@ class GardenProvider extends ChangeNotifier {
       _notifyPublication();
       rethrow;
     } finally {
-      _publicMutationPending = false;
+      _finishPublicMutation();
     }
   }
 
@@ -545,7 +660,7 @@ class GardenProvider extends ChangeNotifier {
       _notifyPublication();
       rethrow;
     } finally {
-      _publicMutationPending = false;
+      _finishPublicMutation();
     }
   }
 
@@ -567,30 +682,81 @@ class GardenProvider extends ChangeNotifier {
     int giftLightEssence = 0,
     String flowerKind = 'daisy',
     String? reaction,
+    String deliveryKind = 'gift',
   }) async {
     if (!CloudService.enabled) throw StateError('온라인 정원 연결을 확인해 주세요.');
     if (giftLightEssence != 0) {
       throw const CloudException('currency-gifts-unavailable');
     }
+    final owner = _publicOwner;
+    if (owner == null) throw const CloudException('authentication-required');
     await CloudService.sendPublicCheer(
       gardenId: gardenId,
       messageIndex: messageIndex,
       flowerKind: flowerKind,
       reaction: reaction,
+      deliveryKind: deliveryKind,
+      owner: owner,
     );
   }
 
-  /// 내가 아직 확인하지 않은 받은 응원 목록을 서버에서 가져온다.
-  Future<List<ReceivedCheer>> loadMyPublicCheers() async {
-    if (!CloudService.enabled) return [];
-    final owner = FirebaseAuth.instance.currentUser?.uid;
-    final raw = await CloudService.listMyCheers();
-    final cheers = raw.map(ReceivedCheer.fromJson).toList();
-    if (owner == null || FirebaseAuth.instance.currentUser?.uid != owner) {
+  Future<List<ReceivedCheer>> loadMyPublicCheers() async =>
+      (await loadMyPublicCheersPage()).cheers;
+
+  /// Pages preserve the local flower collection; a missing page is not deletion.
+  Future<ReceivedCheerBatch> loadMyPublicCheersPage({
+    String? cursor,
+    int pageSize = 30,
+  }) async {
+    if (!CloudService.enabled) {
+      throw StateError('받은 마음은 온라인 정원 연결 후 확인할 수 있어요.');
+    }
+    final owner = _publicOwner;
+    if (owner == null) throw const CloudException('authentication-required');
+    final batch = await CloudService.listMyCheersBatch(
+      owner: owner,
+      cursor: cursor,
+      pageSize: pageSize,
+    );
+    if (_publicOwner != owner) {
       throw StateError('로그인 상태가 바뀌었어요. 다시 열어 주세요.');
     }
-    await CheerFlowerStore.instance.remember(owner, cheers);
-    return cheers;
+    await CheerFlowerStore.instance.remember(
+      owner,
+      batch.cheers,
+      retiredIds: batch.retiredIds,
+    );
+    if (_publicOwner != owner) throw const CloudException('account-changed');
+    // A badge failure must not hide a successfully loaded gift collection.
+    try {
+      await GardenReturnStore.instance.observe(
+        owner,
+        batch.cheers,
+        retiredIds: batch.retiredIds,
+      );
+    } catch (_) {}
+    if (_publicOwner != owner) throw const CloudException('account-changed');
+    return batch;
+  }
+
+  Future<void> sendGardenGift({
+    required String gardenId,
+    required String sourceCheerId,
+    required String requestId,
+  }) async {
+    if (!CloudService.enabled) throw StateError('온라인 정원 연결을 확인해 주세요.');
+    final owner = _publicOwner;
+    if (owner == null) throw const CloudException('authentication-required');
+    await CloudService.sendGardenGift(
+      owner: owner,
+      gardenId: gardenId,
+      sourceCheerId: sourceCheerId,
+      requestId: requestId,
+    );
+    if (_publicOwner != owner) throw const CloudException('account-changed');
+    await CheerFlowerStore.instance.retire(owner, sourceCheerId);
+    if (_publicOwner != owner) throw const CloudException('account-changed');
+    _notifyPublication();
   }
 
   /// A failed response can be retried. Receipt and currency commit together;
@@ -725,13 +891,22 @@ class GardenProvider extends ChangeNotifier {
   bool isEmotionUnlocked(Emotion emotion) =>
       Emotion.all.indexOf(emotion) < stage;
 
-  /// 해당 장식 아이템을 지금 사용할 수 있는(=꾸미기에서 고를 수 있는) 상태인지 여부.
-  /// - 프리미엄 아이템: 정원 장식팩 구매 여부로 판단
-  /// - 무료 아이템: 각자의 마일스톤 달성 여부로 판단
+  /// Already owned decorations and previously earned unlocks remain available.
+  /// New gardeners obtain basic decorations with care-earned essence instead
+  /// of having to complete a runner milestone. A paid gift still needs an
+  /// active subscription or the legacy decoration-pack entitlement.
   bool isDecorationUnlocked(GardenDecoration decoration) {
-    if (MongiGardenStore.instance.value.owned.contains(decoration.id))
+    final data = MongiGardenStore.instance.value;
+    if (data.owned.contains(decoration.id) ||
+        data.placed.contains(decoration.id)) {
       return true;
+    }
     if (decoration.isPremium) return decorationPackUnlocked;
+    return _hasLegacyDecorationUnlock(decoration);
+  }
+
+  /// Compatibility only: never revoke something earned before game separation.
+  bool _hasLegacyDecorationUnlock(GardenDecoration decoration) {
     switch (decoration.id) {
       case 'bench':
         return streakDays >= 3;
@@ -752,6 +927,30 @@ class GardenProvider extends ChangeNotifier {
       default:
         return false;
     }
+  }
+
+  /// Obtain and place a basic decoration using the shared, serialized balance.
+  /// Repeated taps cannot charge twice, and existing unlocks are never charged.
+  Future<void> obtainDecoration(GardenDecoration decoration) async {
+    final item = GardenDecoration.all.firstWhere(
+      (candidate) => candidate.id == decoration.id,
+      orElse: () => throw ArgumentError.value(decoration.id, 'decoration'),
+    );
+    await refreshSubscription();
+    final store = MongiGardenStore.instance;
+    final legacyUnlocked = item.isPremium
+        ? _legacy_decorationPackUnlocked
+        : _hasLegacyDecorationUnlock(item);
+    if (legacyUnlocked) {
+      await store.placeOriginalDecorations(
+        {...store.value.placed, item.id}.toList(),
+      );
+    } else {
+      // The store rechecks subscription gifts, retains owned items and debits
+      // new basic items atomically. Owned gifts never require a new payment.
+      await store.obtain(item);
+    }
+    _sharedChanged();
   }
 
   bool isDecorationEquipped(GardenDecoration decoration) =>
@@ -1173,50 +1372,6 @@ class GardenProvider extends ChangeNotifier {
     }
   }
 
-  /// A once-per-run optional seed, separate from already committed play rewards.
-  /// Using the result ID as a prerequisite prevents orphan seed/bonus grants.
-  /// Returns whether the seed went into inventory (already planted).
-  Future<bool> plantRunnerSeed({
-    required String resultSessionId,
-    required String seedId,
-  }) async {
-    if (!SeedType.all.any((seed) => seed.id == seedId)) {
-      throw ArgumentError.value(seedId, 'seedId');
-    }
-    try {
-      final result = await MongiGardenStore.instance.commitSession(
-        '$resultSessionId:seed',
-        () async {
-          final draft = SessionTransaction.draft!;
-          final receipts = Map<String, dynamic>.from(
-            draft.get(SessionTransaction.receiptsKey, defaultValue: {}) as Map,
-          );
-          if (!receipts.containsKey(resultSessionId)) {
-            throw StateError('Save the completed run before planting.');
-          }
-          _loadFromStorage();
-          final stored = (_storage.seedCounts[seedId] ?? 0) > 0;
-          final before = _storage.progress;
-          await _storage.recordEaten(0, bonus: 0.1);
-          await _storage.plantSeed(seedId);
-          await _addDailyMissionProgress(DailyMissionType.plantedLove, 1);
-          final bloomed = before < 1 && _storage.progress >= 1;
-          if (bloomed && !_storage.hasBloomedOnce)
-            await _storage.markBloomedOnce();
-          return {'stored': stored};
-        },
-      );
-      _loadFromStorage();
-      notifyListeners();
-      await _syncHomeWidget();
-      return result['stored'] as bool;
-    } catch (_) {
-      _loadFromStorage();
-      notifyListeners();
-      rethrow;
-    }
-  }
-
   Future<bool> _recordSessionDraft(
     Map<EmotionType, int> eatenByType, {
     required bool choseLove,
@@ -1387,7 +1542,6 @@ class GardenProvider extends ChangeNotifier {
     hasReceivedCheerToday = _storage.hasReceivedCheerToday;
     todayCheerReceivedIndex = _storage.todayCheerReceivedIndex;
     cheerSentTotalCount = _storage.cheerSentTotalCount;
-    _selectPublicAccount(_publicOwner);
     hasBreathingRewardToday = _storage.hasBreathingRewardToday;
     breathingLibraryTotalCompletions =
         _storage.breathingLibraryTotalCompletions;
@@ -1621,10 +1775,8 @@ class GardenProvider extends ChangeNotifier {
       PurchaseService.instance.buyProduct(kPremiumFramesProductId);
 
   /// 재설치/기기 변경 후 이전 구매 내역을 복원한다 (카드 프레임 + 정원 장식팩 공통).
-  Future<void> restorePremiumFramesPurchase() async {
-    await SubscriptionService().restorePurchases();
-    await refreshSubscription();
-  }
+  Future<SubscriptionRestoreResult> restorePremiumFramesPurchase() =>
+      _restoreSubscriptionPurchase();
 
   /// 프리미엄 정원 장식팩 구매를 시작한다. 실제 잠금 해제는 구매가 확인된 뒤
   /// [PurchaseService]에 등록해둔 콜백을 통해 비동기로 반영된다.
@@ -1632,9 +1784,13 @@ class GardenProvider extends ChangeNotifier {
       PurchaseService.instance.buyProduct(kGardenDecorationPackProductId);
 
   /// 재설치/기기 변경 후 정원 장식팩 구매 내역을 복원한다.
-  Future<void> restoreDecorationPackPurchase() async {
-    await SubscriptionService().restorePurchases();
+  Future<SubscriptionRestoreResult> restoreDecorationPackPurchase() =>
+      _restoreSubscriptionPurchase();
+
+  Future<SubscriptionRestoreResult> _restoreSubscriptionPurchase() async {
+    final result = await SubscriptionService().restorePurchasesWithResult();
     await refreshSubscription();
+    return result;
   }
 
   // ── 시즌 패스("몽이의 마음여정") ─────────────────────────
@@ -1690,10 +1846,8 @@ class GardenProvider extends ChangeNotifier {
       PurchaseService.instance.buyProduct(kSeasonPassProductId);
 
   /// 재설치/기기 변경 후 시즌 패스 프리미엄 구매 내역을 복원한다.
-  Future<void> restoreSeasonPassPurchase() async {
-    await SubscriptionService().restorePurchases();
-    await refreshSubscription();
-  }
+  Future<SubscriptionRestoreResult> restoreSeasonPassPurchase() =>
+      _restoreSubscriptionPurchase();
 
   Future<void> _grantSeasonPassPremium() async {
     if (seasonPremiumPurchased) return;
@@ -1909,20 +2063,16 @@ class GardenProvider extends ChangeNotifier {
   /// lightEssenceCost])를 내고 즉시 부활한다. 화폐가 부족하면 false를
   /// 반환하고 아무 것도 차감하지 않는다(호출부에서 "화폐가 모자라요" 안내로
   /// 처리).
-  Future<bool> buyReviveWithLightEssence({String? sessionId}) async {
+  Future<bool> buyReviveWithLightEssence() async {
     if (!AccessPolicy.itemAllowed(await SubscriptionService().isPremium()))
       return false;
-    final result = await MongiGardenStore.instance.commitSession(
-      sessionId ?? SessionTransaction.newId(),
-      () async => {
-        'spent': await _storage.spendLightEssence(
-          ReviveService.lightEssenceCost,
-        ),
-      },
+    final spent = await _storage.spendLightEssence(
+      ReviveService.lightEssenceCost,
     );
+    if (!spent) return false;
     lightEssence = _storage.lightEssence;
     notifyListeners();
-    return result['spent'] as bool;
+    return true;
   }
 
   // ── 파워 부적(소모품 인벤토리) ─────────────────────────

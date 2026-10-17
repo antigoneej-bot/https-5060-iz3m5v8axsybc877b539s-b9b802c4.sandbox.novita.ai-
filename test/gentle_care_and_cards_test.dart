@@ -5,6 +5,7 @@ import 'package:flutter_app/services/consciousness_insight_service.dart';
 import 'package:flutter_app/services/letter_reply_insight_service.dart';
 import 'package:flutter_app/services/relationship_story_service.dart';
 import 'package:flutter_app/models/letter_tags.dart';
+import 'package:flutter_app/data/shadow_cats_data.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -12,17 +13,23 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     CatCareService.setCurrentUser('test_gentle');
   });
-  test('one task completes daily care; further tasks do not repeat bonus', () async {
-    final first = await CatCareService.completeTask(CareTask.feed, isPremium: false);
-    expect(first.allDoneToday, isTrue);
-    expect(first.temperature, 1);
-    for (final task in CareTask.values) {
-      final next = await CatCareService.completeTask(task, isPremium: false);
-      expect(next.temperature, 1);
-    }
-    final prefs = await SharedPreferences.getInstance();
-    expect(prefs.getInt('test_gentle_care_total_full_care_days'), 1);
-  });
+  test(
+    'one task completes daily care; further tasks do not repeat bonus',
+    () async {
+      final first = await CatCareService.completeTask(
+        CareTask.feed,
+        isPremium: false,
+      );
+      expect(first.allDoneToday, isTrue);
+      expect(first.temperature, 1);
+      for (final task in CareTask.values) {
+        final next = await CatCareService.completeTask(task, isPremium: false);
+        expect(next.temperature, 1);
+      }
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getInt('test_gentle_care_total_full_care_days'), 1);
+    },
+  );
   test('any task can be the first daily care action', () async {
     for (final task in CareTask.values) {
       SharedPreferences.setMockInitialValues({});
@@ -32,26 +39,64 @@ void main() {
     }
   });
   test('random card comparison never becomes a diagnosis', () {
-    expect(ConsciousnessInsightService.build(consciousCatId: null, unconsciousCatId: 'sad'), isNull);
-    for (final chosen in ['sad', 'angry', 'sleepy']) {
-      for (final drawn in ['sad', 'angry', 'sleepy']) {
-        final result = ConsciousnessInsightService.build(consciousCatId: chosen, unconsciousCatId: drawn)!;
+    expect(
+      ConsciousnessInsightService.build(
+        consciousCatId: null,
+        unconsciousCatId: 'sad',
+      ),
+      isNull,
+    );
+    // Use the current selectable catalogue: the retired 'dreamy' ID is no
+    // longer a card a user can choose. Cover every current comparison instead.
+    final relations = <ConsciousnessRelation>{};
+    for (final chosen in shadowCats.map((cat) => cat.id)) {
+      for (final drawn in shadowCats.map((cat) => cat.id)) {
+        final result = ConsciousnessInsightService.build(
+          consciousCatId: chosen,
+          unconsciousCatId: drawn,
+        )!;
+        relations.add(result.relation);
         expect(result.stateDescription, contains('재미용'));
+        expect(result.stateDescription, contains('무작위'));
+        expect(
+          result.stateDescription,
+          contains(
+            chosen == drawn
+                ? '숨겨진 마음이나 미래를 알려주는 결과는 아니에요'
+                : '숨겨진 감정이 있다는 뜻은 아니에요',
+          ),
+        );
         expect(result.comfort, contains('그냥 넘겨도'));
+        expect(result.comfort, contains('내 마음에 대한 답은 내가 정해요'));
         expect(result.stateDescription, isNot(contains('박사')));
       }
     }
+    expect(relations, containsAll(ConsciousnessRelation.values));
   });
   test('every emotion has a reflective question', () {
     for (final emotion in EmotionTag.values) {
-      expect(LetterReplyInsightService.build(emotion).stateDescription, endsWith('?'));
+      expect(
+        LetterReplyInsightService.build(emotion).stateDescription,
+        endsWith('?'),
+      );
     }
   });
   test('relationship scenes are stable for a day and vary across days', () {
     for (final stage in IntimacyTag.values) {
       final date = DateTime(2026, 9, 12);
-      expect(RelationshipStoryService.lineFor(stage, date), RelationshipStoryService.lineFor(stage, date));
-      expect(RelationshipStoryService.lineFor(stage, date), isNot(RelationshipStoryService.lineFor(stage, date.add(const Duration(days: 1)))));
+      expect(
+        RelationshipStoryService.lineFor(stage, date),
+        RelationshipStoryService.lineFor(stage, date),
+      );
+      expect(
+        RelationshipStoryService.lineFor(stage, date),
+        isNot(
+          RelationshipStoryService.lineFor(
+            stage,
+            date.add(const Duration(days: 1)),
+          ),
+        ),
+      );
     }
   });
 }

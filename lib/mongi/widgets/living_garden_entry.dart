@@ -53,7 +53,6 @@ class _LivingGardenEntryState extends State<LivingGardenEntry> {
       await showDialog<void>(
         context: context,
         builder: (_) => PlantMemoryEditor(plant: plant),
-        barrierDismissible: false,
       );
     } catch (_) {
       if (mounted) {

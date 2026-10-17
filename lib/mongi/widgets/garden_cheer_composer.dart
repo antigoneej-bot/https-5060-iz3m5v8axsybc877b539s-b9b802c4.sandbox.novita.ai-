@@ -6,8 +6,9 @@ import '../l10n/public_cheer_l10n.dart';
 import 'garden_gift_art.dart';
 
 Future<({int message, String flower, String? reaction})?> composeGardenCheer(
-  BuildContext context,
-) {
+  BuildContext context, {
+  bool includeFlower = true,
+}) {
   var message = 0;
   var flower = 'daisy';
   String? reaction = 'heart';
@@ -26,46 +27,56 @@ Future<({int message, String flower, String? reaction})?> composeGardenCheer(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('정원에 응원 남기기', style: TextStyle(fontSize: 22)),
-                      const SizedBox(height: 8),
-                      const Text('상대의 마음 기록은 보이지 않아요. 답례를 기다리지 않고 작은 응원을 전해요.'),
-                      const SizedBox(height: 16),
-                      const Text('오래 남는 꽃'),
-                      Wrap(
-                        spacing: 8,
-                        children: gardenFlowerNames.entries
-                            .map(
-                              (f) => SizedBox(
-                                width: 90,
-                                child: Column(
-                                  children: [
-                                    SizedBox(
-                                      width: 74,
-                                      height: 74,
-                                      child: GardenFlowerArt(kind: f.key),
-                                    ),
-                                    ChoiceChip(
-                                      label: Text(f.value),
-                                      selected: flower == f.key,
-                                      onSelected: (_) =>
-                                          update(() => flower = f.key),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            )
-                            .toList(),
+                      Text(
+                        includeFlower ? '오늘의 꽃 선물하기' : '정원에 응원 남기기',
+                        style: const TextStyle(fontSize: 22),
                       ),
                       const SizedBox(height: 16),
+                      if (includeFlower) ...[
+                        const Text(
+                          '상대가 원하는 때 정원에 심을 수 있어요. 꽃 선물은 같은 이웃에게 하루 한 번 보낼 수 있어요.',
+                        ),
+                        const SizedBox(height: 12),
+                        const Text('선물할 꽃'),
+                        Wrap(
+                          spacing: 8,
+                          children: gardenFlowerNames.entries
+                              .map(
+                                (f) => SizedBox(
+                                  width: 90,
+                                  child: Column(
+                                    children: [
+                                      SizedBox(
+                                        width: 74,
+                                        height: 74,
+                                        child: GardenFlowerArt(kind: f.key),
+                                      ),
+                                      ChoiceChip(
+                                        label: Text(f.value),
+                                        selected: flower == f.key,
+                                        onSelected: (_) =>
+                                            update(() => flower = f.key),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              )
+                              .toList(),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+                      if (!includeFlower)
+                        const Text('같은 정원에 하루 한 번 응원을 남길 수 있어요.'),
                       const Text('24시간 머무는 응원'),
                       Wrap(
                         spacing: 8,
                         children: [
-                          ChoiceChip(
-                            label: const Text('없음'),
-                            selected: reaction == null,
-                            onSelected: (_) => update(() => reaction = null),
-                          ),
+                          if (includeFlower)
+                            ChoiceChip(
+                              label: const Text('없음'),
+                              selected: reaction == null,
+                              onSelected: (_) => update(() => reaction = null),
+                            ),
                           ...gardenReactionNames.entries.map(
                             (r) => ChoiceChip(
                               label: Text(
@@ -104,9 +115,7 @@ Future<({int message, String flower, String? reaction})?> composeGardenCheer(
                     flower: flower,
                     reaction: reaction,
                   )),
-                  child: Text(
-                    '${gardenFlowerNames[flower]}${reaction == null ? '' : ' · ${gardenReactionEmoji[reaction]}'} 응원 보내기',
-                  ),
+                  child: Text(includeFlower ? '꽃 선물하기' : '응원 보내기'),
                 ),
               ),
             ],

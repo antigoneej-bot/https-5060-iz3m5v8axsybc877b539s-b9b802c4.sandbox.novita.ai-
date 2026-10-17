@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
 import '../models/emotion.dart';
@@ -21,24 +20,8 @@ class SoundManager {
   bool effectsEnabled = true;
   bool _enabled = true;
   bool _muted = false;
-  bool _userPaused = false;
-  bool _backgroundPaused = false;
-  int _effectGeneration = 0, _footstepGeneration = 0;
-  final Map<AudioPlayer, Future<void>> _effectTails = {};
-  Future<void> pauseForUser() async {
-    _userPaused = true;
-    _effectGeneration++;
-    await _pausePlayers();
-  }
-
-  Future<void> releaseUserPause({bool resume = true}) async {
-    _userPaused = false;
-    if (resume) await resumeAllFromBackground();
-  }
-
   bool _bgmStarted = false;
   bool _ambientStarted = false;
-  int _bgmGeneration = 0, _ambientGeneration = 0;
   bool get ambientNaturePlaying => _ambientStarted;
 
   /// 발소리를 지금 재생해서는 안 되는 구간(스테이지 종료 순간부터 다음
@@ -159,7 +142,6 @@ class SoundManager {
   void setEnabled(bool enabled) {
     _enabled = enabled;
     if (!enabled) {
-      _effectGeneration++;
       _bgmStarted = false;
       _ambientStarted = false;
     }
@@ -168,7 +150,8 @@ class SoundManager {
   void setMuted(bool muted) {
     _muted = muted;
     if (muted) {
-      unawaited(stopEverything());
+      stopBgm();
+      stopAmbientNature();
     }
   }
 
@@ -176,50 +159,20 @@ class SoundManager {
     AudioPlayer Function() getPlayer,
     String assetPath, {
     double volume = 1.0,
-    bool Function()? canPlay,
   }) async {
-    final generation = _effectGeneration;
-    bool allowed() =>
-        generation == _effectGeneration &&
-        _enabled &&
-        !_muted &&
-        !_userPaused &&
-        !_backgroundPaused &&
-        effectsEnabled &&
-        (canPlay?.call() ?? true);
-    if (!allowed()) return;
-    late final AudioPlayer player;
+    if (!_enabled || _muted) return;
     try {
-      player = getPlayer();
-    } catch (_) {
-      return;
-    }
-    // Serialize each effect player so a stale play finishing after stop cannot
-    // stop a newer effect that has already started on the same player.
-    final task = (_effectTails[player] ?? Future<void>.value()).then((_) async {
-      if (!allowed()) return;
-      try {
-        await _ensureMixContext(player);
-        if (!allowed()) return;
-        await _ensureStopReleaseMode(player);
-        if (!allowed()) return;
-        await player.stop();
-        if (!allowed()) return;
-        await player.setVolume(volume);
-        if (!allowed()) return;
-        await player.play(AssetSource(assetPath));
-        if (!allowed()) await player.stop();
-      } catch (e) {
-        if (kDebugMode) {
-          debugPrint('SoundManager: failed to play $assetPath -> $e');
-        }
+      final player = getPlayer();
+      await _ensureMixContext(player);
+      await _ensureStopReleaseMode(player);
+      await player.stop();
+      await player.setVolume(volume);
+      if (!effectsEnabled) return;
+      await player.play(AssetSource(assetPath));
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('SoundManager: failed to play $assetPath -> $e');
       }
-    });
-    _effectTails[player] = task;
-    try {
-      await task;
-    } finally {
-      if (identical(_effectTails[player], task)) _effectTails.remove(player);
     }
   }
 
@@ -232,13 +185,26 @@ class SoundManager {
   /// (걷기 사이클마다 계속 호출되는 소리라 "정지된 뒤에도 들린다"는 문제가
   /// 유독 이 소리에서만 눈에 띄게 발생했었다).
   Future<void> playFootstep() async {
-    final generation = _footstepGeneration;
-    await _safePlay(
-      () => _footstepPlayer ??= AudioPlayer(playerId: 'sfx_footstep_player'),
-      'mongi/audio/sfx_footstep.mp3',
-      volume: 0.5,
-      canPlay: () => !_footstepSuppressed && generation == _footstepGeneration,
-    );
+    if (!_enabled || _muted || _footstepSuppressed) return;
+    try {
+      final player = _footstepPlayer ??= AudioPlayer(
+        playerId: 'sfx_footstep_player',
+      );
+      await _ensureMixContext(player);
+      if (_footstepSuppressed) return;
+      await _ensureStopReleaseMode(player);
+      if (_footstepSuppressed) return;
+      await player.stop();
+      if (_footstepSuppressed) return;
+      await player.setVolume(0.5);
+      if (_footstepSuppressed) return;
+      if (!effectsEnabled) return;
+      await player.play(AssetSource('mongi/audio/sfx_footstep.mp3'));
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('SoundManager: failed to play footstep -> $e');
+      }
+    }
   }
 
   /// 점프할 때 나는 경쾌한 효과음.
@@ -397,23 +363,16 @@ class SoundManager {
   /// 귀여운 배경음악을 무한 반복 재생 시작 (이미 재생 중이면 아무 것도 하지 않음).
   Future<void> startBgm() async {
     if (!musicEnabled) return;
-    if (_userPaused || _bgmStarted || !_enabled || _muted) return;
-    final generation = ++_bgmGeneration;
+    if (_bgmStarted || !_enabled || _muted) return;
     _bgmStarted = true;
     try {
       final player = _bgmPlayer ??= AudioPlayer(playerId: 'bgm_player');
       await _ensureMixContext(player);
       await player.setReleaseMode(ReleaseMode.loop);
       await player.setVolume(0.55);
-      if (generation != _bgmGeneration) return;
-      if (_userPaused) {
-        _bgmStarted = false;
-        return;
-      }
       await player.play(AssetSource('mongi/audio/bgm_cute_loop.mp3'));
-      if (generation == _bgmGeneration && _userPaused) await player.pause();
     } catch (e) {
-      if (generation == _bgmGeneration) _bgmStarted = false;
+      _bgmStarted = false;
       if (kDebugMode) {
         debugPrint('SoundManager: failed to start bgm -> $e');
       }
@@ -421,7 +380,6 @@ class SoundManager {
   }
 
   Future<void> stopBgm() async {
-    _bgmGeneration++;
     _bgmStarted = false;
     if (_bgmPlayer == null) return;
     try {
@@ -439,7 +397,7 @@ class SoundManager {
   }
 
   Future<void> resumeBgm() async {
-    if (_userPaused || !_bgmStarted || _muted || _bgmPlayer == null) return;
+    if (!_bgmStarted || _muted || _bgmPlayer == null) return;
     try {
       await _bgmPlayer!.resume();
     } catch (_) {}
@@ -459,7 +417,6 @@ class SoundManager {
   /// 수 있었기 때문에([_footstepSuppressed] 플래그로 이 경쟁 상태 자체를
   /// 막는다).
   Future<void> stopFootstep() async {
-    _footstepGeneration++;
     _footstepSuppressed = true;
     if (_footstepPlayer == null) return;
     try {
@@ -479,7 +436,6 @@ class SoundManager {
   /// 발소리는 다음 스테이지가 시작될 때([resumeFootstep])까지 계속 억제
   /// 상태로 남는다.
   Future<void> stopEverything() async {
-    _effectGeneration++;
     await stopBgm();
     await stopAmbientNature();
     await stopFootstep();
@@ -514,8 +470,7 @@ class SoundManager {
   // 무시해서 소리가 겹쳐 재생되지 않도록 한다.
   Future<void> startAmbientNature() async {
     if (!musicEnabled) return;
-    if (_userPaused || _ambientStarted || !_enabled || _muted) return;
-    final generation = ++_ambientGeneration;
+    if (_ambientStarted || !_enabled || _muted) return;
     _ambientStarted = true;
     try {
       // 볼륨을 아주 낮게 잡아서(0.14/0.12) 귀에 또렷이 들리는 소리가 아니라
@@ -528,14 +483,7 @@ class SoundManager {
       await _ensureMixContext(birds);
       await birds.setReleaseMode(ReleaseMode.loop);
       await birds.setVolume(0.14);
-      if (generation != _ambientGeneration) return;
-      if (_userPaused) {
-        _ambientStarted = false;
-        return;
-      }
       await birds.play(AssetSource('mongi/audio/ambient_birds.mp3'));
-      if (generation != _ambientGeneration) return;
-      if (_userPaused) await birds.pause();
 
       final water = _ambientWaterPlayer ??= AudioPlayer(
         playerId: 'ambient_water_player',
@@ -543,16 +491,9 @@ class SoundManager {
       await _ensureMixContext(water);
       await water.setReleaseMode(ReleaseMode.loop);
       await water.setVolume(0.12);
-      if (generation != _ambientGeneration) return;
-      if (_userPaused) {
-        _ambientStarted = false;
-        await pauseAmbientNature();
-        return;
-      }
       await water.play(AssetSource('mongi/audio/ambient_water.mp3'));
-      if (generation == _ambientGeneration && _userPaused) await water.pause();
     } catch (e) {
-      if (generation == _ambientGeneration) await stopAmbientNature();
+      await stopAmbientNature();
       if (kDebugMode) {
         debugPrint('SoundManager: failed to start ambient nature -> $e');
       }
@@ -560,7 +501,6 @@ class SoundManager {
   }
 
   Future<void> stopAmbientNature() async {
-    _ambientGeneration++;
     _ambientStarted = false;
     for (final p in [_ambientBirdsPlayer, _ambientWaterPlayer]) {
       if (p == null) continue;
@@ -582,7 +522,7 @@ class SoundManager {
   /// [_ambientStarted]가 true였던 경우에만(=원래 재생 중이었던 경우에만)
   /// 되살린다 - 애초에 재생된 적 없는 상태에서 잘못 재생을 시작시키지 않는다.
   Future<void> resumeAmbientNatureIfNeeded() async {
-    if (_userPaused || !_ambientStarted || _muted) return;
+    if (!_ambientStarted || _muted) return;
     for (final p in [_ambientBirdsPlayer, _ambientWaterPlayer]) {
       if (p == null) continue;
       try {
@@ -603,12 +543,6 @@ class SoundManager {
   /// 마는 효과음들은 즉시 완전히 멈춘다(발소리 포함, 다음 스테이지 진입
   /// 전까지 억제).
   Future<void> pauseAllForBackground() async {
-    _backgroundPaused = true;
-    _effectGeneration++;
-    await _pausePlayers();
-  }
-
-  Future<void> _pausePlayers() async {
     await pauseBgm();
     await pauseAmbientNature();
     await stopFootstep();
@@ -636,15 +570,12 @@ class SoundManager {
   /// 앱이 다시 포그라운드로 돌아왔을 때([pauseAllForBackground]와 짝을
   /// 이룬다) 원래 재생 중이었던 배경음악/자연 앰비언트만 이어서 재생한다.
   Future<void> resumeAllFromBackground() async {
-    _backgroundPaused = false;
-    if (_userPaused) return;
     resumeFootstep();
     await resumeBgm();
     await resumeAmbientNatureIfNeeded();
   }
 
   Future<void> dispose() async {
-    _effectGeneration++;
     for (final p in [
       _bgmPlayer,
       _ambientBirdsPlayer,

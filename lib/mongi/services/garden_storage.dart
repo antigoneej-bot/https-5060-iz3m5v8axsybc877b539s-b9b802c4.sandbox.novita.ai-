@@ -185,9 +185,14 @@ class GardenStorage {
   static const String _keyCheerSentTotalCount =
       'cheer_sent_total_count'; // int (지금까지 응원을 보낸 총 횟수, 통계용)
 
-  // Publication itself is server-authoritative. Legacy garden_published and
-  // garden_public_nickname values are left on disk, but never read as status.
-  static const String _keyPublicGardenAccounts = 'public_garden_accounts_v2';
+  // ── 공개정원 / 응원 (3단계, 서버 연동 - opt-in) ───────────────────
+  // 기본값은 항상 "공개 안 함"이다. [CloudService.enabled]가 false인 동안은
+  // 이 설정이 있어도 아무 일도 일어나지 않는다(서버가 없으니 호출부에서
+  // 먼저 막힌다) - 완전 로컬 모드의 기존 동작은 그대로 보존된다.
+  static const String _keyGardenPublished =
+      'garden_published'; // bool (내 정원을 공개로 설정했는지)
+  static const String _keyGardenPublicNickname =
+      'garden_public_nickname'; // String? (공개정원에 보여줄 닉네임, 비우면 "이름 없는 정원사")
   static const String _keyClaimedCheerIds =
       'claimed_cheer_ids'; // List<String> (이미 수령 처리한 받은 응원 id - 같은 응원을
   // 두 번 수령해 빛의 정수를 중복으로 받는 것을 로컬에서도 한 번 더 막는다)
@@ -1151,30 +1156,26 @@ class GardenStorage {
 
   // ── 공개정원 / 응원 (3단계, 서버 연동 - opt-in) ───────────────────
 
-  /// A nickname is only an editing hint, scoped to the authenticated account.
-  /// Restoring this cache must never make a garden appear private or public.
-  String? publicGardenNicknameFor(String uid) {
-    final accounts = _box.get(_keyPublicGardenAccounts);
-    if (accounts is! Map) return null;
-    final value = accounts[uid];
-    return value is String ? value : null;
+  /// 지금 내 정원을 공개로 설정해 두었는지(기본값 false - 아무것도 하지
+  /// 않으면 늘 비공개).
+  bool get gardenPublished =>
+      _box.get(_keyGardenPublished, defaultValue: false) as bool;
+
+  Future<void> setGardenPublished(bool value) async {
+    await _box.put(_keyGardenPublished, value);
   }
 
-  Future<void> cachePublicGardenNickname(String uid, String? nickname) async {
-    final raw = _box.get(_keyPublicGardenAccounts);
-    final accounts = <String, String>{
-      if (raw is Map)
-        for (final entry in raw.entries)
-          if (entry.key is String && entry.value is String)
-            entry.key as String: entry.value as String,
-    };
-    if (nickname == null || nickname.trim().isEmpty) {
-      accounts.remove(uid);
+  /// 공개정원에 보여줄 닉네임(비어있으면 화면에서 기본 문구를 쓴다).
+  String? get gardenPublicNickname =>
+      _box.get(_keyGardenPublicNickname) as String?;
+
+  Future<void> setGardenPublicNickname(String? value) async {
+    final trimmed = value?.trim();
+    if (trimmed == null || trimmed.isEmpty) {
+      await _box.delete(_keyGardenPublicNickname);
     } else {
-      accounts[uid] = nickname.trim();
+      await _box.put(_keyGardenPublicNickname, trimmed);
     }
-    await _box.put(_keyPublicGardenAccounts, accounts);
-    await _box.flush();
   }
 
   /// 이미 수령 처리한 받은 응원 id 목록(로컬 중복수령 방지용 2차 방어선 -

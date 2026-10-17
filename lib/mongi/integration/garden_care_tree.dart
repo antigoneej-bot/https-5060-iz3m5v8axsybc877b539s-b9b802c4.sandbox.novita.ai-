@@ -14,9 +14,9 @@ class GardenCareTree extends StatelessWidget {
           ? '잠시 쉰 자리에서 새잎이 펴졌어요.'
           : data.recordDays.contains(today)
           ? '오늘의 편지 곁에 고양이가 자리를 잡았어요.'
-          : data.stage > 1
-          ? '달리고 돌아온 몽이의 빛이 잎에 남았어요.'
-          : '편지·명상·달리기의 시간이 잎으로 남아요.';
+          : data.careLeaves > 0
+          ? '함께 돌본 시간이 잎에 남아 있어요.'
+          : '편지와 명상의 시간이 잎으로 남아요.';
       return Tooltip(
         message: message,
         child: Semantics(
@@ -75,7 +75,7 @@ class GardenCareNote extends StatelessWidget {
           const Text('💌 편지 곁에서 고양이가 조용히 기다리고 있어요.'),
         if (data.meditationDays.isNotEmpty)
           const Text('🌿 쉬어 간 자리에는 작은 그늘이 생겼어요.'),
-        if (data.stage > 1) const Text('✨ 달리고 돌아온 몽이가 풀밭에서 숨을 고르고 있어요.'),
+        if (data.careDays.isNotEmpty) const Text('✨ 나를 돌본 시간이 정원에 쌓이고 있어요.'),
       ],
     ),
   );

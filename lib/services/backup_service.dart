@@ -6,11 +6,6 @@ import '../mongi/integration/mongi_backup_schema.dart';
 import '../mongi/integration/plant_memory.dart';
 import '../mongi/integration/mongi_garden_data.dart';
 import 'draft_service.dart';
-import 'meditation_completion_service.dart';
-import 'meditation_check_in_store.dart';
-import 'meditation_course_store.dart';
-import '../data/meditation_media_data.dart';
-import '../models/meditation_check_in_record.dart';
 import 'dart:convert';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -25,6 +20,8 @@ import '../models/usage_history_entry.dart';
 import '../models/promise_entry.dart';
 import '../models/special_letter_entry.dart';
 import '../data/shadow_cats_data.dart';
+import '../data/meditation_media_data.dart';
+import 'meditation_course_store.dart';
 import 'hive_encryption.dart';
 
 /// Additive restore: existing records always win. Pending journal makes a
@@ -33,7 +30,6 @@ class BackupService {
   static const boxes = [
     'letter_entries',
     'self_care',
-    'meditation_checkins',
     'reflection_letters',
     'daily_draw_entries',
     'bubble_memo_entries',
@@ -60,11 +56,17 @@ class BackupService {
     'sfx_enabled',
     'bgm_volume',
   };
+  // Explicitly listed personal records only. Never broaden this to an entire
+  // prefix: billing, login and OS permission state must not be imported.
+  static const _meditationTypes = {
+    'meditation.favorites': 'strings',
+    'meditation.recent': 'strings',
+    'meditation.checkins': 'string',
+    'meditation.courses': 'string',
+  };
   static String? prefType(String key) {
+    if (_meditationTypes.containsKey(key)) return _meditationTypes[key];
     const globalTypes = {
-      'meditation.favorites': 'strings',
-      'meditation.recent': 'strings',
-      'meditation.courses': 'string',
       'mongi_last_emotions': 'strings',
       'mongi_last_intensity': 'double',
       'companion_name': 'string',
@@ -136,6 +138,148 @@ class BackupService {
   }
 
   static bool allowedPref(String key) => prefType(key) != null;
+
+  static bool _validDay(Object? value) {
+    if (value is! String || !RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(value)) {
+      return false;
+    }
+    final parsed = DateTime.tryParse(value);
+    return parsed != null &&
+        parsed.year >= 1 &&
+        MeditationCourseStore.day(parsed) == value;
+  }
+
+  static bool _validCheckInTime(Object? value) {
+    if (value is! String ||
+        !RegExp(
+          r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?Z?$',
+        ).hasMatch(value) ||
+        !_validDay(value.substring(0, 10))) {
+      return false;
+    }
+    return int.parse(value.substring(11, 13)) < 24 &&
+        int.parse(value.substring(14, 16)) < 60 &&
+        int.parse(value.substring(17, 19)) < 60 &&
+        DateTime.tryParse(value) != null;
+  }
+
+  static bool _hasExactKeys(Map data, Set<String> keys) =>
+      data.length == keys.length && data.keys.every(keys.contains);
+
+  static void _validateMeditationPref(String key, Object? value) {
+    if (key == 'meditation.favorites' || key == 'meditation.recent') {
+      final max = key == 'meditation.recent' ? 10 : meditationMedia.length;
+      if (value is! List ||
+          value.length > max ||
+          !value.every(
+            (item) => item is String && meditationMedia.containsKey(item),
+          ) ||
+          value.toSet().length != value.length) {
+        throw const FormatException('명상 목록이 올바르지 않아요.');
+      }
+      return;
+    }
+    if (value is! String || value.length > 50000) {
+      throw const FormatException('명상 기록 크기가 올바르지 않아요.');
+    }
+    final data = jsonDecode(value);
+    if (key == 'meditation.checkins') {
+      if (data is! List || data.length > 90) {
+        throw const FormatException('명상 후 상태 기록이 올바르지 않아요.');
+      }
+      final sessions = <String>{};
+      for (final row in data) {
+        if (row is! Map ||
+            !_hasExactKeys(row, {'session', 'guide', 'feeling', 'at'}) ||
+            row['session'] is! String ||
+            (row['session'] as String).trim().isEmpty ||
+            (row['session'] as String).length > 128 ||
+            !sessions.add(row['session'] as String) ||
+            !meditationMedia.containsKey(row['guide']) ||
+            !{'better', 'same', 'worse'}.contains(row['feeling']) ||
+            !_validCheckInTime(row['at'])) {
+          throw const FormatException('명상 후 상태 기록이 올바르지 않아요.');
+        }
+      }
+      return;
+    }
+    final courses = {for (final course in meditationCourses) course.id: course};
+    if (data is! Map ||
+        !_hasExactKeys(data, {'active', 'progress', 'days'}) ||
+        (data['active'] != null && !courses.containsKey(data['active'])) ||
+        data['progress'] is! Map ||
+        data['days'] is! Map ||
+        (data['progress'] as Map).length > courses.length ||
+        (data['days'] as Map).length > courses.length) {
+      throw const FormatException('명상 코스 기록이 올바르지 않아요.');
+    }
+    for (final entry in (data['progress'] as Map).entries) {
+      final course = courses[entry.key];
+      if (course == null ||
+          entry.value is! int ||
+          entry.value < 0 ||
+          entry.value > course.guides.length) {
+        throw const FormatException('명상 코스 진행이 올바르지 않아요.');
+      }
+    }
+    for (final entry in (data['days'] as Map).entries) {
+      if (!courses.containsKey(entry.key) ||
+          !_validDay(entry.value) ||
+          ((data['progress'] as Map)[entry.key] as int? ?? 0) < 1) {
+        throw const FormatException('명상 코스 날짜가 올바르지 않아요.');
+      }
+    }
+  }
+
+  /// Bounded additive merge. Local entries win on an existing session/course;
+  /// imports cannot rewind progress or rewrite a check-in already on the phone.
+  static Object? _mergeMeditationPref(
+    String key,
+    Object current,
+    Object incoming,
+  ) {
+    try {
+      _validateMeditationPref(key, current);
+    } on FormatException {
+      // An unreadable local record still belongs to the user. Keep it intact.
+      return null;
+    }
+    if (key == 'meditation.favorites' || key == 'meditation.recent') {
+      final values = {...current as List, ...incoming as List};
+      return values
+          .take(key == 'meditation.recent' ? 10 : meditationMedia.length)
+          .cast<String>()
+          .toList();
+    }
+    if (key == 'meditation.checkins') {
+      final local = jsonDecode(current as String) as List;
+      final imported = jsonDecode(incoming as String) as List;
+      final seen = local.map((row) => (row as Map)['session']).toSet();
+      return jsonEncode(
+        [
+          ...local,
+          ...imported.where((row) => seen.add((row as Map)['session'])),
+        ].take(90).toList(),
+      );
+    }
+    final local = jsonDecode(current as String) as Map;
+    final imported = jsonDecode(incoming as String) as Map;
+    final progress = Map<String, dynamic>.from(local['progress'] as Map);
+    final days = Map<String, dynamic>.from(local['days'] as Map);
+    for (final entry in (imported['progress'] as Map).entries) {
+      if (progress.containsKey(entry.key)) continue;
+      progress[entry.key as String] = entry.value;
+      if ((imported['days'] as Map).containsKey(entry.key)) {
+        days[entry.key as String] = imported['days'][entry.key];
+      }
+    }
+    return jsonEncode({
+      'active': local['active'],
+      'progress': progress,
+      'days': days,
+    });
+  }
+
   static Future<Box> _journal() async => Hive.isBoxOpen('restore_journal__enc')
       ? Hive.box('restore_journal__enc')
       : Hive.openBox(
@@ -152,10 +296,7 @@ class BackupService {
 
   static Future<Map<String, dynamic>> snapshot() async {
     await DraftTextController.flushAll();
-    await MeditationCheckInStore.instance.prepareBackup();
-    return MeditationCompletionService.instance.consistentRead(
-      () => MongiGardenStore.instance.consistentRead(_snapshotCommitted),
-    );
+    return MongiGardenStore.instance.consistentRead(_snapshotCommitted);
   }
 
   static Future<Map<String, dynamic>> _snapshotCommitted() async {
@@ -253,14 +394,6 @@ class BackupService {
             throw const FormatException('잘못된 답장 기록이에요.');
           continue;
         }
-        if (entry.key == 'meditation_checkins') {
-          if (value is! Map) throw const FormatException('잘못된 명상 후기예요.');
-          final record = MeditationCheckInRecord.fromMap(value);
-          if (row['key'] != record.session) {
-            throw const FormatException('명상 후기가 일치하지 않아요.');
-          }
-          continue;
-        }
         if (entry.key == 'garden_layout') {
           if (row['key'] != 'layout' || value is! Map) {
             throw const FormatException('잘못된 정원 배치 기록이에요.');
@@ -351,37 +484,8 @@ class BackupService {
       };
       if (!valid || entry.value['type'] != prefType(entry.key as String))
         throw const FormatException('설정 값이 올바르지 않아요.');
-      if (entry.key == 'meditation.favorites' ||
-          entry.key == 'meditation.recent') {
-        if (!(v as List).every(meditationMedia.containsKey)) {
-          throw const FormatException('명상 목록이 올바르지 않아요.');
-        }
-      }
-      if (entry.key == 'meditation.courses') {
-        final data = jsonDecode(v as String);
-        final courses = {for (final c in meditationCourses) c.id: c};
-        if (data is! Map ||
-            data['progress'] is! Map ||
-            data['days'] is! Map ||
-            (data['active'] != null && !courses.containsKey(data['active']))) {
-          throw const FormatException('명상 과정 기록이 올바르지 않아요.');
-        }
-        for (final progress in (data['progress'] as Map).entries) {
-          final course = courses[progress.key];
-          if (course == null ||
-              progress.value is! int ||
-              progress.value < 0 ||
-              progress.value > course.guides.length) {
-            throw const FormatException('명상 과정 순서가 올바르지 않아요.');
-          }
-        }
-        for (final day in (data['days'] as Map).entries) {
-          if (!courses.containsKey(day.key) ||
-              day.value is! String ||
-              DateTime.tryParse(day.value as String) == null) {
-            throw const FormatException('명상 과정 날짜가 올바르지 않아요.');
-          }
-        }
+      if (_meditationTypes.containsKey(entry.key)) {
+        _validateMeditationPref(entry.key as String, v);
       }
       if (entry.key == 'local_user_mongi_garden_v1') {
         MongiGardenData.fromJson(
@@ -398,6 +502,7 @@ class BackupService {
     // unreadable snapshot so importing a backup cannot silently erase it.
     final prefs = await SharedPreferences.getInstance();
     if (prefs.containsKey('local_user_mongi_garden_v1')) return true;
+    if (_meditationTypes.keys.any(prefs.containsKey)) return true;
     for (final name in boxes.where(
       (name) => !{
         'drafts',
@@ -496,19 +601,22 @@ class BackupService {
     }
     final prefs = await SharedPreferences.getInstance();
     for (final entry in (data['settings'] as Map).entries) {
+      final key = entry.key as String;
+      var v = entry.value['value'];
+      if (_meditationTypes.containsKey(key) && prefs.containsKey(key)) {
+        v = _mergeMeditationPref(key, prefs.get(key)!, v as Object);
+        if (v == null) continue;
+      }
       // Also protect snapshots written since a restore was queued, including
       // journals created by an older app version with restoreProfile=true.
-      if ((entry.key as String).startsWith('meditation.') &&
-          prefs.containsKey(entry.key))
-        continue;
       if (entry.key == 'local_user_mongi_garden_v1' &&
           prefs.containsKey(entry.key)) {
         continue;
       }
-      if (pending['restoreProfile'] != true && prefs.containsKey(entry.key))
+      if (!_meditationTypes.containsKey(key) &&
+          pending['restoreProfile'] != true &&
+          prefs.containsKey(entry.key))
         continue;
-      final v = entry.value['value'];
-      final key = entry.key as String;
       final stored = switch (entry.value['type']) {
         'bool' => await prefs.setBool(key, v as bool),
         'int' => await prefs.setInt(key, v as int),

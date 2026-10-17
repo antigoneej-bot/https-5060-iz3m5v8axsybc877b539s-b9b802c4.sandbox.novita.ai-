@@ -1,3 +1,5 @@
+import 'reply_safety.dart';
+
 /// Routes explicit, first-person emotion wording to one of the 24 categories
 /// in `mind_cat_acceptance_replies_72` (see tool/acceptance_reply_content.json
 /// and 02_적용_원칙.txt / 03_개발자_적용_요청.txt for the source pack and its
@@ -20,6 +22,11 @@
 class AcceptanceReplyMatcher {
   const AcceptanceReplyMatcher._();
 
+  // Match the emotion word, not the same syllables inside 영화나/동화나라.
+  // Common intensifiers may be attached without a space in diary writing.
+  static const angerPattern =
+      r'(?:^|[^가-힣A-Za-z0-9])(?:너무|정말|진짜|엄청|완전|아주|몹시|많이|좀|더|또)?\s*(?:화가\s*나|화가\s*났|화났|화나)|짜증';
+
   static bool _negatedOrHedged(String after) {
     if (RegExp(r'^[^.!?\n,]{0,8}(?:않|아니|없)').hasMatch(after)) return true;
     if (RegExp(r'^지\s*못').hasMatch(after)) return true;
@@ -38,36 +45,132 @@ class AcceptanceReplyMatcher {
     return false;
   }
 
-  /// Mirrors [ReplyTone]'s own "don't attribute another person's stated
-  /// emotion to the writer" guard, split into two cases:
-  ///
-  /// Guard A (unchanged from [ReplyTone]): bare state adjectives — 슬프다/
-  /// 기쁘다/외롭다/피곤하다/행복하다 and 그립다 — where "그 사람이 X" almost always
-  /// directly predicates X of that person, with no causal ambiguity.
-  ///
-  /// Guard B (new, and deliberately narrower): reaction verbs — 화나다/
-  /// 후회하다/미안하다/서운하다/창피하다/밉다/부럽다/질투 — where "그 사람이 [행동]해서
-  /// X" is at least as common as "그 사람이 X하대", and in that reading the
-  /// OTHER person only caused the feeling; the writer is the one feeling it
-  /// (e.g. "친구가 약속을 취소해서 서운해." is the writer's own 서운함). Guard B
-  /// therefore only excludes when an explicit hearsay/report suffix
-  /// (대/래/다고 해/하더라 등) immediately follows the emotion word, i.e. the
-  /// text actually reports that person's own statement, not a plain reaction
-  /// clause.
+  // Keep someone else's stated emotion separate even if the letter also
+  // contains "나는" in another sentence. Causal wording such as "친구가
+  // 약속을 취소해서 서운해" still describes the writer's reaction.
   static bool _statedAsOtherIntransitive(String text) {
-    if (RegExp(r'나는|내가|난\s|저는|제가').hasMatch(text)) return false;
     const subjects =
-        r'(?:친구|동료|엄마|아빠|어머니|아버지|동생|언니|오빠|남편|아내|그녀|그\s*사람)(?:가|이|는|은)';
-    if (RegExp(
-      '$subjects\\s*[^.!?\\n]*(?:슬퍼|슬프|기뻐|외로워|외롭|피곤|지쳤|행복|그리워|그리운|그립)',
-    ).hasMatch(text)) {
-      return true;
+        r'(?:친구|동료|상사|엄마|아빠|어머니|아버지|동생|언니|오빠|남편|아내|아들|딸|아이|자녀|부모님|선생님|그녀|그\s*사람)(?:가|이|는|은)';
+    const states =
+        r'슬퍼|슬프|기뻐|기쁘|외로워|외롭|피곤|지쳤|행복|그리워|그리운|그립|'
+        r'불안|걱정|두려|무서|서운|화가\s*나|화가\s*났|화났|화나|짜증|후회|미안|창피|민망|부럽|질투|자책|실망';
+    // A fixed list of relatives cannot cover names or new roles (민수가,
+    // 상담사가). Subject particles provide a conservative second guard.
+    // State/event nouns and first-person subjects can describe my reaction,
+    // so they must not be treated as another person merely for having 이/가.
+    const nonPersonSubjects = {
+      '나',
+      '내',
+      '저',
+      '제',
+      '우리',
+      '마음',
+      '기분',
+      '감정',
+      '몸',
+      '오늘',
+      '어제',
+      '내일',
+      '요즘',
+      '지금',
+      '하루',
+      '일',
+      '행동',
+      '말',
+      '태도',
+      '결과',
+      '소식',
+      '기억',
+      '생각',
+      '이야기',
+      '상황',
+      '약속',
+      '사건',
+      '문제',
+      '모습',
+      '표정',
+      '느낌',
+      '월세',
+      '생활비',
+      '돈',
+      '대출',
+      '시험',
+      '면접',
+      '미래',
+      '앞날',
+      '앞으로',
+      '한편으로',
+      '한편',
+      '자신',
+      '스스로',
+    };
+    final namedSubject = RegExp(
+      r'(?:^|\s)([가-힣A-Za-z][가-힣A-Za-z0-9]*)(?:가|이|는|은)(?=\s)',
+    );
+    for (final sentence in text.split(RegExp(r'[.!?\n]'))) {
+      final candidates = <RegExpMatch>[
+        ...RegExp(subjects).allMatches(sentence),
+        ...namedSubject
+            .allMatches(sentence)
+            .where((m) => !nonPersonSubjects.contains(m.group(1))),
+      ];
+      for (final subject in candidates) {
+        final tail = sentence.substring(subject.end);
+        final feeling = RegExp(states).firstMatch(tail);
+        if (feeling == null) continue;
+        final between = tail.substring(0, feeling.start);
+        // A clearly stated new first-person subject owns the following feeling.
+        if (RegExp(r'(?:나는|내가|난\s|저는|제가)').hasMatch(between)) continue;
+        // Distinguish a person's own state from their action causing my feeling.
+        if (RegExp(
+          r'(?:(?:해|아|어|여|겨|려|워|와|라|이|줘|켜|져|가|나|서|보|돼|되)서|해서는|때문에|덕분에|로\s*인해)\s*$',
+        ).hasMatch(between))
+          continue;
+        return true;
+      }
     }
-    return RegExp(
-      '$subjects\\s*[^.!?\\n]*(?:화가\\s*나|화가\\s*났|화났|화나|짜증|후회|미안|서운|창피|민망|'
-      r'밉|미워|부럽|질투)(?:해했|해한대|하대|한대|했대|대\b|래\b|다고\s*(?:해|함|했어|하네)|'
-      r'라고\s*(?:해|했어)|더라(?:고)?)',
-    ).hasMatch(text);
+    return false;
+  }
+
+  // Only exact feeling equivalents are mapped. E.g. depressed is not sadness,
+  // proud alone does not establish an achievement, and serene is not relief.
+  // Missing IDs keep the neutral path instead of inventing a story to fit a cat.
+  static const selectedEmotionCategories = <String, String>{
+    'angry': '01',
+    'sulky': '02',
+    'hurtFeelings': '02',
+    'sad': '03',
+    'lonely': '04',
+    'anxious': '05',
+    'dread': '05',
+    'jealous': '06',
+    'guilty': '08',
+    'selfCritical': '09',
+    'ashamed': '10',
+    'weary': '11',
+    'joyful': '15',
+    'grateful': '17',
+  };
+
+  static String? _selectedEmotionFallback(String value, String? emotionId) {
+    final category = selectedEmotionCategories[emotionId];
+    if (category == null || RegExp(angerPattern).hasMatch(value)) return null;
+    // Named feelings (including negated, unsupported, or mixed ones) must not
+    // be overridden by the cat choice. Unknown facts/questions stay neutral too.
+    if (RegExp(
+      r'슬프|슬퍼|슬픔|속상|서운|외로|짜증|기쁘|기뻐|기쁨|행복|'
+      r'불안|걱정|두려|두렵|무서|피곤|지쳤|지쳐|힘들|의욕|부럽|부러|질투|미워|밉|'
+      r'미안|후회|죄송|자책|내\s*탓|창피|민망|감사|고마|고맙|안심|안도|뿌듯|'
+      r'사랑|그리|보고\s*싶|소중|복잡|우울|허무|공허|억울|초조|초라|위축|실망|'
+      r'평온|편안|만족|설레|신나|신났|즐거|즐겁|부담|용서|돌아가셨|장례|'
+      r'않|아니|(?:^|\s)안\s|없|[?？]|(?:걸까|일까|건가|나요|어쩌지)[.!\s]*$',
+    ).hasMatch(value))
+      return null;
+    if (RegExp(
+      r'(?:친구|동료|상사|엄마|아빠|어머니|아버지|동생|언니|오빠|남편|아내|그녀|그\s*사람)(?:가|이|는|은)',
+    ).hasMatch(value))
+      return null;
+    return category;
   }
 
   static bool _globalAmbiguous(String text) {
@@ -76,6 +179,13 @@ class AcceptanceReplyMatcher {
       r'["“”「」『』]|소설|대사|가정|농담|비꼬|비웃|반어|라면|다면|였으면|었으면|았으면|했다고|했대|하대|고\s*하더라|라고|냐고',
     ).hasMatch(text);
   }
+
+  /// Exposed to the engine as well: falling back from this matcher must not
+  /// reintroduce a feeling that belongs to someone else through ReplyTone.
+  static bool uncertainPerspective(String text) =>
+      _globalAmbiguous(text) ||
+      RegExp(r'예전에|옛날|지난해|작년|그때는|당시에는|지금은|이제는|더\s*이상').hasMatch(text) ||
+      _statedAsOtherIntransitive(text);
 
   /// True when the writer has asked, in any of the ways the existing engine
   /// already recognises, to be listened to without advice, questions, or a
@@ -94,17 +204,17 @@ class AcceptanceReplyMatcher {
   /// empty, ambiguous, reports someone else's feeling, matches none of the
   /// 24 authored situations, or names more feelings than the pack's own
   /// explicit combinations cover.
-  static String? detect(String text) {
+  static String? detect(String text, {String? emotionId}) {
     final value = text.trim();
-    if (value.isEmpty) return null;
+    if (value.isEmpty || ReplySafety.assess(value) != ReplySupportNeed.none) {
+      return null;
+    }
     if (wantsListeningOnly(value)) return '23';
     if (_globalAmbiguous(value)) return null;
     // Same tense-shift/uncertain-perspective wording that makes ReplyTone
     // fall back to neutral keeps this matcher from guessing too; a plain
     // neutral reply is an accepted outcome for these inputs.
-    if (RegExp(
-      r'예전에|옛날|지난해|작년|그때는|당시에는|지금은|이제는|더\s*이상',
-    ).hasMatch(value)) {
+    if (RegExp(r'예전에|옛날|지난해|작년|그때는|당시에는|지금은|이제는|더\s*이상').hasMatch(value)) {
       return null;
     }
     if (_statedAsOtherIntransitive(value)) return null;
@@ -116,7 +226,7 @@ class AcceptanceReplyMatcher {
       return '22';
     }
 
-    final anger = _affirmed(value, r'화가\s*나|화가\s*났|화났|화나|짜증');
+    final anger = _affirmed(value, angerPattern);
     final jealousy = _affirmed(value, r'질투|부럽|부러워');
     final hate = _affirmed(value, r'미워|밉다|미운');
     final sadness = _affirmed(value, r'슬퍼|슬프|슬펐|속상|눈물이\s*나|울었');
@@ -124,7 +234,8 @@ class AcceptanceReplyMatcher {
     final lonely = _affirmed(value, r'외로워|외롭|외로웠|외로운');
     final selfBlame = _affirmed(
       value,
-      r'자신에게\s*실망|내가\s*싫|나\s*자신이\s*싫|스스로가?\s*싫|자책|나\s*자신을\s*탓|내\s*탓|실망스러',
+      r'자신에게\s*실망|내가\s*싫|나\s*자신이\s*싫|스스로가?\s*싫|자책|나\s*자신을\s*탓|내\s*탓|'
+      r'(?:나\s*자신(?:이|은)|내\s*(?:자신|모습|행동)|스스로(?:가|는)?|내가)[^.!?\n]{0,12}실망스러',
     );
     final apology = _affirmed(value, r'후회|미안');
     final shame = _affirmed(value, r'창피|민망');
@@ -171,12 +282,22 @@ class AcceptanceReplyMatcher {
       worry,
     ].where((present) => present).length;
 
-    // The pack authors only one explicit compound situation (joy + worry,
+    // The pack authors an explicit compound situation (joy + worry,
     // category 21). Any other combination of named feelings is ambiguous
     // for this 24-category pack; defer to the general engine's own
     // tone-based "mixed" handling instead of dropping one of the feelings.
     if (families > 1) {
       if (joy && worry && families == 2) return '21';
+      // Category 11's authored example explicitly links lack of motivation
+      // to exhaustion. Keep that causal statement in its authored category;
+      // independent/mixed fatigue and motivation still remain ambiguous.
+      if (tired &&
+          unmotivated &&
+          families == 2 &&
+          RegExp(
+            r'(?:지쳐서|피곤해서|지쳤기\s*때문에|피곤하기\s*때문에)[^.!?\n]*(?:하기\s*싫|의욕.*없)',
+          ).hasMatch(value))
+        return '11';
       return null;
     }
 
@@ -201,6 +322,6 @@ class AcceptanceReplyMatcher {
     if (mundane) return '14';
     if (vague) return '13';
     // Explicit listening requests are handled before emotion matching.
-    return null;
+    return _selectedEmotionFallback(value, emotionId);
   }
 }

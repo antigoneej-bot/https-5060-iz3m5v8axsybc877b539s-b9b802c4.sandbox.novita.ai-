@@ -11,7 +11,8 @@ class GardenMoment {
     GardenMomentTrigger.letter => data.recordDays.isNotEmpty,
     GardenMomentTrigger.meditation => data.meditationDays.isNotEmpty,
     GardenMomentTrigger.cat => cats > 0,
-    GardenMomentTrigger.run => data.stage >= 2,
+    // Preserve this historical trigger ID and old unlocks; new gardens use care.
+    GardenMomentTrigger.run => data.careDays.isNotEmpty || data.stage >= 2,
     GardenMomentTrigger.plant => data.seeds.values.any((count) => count > 0),
   };
 }
@@ -25,7 +26,7 @@ const gardenMoments = [
 
 몽이는 문 옆의 납작한 돌을 옮겨 문이 닫히지 않게 받쳤다. 바람이 지나가도 문은 조금 열린 채였다.
 
-한 바퀴 달리고 돌아오면 어디에 앉을까. 몽이는 이곳저곳을 살피다 문 가까운 풀밭에 몸을 내려놓았다. 멀리서 잎사귀 하나가 굴러왔다. 앞발을 뻗었다가, 그대로 지나가게 두었다.
+잠시 쉬어 가려면 어디에 앉을까. 몽이는 이곳저곳을 살피다 문 가까운 풀밭에 몸을 내려놓았다. 멀리서 잎사귀 하나가 굴러왔다. 앞발을 뻗었다가, 그대로 지나가게 두었다.
 
 문 너머의 길과 정원 안의 길이 오후 내내 이어져 있었다.''',
   ),
@@ -44,12 +45,12 @@ const gardenMoments = [
   GardenMoment(
     GardenMomentTrigger.run,
     '문 앞에서 고르는 숨',
-    '몽이 2단계에 도착하면 열려요',
-    '''길을 달리고 돌아온 몽이의 앞발에 흙이 묻어 있었다. 가슴에는 길에서 받아 안은 빛이 조금 남아 있었다. 문 옆에 앉은 고양이가 귀를 세웠다.
+    '편지나 명상으로 마음을 한 번 돌보면 열려요',
+    '''정원을 둘러보고 돌아온 몽이의 앞발에 흙이 묻어 있었다. 풀잎에 맺힌 빛이 가슴께에 조금 남아 있었다. 문 옆에 앉은 고양이가 귀를 세웠다.
 
 몽이는 오늘 만난 것들을 말하려다가 먼저 숨을 골랐다. 고양이는 기다리는 동안 제 꼬리 끝을 가지런히 놓았다.
 
-“작은 돌을 하나 깼어.”
+“오늘은 내 마음을 조금 들여다봤어.”
 
 고양이가 몽이의 앞발을 내려다보았다. 몽이는 발가락 사이에 낀 풀 한 가닥을 빼냈다. 둘은 그것을 한참 보다가 웃었다.
 

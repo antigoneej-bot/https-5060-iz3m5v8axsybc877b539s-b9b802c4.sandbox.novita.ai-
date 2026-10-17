@@ -1,5 +1,8 @@
 import '../../theme.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../providers/cat_care_provider.dart';
+import '../../utils/companion_name.dart';
 import '../../services/subscription_service.dart';
 import '../../screens/premium_screen.dart';
 import 'garden_story_catalog.dart';
@@ -57,7 +60,10 @@ class _GardenStoriesScreenState extends State<GardenStoriesScreen> {
                   ),
                   const SizedBox(height: 24),
                   SelectableText(
-                    pack.chapters[chapter].body,
+                    companionCopy(
+                      pack.chapters[chapter].body,
+                      context.watch<CatCareProvider>().displayName,
+                    ),
                     style: bodyFont(
                       fontSize: 17,
                       height: 1.9,
@@ -82,7 +88,14 @@ class _GardenStoriesScreenState extends State<GardenStoriesScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('몽이의 정원 이야기')),
+    appBar: AppBar(
+      title: Text(
+        companionCopy(
+          '몽이의 정원 이야기',
+          context.watch<CatCareProvider>().displayName,
+        ),
+      ),
+    ),
     body: _loading
         ? const Center(child: CircularProgressIndicator())
         : _error != null

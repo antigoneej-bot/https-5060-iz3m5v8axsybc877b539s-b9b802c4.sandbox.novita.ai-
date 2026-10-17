@@ -8,6 +8,7 @@ import '../services/reflection_service.dart';
 import '../theme.dart';
 import '../utils/cat_palette.dart';
 import '../widgets/garden_path_card.dart';
+import '../widgets/meditation_recap_card.dart';
 import '../widgets/lively_cat_image.dart';
 import '../widgets/share_reflection_card.dart';
 import '../widgets/stars_background.dart';
@@ -77,26 +78,30 @@ class _WeeklyReflectionScreenState extends State<WeeklyReflectionScreen> {
                   Expanded(
                     child: SingleChildScrollView(
                       padding: const EdgeInsets.fromLTRB(22, 12, 22, 40),
-                      child: entryCount == 0
-                          ? const _NoDataYet()
-                          : Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                _WeeklyTopCatCard(
-                                  topCatId: topCatId,
-                                  entryCount: entryCount,
-                                  recordedDays: recordedDays,
-                                ),
-                                const SizedBox(height: 22),
-                                _WeeklyFlowCard(days: days),
-                                const SizedBox(height: 22),
-                                _ShareWeeklyButton(
-                                  topCatId: topCatId,
-                                  recordedDays: recordedDays,
-                                  days: days,
-                                ),
-                              ],
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          const MeditationRecapCard(),
+                          const SizedBox(height: 22),
+                          if (entryCount == 0)
+                            const _NoDataYet()
+                          else ...[
+                            _WeeklyTopCatCard(
+                              topCatId: topCatId,
+                              entryCount: entryCount,
+                              recordedDays: recordedDays,
                             ),
+                            const SizedBox(height: 22),
+                            _WeeklyFlowCard(days: days),
+                            const SizedBox(height: 22),
+                            _ShareWeeklyButton(
+                              topCatId: topCatId,
+                              recordedDays: recordedDays,
+                              days: days,
+                            ),
+                          ],
+                        ],
+                      ),
                     ),
                   ),
                 ],
@@ -121,7 +126,7 @@ class _NoDataYet extends StatelessWidget {
           const Text('🌙', style: TextStyle(fontSize: 40)),
           const SizedBox(height: 14),
           Text(
-            '아직 이번 주 기록이 없어요',
+            '아직 이번 주 편지 기록이 없어요',
             style: bodyFont(fontSize: 13.5, color: AppColors.inkSoft),
           ),
           const SizedBox(height: 6),

@@ -9,8 +9,7 @@ import '../models/emotion_trigger.dart';
 import '../providers/garden_provider.dart';
 import '../widgets/emotion_share_sheet.dart';
 
-/// "감정 다이어리" - 스테이지를 클리어할 때마다 남긴 한 줄 기록을
-/// 최신순으로 모아 보는 화면.
+/// 고요 모드의 한 줄과 이전에 남긴 감정 기록을 최신순으로 모아 본다.
 class DiaryScreen extends StatelessWidget {
   const DiaryScreen({super.key});
 

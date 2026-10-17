@@ -43,7 +43,7 @@ class AppColors {
   // 마음 돌보기 (밥 · 물 · 목욕 · 청소) = 힐링 → 세이지 그린
   static const catSage = Color(0xFF80A084);
   static const catSageBg = Color(0xFFEAF1EA);
-  // 돌봄 온기 기록 보기 = 마음기록 → 더스티 로즈
+  // 마음 온도 기록 보기 = 마음기록 → 더스티 로즈
   static const catDustyRose = Color(0xFFC38D96);
   static const catDustyRoseBg = Color(0xFFF9ECEE);
   // 데일리 내면소통 = 휴식 → 딥 네이비

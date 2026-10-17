@@ -1,4 +1,6 @@
 import '../../widgets/subscription_gate.dart';
+import '../../screens/account_screen.dart';
+import '../../services/subscription_service.dart';
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
@@ -12,12 +14,10 @@ import '../l10n/gen/app_localizations.dart';
 import '../l10n/share_frame_l10n.dart';
 import '../models/emotion.dart';
 import '../providers/garden_provider.dart';
-import '../services/purchase_service.dart';
 
 /// 감정 공유 카드의 배경 프레임 스타일.
-/// [isPremium]이 true인 프레임(벚꽃/골드 별빛)은 [kPremiumFramesProductId] 인앱 상품을
-/// 구매해야 실제로 사용할 수 있다. 구매 전에는 미리보기만 가능하다.
-/// (코어 게임 루프는 절대 유료화하지 않는다는 원칙 - 이 프레임은 순수 코스메틱 항목)
+/// 구독 프레임(벚꽃/골드 별빛)은 구독 권한으로 사용한다.
+/// 이전에 획득한 프레임은 보존하며, 잠긴 프레임도 미리 볼 수 있다.
 class _CardFrame {
   final String id;
   final bool isPremium;
@@ -72,8 +72,7 @@ const List<_CardFrame> _frames = [
 ///
 /// [RepaintBoundary]로 감싼 카드 위젯을 스크린샷(PNG)으로 캡처한 뒤
 /// [SharePlus]를 통해 시스템 공유 시트(안드로이드 Intent.ACTION_SEND / 웹 Web Share API)로 전달한다.
-/// 프리미엄 프레임(벚꽃/골드 별빛)은 [kPremiumFramesProductId] 인앱 상품을 구매하면
-/// 영구적으로 사용할 수 있다(비소모성 - 1회 구매로 계속 이용).
+/// 구독 프레임은 동일한 마음냥 계정의 구독을 확인하거나 복원해 사용한다.
 class EmotionShareSheet extends StatefulWidget {
   final Emotion emotion;
   final String? targetName;
@@ -81,6 +80,7 @@ class EmotionShareSheet extends StatefulWidget {
   final int maxCombo;
   final bool choseLove;
   final String note;
+  final Future<bool> Function(BuildContext) ensureSignedIn;
 
   const EmotionShareSheet({
     super.key,
@@ -90,6 +90,7 @@ class EmotionShareSheet extends StatefulWidget {
     required this.maxCombo,
     required this.choseLove,
     required this.note,
+    this.ensureSignedIn = AccountScreen.ensureSignedIn,
   });
 
   /// 바텀시트 형태로 공유 카드를 보여준다.
@@ -189,13 +190,40 @@ class _EmotionShareSheetState extends State<EmotionShareSheet> {
     }
   }
 
-  /// 프리미엄 프레임 팩 구매 확인 다이얼로그를 띄우고, 동의하면 실제 결제를 시작한다.
-  /// 구매 성공/복원 여부는 [GardenProvider.premiumFramesUnlocked]가 콜백을 통해
-  /// 비동기로 갱신되며, 이 위젯은 [context.watch]로 그 값을 구독하고 있어 자동으로 반영된다.
+  /// 구독 안내로 이동한다. 별도의 프레임 상품 결제를 시작하지 않는다.
   Future<void> _showPurchaseSheet() async {
     await requestSubscription(context);
     if (!mounted) return;
     await context.read<GardenProvider>().refreshSubscription();
+  }
+
+  Future<void> _restore() async {
+    if (_purchasing || _sharing) return;
+    final garden = context.read<GardenProvider>();
+    setState(() => _purchasing = true);
+    try {
+      if (!await widget.ensureSignedIn(context) || !mounted) return;
+      final result = await garden.restorePremiumFramesPurchase();
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(result.message)));
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              const SubscriptionRestoreResult(
+                SubscriptionRestoreStatus.unavailable,
+              ).message,
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _purchasing = false);
+    }
   }
 
   @override
@@ -281,13 +309,9 @@ class _EmotionShareSheetState extends State<EmotionShareSheet> {
             if (isLocked) ...[
               const SizedBox(height: 6),
               TextButton(
-                onPressed: _purchasing
-                    ? null
-                    : () => context
-                          .read<GardenProvider>()
-                          .restorePremiumFramesPurchase(),
+                onPressed: _purchasing || _sharing ? null : _restore,
                 child: Text(
-                  l10n.shareRestorePurchaseButton,
+                  '구독 복원하기',
                   style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                 ),
               ),

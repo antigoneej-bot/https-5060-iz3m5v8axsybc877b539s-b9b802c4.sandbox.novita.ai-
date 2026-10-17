@@ -16,7 +16,7 @@ test('planting emits exactly one notice and excludes recipient identity and diar
  const first=await confirmGardenBloom(db,'receiver','cheer1','tulip',deps);
  assert.deepEqual(first,{confirmed:true,notified:true});
  const notice=db.docs.get('users/sender/flowerBlooms/'+bloomReceiptId('receiver','cheer1'));
- assert.deepEqual(notice,{flowerKind:'tulip',createdAt:'server-time'});
+ assert.deepEqual(notice,{flowerKind:'tulip',recipientId:'receiver',createdAt:'server-time'});
  const second=await confirmGardenBloom(db,'receiver','cheer1','daisy',deps);
  assert.equal(second.notified,false);
  assert.equal(notice.flowerKind,'tulip');

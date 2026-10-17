@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_app/services/reply_situation.dart';
 import 'package:flutter_app/services/personal_reply_engine.dart';
 import 'package:flutter_app/models/reply_style.dart';
+import 'package:flutter_app/data/replies/acceptance_reply_content.dart';
 
 void main() {
   final cases = <String, String?>{
@@ -73,6 +74,22 @@ void main() {
         final result = PersonalReplyEngine(
           random: Random(1),
         ).compose(letterText: entry.key, style: style, catName: '몽이');
+        const authoredRoutes = {
+          '상사가 내 말을 무시해서 화났어.': '01',
+          '오늘 상사가 내 말을 무시했어. 화가 났어.': '01',
+          '내가 상사에게 화를 냈어. 후회돼.': '08',
+        };
+        final authoredId = authoredRoutes[entry.key];
+        if (authoredId != null) {
+          expect(result.situation, 'accept:$authoredId');
+          expect(result.parts, hasLength(1));
+          final category = acceptanceReplyContent[authoredId]!;
+          final pool = style == ReplyStyle.listen
+              ? category.receive
+              : category.replies;
+          expect(pool.map((r) => r.text), contains(result.parts.single));
+          continue;
+        }
         final situation = ReplySituation.detect(entry.key)!;
         expect(result.parts.any(situation.listening.contains), isTrue);
         expect(
@@ -92,6 +109,8 @@ void main() {
       style: ReplyStyle.suggest,
       catName: '몽이',
     );
-    expect(result.parts.length, 3);
+    expect(result.situation, 'accept:23');
+    expect(result.parts.length, 1);
+    expect(result.text, isNot(contains('?')));
   });
 }

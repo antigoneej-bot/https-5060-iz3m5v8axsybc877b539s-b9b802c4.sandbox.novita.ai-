@@ -13,27 +13,6 @@ import '../data/shadow_cats_data.dart';
 
 /// 다마고치식 '마음 돌보기' 상태를 화면에 공급하는 Provider
 class CatCareProvider extends ChangeNotifier {
-  bool _subscriptionDisposed = false;
-  int _subscriptionRevision = 0;
-
-  /// Refresh access only; never reload records or repeat daily care/rewards.
-  Future<void> refreshSubscription() async {
-    if (_subscriptionDisposed) return;
-    final revision = ++_subscriptionRevision;
-    final premium = await SubscriptionService().isPremium();
-    if (_subscriptionDisposed || revision != _subscriptionRevision) return;
-    if (isPremium == premium) return;
-    isPremium = premium;
-    notifyListeners();
-  }
-
-  @override
-  void dispose() {
-    _subscriptionDisposed = true;
-    _subscriptionRevision++;
-    super.dispose();
-  }
-
   CatCareState state = CatCareState(
     temperature: CatCareService.startTemperature,
     fedToday: false,
@@ -51,6 +30,12 @@ class CatCareProvider extends ChangeNotifier {
   /// 유료 구독자 여부. 100도 달성 시 포인트 적립은 구독자에게만 적용됩니다.
   bool isPremium = false;
 
+  void setAccountPremium(bool value) {
+    if (isPremium == value) return;
+    isPremium = value;
+    notifyListeners();
+  }
+
   /// 방금 성장 단계가 올라간 경우, 새로 도달한 단계. 레벨업 애니메이션을
   /// 보여준 뒤 [clearLevelUp]으로 비워줍니다. 평소에는 null.
   CatGrowthStage? justReachedStage;
@@ -61,7 +46,7 @@ class CatCareProvider extends ChangeNotifier {
   String? bodyCareCelebrationMessage;
 
   /// 마음 돌보기까지 포함해 오늘 첫 돌봄을 실천했을 때
-  /// 보여줄 축하 말풍선 문구(돌봄 온기 +1도 안내). 화면에서 보여준 뒤
+  /// 보여줄 축하 말풍선 문구(마음 온도 +1도 안내). 화면에서 보여준 뒤
   /// [clearAllCareCelebration]으로 비웁니다. 평소에는 null.
   String? allCareCelebrationMessage;
 
@@ -146,54 +131,24 @@ class CatCareProvider extends ChangeNotifier {
     }
   }
 
-  int _loadRevision = 0;
-
-  /// Paint the saved garden immediately without claiming attendance/rewards
-  /// while startup entitlement verification is still in progress.
-  Future<void> loadCached() async {
-    final revision = ++_loadRevision;
-    final cached = await CatCareService.readSnapshot(
-      defaultCompanionCatId: shadowCats.first.id,
-    );
-    final name = await StorageService.getCompanionName();
-    final owned = await CatCareService.getOwnedAccessoryIds();
-    final equipped = await CatCareService.getEquippedBySlot();
-    final inventory = await CatCareService.getConsumableInventory();
-    if (_subscriptionDisposed || revision != _loadRevision) return;
-    state = cached;
-    companionName = name;
-    ownedAccessoryIds = owned;
-    equippedBySlot = equipped;
-    consumableInventory = inventory;
-    isLoading = false;
-    notifyListeners();
-  }
-
   Future<void> load() async {
-    final revision = ++_loadRevision;
-    if (_subscriptionDisposed) return;
     isLoading = true;
     notifyListeners();
-    await SubscriptionService().waitForStartupCheck();
-    if (_subscriptionDisposed || revision != _loadRevision) return;
-    await refreshSubscription();
+    isPremium = await SubscriptionService().isPremium();
     // 회원가입(온보딩)을 아직 마치지 않았다면 출석 카운팅을 시작하지 않습니다.
     // 회원가입 + 아기고양이 이름짓기 + 로그인을 모두 마친 시점부터 비로소
     // '출석 1일차'가 기록되기 시작합니다.
     final signedUp = await StorageService.isOnboardingCompleted();
-    final loaded = await CatCareService.loadAndApplyDailyDecay(
+    state = await CatCareService.loadAndApplyDailyDecay(
       defaultCompanionCatId: shadowCats.first.id,
       isPremium: isPremium,
       countAttendance: signedUp,
     );
-    if (_subscriptionDisposed || revision != _loadRevision) return;
-    state = loaded;
     companionName = await StorageService.getCompanionName();
     ownedAccessoryIds = await CatCareService.getOwnedAccessoryIds();
     equippedBySlot = await CatCareService.getEquippedBySlot();
     consumableInventory = await CatCareService.getConsumableInventory();
     await _refreshAchievements();
-    if (_subscriptionDisposed || revision != _loadRevision) return;
     isLoading = false;
     notifyListeners();
   }
@@ -227,7 +182,7 @@ class CatCareProvider extends ChangeNotifier {
     }
 
     if (!wasAllDone && state.allDoneToday) {
-      allCareCelebrationMessage = '오늘의 작은 돌봄을 마쳤어요! 돌봄 온기가 1도 올랐어요 🌡️✨';
+      allCareCelebrationMessage = '오늘의 작은 돌봄을 마쳤어요! 마음 온도가 1도 올랐어요 🌡️✨';
     }
 
     await _refreshAchievements();
@@ -336,7 +291,7 @@ class CatCareProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// "오늘의 약속"을 지켰을 때 돌봄 온기에 +1도를 더합니다(성장일수는 늘리지
+  /// "오늘의 약속"을 지켰을 때 마음 온도에 +1도를 더합니다(성장일수는 늘리지
   /// 않고, 온도만 살짝 올려 '한 뼘 자란' 느낌을 줍니다). 프리미엄 여부와
   /// 무관하게 누구나 약속을 지키면 온도가 오릅니다. 약속 체크를 취소하면
   /// [delta]에 음수를 넘겨 되돌립니다.
@@ -366,7 +321,7 @@ class CatCareProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// 편지를 써서 보낸 것 자체로 돌봄 온기에 +1도를 더합니다. 사용자가 직접
+  /// 편지를 써서 보낸 것 자체로 마음 온도에 +1도를 더합니다. 사용자가 직접
   /// 온도 값을 입력하는 절차 없이, "편지를 보냈다"는 사실만으로 자동
   /// 적용되는 보너스입니다. 명상 실천 여부와는 완전히 독립적입니다.
   Future<void> applyLetterSentBonus() =>
@@ -446,7 +401,7 @@ class CatCareProvider extends ChangeNotifier {
   }
 
   /// 보관함에 있는 소모품 하나를 사용합니다. 사용에 성공하면 개수가 1개
-  /// 줄고, 돌봄 온기가 살짝 올라갑니다. 보관함에 남은 개수가 없으면
+  /// 줄고, 마음 온도가 살짝 올라갑니다. 보관함에 남은 개수가 없으면
   /// false를 반환합니다.
   Future<bool> useConsumable(CatAccessory accessory) async {
     final (success, newTemp, newPoints) = await CatCareService.useConsumable(

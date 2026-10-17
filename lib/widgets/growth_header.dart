@@ -3,9 +3,9 @@ import '../theme.dart';
 import '../models/cat_care_state.dart';
 import 'garden_path_card.dart';
 
-/// 돌봄 온기(0~100도)와 성장 단계(30일 출석 단위)를 함께 보여주는 헤더.
+/// 마음 온도(0~100도)와 성장 단계(30일 출석 단위)를 함께 보여주는 헤더.
 /// - 위쪽 원형 배지: 현재 성장 단계 번호(0~3단계)
-/// - 진행 바: 지금 돌봄 온기(0~100도)
+/// - 진행 바: 지금 마음 온도(0~100도)
 /// - 하단 문구: 다음 단계까지 남은 출석일수
 class GrowthHeader extends StatelessWidget {
   final CatCareState state;
@@ -69,7 +69,7 @@ class GrowthHeader extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '돌봄 온기 ${state.temperature}° / 100°  ·  $dayLabel',
+                      '마음 온도 ${state.temperature}° / 100°  ·  $dayLabel',
                       style: bodyFont(fontSize: 11.5, color: AppColors.inkSoft),
                     ),
                   ],

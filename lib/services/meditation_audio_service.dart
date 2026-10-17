@@ -203,19 +203,6 @@ class MeditationAudioService with WidgetsBindingObserver {
     }
   });
 
-  /// Explicit finish resets this recording only; it never claims completion.
-  Future<void> finish(String asset) => _queue(() async {
-    if (_asset != asset) return;
-    await _pauseDirect();
-    await _player.stop();
-    _asset = null;
-    _sessionCompleted = false;
-    position = Duration.zero;
-    duration = Duration.zero;
-    MediaCoordinator.instance.release(this);
-    _notify();
-  });
-
   /// A course must start a fresh run even if this same file was paused earlier.
   Future<void> stopForNewSession() => _queue(() async {
     if (_asset == null) return;

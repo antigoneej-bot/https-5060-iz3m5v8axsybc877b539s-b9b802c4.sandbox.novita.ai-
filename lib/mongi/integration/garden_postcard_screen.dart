@@ -2,8 +2,11 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:provider/provider.dart';
+import '../../providers/cat_care_provider.dart';
 import '../../models/shadow_cat.dart';
 import '../../services/analytics_service.dart';
+import '../../utils/companion_name.dart';
 import 'garden_scene.dart';
 import 'mongi_garden_data.dart';
 import 'plant_memory_store.dart';
@@ -12,10 +15,14 @@ import 'postcard_link.dart';
 class GardenPostcardScreen extends StatefulWidget {
   final MongiGardenData data;
   final List<ShadowCat> cats;
+
+  /// Only set after the owner explicitly chooses a memory or milestone.
+  final String initialCaption;
   const GardenPostcardScreen({
     super.key,
     required this.data,
     required this.cats,
+    this.initialCaption = '',
   });
   @override
   State<GardenPostcardScreen> createState() => _GardenPostcardScreenState();
@@ -23,8 +30,16 @@ class GardenPostcardScreen extends StatefulWidget {
 
 class _GardenPostcardScreenState extends State<GardenPostcardScreen> {
   final _boundary = GlobalKey();
-  final _caption = TextEditingController();
+  late final TextEditingController _caption;
   bool _busy = false;
+  @override
+  void initState() {
+    super.initState();
+    _caption = TextEditingController(
+      text: widget.initialCaption.characters.take(120).toString(),
+    );
+  }
+
   @override
   void dispose() {
     _caption.dispose();
@@ -43,9 +58,10 @@ class _GardenPostcardScreenState extends State<GardenPostcardScreen> {
     try {
       await PlantMemoryStore.instance.reload();
       if (!mounted) return;
-      final memories = PlantMemoryStore.instance.value.values
-          .where((m) => m.note.trim().isNotEmpty)
-          .toList();
+      final memories = [
+        for (final memory in PlantMemoryStore.instance.value.values)
+          for (final entry in memory.timeline) (memory: memory, entry: entry),
+      ]..sort((a, b) => b.entry.on.compareTo(a.entry.on));
       final note = await showDialog<String>(
         context: context,
         builder: (context) => AlertDialog(
@@ -59,13 +75,15 @@ class _GardenPostcardScreenState extends State<GardenPostcardScreen> {
                     children: memories
                         .map(
                           (m) => ListTile(
-                            title: Text(m.name.isEmpty ? '이름 없는 식물' : m.name),
+                            title: Text(
+                              '${m.memory.name.isEmpty ? '이름 없는 식물' : m.memory.name} · ${m.entry.on}',
+                            ),
                             subtitle: Text(
-                              m.note,
+                              m.entry.note,
                               maxLines: 3,
                               overflow: TextOverflow.ellipsis,
                             ),
-                            onTap: () => Navigator.pop(context, m.note),
+                            onTap: () => Navigator.pop(context, m.entry.note),
                           ),
                         )
                         .toList(),
@@ -128,6 +146,7 @@ class _GardenPostcardScreenState extends State<GardenPostcardScreen> {
         const String.fromEnvironment('GARDEN_PUBLIC_PLAY_URL'),
       );
       await _event('garden_postcard_share_requested');
+      if (!mounted || !buttonContext.mounted) return;
       final result = await SharePlus.instance.share(
         ShareParams(
           files: [
@@ -135,7 +154,10 @@ class _GardenPostcardScreenState extends State<GardenPostcardScreen> {
           ],
           fileNameOverrides: ['garden-postcard.png'],
           text: link == null
-              ? '마음냥 정원 · 몽이와 함께 가꾸는 나의 정원'
+              ? companionCopy(
+                  '마음냥 정원 · 몽이와 함께 가꾸는 나의 정원',
+                  context.read<CatCareProvider>().displayName,
+                )
               : '마음냥 정원에서 만나요.\n$link',
           sharePositionOrigin: origin,
         ),
@@ -191,9 +213,12 @@ class _GardenPostcardScreenState extends State<GardenPostcardScreen> {
                         ),
                       ),
                     const SizedBox(height: 12),
-                    const Text(
-                      '몽이와 함께, 오늘도 조금씩',
-                      style: TextStyle(color: Color(0xFF526750)),
+                    Text(
+                      companionCopy(
+                        '몽이와 함께, 오늘도 조금씩',
+                        context.watch<CatCareProvider>().displayName,
+                      ),
+                      style: const TextStyle(color: Color(0xFF526750)),
                     ),
                   ],
                 ),

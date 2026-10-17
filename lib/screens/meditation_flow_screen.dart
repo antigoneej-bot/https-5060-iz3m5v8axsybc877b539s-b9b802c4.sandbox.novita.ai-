@@ -1,6 +1,5 @@
+import '../widgets/reply_support_actions.dart';
 import '../mongi/widgets/garden_record_card.dart';
-import 'self_care_entry_screen.dart';
-import 'self_care_screen.dart';
 import '../mongi/screens/garden_world_screen.dart';
 import '../models/reply_style.dart';
 import '../widgets/reply_style_picker.dart';
@@ -80,6 +79,8 @@ class _MeditationFlowScreenState extends State<MeditationFlowScreen> {
     final app = context.watch<AppStateProvider>();
     final cat = app.selectedCat!;
     _scrollToTopIfNeeded(app.flowStage);
+    final saved = app.history.where((entry) => entry.id == app.currentLetterId);
+    final savedText = saved.isEmpty ? '' : saved.first.letterText;
 
     switch (app.flowStage) {
       case FlowStage.selecting:
@@ -94,9 +95,13 @@ class _MeditationFlowScreenState extends State<MeditationFlowScreen> {
           onMoodChanged: (v) => setState(() => _moodEmoji = v),
         );
       case FlowStage.meditation:
-        return _MeditationStage(cat: cat, moodEmoji: _moodEmoji);
+        return _MeditationStage(
+          cat: cat,
+          moodEmoji: _moodEmoji,
+          letterText: savedText,
+        );
       case FlowStage.done:
-        return const _DoneStage();
+        return _DoneStage(letterText: savedText);
     }
   }
 }
@@ -307,6 +312,11 @@ class _LetterStageState extends State<_LetterStage> {
             hint: '오늘 있었던 일이나 지금 마음을 한 줄만 남겨도 괜찮아요.',
             controller: widget.controller,
           ),
+          ValueListenableBuilder<TextEditingValue>(
+            valueListenable: widget.controller,
+            builder: (_, value, __) =>
+                ReplySupportActions(letterText: value.text),
+          ),
           TextButton.icon(
             onPressed: _sending
                 ? null
@@ -366,12 +376,17 @@ class _LetterStageState extends State<_LetterStage> {
 
 /// 편지를 보낸 뒤 이어지는, 완전히 선택사항인 명상 단계.
 /// 편지는 이미 저장되었고 답장도 예약되었으므로, 여기서는 아무것도
-/// 하지 않고 건너뛰어도 전혀 문제가 없습니다. 실천하면 돌봄 온기가
+/// 하지 않고 건너뛰어도 전혀 문제가 없습니다. 실천하면 마음 온도가
 /// 추가로 +1도 더 오릅니다.
 class _MeditationStage extends StatefulWidget {
   final ShadowCat cat;
   final String? moodEmoji;
-  const _MeditationStage({required this.cat, this.moodEmoji});
+  final String letterText;
+  const _MeditationStage({
+    required this.cat,
+    this.moodEmoji,
+    required this.letterText,
+  });
 
   @override
   State<_MeditationStage> createState() => _MeditationStageState();
@@ -429,6 +444,7 @@ class _MeditationStageState extends State<_MeditationStage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          ReplySupportActions(letterText: widget.letterText),
           const Text('💌', style: TextStyle(fontSize: 30)),
           const SizedBox(height: 6),
           Center(
@@ -451,25 +467,6 @@ class _MeditationStageState extends State<_MeditationStage> {
           ),
           const SizedBox(height: 12),
           const GardenRecordCard(),
-          const SizedBox(height: 12),
-          OutlinedButton.icon(
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) =>
-                    SelfCareEntryScreen(initialCatId: widget.cat.id),
-              ),
-            ),
-            icon: const Icon(Icons.spa_outlined),
-            label: const Text('이 마음 돌아보고, 작은 돌봄 고르기'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const SelfCareScreen()),
-            ),
-            child: const Text('내 돌봄 기록 · 해본 뒤 후기 남기기'),
-          ),
           const SizedBox(height: 18),
           Center(
             child: AnimatedCatArt(imageAsset: widget.cat.imageAsset, size: 88),
@@ -517,7 +514,7 @@ class _MeditationStageState extends State<_MeditationStage> {
               child: Text(
                 _selectedKey == null
                     ? '실천할 명상을 골라주세요'
-                    : '실천했어요, 돌봄 온기 1도 더 올리기',
+                    : '실천했어요, 마음 온도 1도 더 올리기',
                 style: pathLabelFont(fontSize: 15, color: Colors.white),
               ),
             ),
@@ -617,7 +614,8 @@ class _MoodMeditationCard extends StatelessWidget {
 }
 
 class _DoneStage extends StatelessWidget {
-  const _DoneStage();
+  final String letterText;
+  const _DoneStage({required this.letterText});
 
   @override
   Widget build(BuildContext context) {
@@ -627,6 +625,7 @@ class _DoneStage extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 50),
       child: Column(
         children: [
+          ReplySupportActions(letterText: letterText),
           const Text('🌙', style: TextStyle(fontSize: 46)),
           const SizedBox(height: 18),
           Text(
@@ -641,7 +640,7 @@ class _DoneStage extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           Text(
-            '돌봄 온기 ${care.state.temperature} / 100°  ·  ${care.state.growthStageLabel}',
+            '마음 온도 ${care.state.temperature} / 100°  ·  ${care.state.growthStageLabel}',
             style: bodyFont(
               fontSize: 12,
               color: AppColors.blobPeachAccent,

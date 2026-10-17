@@ -145,8 +145,8 @@ void verifySelfCareContract() {
     MapEntry(DateTime(2026, 10, 13), 0),
   ])!;
   check(
-    legacy.bandLabel == '돌봄 활동 기록' &&
-        legacy.stateDescription.contains('심리 상태나 회복 정도를 알 수'),
+    legacy.bandLabel.contains('온기') &&
+        legacy.stateDescription.contains('감정이나 심리 상태를 측정한 점수가 아니에요'),
     'Activity reward must not be interpreted as mental state',
   );
 }

@@ -9,196 +9,120 @@ class DraftService {
   static Future<Box> box() => _opening ??= _open();
   static Future<Box> _open() async {
     try {
-      return await Hive.openBox(
-        'drafts_local_user__enc',
-        encryptionCipher: await HiveEncryption.cipher(),
-      );
-    } catch (_) {
-      _opening = null;
-      rethrow;
-    }
+      return await Hive.openBox('drafts_local_user__enc',
+          encryptionCipher: await HiveEncryption.cipher());
+    } catch (_) { _opening = null; rethrow; }
   }
 }
 
-/// One shared draft and write queue per key, including while an editor closes.
-/// A background screen must never save its old snapshot over a newer editor.
-class _DraftEntry {
-  final String key;
-  final Set<DraftTextController> editors = {};
-  late final Future<void> ready;
-  Future<void> _tail = Future.value();
-  Timer? _timer;
-  String text = '';
-  String status = '임시저장 확인 중';
-  int _revision = 0;
-  bool _dirty = false;
-  bool _deleteRequested = false;
-  bool _loaded = false;
-  bool failed = false;
-
-  _DraftEntry(this.key) {
-    ready = _load();
-  }
-
-  Future<void> _load() async {
-    try {
-      final box = await DraftService.box();
-      final saved = box.get(key);
-      // An edit/discard made while storage was opening is newer than this read.
-      if (_revision == 0) text = saved is String ? saved : '';
-      failed = false;
-      _loaded = true;
-      _publish(_dirty ? '저장 중' : '이 기기에 암호화 임시저장');
-      if (_dirty) _schedule();
-    } catch (_) {
-      _loaded = true;
-      failed = true;
-      _publish('임시저장 실패 · 내용을 복사해 보관해 주세요');
-    }
-  }
-
-  void _publish(String value) {
-    status = value;
-    for (final editor in editors.toList()) {
-      editor._receiveSharedDraft();
-    }
-  }
-
-  void edit(String value) {
-    if (value == text) return;
-    text = value;
-    _revision++;
-    _dirty = true;
-    _deleteRequested = false;
-    _publish('저장 중');
-    if (_loaded) _schedule();
-  }
-
-  void _schedule() {
-    _timer?.cancel();
-    _timer = Timer(const Duration(milliseconds: 300), () {
-      unawaited(flush());
-    });
-  }
-
-  Future<void> flush() async {
-    _timer?.cancel();
-    await ready;
-    final work = _tail.then((_) async {
-      // Retry an unread draft without writing an empty default over it.
-      if (failed && !_dirty) await _load();
-      while (_dirty) {
-        final revision = _revision;
-        final snapshot = text;
-        final deleting = _deleteRequested;
-        try {
-          final box = await DraftService.box();
-          if (deleting) {
-            await box.delete(key);
-          } else {
-            await box.put(key, snapshot);
-          }
-          await box.flush();
-          failed = false;
-          if (revision == _revision) {
-            _dirty = false;
-            _publish('이 기기에 암호화 임시저장');
-          }
-          // If an editor changed during the write, persist its newer value too.
-        } catch (_) {
-          failed = true;
-          _publish('임시저장 실패 · 내용을 복사해 보관해 주세요');
-          break;
-        }
-      }
-    });
-    // Storage errors are surfaced through status/flushAll, never unhandled from
-    // an autosave timer or dispose. Failed drafts remain available for retry.
-    _tail = work;
-    await work;
-    _releaseIfIdle();
-  }
-
-  Future<void> discard() async {
-    _timer?.cancel();
-    _revision++;
-    text = '';
-    _dirty = true;
-    _deleteRequested = true;
-    _publish('저장 중');
-    await flush();
-    if (failed) throw StateError('임시저장을 정리하지 못했어요.');
-  }
-
-  void _releaseIfIdle() {
-    if (editors.isEmpty && !_dirty && !failed) {
-      _timer?.cancel();
-      if (identical(DraftTextController._entries[key], this)) {
-        DraftTextController._entries.remove(key);
-      }
-    }
-  }
-}
-
-class DraftTextController extends TextEditingController
-    with WidgetsBindingObserver {
-  static final Map<String, _DraftEntry> _entries = {};
-
+class DraftTextController extends TextEditingController with WidgetsBindingObserver {
+  static final Set<DraftTextController> _active = {};
+  static final Set<Future<void>> _closing = {};
   static Future<void> flushAll() async {
-    // Includes unsaved drafts whose last screen has already been disposed.
-    for (final entry in _entries.values.toList()) {
-      await entry.flush();
-      if (entry.failed) throw StateError('임시저장을 완료하지 못했어요.');
+    await Future.wait(_closing.toList());
+    for (final controller in _active.toList()) {
+      await controller.flush();
+      if (controller._failed) throw StateError('임시저장을 완료하지 못했어요.');
     }
   }
-
   final String draftKey;
   final ValueNotifier<String> saveStatus = ValueNotifier('임시저장 확인 중');
-  late final _DraftEntry _entry;
+  Timer? _timer;
+  Future<void> _tail = Future.value();
+  late final Future<void> _ready;
+  bool _hydrated = false;
   bool _disposed = false;
-  bool _receiving = false;
-
+  bool _discarded = false;
+  bool _failed = false;
+  bool _loadingText = false;
+  int _revision = 0;
+  String _lastText = '';
   DraftTextController(this.draftKey) {
-    _entry = _entries.putIfAbsent(draftKey, () => _DraftEntry(draftKey));
-    _entry.editors.add(this);
+    _active.add(this);
     addListener(_changed);
     WidgetsBinding.instance.addObserver(this);
-    _receiveSharedDraft();
+    _ready = _hydrate();
   }
-
-  void _receiveSharedDraft() {
-    if (_disposed) return;
-    _receiving = true;
+  void _status(String value) { if (!_disposed) saveStatus.value = value; }
+  Future<void> _hydrate() async {
     try {
-      if (text != _entry.text) {
-        value = TextEditingValue(
-          text: _entry.text,
-          selection: TextSelection.collapsed(offset: _entry.text.length),
-        );
+      final box = await DraftService.box();
+      final saved = box.get(draftKey);
+      if (_revision == 0 && !_discarded && saved is String) {
+        _lastText = saved;
+        if (!_disposed) {
+          _loadingText = true;
+          value = TextEditingValue(text: saved, selection: TextSelection.collapsed(offset: saved.length));
+          _loadingText = false;
+        }
       }
-      saveStatus.value = _entry.status;
-    } finally {
-      _receiving = false;
+      _hydrated = true;
+      _status('이 기기에 암호화 임시저장');
+      if (_revision > 0 && !_discarded) _schedule();
+    } catch (_) {
+      _failed = true;
+      _hydrated = true;
+      _status('임시저장 실패 · 내용을 복사해 보관해 주세요');
     }
   }
-
-  void _changed() {
-    if (!_receiving && !_disposed) _entry.edit(text);
+  void _schedule() {
+    if (_disposed) return;
+    _timer?.cancel();
+    _status('저장 중');
+    _timer = Timer(const Duration(milliseconds: 300), () { unawaited(flush()); });
   }
-
-  Future<void> flush() => _entry.flush();
-  Future<void> discard() => _entry.discard();
-
+  void _changed() {
+    if (_loadingText || text == _lastText) return;
+    _lastText = text;
+    _revision++;
+    _discarded = false;
+    if (_hydrated) _schedule();
+  }
+  Future<void> flush() async {
+    _timer?.cancel();
+    await _ready;
+    if (_discarded) { await _tail; return; }
+    // A failed read must never overwrite a previously saved draft with empty text.
+    if (_failed && _revision == 0) return;
+    final snapshot = _lastText;
+    _tail = _tail.catchError((Object _) {}).then((_) async {
+      try {
+        final box = await DraftService.box();
+        await box.put(draftKey, snapshot);
+        await box.flush();
+        _failed = false;
+        _status('이 기기에 암호화 임시저장');
+      } catch (_) { _failed = true; _status('임시저장 실패 · 내용을 복사해 보관해 주세요'); }
+    });
+    await _tail;
+  }
+  Future<void> discard() async {
+    _timer?.cancel();
+    _discarded = true;
+    _lastText = '';
+    _loadingText = true;
+    if (!_disposed) clear();
+    _loadingText = false;
+    await _ready;
+    _tail = _tail.catchError((Object _) {}).then((_) async {
+      final box = await DraftService.box();
+      await box.delete(draftKey);
+      await box.flush();
+    });
+    await _tail;
+  }
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state != AppLifecycleState.resumed) unawaited(flush());
   }
-
   @override
   void dispose() {
     _disposed = true;
-    _entry.editors.remove(this);
-    unawaited(flush());
+    final closing = flush();
+    _closing.add(closing);
+    unawaited(closing.whenComplete(() => _closing.remove(closing)));
+    _active.remove(this);
+    _timer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     removeListener(_changed);
     saveStatus.dispose();

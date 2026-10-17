@@ -6,20 +6,20 @@
 /// 항상 [baby]만 반환하므로 실제로는 도달하지 않습니다.
 enum CatGrowthStage { baby, teen, young, adult }
 
-/// 돌봄 보상에 따른 가상 고양이의 표정 상태.
-/// 이용자의 감정이나 건강 상태를 추정하는 값이 아닙니다.
+/// Activity-counter display bands; legacy enum names are kept for compatibility.
+/// These values do not describe a user's feelings or mental health.
 enum CatMoodState { warm, calm, tired, recovering }
 
 /// 성장 단계 하나에 필요한 출석일수(30일 단위)
 const int kDaysPerGrowthStage = 30;
 
 /// 다마고치식 '마음 돌보기'의 현재 상태
-/// - temperature: 돌봄 온기 (0~100). 하루 한 가지 돌봄을 실천하면 +1도,
+/// - temperature: 마음 온도 (0~100). 하루 한 가지 돌봄을 실천하면 +1도,
 ///   출석(앱을 연 날)마다 +1도, 약속을 지킬 때마다 +1도가 오르고, 100도에 도달하면
 ///   (구독자에 한해) 포인트로 적립되며 온도는 다시 0도로 시작합니다.
 ///   쉬었던 날에는 온도가 내려가지 않습니다. 심리 상태 측정값이 아닙니다.
 /// - growthDays: 누적 출석일수. 이 값에 따라 0→1→2→3단계로 자라납니다.
-/// - points: 돌봄 온기가 100도에 도달할 때마다(구독자 한정) 적립되는 포인트.
+/// - points: 마음 온도가 100도에 도달할 때마다(구독자 한정) 적립되는 포인트.
 class CatCareState {
   final int temperature;
   final bool fedToday;
@@ -94,7 +94,7 @@ class CatCareState {
   /// 성장 단계 이름. 항상 '아기 고양이' 라벨을 반환합니다.
   String get growthStageLabel => '아기 고양이';
 
-  /// 돌봄 온기에 따른 상태(4단계)
+  /// 돌봄 온기 구간(기존 보상 계산과의 호환 유지)
   CatMoodState get moodState {
     if (temperature >= 75) return CatMoodState.warm;
     if (temperature >= 50) return CatMoodState.calm;
@@ -102,29 +102,29 @@ class CatCareState {
     return CatMoodState.recovering;
   }
 
-  /// 온도에 따른 기분 상태 문구 (4단계: 따뜻해요/평온해요/지쳤어요/회복 중이에요)
+  /// 활동으로 쌓은 온기를 설명하며 기분을 추정하지 않습니다.
   String get moodLabel {
     switch (moodState) {
       case CatMoodState.warm:
-        return '따뜻해요';
+        return '온기를 많이 모았어요';
       case CatMoodState.calm:
-        return '평온해요';
+        return '온기가 차곡차곡 쌓였어요';
       case CatMoodState.tired:
-        return '지쳤어요';
+        return '온기를 모으고 있어요';
       case CatMoodState.recovering:
-        return '회복 중이에요';
+        return '온기를 쌓는 중이에요';
     }
   }
 
-  /// 온도에 따른 표정 이모지 (4단계: 😊/🌤/🌧/🌱)
+  /// 기분 판정 대신 식물로 표시하는 온기 구간
   String get moodEmoji {
     switch (moodState) {
       case CatMoodState.warm:
-        return '😊';
+        return '🌿';
       case CatMoodState.calm:
-        return '🌤';
+        return '🍃';
       case CatMoodState.tired:
-        return '🌧';
+        return '🌱';
       case CatMoodState.recovering:
         return '🌱';
     }

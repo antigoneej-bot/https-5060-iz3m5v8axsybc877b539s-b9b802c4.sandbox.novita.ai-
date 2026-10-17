@@ -1,6 +1,4 @@
 import 'dart:convert';
-import '../models/meditation_completion_record.dart';
-import 'meditation_completion_journal.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -35,6 +33,7 @@ class MeditationCourseStore extends ChangeNotifier {
   Future<void>? _ready;
   Future<void> _tail = Future.value();
   ({String course, int index, String key})? _armed;
+  final _pending = <({String course, int index, String day})>[];
   int step(MeditationCourse c) => progress[c.id] ?? 0;
   static String day(DateTime now) =>
       '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
@@ -44,17 +43,6 @@ class MeditationCourseStore extends ChangeNotifier {
     _ready = null;
     throw e;
   });
-  Future<void> reload() async {
-    await _tail;
-    await (await SharedPreferences.getInstance()).reload();
-    _ready = null;
-    _armed = null;
-    active = null;
-    progress.clear();
-    lastDays.clear();
-    await load();
-  }
-
   Future<void> _load() async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString('meditation.courses');
@@ -118,70 +106,29 @@ class MeditationCourseStore extends ChangeNotifier {
         _armed = (course: c.id, index: index, key: key);
     }
   });
-  MeditationCompletionRecord? captureCompletion(
-    String key, {
-    String? id,
-    DateTime? now,
-    bool reward = false,
-  }) {
+  Future<void> complete(String key, {DateTime? now}) {
     final session = _armed;
-    if (session == null || session.key != key) return null;
-    final at = now ?? DateTime.now();
-    return MeditationCompletionRecord(
-      id: id ?? 'course:${session.course}:${session.index}:${day(at)}',
-      completedAt: at,
-      guide: key,
+    if (session == null || session.key != key) return Future.value();
+    _armed = null;
+    _pending.add((
       course: session.course,
       index: session.index,
-      reward: reward,
-    );
+      day: day(now ?? DateTime.now()),
+    ));
+    return retry();
   }
 
-  void acknowledge(MeditationCompletionRecord record) {
-    if (_armed?.course == record.course &&
-        _armed?.index == record.index &&
-        _armed?.key == record.guide)
-      _armed = null;
-  }
-
-  Future<void> complete(String key, {DateTime? now}) async {
-    final record = captureCompletion(key, now: now);
-    if (record == null) return;
-    await MeditationCompletionJournal.instance.save(record);
-    acknowledge(record);
-    await retry();
-  }
-
-  /// Replaying a recorded step cannot advance it twice, even after a crash
-  /// between the progress commit and removal of the completion journal.
-  Future<void> applyCompletion(MeditationCompletionRecord record) => _run(
-    () async {
-      if (record.course == null) return;
-      final matches = meditationCourses.where((c) => c.id == record.course);
-      if (matches.isEmpty) throw const FormatException('명상 과정을 확인할 수 없어요.');
-      final c = matches.single;
-      final index = record.index!;
-      if (index >= c.guides.length || c.guides[index] != record.guide)
-        throw const FormatException('명상 과정 순서가 일치하지 않아요.');
-      final current = step(c);
-      if (current > index || lastDays[c.id] == day(record.completedAt)) return;
-      if (current < index) throw StateError('이전 명상 과정의 저장을 먼저 마쳐야 해요.');
-      await _save(
-        active,
-        {...progress, c.id: index + 1},
-        {...lastDays, c.id: day(record.completedAt)},
-      );
-    },
-  );
-
-  Future<void> retry() async {
-    await load();
-    for (final record in await MeditationCompletionJournal.instance.load()) {
-      if (record.course == null) continue;
-      await applyCompletion(record);
-      // Combined care rewards are acknowledged only by the completion service.
-      if (!record.reward)
-        await MeditationCompletionJournal.instance.remove(record.id);
+  Future<void> retry() => _run(() async {
+    for (final event in _pending.toList()) {
+      if ((progress[event.course] ?? 0) == event.index &&
+          lastDays[event.course] != event.day) {
+        await _save(
+          active,
+          {...progress, event.course: event.index + 1},
+          {...lastDays, event.course: event.day},
+        );
+      }
+      _pending.remove(event);
     }
-  }
+  });
 }

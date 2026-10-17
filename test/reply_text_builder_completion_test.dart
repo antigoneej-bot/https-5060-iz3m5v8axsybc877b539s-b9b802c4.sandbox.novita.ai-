@@ -8,6 +8,7 @@ import 'package:flutter_app/models/cat_care_state.dart';
 import 'package:flutter_app/models/letter_entry.dart';
 import 'package:flutter_app/services/hive_encryption.dart';
 import 'package:flutter_app/services/reply_text_builder.dart';
+import 'package:flutter_app/services/storage_service.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -23,6 +24,17 @@ void main() {
               ? base64Encode(List<int>.generate(32, (i) => i))
               : null,
         );
+    await StorageService.setCurrentUser('local_user');
+    for (final id in ['cached', 'saved', 'damaged']) {
+      await StorageService.saveLetter(
+        LetterEntry(
+          id: id,
+          catId: shadowCats.first.id,
+          date: DateTime(2026, 1, 1),
+          letterText: '오늘의 테스트 편지',
+        ),
+      );
+    }
   });
   tearDown(() async {
     await Hive.close();

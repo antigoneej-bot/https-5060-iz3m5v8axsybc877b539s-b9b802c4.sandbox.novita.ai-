@@ -10,30 +10,15 @@ import '../services/sound_service.dart';
 /// 무료/프리미엄 유저에 따라 약속을 지켰을 때의 반응(리액션 문구·성장 보너스)이
 /// 달라지므로, 이 Provider가 [SubscriptionService]를 참조해 분기 처리합니다.
 class PromiseProvider extends ChangeNotifier {
-  bool _subscriptionDisposed = false;
-  int _subscriptionRevision = 0;
-
-  /// Refresh access only; never reload records or repeat daily care/rewards.
-  Future<void> refreshSubscription() async {
-    if (_subscriptionDisposed) return;
-    final revision = ++_subscriptionRevision;
-    final premium = await SubscriptionService().isPremium();
-    if (_subscriptionDisposed || revision != _subscriptionRevision) return;
-    if (isPremium == premium) return;
-    isPremium = premium;
-    notifyListeners();
-  }
-
-  @override
-  void dispose() {
-    _subscriptionDisposed = true;
-    _subscriptionRevision++;
-    super.dispose();
-  }
-
   List<PromiseEntry> entries = [];
   bool isLoading = true;
   bool isPremium = false;
+
+  void setAccountPremium(bool value) {
+    if (isPremium == value) return;
+    isPremium = value;
+    notifyListeners();
+  }
 
   /// 방금 하나를 지켰을 때 보여줄 짧은 리액션 문구. 애니메이션 없이 텍스트만
   /// 노출되며, 다음 액션이 있을 때까지 유지되다가 [clearReaction]으로 지웁니다.
@@ -48,7 +33,7 @@ class PromiseProvider extends ChangeNotifier {
     notifyListeners();
     await PromiseService.purgeStaleEntries();
     entries = PromiseService.getTodayEntries();
-    await refreshSubscription();
+    isPremium = await SubscriptionService().isPremium();
     isLoading = false;
     notifyListeners();
   }
@@ -77,7 +62,7 @@ class PromiseProvider extends ChangeNotifier {
 
   /// 약속 체크(또는 해제)를 처리합니다.
   ///
-  /// 반환값: 돌봄 온기에 적용할 delta.
+  /// 반환값: 마음 온도에 적용할 delta.
   /// - `+1`: 방금 지킴으로 체크
   /// - `-1`: 체크 해제 (이전에 받은 보너스 환수)
   /// - `0`: 변화 없음

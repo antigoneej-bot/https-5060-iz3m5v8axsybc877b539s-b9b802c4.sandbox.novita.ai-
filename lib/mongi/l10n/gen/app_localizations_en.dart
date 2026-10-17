@@ -3031,7 +3031,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get diaryEmptySubtitle =>
-      'Sit with an emotion monster,\nand today\'s story will be added here';
+      'Reflect in quiet mode and leave a note.\nYou can return to it here.';
 
   @override
   String get diaryShareTooltip => 'Share as a card';

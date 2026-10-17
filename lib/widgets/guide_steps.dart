@@ -79,56 +79,45 @@ class GuideSteps extends StatelessWidget {
             const SizedBox(height: 10),
             MeditationAudioPlayer(key: ValueKey(guideKey), guideKey: guideKey!),
             MeditationVideoPlayer(
-              key: ValueKey('video-$guideKey'),
               assetPath: meditationVideoAssetPath(guideKey!),
               accent: AppColors.blobMintAccent,
             ),
           ],
           MeditationCheckIn(guideKey: guideKey!),
           const SizedBox(height: 10),
-          ExpansionTile(
-            tilePadding: EdgeInsets.zero,
-            title: const Text('글로 따라하기'),
-            subtitle: const Text('읽고 싶은 때 펼쳐보세요'),
-            children: [
-              ...guide.steps.asMap().entries.map(
-                (entry) => Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        width: 18,
-                        height: 18,
-                        alignment: Alignment.center,
-                        margin: const EdgeInsets.only(right: 8, top: 1),
-                        decoration: BoxDecoration(
-                          color: AppColors.blobMintAccent,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Text(
-                          '${entry.key + 1}',
-                          style: const TextStyle(
-                            fontSize: 10,
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+          ...guide.steps.asMap().entries.map(
+            (entry) => Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 18,
+                    height: 18,
+                    alignment: Alignment.center,
+                    margin: const EdgeInsets.only(right: 8, top: 1),
+                    decoration: BoxDecoration(
+                      color: AppColors.blobMintAccent,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Text(
+                      '${entry.key + 1}',
+                      style: const TextStyle(
+                        fontSize: 10,
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
                       ),
-                      Expanded(
-                        child: Text(
-                          entry.value,
-                          style: bodyFont(
-                            fontSize: 12.5,
-                            color: AppColors.moon,
-                          ),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
-                ),
+                  Expanded(
+                    child: Text(
+                      entry.value,
+                      style: bodyFont(fontSize: 12.5, color: AppColors.moon),
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ],
       ),

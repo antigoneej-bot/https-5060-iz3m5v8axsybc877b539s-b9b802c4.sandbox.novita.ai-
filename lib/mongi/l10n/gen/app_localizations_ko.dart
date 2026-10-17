@@ -2892,7 +2892,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get diaryEmptyTitle => '아직 남긴 기록이 없어요';
 
   @override
-  String get diaryEmptySubtitle => '감정 몬스터를 마주하고 나면\n이 곳에 오늘의 이야기가 쌓여요';
+  String get diaryEmptySubtitle => '고요 모드에서 마음을 살펴보고\n한 줄을 남기면 이곳에서 다시 볼 수 있어요';
 
   @override
   String get diaryShareTooltip => '카드로 공유하기';
@@ -4047,8 +4047,7 @@ class AppLocalizationsKo extends AppLocalizations {
       '다른 분들이 공개한 정원이에요. 구경만 할 수 있고, 인기순이 아니라 무작위로 보여줘요.';
 
   @override
-  String get publicGardenBrowseEmpty =>
-      '아직 공개된 정원이 없어요. 나중에 다시 와서 둘러봐 주세요.';
+  String get publicGardenBrowseEmpty => '아직 공개된 정원이 없어요. 나중에 다시 와서 둘러봐 주세요.';
 
   @override
   String get publicGardenAnonymousNickname => '이름 없는 정원사';

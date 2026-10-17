@@ -1,3 +1,4 @@
+import 'dart:convert';
 import '../mongi/integration/mongi_garden_store.dart';
 import '../mongi/integration/session_transaction.dart';
 import 'personal_reply_service.dart';
@@ -8,7 +9,6 @@ import '../models/reflection_letter_entry.dart';
 import '../models/daily_draw_entry.dart';
 import '../models/bubble_memo_entry.dart';
 import 'hive_encryption.dart';
-import 'legacy_record_migration.dart';
 
 /// 계정별로 편지 기록 · 연속 방문일 · 성장 단계를 저장합니다.
 /// (사운드 설정처럼 기기 전체에 공통인 값은 계정과 무관하게 유지됩니다)
@@ -26,155 +26,219 @@ class StorageService {
     await SessionTransaction.initialize();
   }
 
-  static const legacyRecoveryLabels = <String, String>{
-    'letter_entries': '편지',
-    'reflection_letters': '성찰 편지',
-    'daily_draw_entries': '오늘의 고양이 기록',
-    'bubble_memo_entries': '마음 거품 메모',
-    'buried_emotions': '묻어둔 마음',
-    'cat_memories': '고양이와의 추억',
-    'usage_history': '이용 기록',
-    'promise_entries': '오늘의 약속',
-    'special_letters': '특별 편지',
-  };
-  static Future<void> _legacyMigrationTail = Future.value();
+  /// 예전 기본 UID(`guest`)에 쌓인 prefs/Hive를 [userId](`local_user`)로
+  /// 한 번만 복사합니다. B-1에서 계정 없이 로컬 UID로 바꾼 뒤, 기존
+  /// 누적 데이터가 "사라진 것처럼" 보이던 문제를 막습니다.
+  static Future<void> migrateGuestScopeIfNeeded(String userId) async {
+    if (userId.isEmpty || userId == _defaultScope) return;
+    final prefs = await SharedPreferences.getInstance();
+    final flag = 'guest_scope_migrated_v1_to_$userId';
+    if (prefs.getBool(flag) == true) return;
 
-  static Future<T> _legacySerial<T>(Future<T> Function() action) {
-    final next = _legacyMigrationTail.then((_) => action());
-    _legacyMigrationTail = next.then<void>(
-      (_) {},
-      onError: (Object _, StackTrace __) {},
-    );
-    return next;
+    // SharedPreferences: guest_* → {userId}_* (대상 키가 비어 있을 때만)
+    for (final key in prefs.getKeys().toList()) {
+      if (!key.startsWith('${_defaultScope}_')) continue;
+      final newKey = '$userId${key.substring(_defaultScope.length)}';
+      if (prefs.containsKey(newKey)) continue;
+      final value = prefs.get(key);
+      if (value is bool) {
+        await prefs.setBool(newKey, value);
+      } else if (value is int) {
+        await prefs.setInt(newKey, value);
+      } else if (value is double) {
+        await prefs.setDouble(newKey, value);
+      } else if (value is String) {
+        await prefs.setString(newKey, value);
+      } else if (value is List<String>) {
+        await prefs.setStringList(newKey, value);
+      }
+    }
+
+    // Hive 박스 — 하나라도 실패하면 플래그를 남기지 않아 다음 실행에 재시도
+    final hiveOk = <bool>[
+      await _copyHiveBoxIfTargetEmpty(
+        'letter_entries_$_defaultScope',
+        'letter_entries_$userId',
+      ),
+      await _copyHiveBoxIfTargetEmpty(
+        'reflection_letters_$_defaultScope',
+        'reflection_letters_$userId',
+      ),
+      await _copyHiveBoxIfTargetEmpty(
+        'daily_draw_entries_$_defaultScope',
+        'daily_draw_entries_$userId',
+      ),
+      await _copyHiveBoxIfTargetEmpty(
+        'bubble_memo_entries_$_defaultScope',
+        'bubble_memo_entries_$userId',
+      ),
+      await _copyHiveBoxIfTargetEmpty(
+        'buried_emotions_$_defaultScope',
+        'buried_emotions_$userId',
+      ),
+      await _copyHiveBoxIfTargetEmpty(
+        'cat_memories_$_defaultScope',
+        'cat_memories_$userId',
+      ),
+      await _copyHiveBoxIfTargetEmpty(
+        'usage_history_$_defaultScope',
+        'usage_history_$userId',
+      ),
+      await _copyHiveBoxIfTargetEmpty(
+        'promise_entries_$_defaultScope',
+        'promise_entries_$userId',
+      ),
+      await _copyHiveBoxIfTargetEmpty(
+        'special_letters_$_defaultScope',
+        'special_letters_$userId',
+      ),
+    ];
+
+    if (hiveOk.every((ok) => ok)) {
+      await prefs.setBool(flag, true);
+    }
+
+    await migrateMeditationCheckInsIfNeeded();
   }
 
-  /// Resume incomplete guest copies key by key. A v1 completion may be wrong,
-  /// but absent destination keys may also have been deliberately deleted.
-  /// Completed migrations therefore require the explicit recovery action below.
-  static Future<void> migrateGuestScopeIfNeeded(String userId) =>
-      _legacySerial(() async {
-        if (userId.isEmpty || userId == _defaultScope) return;
-        final prefs = await SharedPreferences.getInstance();
-        final oldFlag = 'guest_scope_migrated_v1_to_$userId';
-        final flag = LegacyRecordMigration.completionKey(userId);
-        if (!LegacyRecordMigration.shouldAutoMerge(
-          legacyCompleted: prefs.getBool(oldFlag) == true,
-          currentCompleted: prefs.getBool(flag) == true,
-        ))
-          return;
+  /// 구버전(1.0.8+11 이하)은 명상 체크인을 암호화된 Hive 박스
+  /// (`meditation_checkins_local_user`, 레코드: session/guide/feeling/at)에
+  /// 저장했습니다. 이후 버전은 SharedPreferences 키
+  /// `meditation.checkins`(JSON 배열, 동일한 필드)로 단순화되었습니다.
+  /// 두 형식의 필드가 완전히 동일하므로, 과거 Hive 기록을 1회만
+  /// SharedPreferences 쪽으로 안전하게 병합합니다. 대상 키가 비어 있을
+  /// 때만 동작하며, 이미 있는 기록은 건드리지 않습니다.
+  static const String _meditationCheckInMigratedKey =
+      'meditation_checkins_migrated_v1';
+  static const String _legacyMeditationCheckInBoxName =
+      'meditation_checkins_local_user';
+  static const String _meditationCheckInPrefsKey = 'meditation.checkins';
 
-        for (final key in prefs.getKeys().toList()) {
-          if (!key.startsWith('${_defaultScope}_')) continue;
-          // Completion markers are migration metadata, not user preferences.
-          if (key.startsWith('guest_scope_migrated_')) continue;
-          final newKey = '$userId${key.substring(_defaultScope.length)}';
-          if (prefs.containsKey(newKey)) continue;
-          final value = prefs.get(key);
-          final stored = switch (value) {
-            bool v => await prefs.setBool(newKey, v),
-            int v => await prefs.setInt(newKey, v),
-            double v => await prefs.setDouble(newKey, v),
-            String v => await prefs.setString(newKey, v),
-            List<String> v => await prefs.setStringList(newKey, v),
-            _ => false,
-          };
-          if (!stored) throw StateError('이전 설정을 저장하지 못했어요. 다시 시도해 주세요.');
-        }
-        for (final prefix in legacyRecoveryLabels.keys) {
-          await _mergeLegacyBox(prefix, userId);
-        }
-        if (!await prefs.setBool(flag, true)) {
-          throw StateError('이전 기록의 복원 완료를 저장하지 못했어요. 다시 시도해 주세요.');
-        }
-      });
-
-  /// Counts only records absent from the active scope. No private body leaves
-  /// storage. Some candidates may have been deleted deliberately after v1;
-  /// callers must explain that before offering explicit recovery.
-  static Future<Map<String, int>> getLegacyRecoverySummary({
-    String userId = 'local_user',
-  }) => _legacySerial(() async {
-    if (userId.isEmpty || userId == _defaultScope) return <String, int>{};
-    final result = <String, int>{};
-    for (final prefix in legacyRecoveryLabels.keys) {
-      final missing = await _withLegacyBoxes<int>(
-        prefix,
-        userId,
-        noSource: 0,
-        createTarget: false,
-        action: (source, target) async =>
-            source.keys.where((key) => target?.containsKey(key) != true).length,
-      );
-      if (missing > 0) result[prefix] = missing;
-    }
-    return result;
-  });
-
-  /// Only invoke after user confirmation: this can bring back an intentionally
-  /// deleted legacy record. Existing values always win, and the encrypted guest
-  /// source remains intact if a write or flush fails.
-  static Future<int> restoreLegacyGuestData({String userId = 'local_user'}) =>
-      _legacySerial(() async {
-        if (userId.isEmpty || userId == _defaultScope) return 0;
-        var added = 0;
-        for (final prefix in legacyRecoveryLabels.keys) {
-          added += await _mergeLegacyBox(prefix, userId);
-        }
-        final prefs = await SharedPreferences.getInstance();
-        if (!await prefs.setBool(
-          LegacyRecordMigration.completionKey(userId),
-          true,
-        )) {
-          throw StateError('이전 기록의 복원 완료를 저장하지 못했어요. 다시 시도해 주세요.');
-        }
-        return added;
-      });
-
-  static Future<int> _mergeLegacyBox(String prefix, String userId) =>
-      _withLegacyBoxes<int>(
-        prefix,
-        userId,
-        noSource: 0,
-        createTarget: true,
-        action: (source, target) => LegacyRecordMigration.mergeMissing(
-          sourceKeys: source.keys.cast<Object>(),
-          readSource: (key) => source.get(key),
-          targetContains: (key) => target!.containsKey(key),
-          writeTarget: (key, value) => target!.put(key, value),
-          flushTarget: () => target!.flush(),
-        ),
-      );
-
-  static Future<bool> _legacyBoxExists(String name) async =>
-      await Hive.boxExists(name) || await Hive.boxExists('${name}__enc');
-
-  static Future<T> _withLegacyBoxes<T>(
-    String prefix,
-    String userId, {
-    required T noSource,
-    required bool createTarget,
-    required Future<T> Function(Box source, Box? target) action,
-  }) async {
-    final fromName = '${prefix}_$_defaultScope';
-    final toName = '${prefix}_$userId';
-    if (!await _legacyBoxExists(fromName)) return noSource;
-    final closeSource = !Hive.isBoxOpen('${fromName}__enc');
-    final closeTarget = !Hive.isBoxOpen('${toName}__enc');
-    Box? source, target;
+  static Future<void> migrateMeditationCheckInsIfNeeded() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool(_meditationCheckInMigratedKey) == true) return;
     try {
-      source = await HiveEncryption.openBox(fromName);
-      if (source.isEmpty) return noSource;
-      if (createTarget || await _legacyBoxExists(toName)) {
-        target = await HiveEncryption.openBox(toName);
+      final legacyExists =
+          await Hive.boxExists(_legacyMeditationCheckInBoxName) ||
+          await Hive.boxExists('${_legacyMeditationCheckInBoxName}__enc');
+      if (!legacyExists) {
+        await prefs.setBool(_meditationCheckInMigratedKey, true);
+        return;
       }
-      return await action(source, target);
-    } finally {
-      // Do not close boxes already owned by a live service/provider.
-      try {
-        if (closeTarget && target?.isOpen == true) await target!.close();
-      } finally {
-        if (closeSource && source?.isOpen == true) await source!.close();
+
+      final box = await HiveEncryption.openBox(
+        _legacyMeditationCheckInBoxName,
+      );
+      if (box.isEmpty) {
+        await box.close();
+        await prefs.setBool(_meditationCheckInMigratedKey, true);
+        return;
       }
+
+      // 이미 신규 형식으로 기록이 있다면(현재 기기 값 우선), Hive 쪽은
+      // 건드리지 않고 마이그레이션 완료로만 표시합니다.
+      final existingRaw = prefs.getString(_meditationCheckInPrefsKey);
+      final existing = <Map<String, dynamic>>[];
+      if (existingRaw != null) {
+        try {
+          final decoded = jsonDecode(existingRaw);
+          if (decoded is List) {
+            existing.addAll(
+              decoded
+                  .whereType<Map>()
+                  .map((v) => Map<String, dynamic>.from(v)),
+            );
+          }
+        } catch (_) {
+          /* 손상된 기존 값은 무시하고 아래에서 새로 구성합니다. */
+        }
+      }
+
+      final existingSessions = existing
+          .map((v) => v['session'])
+          .whereType<String>()
+          .toSet();
+
+      final merged = <Map<String, dynamic>>[...existing];
+      for (final key in box.keys) {
+        final value = box.get(key);
+        if (value is! Map) continue;
+        final session = value['session'];
+        final guide = value['guide'];
+        final feeling = value['feeling'];
+        final at = value['at'];
+        if (session is! String ||
+            session.trim().isEmpty ||
+            guide is! String ||
+            feeling is! String ||
+            !const {'better', 'same', 'worse'}.contains(feeling) ||
+            at is! String ||
+            DateTime.tryParse(at) == null) {
+          continue; // 형식이 다른 레코드는 건너뜀 (기존 기록 보존 우선)
+        }
+        if (existingSessions.contains(session)) continue;
+        merged.add({
+          'session': session,
+          'guide': guide,
+          'feeling': feeling,
+          'at': at,
+        });
+        existingSessions.add(session);
+      }
+
+      merged.sort((a, b) {
+        final da = DateTime.tryParse(a['at'] as String? ?? '');
+        final db = DateTime.tryParse(b['at'] as String? ?? '');
+        if (da == null || db == null) return 0;
+        return db.compareTo(da);
+      });
+      final limited = merged.take(90).toList();
+
+      if (!await prefs.setString(
+        _meditationCheckInPrefsKey,
+        jsonEncode(limited),
+      )) {
+        return; // 저장 실패 시 플래그를 남기지 않아 다음 실행에 재시도
+      }
+      await box.close();
+      await prefs.setBool(_meditationCheckInMigratedKey, true);
+    } catch (_) {
+      // 실패 시 플래그를 남기지 않아 다음 앱 실행에서 재시도합니다.
+    }
+  }
+
+  /// 성공(또는 복사할 것 없음)이면 true, 예외/실패면 false.
+  static Future<bool> _copyHiveBoxIfTargetEmpty(
+    String fromName,
+    String toName,
+  ) async {
+    try {
+      final fromExists =
+          await Hive.boxExists(fromName) ||
+          await Hive.boxExists('${fromName}__enc');
+      if (!fromExists) return true;
+
+      final from = await HiveEncryption.openBox(fromName);
+      if (from.isEmpty) {
+        await from.close();
+        return true;
+      }
+
+      final to = await HiveEncryption.openBox(toName);
+      if (to.isNotEmpty) {
+        await to.close();
+        await from.close();
+        return true;
+      }
+      for (final key in from.keys) {
+        await to.put(key, from.get(key));
+      }
+      final ok = to.length >= from.length;
+      await to.close();
+      await from.close();
+      return ok;
+    } catch (_) {
+      return false;
     }
   }
 
@@ -232,8 +296,9 @@ class StorageService {
 
   static Future<void> saveLetter(LetterEntry entry) async {
     // A retry after an uncertain write uses the same immutable ID.
-    if (!letterBox.containsKey(entry.id))
+    if (!letterBox.containsKey(entry.id)) {
       await letterBox.put(entry.id, entry.toMap());
+    }
     await letterBox.flush();
   }
 
@@ -261,12 +326,40 @@ class StorageService {
 
   static Future<void> deleteLetter(String id) async {
     await MongiGardenStore.instance.reconcileRecordedDays();
-    await PersonalReplyService.remove('letter:$id');
-    final cache = await HiveEncryption.openBox('reply_cache_local_user');
-    await cache.delete(id);
-    await cache.flush();
-    await letterBox.delete(id);
-    await letterBox.flush();
+    final sourceBox = letterBox;
+    Box? cache;
+    Object? previousSource;
+    Object? previousCache;
+    var captured = false;
+    await PersonalReplyService.remove(
+      'letter:$id',
+      deleteSource: () async {
+        if (!sourceBox.isOpen || !identical(sourceBox, letterBox)) {
+          throw StateError('사용자가 변경됐어요. 기록을 다시 열어 주세요.');
+        }
+        cache = await HiveEncryption.openBox('reply_cache_local_user');
+        previousSource = sourceBox.get(id);
+        previousCache = cache!.get(id);
+        captured = true;
+        await cache!.delete(id);
+        await cache!.flush();
+        await sourceBox.delete(id);
+        await sourceBox.flush();
+      },
+      restoreSource: () async {
+        if (!captured ||
+            !sourceBox.isOpen ||
+            !identical(sourceBox, letterBox)) {
+          return;
+        }
+        if (previousSource != null) await sourceBox.put(id, previousSource);
+        await sourceBox.flush();
+        if (cache?.isOpen == true) {
+          if (previousCache != null) await cache!.put(id, previousCache);
+          await cache!.flush();
+        }
+      },
+    );
   }
 
   /// 가장 최근에 쓴 편지의 고양이 id를 반환합니다(없으면 null).
@@ -391,7 +484,7 @@ class StorageService {
   }
 
   // ---- Growth Level (성장 단계, 계정별) ----
-  // 하루에 미션(편지+명상)을 완수할 때마다 돌봄 온기가 1도씩 올라갑니다.
+  // 하루에 미션(편지+명상)을 완수할 때마다 마음 온도가 1도씩 올라갑니다.
   // 14일 안에 10도를 채우면 레벨업! 14일 안에 못 채우면 도전이 초기화됩니다.
   static String get _growthLevelKey => '${_uid}_growth_level';
   static String get _growthStartKey => '${_uid}_growth_challenge_start';
@@ -561,8 +654,7 @@ class StorageService {
 
   static Future<void> setNotificationOptIn(bool v) async {
     final prefs = await SharedPreferences.getInstance();
-    if (!await prefs.setBool(_notificationOptInKey, v))
-      throw StateError('알림 설정 저장 실패');
+    await prefs.setBool(_notificationOptInKey, v);
   }
 
   // ---- Welcome Intro (앱 최초 실행 시 1회만 보여주는 3단계 웰컴 투어) ----
@@ -621,10 +713,8 @@ class StorageService {
       final hour = prefs.getInt(_reminderHourKey) ?? 20;
       final minute = prefs.getInt(_reminderMinuteKey) ?? 0;
       await prefs.setBool(_eveningEnabledKey, true);
-      if (!await prefs.setInt(_eveningHourKey, hour))
-        throw StateError('알림 시간 저장 실패');
-      if (!await prefs.setInt(_eveningMinuteKey, minute))
-        throw StateError('알림 시간 저장 실패');
+      await prefs.setInt(_eveningHourKey, hour);
+      await prefs.setInt(_eveningMinuteKey, minute);
     }
     await prefs.setBool(_reminderMigratedKey, true);
   }
@@ -637,8 +727,7 @@ class StorageService {
 
   static Future<void> setMorningEnabled(bool v) async {
     final prefs = await SharedPreferences.getInstance();
-    if (!await prefs.setBool(_morningEnabledKey, v))
-      throw StateError('알림 설정 저장 실패');
+    await prefs.setBool(_morningEnabledKey, v);
   }
 
   static Future<(int, int)> getMorningTime() async {
@@ -650,10 +739,8 @@ class StorageService {
 
   static Future<void> setMorningTime(int hour, int minute) async {
     final prefs = await SharedPreferences.getInstance();
-    if (!await prefs.setInt(_morningHourKey, hour))
-      throw StateError('알림 시간 저장 실패');
-    if (!await prefs.setInt(_morningMinuteKey, minute))
-      throw StateError('알림 시간 저장 실패');
+    await prefs.setInt(_morningHourKey, hour);
+    await prefs.setInt(_morningMinuteKey, minute);
   }
 
   // -- 저녁 알림 (기본 오후 8시) --
@@ -664,8 +751,7 @@ class StorageService {
 
   static Future<void> setEveningEnabled(bool v) async {
     final prefs = await SharedPreferences.getInstance();
-    if (!await prefs.setBool(_eveningEnabledKey, v))
-      throw StateError('알림 설정 저장 실패');
+    await prefs.setBool(_eveningEnabledKey, v);
   }
 
   static Future<(int, int)> getEveningTime() async {
@@ -677,13 +763,11 @@ class StorageService {
 
   static Future<void> setEveningTime(int hour, int minute) async {
     final prefs = await SharedPreferences.getInstance();
-    if (!await prefs.setInt(_eveningHourKey, hour))
-      throw StateError('알림 시간 저장 실패');
-    if (!await prefs.setInt(_eveningMinuteKey, minute))
-      throw StateError('알림 시간 저장 실패');
+    await prefs.setInt(_eveningHourKey, hour);
+    await prefs.setInt(_eveningMinuteKey, minute);
   }
 
-  // -- 위기 알림 (3일 이상 미접속 시에만 조건부 발송, 동의 전 기본 꺼짐) --
+  // -- 방문 알림 (3일 이상 미접속 시 조건부 발송, 신규 사용자는 명시 동의) --
   static Future<bool> getCrisisEnabled() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool(_crisisEnabledKey) ?? false;
@@ -691,11 +775,10 @@ class StorageService {
 
   static Future<void> setCrisisEnabled(bool v) async {
     final prefs = await SharedPreferences.getInstance();
-    if (!await prefs.setBool(_crisisEnabledKey, v))
-      throw StateError('알림 설정 저장 실패');
+    await prefs.setBool(_crisisEnabledKey, v);
   }
 
-  // -- 스트릭 임박 알림 (오늘 미완료일 때만 조건부 발송, 동의 전 기본 꺼짐) --
+  // -- 스트릭 임박 알림 (오늘 미완료일 때 조건부 발송, 신규 사용자는 명시 동의) --
   static Future<bool> getStreakEnabled() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool(_streakEnabledKey) ?? false;
@@ -703,8 +786,7 @@ class StorageService {
 
   static Future<void> setStreakEnabled(bool v) async {
     final prefs = await SharedPreferences.getInstance();
-    if (!await prefs.setBool(_streakEnabledKey, v))
-      throw StateError('알림 설정 저장 실패');
+    await prefs.setBool(_streakEnabledKey, v);
   }
 
   // ── 감정 인식 루프: 설치일(가입일) 기록 ──

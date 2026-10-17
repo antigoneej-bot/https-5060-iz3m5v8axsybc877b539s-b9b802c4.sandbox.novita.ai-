@@ -68,6 +68,23 @@ void main() {
     status.published == null && status.nickname == null,
     'Logout removes account state.',
   );
+  final beforeLogout = status.begin('a');
+  status.selectOwner(null);
+  status.selectOwner('a');
+  check(
+    !status.apply(
+      beforeLogout,
+      'a',
+      const PublicGardenStatusSnapshot(true, 'A'),
+    ),
+    'Even logging back into the same UID invalidates the previous session request.',
+  );
+  final currentA = status.begin('a');
+  status.apply(currentA, 'a', const PublicGardenStatusSnapshot(false, null));
+  check(
+    !status.fail(beforeLogout, 'a') && status.published == false,
+    'An old login session failure cannot erase the current response.',
+  );
   var rejected = false;
   try {
     PublicGardenStatusSnapshot.fromJson({'error': 'temporarily-unavailable'});

@@ -1,4 +1,3 @@
-import '../models/garden_anniversary.dart';
 import 'package:flutter/material.dart';
 import '../models/seed.dart';
 import 'plant_memory_store.dart';
@@ -12,22 +11,22 @@ class PlantMemoryEditor extends StatefulWidget {
 }
 
 class _PlantMemoryEditorState extends State<PlantMemoryEditor> {
-  late final TextEditingController _name, _note;
-  bool _busy = false, _done = false, _allowPop = false, _closing = false;
-  late final String _initialName, _initialNote;
-  DateTime? _initialDate;
+  late final TextEditingController _name;
+  final _note = TextEditingController();
+  late List<PlantMemoryEntry> _entries;
+  String? _anniversaryOn;
+  late String _noteOn;
+  bool _busy = false, _done = false;
   String? _error;
-  DateTime? _memoryDate;
+
   @override
   void initState() {
     super.initState();
     final memory = PlantMemoryStore.instance.value[widget.plant.id];
     _name = TextEditingController(text: memory?.name ?? '');
-    _note = TextEditingController(text: memory?.note ?? '');
-    _memoryDate = memory?.memoryDate;
-    _initialName = _name.text;
-    _initialNote = _note.text;
-    _initialDate = _memoryDate;
+    _entries = [...?memory?.timeline];
+    _anniversaryOn = memory?.anniversaryOn;
+    _noteOn = plantMemoryDay(DateTime.now());
   }
 
   @override
@@ -37,64 +36,121 @@ class _PlantMemoryEditorState extends State<PlantMemoryEditor> {
     super.dispose();
   }
 
-  Future<void> _close() async {
-    if (_busy || _closing) return;
-    _closing = true;
-    try {
-      final changed =
-          _name.text != _initialName ||
-          _note.text != _initialNote ||
-          _memoryDate != _initialDate;
-      if (changed) {
-        final discard = await showDialog<bool>(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            title: const Text('작성 중인 추억을 닫을까요?'),
-            content: const Text('저장하지 않은 변경은 사라져요.'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('계속 쓰기'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                child: const Text('닫기'),
-              ),
-            ],
-          ),
-        );
-        if (discard != true || !mounted) return;
-      }
-      if (!mounted) return;
-      setState(() => _allowPop = true);
-      await WidgetsBinding.instance.endOfFrame;
-      if (mounted) Navigator.pop(context);
-    } finally {
-      _closing = false;
-    }
+  Future<String?> _chooseDay(String? current) async {
+    final selected = await showDatePicker(
+      context: context,
+      initialDate: current == null
+          ? DateTime.now()
+          : parsePlantMemoryDay(current),
+      firstDate: DateTime(1900),
+      lastDate: DateTime(2200, 12, 31),
+      helpText: '기억하고 싶은 날짜를 골라 주세요',
+      cancelText: '취소',
+      confirmText: '선택',
+    );
+    return selected == null ? null : plantMemoryDay(selected);
   }
 
-  Future<void> _save({bool remove = false}) async {
-    if (_busy) return;
-    if (remove) {
-      final yes = await showDialog<bool>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('이 식물의 추억을 지울까요?'),
-          content: const Text('이름·메모·기억할 날짜를 지워요. 식물과 성장 기록은 그대로 남아요.'),
+  Future<void> _editEntry(PlantMemoryEntry entry) async {
+    final controller = TextEditingController(text: entry.note);
+    var day = entry.on;
+    final route = DialogRoute<PlantMemoryEntry>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: const Text('추억 다듬기'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextButton.icon(
+                  onPressed: () async {
+                    final selected = await _chooseDay(day);
+                    if (selected != null && dialogContext.mounted) {
+                      setDialogState(() => day = selected);
+                    }
+                  },
+                  icon: const Icon(Icons.calendar_today_outlined),
+                  label: Text(day),
+                ),
+                TextField(
+                  controller: controller,
+                  maxLength: 300,
+                  minLines: 3,
+                  maxLines: 6,
+                  onChanged: (_) => setDialogState(() {}),
+                  decoration: const InputDecoration(labelText: '그날의 한 장면'),
+                ),
+              ],
+            ),
+          ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
+              onPressed: () => Navigator.pop(dialogContext),
               child: const Text('취소'),
             ),
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('추억 지우기'),
+            FilledButton(
+              onPressed: controller.text.trim().isEmpty
+                  ? null
+                  : () => Navigator.pop(
+                      dialogContext,
+                      PlantMemoryEntry(
+                        id: entry.id,
+                        on: day,
+                        note: controller.text.trim(),
+                      ),
+                    ),
+              child: const Text('변경'),
             ),
           ],
         ),
-      );
-      if (yes != true || !mounted) return;
+      ),
+    );
+    final updated = await Navigator.of(context).push(route);
+    // The route owns the controller until its exit animation completes.
+    if (updated != null && mounted) {
+      setState(() {
+        final index = _entries.indexWhere((item) => item.id == entry.id);
+        if (index >= 0) _entries[index] = updated;
+      });
+    }
+    await route.completed;
+    controller.dispose();
+  }
+
+  Future<bool> _confirmDelete({bool all = false}) async =>
+      await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: Text(all ? '이 식물의 추억을 모두 지울까요?' : '이 추억을 지울까요?'),
+          content: Text(
+            all
+                ? '이름, 기념일, 날짜별 추억이 지워져요. 식물과 성장 기록은 유지돼요.'
+                : '저장을 누르면 이 추억이 지워져요. 식물과 다른 추억은 유지돼요.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('취소'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('지우기'),
+            ),
+          ],
+        ),
+      ) ??
+      false;
+
+  Future<void> _save({bool remove = false}) async {
+    if (_busy) return;
+    if (remove && !await _confirmDelete(all: true)) return;
+    if (!mounted) return;
+    if (!remove &&
+        _note.text.trim().isNotEmpty &&
+        _entries.length >= PlantMemory.maxEntries) {
+      setState(() => _error = '추억은 60개까지 보관할 수 있어요. 기존 추억을 다듬거나 지운 뒤 저장해 주세요.');
+      return;
     }
     setState(() {
       _busy = true;
@@ -104,11 +160,26 @@ class _PlantMemoryEditorState extends State<PlantMemoryEditor> {
       if (remove) {
         await PlantMemoryStore.instance.remove(widget.plant.id);
       } else {
-        await PlantMemoryStore.instance.save(
-          widget.plant.id,
-          _name.text,
-          _note.text,
-          memoryDate: _memoryDate,
+        final now = DateTime.now();
+        final entries = [..._entries];
+        if (_note.text.trim().isNotEmpty) {
+          entries.add(
+            PlantMemoryEntry(
+              id: 'memory-${now.microsecondsSinceEpoch}',
+              on: _noteOn,
+              note: _note.text.trim(),
+            ),
+          );
+        }
+        await PlantMemoryStore.instance.saveMemory(
+          PlantMemory(
+            plantId: widget.plant.id,
+            name: _name.text.trim(),
+            note: entries.isEmpty ? '' : entries.last.note,
+            updatedAt: now,
+            anniversaryOn: _anniversaryOn,
+            entries: entries,
+          ),
         );
       }
       if (mounted) {
@@ -127,25 +198,6 @@ class _PlantMemoryEditorState extends State<PlantMemoryEditor> {
     }
   }
 
-  Future<void> _pickDate() async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _memoryDate ?? DateTime.now(),
-      firstDate: DateTime(
-        (_memoryDate?.year ?? 1900) < 1900 ? _memoryDate!.year : 1900,
-      ),
-      lastDate: DateTime(
-        (_memoryDate?.year ?? 0) > DateTime.now().year + 10
-            ? _memoryDate!.year
-            : DateTime.now().year + 10,
-        12,
-        31,
-      ),
-      helpText: '기억할 날짜 · 심은 날과 달라도 괜찮아요',
-    );
-    if (picked != null && mounted) setState(() => _memoryDate = picked);
-  }
-
   Future<void> _water() async {
     if (_busy) return;
     setState(() {
@@ -162,114 +214,181 @@ class _PlantMemoryEditorState extends State<PlantMemoryEditor> {
   }
 
   @override
-  Widget build(BuildContext context) => PopScope(
-    canPop: _done || _allowPop,
-    onPopInvokedWithResult: (didPop, _) {
-      if (!didPop) _close();
-    },
-    child: AlertDialog(
-      title: Text('${widget.plant.label}에 남기는 추억'),
-      content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Builder(
-              builder: (_) {
-                final data = MongiGardenStore.instance.value;
-                final id = widget.plant.id, count = data.seeds[id] ?? 0;
-                final next = widget.plant.careUntilNextTier(count);
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: Text(
-                    [
-                      if (data.plantedOn[id] != null)
-                        '심은 날 · ${data.plantedOn[id]}',
-                      widget.plant.growthLabel(count),
-                      if (next > 0) '다음 성장까지 물주기 $next번',
-                      data.wateredToday(id, DateTime.now())
-                          ? '오늘 물주기 완료'
-                          : '오늘도 물을 주며 돌볼 수 있어요.',
-                    ].join('\n'),
-                    style: Theme.of(context).textTheme.bodySmall,
+  Widget build(BuildContext context) {
+    final data = MongiGardenStore.instance.value;
+    final id = widget.plant.id, count = data.seeds[id] ?? 0;
+    final next = widget.plant.careUntilNextTier(count);
+    final history = [..._entries]..sort((a, b) => b.on.compareTo(a.on));
+    return PopScope(
+      canPop: !_busy || _done,
+      child: AlertDialog(
+        title: Text('${widget.plant.label}에 남기는 추억'),
+        content: SizedBox(
+          width: 440,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  [
+                    if (data.plantedOn[id] != null)
+                      '심은 날 · ${data.plantedOn[id]}',
+                    widget.plant.growthLabel(count),
+                    if (next > 0) '다음 성장까지 물주기 $next번',
+                  ].join('\n'),
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const SizedBox(height: 8),
+                FilledButton.tonalIcon(
+                  onPressed: _busy || data.wateredToday(id, DateTime.now())
+                      ? null
+                      : _water,
+                  icon: const Icon(Icons.water_drop_outlined),
+                  label: Text(
+                    data.wateredToday(id, DateTime.now())
+                        ? '오늘 물주기 완료'
+                        : '물 주기',
                   ),
-                );
-              },
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _name,
+                  enabled: !_busy,
+                  maxLength: 40,
+                  decoration: const InputDecoration(
+                    labelText: '나만의 이름',
+                    hintText: '우리의 첫 나무',
+                  ),
+                ),
+                OutlinedButton.icon(
+                  onPressed: _busy
+                      ? null
+                      : () async {
+                          final selected = await _chooseDay(
+                            _anniversaryOn ?? data.plantedOn[id],
+                          );
+                          if (selected != null && mounted) {
+                            setState(() => _anniversaryOn = selected);
+                          }
+                        },
+                  icon: const Icon(Icons.event_outlined),
+                  label: Text(
+                    _anniversaryOn == null
+                        ? '함께 기억할 시작일 정하기 (선택)'
+                        : '기념 시작일 · $_anniversaryOn',
+                  ),
+                ),
+                if (_anniversaryOn != null)
+                  TextButton(
+                    onPressed: _busy
+                        ? null
+                        : () => setState(() => _anniversaryOn = null),
+                    child: const Text('기념 시작일 지우기'),
+                  ),
+                const Text('선택한 날을 1일째로 세어요. 30일·100일을 지나면 기념 엽서를 만들 수 있어요.'),
+                const SizedBox(height: 16),
+                Text('새로운 추억 · ${_entries.length}/${PlantMemory.maxEntries}개'),
+                TextButton.icon(
+                  onPressed: _busy
+                      ? null
+                      : () async {
+                          final selected = await _chooseDay(_noteOn);
+                          if (selected != null && mounted) {
+                            setState(() => _noteOn = selected);
+                          }
+                        },
+                  icon: const Icon(Icons.calendar_today_outlined),
+                  label: Text('추억의 날짜 · $_noteOn'),
+                ),
+                TextField(
+                  controller: _note,
+                  enabled: !_busy,
+                  maxLength: 300,
+                  minLines: 3,
+                  maxLines: 5,
+                  decoration: const InputDecoration(
+                    labelText: '남기고 싶은 한 장면',
+                    hintText: '오늘의 마음이나 함께한 순간을 남겨 주세요.',
+                  ),
+                ),
+                if (history.isNotEmpty) ...[
+                  const Divider(),
+                  const Text('이 나무에 쌓인 추억'),
+                  for (final entry in history)
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Text(
+                              entry.on,
+                              style: Theme.of(context).textTheme.labelMedium,
+                            ),
+                            const SizedBox(height: 6),
+                            SelectableText(entry.note),
+                            Wrap(
+                              children: [
+                                TextButton(
+                                  onPressed: _busy
+                                      ? null
+                                      : () => _editEntry(entry),
+                                  child: const Text('수정'),
+                                ),
+                                TextButton(
+                                  onPressed: _busy
+                                      ? null
+                                      : () async {
+                                          if (await _confirmDelete() &&
+                                              mounted) {
+                                            setState(
+                                              () => _entries.removeWhere(
+                                                (item) => item.id == entry.id,
+                                              ),
+                                            );
+                                          }
+                                        },
+                                  child: const Text('삭제'),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                ],
+                const SizedBox(height: 12),
+                const Text(
+                  '이름·기념일·추억은 저장을 누르면 반영돼요. 이 기록은 나만 볼 수 있고, 엽서에는 직접 고른 내용만 들어가요.',
+                ),
+                if (_error != null)
+                  Text(
+                    _error!,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                    ),
+                  ),
+                if (_busy) const LinearProgressIndicator(),
+              ],
             ),
-            FilledButton.tonalIcon(
-              onPressed:
-                  _busy ||
-                      MongiGardenStore.instance.value.wateredToday(
-                        widget.plant.id,
-                        DateTime.now(),
-                      )
-                  ? null
-                  : _water,
-              icon: const Icon(Icons.water_drop_outlined),
-              label: Text(
-                MongiGardenStore.instance.value.wateredToday(
-                      widget.plant.id,
-                      DateTime.now(),
-                    )
-                    ? '오늘 물주기 완료'
-                    : '물 주기',
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _name,
-              enabled: !_busy,
-              maxLength: 40,
-              decoration: const InputDecoration(
-                labelText: '나만의 이름',
-                hintText: '면접을 마친 날의 나무',
-              ),
-            ),
-            TextField(
-              controller: _note,
-              enabled: !_busy,
-              maxLength: 300,
-              minLines: 3,
-              maxLines: 5,
-              decoration: const InputDecoration(
-                labelText: '남기고 싶은 한 장면',
-                hintText: '오늘 기억하고 싶은 순간을 적어 주세요.',
-              ),
-            ),
-            const SizedBox(height: 8),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('기억할 날짜 · 선택'),
-              subtitle: Text(
-                _memoryDate == null
-                    ? '우정이 시작된 날, 기념하고 싶은 날'
-                    : GardenAnniversary.key(_memoryDate!),
-              ),
-              trailing: const Icon(Icons.calendar_month_outlined),
-              onTap: _busy ? null : _pickDate,
-            ),
-            if (_memoryDate != null) ...[
-              Text(GardenAnniversary.label(_memoryDate!, DateTime.now())),
-              TextButton(
-                onPressed: _busy
-                    ? null
-                    : () => setState(() => _memoryDate = null),
-                child: const Text('기억할 날짜 지우기'),
-              ),
-            ],
-            const Text('이름·마음·날짜는 나만 볼 수 있어요. 공개 정원과 엽서에 자동으로 들어가지 않아요.'),
-            if (_error != null) Text(_error!),
-            if (_busy) const LinearProgressIndicator(),
-          ],
+          ),
         ),
+        actions: [
+          TextButton(
+            onPressed: _busy ? null : () => _save(remove: true),
+            child: const Text('모든 추억 지우기'),
+          ),
+          TextButton(
+            onPressed: _busy ? null : () => Navigator.pop(context),
+            child: const Text('취소'),
+          ),
+          FilledButton(
+            onPressed: _busy ? null : _save,
+            child: const Text('저장'),
+          ),
+        ],
       ),
-      actions: [
-        TextButton(
-          onPressed: _busy ? null : () => _save(remove: true),
-          child: const Text('추억 지우기'),
-        ),
-        TextButton(onPressed: _busy ? null : _close, child: const Text('취소')),
-        FilledButton(onPressed: _busy ? null : _save, child: const Text('저장')),
-      ],
-    ),
-  );
+    );
+  }
 }

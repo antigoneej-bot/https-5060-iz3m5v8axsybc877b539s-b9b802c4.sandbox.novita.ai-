@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_app/services/acceptance_reply_matcher.dart';
+import 'package:flutter_app/services/reply_safety.dart';
 
 /// Executable tests derived from tool/acceptance_test_cases.json
 /// (mind_cat_acceptance_replies_72 / test_cases.json). That file states it
@@ -47,17 +48,12 @@ void main() {
       },
     );
 
-    test(
-      'case_08: safe day + gratitude to companions matches category 18',
-      () {
-        expect(
-          AcceptanceReplyMatcher.detect(
-            '오늘 하루 무사히 보내서 감사합니다. 함께한 이들에게도 감사합니다.',
-          ),
-          '18',
-        );
-      },
-    );
+    test('case_08: safe day + gratitude to companions matches category 18', () {
+      expect(
+        AcceptanceReplyMatcher.detect('오늘 하루 무사히 보내서 감사합니다. 함께한 이들에게도 감사합니다.'),
+        '18',
+      );
+    });
 
     test('case_09: "고맙다는 말을 듣지 못했어" is not the writer\'s gratitude', () {
       // The writer reports NOT receiving thanks, not feeling grateful.
@@ -72,9 +68,12 @@ void main() {
       expect(AcceptanceReplyMatcher.detect('기분이 어떤지 모르겠어.'), '13');
     });
 
-    test('case_12: an uneventful day matches category 14, no invented pain', () {
-      expect(AcceptanceReplyMatcher.detect('오늘 별일 없었어.'), '14');
-    });
+    test(
+      'case_12: an uneventful day matches category 14, no invented pain',
+      () {
+        expect(AcceptanceReplyMatcher.detect('오늘 별일 없었어.'), '14');
+      },
+    );
 
     test('case_13: plain joy matches category 15', () {
       expect(AcceptanceReplyMatcher.detect('바라던 일이 돼서 기뻐.'), '15');
@@ -95,14 +94,20 @@ void main() {
       },
     );
 
-    test('case_16: empty input matches nothing (existing empty-input path applies)', () {
-      expect(AcceptanceReplyMatcher.detect(''), isNull);
-      expect(AcceptanceReplyMatcher.detect('   '), isNull);
-    });
+    test(
+      'case_16: empty input matches nothing (existing empty-input path applies)',
+      () {
+        expect(AcceptanceReplyMatcher.detect(''), isNull);
+        expect(AcceptanceReplyMatcher.detect('   '), isNull);
+      },
+    );
 
-    test('case_17: quoted/reported fiction is not the writer\'s own feeling', () {
-      expect(AcceptanceReplyMatcher.detect('소설에서 주인공이 너무 슬프대.'), isNull);
-    });
+    test(
+      'case_17: quoted/reported fiction is not the writer\'s own feeling',
+      () {
+        expect(AcceptanceReplyMatcher.detect('소설에서 주인공이 너무 슬프대.'), isNull);
+      },
+    );
 
     test('case_18: tense shift into present relief is not guessed', () {
       expect(AcceptanceReplyMatcher.detect('힘들었지만 지금은 안심돼.'), isNull);
@@ -142,15 +147,15 @@ void main() {
     );
 
     test(
-      'case_24: crisis text is explicitly out of scope for this matcher',
+      'case_24: explicit risk is reserved for the support path, not an emotion cat',
       () {
-        // This pack ships no crisis content (02_적용_원칙.txt section 2), and
-        // this matcher has no self-harm/harm-to-others detection at all — by
-        // design, so it never races whatever crisis flow the app already
-        // has. See the integration report for the actual state of crisis
-        // handling elsewhere in the codebase.
+        const text = '지금 나 자신을 해치고 싶어.';
+        expect(ReplySafety.assess(text), ReplySupportNeed.self);
+        expect(
+          AcceptanceReplyMatcher.detect(text, emotionId: 'joyful'),
+          isNull,
+        );
       },
-      skip: 'No crisis detection exists in this matcher by design; see report.',
     );
   });
 }

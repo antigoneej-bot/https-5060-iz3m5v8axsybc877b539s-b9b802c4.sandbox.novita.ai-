@@ -13,6 +13,7 @@ import '../services/sound_service.dart';
 import '../services/notification_service.dart';
 import '../services/subscription_service.dart';
 import '../widgets/growth_header.dart';
+import '../widgets/account_entry_card.dart';
 import '../widgets/garden_path_card.dart';
 import 'privacy_policy_screen.dart';
 import 'terms_of_service_screen.dart';
@@ -21,7 +22,7 @@ import 'about_app_screen.dart';
 import 'app_tutorial_screen.dart';
 import '../widgets/feature_scaffold.dart';
 import 'analytics_debug_screen.dart';
-import '../mongi/screens/public_garden_settings_screen.dart';
+import '../mongi/screens/garden_village_screen.dart';
 import '../mongi/screens/garden_bloom_news_screen.dart';
 
 /// 마이 탭 - 나의 성장 현황, 방문 기록, 사운드 설정 등을 관리하는 화면
@@ -34,6 +35,15 @@ class MyScreen extends StatefulWidget {
 
 class _MyScreenState extends State<MyScreen> {
   final sound = SoundService();
+  late final Future<PackageInfo?> _packageInfo = _readPackageInfo();
+
+  Future<PackageInfo?> _readPackageInfo() async {
+    try {
+      return await PackageInfo.fromPlatform();
+    } catch (_) {
+      return null;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -53,6 +63,8 @@ class _MyScreenState extends State<MyScreen> {
           style: bodyFont(fontSize: 12.5, color: AppColors.inkSoft),
         ),
         const SizedBox(height: 22),
+        const AccountEntryCard(),
+        const SizedBox(height: 14),
         _ProfileCard(streak: app.streak, totalLetters: app.history.length),
         const SizedBox(height: 14),
         const _PremiumCard(),
@@ -171,9 +183,17 @@ class _MyScreenState extends State<MyScreen> {
         ],
         const SizedBox(height: 20),
         Center(
-          child: Text(
-            '마음냥 정원 v1.0',
-            style: bodyFont(fontSize: 11, color: AppColors.inkSoft),
+          child: FutureBuilder<PackageInfo?>(
+            future: _packageInfo,
+            builder: (context, snapshot) {
+              final info = snapshot.data;
+              return Text(
+                info == null
+                    ? '마음냥 정원'
+                    : '마음냥 정원 v${info.version}+${info.buildNumber}',
+                style: bodyFont(fontSize: 11, color: AppColors.inkSoft),
+              );
+            },
           ),
         ),
       ],
@@ -448,7 +468,7 @@ class _SettingsCard extends StatelessWidget {
 }
 
 /// 데일리 돌보기 알림(로컬 푸시 리마인더) 설정 카드.
-/// 아침 / 저녁 알림을 각각 켜고 끄고 시간을 조절할 수 있고, 위기 알림(3일
+/// 아침 / 저녁 알림을 각각 켜고 끄고 시간을 조절할 수 있고, 방문 알림(3일
 /// 이상 미접속) · 스트릭 임박 알림(오늘 미완료)도 개별적으로 켜고 끌 수
 /// 있습니다.
 class _ReminderCard extends StatefulWidget {
@@ -461,7 +481,6 @@ class _ReminderCard extends StatefulWidget {
 class _ReminderCardState extends State<_ReminderCard> {
   final _notif = NotificationService();
   bool _loading = true;
-  String? _loadError;
 
   bool _morningEnabled = false;
   int _morningHour = 9;
@@ -473,6 +492,7 @@ class _ReminderCardState extends State<_ReminderCard> {
 
   bool _crisisEnabled = true;
   bool _streakEnabled = true;
+  bool _changingConditionalReminder = false;
 
   @override
   void initState() {
@@ -481,34 +501,24 @@ class _ReminderCardState extends State<_ReminderCard> {
   }
 
   Future<void> _load() async {
+    final morningEnabled = await _notif.isMorningEnabled();
+    final (mh, mm) = await _notif.getMorningTime();
+    final eveningEnabled = await _notif.isEveningEnabled();
+    final (eh, em) = await _notif.getEveningTime();
+    final crisisEnabled = await _notif.isCrisisEnabled();
+    final streakEnabled = await _notif.isStreakEnabled();
     if (!mounted) return;
-    try {
-      final morningEnabled = await _notif.isMorningEnabled();
-      final (mh, mm) = await _notif.getMorningTime();
-      final eveningEnabled = await _notif.isEveningEnabled();
-      final (eh, em) = await _notif.getEveningTime();
-      final crisisEnabled = await _notif.isCrisisEnabled();
-      final streakEnabled = await _notif.isStreakEnabled();
-      if (!mounted) return;
-      setState(() {
-        _morningEnabled = morningEnabled;
-        _morningHour = mh;
-        _morningMinute = mm;
-        _eveningEnabled = eveningEnabled;
-        _eveningHour = eh;
-        _eveningMinute = em;
-        _crisisEnabled = crisisEnabled;
-        _streakEnabled = streakEnabled;
-        _loading = false;
-        _loadError = null;
-      });
-    } catch (_) {
-      if (mounted)
-        setState(() {
-          _loading = false;
-          _loadError = '알림 설정을 불러오지 못했어요.';
-        });
-    }
+    setState(() {
+      _morningEnabled = morningEnabled;
+      _morningHour = mh;
+      _morningMinute = mm;
+      _eveningEnabled = eveningEnabled;
+      _eveningHour = eh;
+      _eveningMinute = em;
+      _crisisEnabled = crisisEnabled;
+      _streakEnabled = streakEnabled;
+      _loading = false;
+    });
   }
 
   void _showPermissionDenied() {
@@ -517,27 +527,38 @@ class _ReminderCardState extends State<_ReminderCard> {
     );
   }
 
-  bool _updating = false;
-  Future<void> _change(Future<void> Function() action) async {
-    if (_updating) return;
-    setState(() => _updating = true);
+  Future<void> _onToggleConditional(bool value, {required bool visit}) async {
+    if (_changingConditionalReminder) return;
+    setState(() => _changingConditionalReminder = true);
     try {
-      await action();
-      await _load();
+      final applied = visit
+          ? await _notif.setCrisisEnabled(value)
+          : await _notif.setStreakEnabled(value);
+      final saved = visit
+          ? await _notif.isCrisisEnabled()
+          : await _notif.isStreakEnabled();
+      if (!mounted) return;
+      setState(() {
+        if (visit) {
+          _crisisEnabled = saved;
+        } else {
+          _streakEnabled = saved;
+        }
+      });
+      if (!applied) _showReminderChangeFailed();
     } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('알림 변경을 완료하지 못했어요. 설정을 확인하고 다시 시도해 주세요.'),
-          ),
-        );
-      }
-      try {
-        await _load();
-      } catch (_) {}
+      if (mounted) _showReminderChangeFailed();
     } finally {
-      if (mounted) setState(() => _updating = false);
+      if (mounted) setState(() => _changingConditionalReminder = false);
     }
+  }
+
+  void _showReminderChangeFailed() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('알림을 변경하지 못했어요. 기기 알림 권한을 확인하고 다시 시도해 주세요.'),
+      ),
+    );
   }
 
   Future<void> _onToggleMorning(bool v) async {
@@ -581,17 +602,23 @@ class _ReminderCardState extends State<_ReminderCard> {
   }
 
   Future<void> _pickMorningTime() async {
-    if (_updating) return;
     final picked = await _showTimePicker(_morningHour, _morningMinute);
-    if (picked == null || !mounted) return;
-    await _change(() => _notif.updateMorningTime(picked.hour, picked.minute));
+    if (picked == null) return;
+    setState(() {
+      _morningHour = picked.hour;
+      _morningMinute = picked.minute;
+    });
+    await _notif.updateMorningTime(picked.hour, picked.minute);
   }
 
   Future<void> _pickEveningTime() async {
-    if (_updating) return;
     final picked = await _showTimePicker(_eveningHour, _eveningMinute);
-    if (picked == null || !mounted) return;
-    await _change(() => _notif.updateEveningTime(picked.hour, picked.minute));
+    if (picked == null) return;
+    setState(() {
+      _eveningHour = picked.hour;
+      _eveningMinute = picked.minute;
+    });
+    await _notif.updateEveningTime(picked.hour, picked.minute);
   }
 
   Future<TimeOfDay?> _showTimePicker(int hour, int minute) {
@@ -653,13 +680,7 @@ class _ReminderCardState extends State<_ReminderCard> {
                 child: CircularProgressIndicator(strokeWidth: 2),
               ),
             )
-          else if (_loadError != null) ...[
-            Text(_loadError!),
-            TextButton(
-              onPressed: _updating ? null : _load,
-              child: const Text('다시 불러오기'),
-            ),
-          ] else ...[
+          else ...[
             Divider(
               height: 1,
               color: AppColors.blobPeachAccent.withValues(alpha: 0.18),
@@ -668,7 +689,7 @@ class _ReminderCardState extends State<_ReminderCard> {
               emoji: '🌤️',
               label: '아침 알림',
               value: _morningEnabled,
-              onChanged: (v) => _change(() => _onToggleMorning(v)),
+              onChanged: _onToggleMorning,
               timeLabel: _morningEnabled
                   ? _timeLabel(_morningHour, _morningMinute)
                   : null,
@@ -682,7 +703,7 @@ class _ReminderCardState extends State<_ReminderCard> {
               emoji: '🌙',
               label: '저녁 알림',
               value: _eveningEnabled,
-              onChanged: (v) => _change(() => _onToggleEvening(v)),
+              onChanged: _onToggleEvening,
               timeLabel: _eveningEnabled
                   ? _timeLabel(_eveningHour, _eveningMinute)
                   : null,
@@ -694,9 +715,11 @@ class _ReminderCardState extends State<_ReminderCard> {
             ),
             _reminderRow(
               emoji: '🐈‍⬛',
-              label: '다시 쉬어가기 (3일 동안 방문이 없을 때)',
+              label: '정원 방문 알림 (3일간 방문하지 않으면)',
               value: _crisisEnabled,
-              onChanged: (v) => _change(() => _notif.setCrisisEnabled(v)),
+              onChanged: _changingConditionalReminder
+                  ? null
+                  : (v) => _onToggleConditional(v, visit: true),
             ),
             Divider(
               height: 1,
@@ -704,9 +727,11 @@ class _ReminderCardState extends State<_ReminderCard> {
             ),
             _reminderRow(
               emoji: '🔥',
-              label: '오늘의 돌봄 알림',
+              label: '스트릭 임박 알림 (오늘 미완료 시)',
               value: _streakEnabled,
-              onChanged: (v) => _change(() => _notif.setStreakEnabled(v)),
+              onChanged: _changingConditionalReminder
+                  ? null
+                  : (v) => _onToggleConditional(v, visit: false),
             ),
           ],
         ],
@@ -718,7 +743,7 @@ class _ReminderCardState extends State<_ReminderCard> {
     required String emoji,
     required String label,
     required bool value,
-    required ValueChanged<bool> onChanged,
+    required ValueChanged<bool>? onChanged,
     String? timeLabel,
     VoidCallback? onPickTime,
   }) {
@@ -740,7 +765,7 @@ class _ReminderCardState extends State<_ReminderCard> {
               borderRadius: BorderRadius.circular(999),
               child: InkWell(
                 borderRadius: BorderRadius.circular(999),
-                onTap: _updating ? null : onPickTime,
+                onTap: onPickTime,
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 12,
@@ -761,7 +786,7 @@ class _ReminderCardState extends State<_ReminderCard> {
           ],
           Switch(
             value: value,
-            onChanged: _updating ? null : onChanged,
+            onChanged: onChanged,
             activeTrackColor: AppColors.blobPeachAccent,
           ),
         ],
@@ -930,13 +955,11 @@ class _NeighborGardenCard extends StatelessWidget {
           _neighborRow(
             context,
             emoji: '🌷',
-            label: '정원 공개 · 이웃 응원',
-            subtitle: '정원을 공개하고 이웃과 응원을 나눠요',
+            label: '냥이 마을 · 내 이웃',
+            subtitle: '이웃을 찾고 정원을 방문해 응원과 꽃을 나눠요',
             onTap: () {
               Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => const PublicGardenSettingsScreen(),
-                ),
+                MaterialPageRoute(builder: (_) => const GardenVillageScreen()),
               );
             },
           ),

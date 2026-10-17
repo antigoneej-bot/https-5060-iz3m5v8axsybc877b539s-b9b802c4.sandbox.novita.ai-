@@ -1,3 +1,4 @@
+import 'reply_safety.dart';
 import 'reply_situation.dart';
 import 'reply_intent.dart';
 import 'reply_tone.dart';
@@ -93,6 +94,7 @@ class PersonalReplyEngine {
     required String letterText,
     required ReplyStyle style,
     required String catName,
+    String? emotionId,
     List<List<String>> recentParts = const [],
     List<String> recentTexts = const [],
     List<String> dislikedTexts = const [],
@@ -101,10 +103,27 @@ class PersonalReplyEngine {
     List<String> preferredParts = const [],
     int repetitionWindow = 3,
   }) {
+    // Explicit safety support takes priority over selected cats, feedback,
+    // questions and the finite emotion pack. It is not a diagnosis and never
+    // sends the letter or contacts anyone automatically.
+    final supportNeed = ReplySafety.assess(letterText);
+    if (supportNeed != ReplySupportNeed.none) {
+      final response = ReplySafety.response(supportNeed);
+      return PersonalReply(
+        '$response\n\n— $catName',
+        [response],
+        'support',
+        situation: 'support:${supportNeed.name}',
+      );
+    }
+    final lexicalTopic = topicFor(letterText);
+    // A rejected work interpretation must not disable a later gratitude,
+    // family, or other unrelated reply.
+    final topicRejected = avoidedTopics.contains(lexicalTopic);
     final intent = ReplyIntent.detect(letterText);
     if (intent != null &&
         !avoidedSituations.contains(intent.id) &&
-        avoidedTopics.isEmpty) {
+        !topicRejected) {
       // Select a complete, relevant response. Do not wrap a question response
       // in unrelated comfort, an echoed letter, or a ceremonial thank-you.
       final candidates = List<String>.of(intent.responses)..shuffle(random);
@@ -122,6 +141,7 @@ class PersonalReplyEngine {
         }
         return score;
       }
+
       var selected = candidates.first;
       var bestPenalty = penalty(selected);
       for (final candidate in candidates.skip(1)) {
@@ -132,13 +152,24 @@ class PersonalReplyEngine {
         }
       }
       return PersonalReply(
-        '$selected\n\n— $catName', [selected], topicFor(letterText),
+        '$selected\n\n— $catName',
+        [selected],
+        topicFor(letterText),
         situation: intent.id,
       );
     }
     final directSituation = ReplySituation.detect(letterText);
-    final detectedTone = ReplyTone.detect(letterText);
-    final acceptanceId = AcceptanceReplyMatcher.detect(letterText);
+    final detectedTone = AcceptanceReplyMatcher.uncertainPerspective(letterText)
+        ? 'neutral'
+        : ReplyTone.detect(letterText);
+    final acceptanceId = AcceptanceReplyMatcher.detect(
+      letterText,
+      // The letter's explicit feeling/situation is authoritative. A selected
+      // cat only supplies an emotion when the text itself is neutral.
+      emotionId: directSituation == null && detectedTone == 'neutral'
+          ? emotionId
+          : null,
+    );
     // Feedback is a routing constraint, not just a candidate penalty. Apply it
     // before any new/legacy path can return a synonymous rejected response.
     final rejectedInterpretation =
@@ -147,7 +178,6 @@ class PersonalReplyEngine {
             avoidedSituations.contains('accept:$acceptanceId')) ||
         (directSituation != null &&
             avoidedSituations.contains(directSituation.id));
-    final lexicalTopic = topicFor(letterText);
     final detectedTopic =
         directSituation == null &&
             (RegExp(
@@ -157,25 +187,19 @@ class PersonalReplyEngine {
                     {'rest', 'achievement'}.contains(lexicalTopic)))
         ? 'general'
         : lexicalTopic;
-    final topic = rejectedInterpretation || avoidedTopics.contains(detectedTopic)
+    final topic =
+        rejectedInterpretation || avoidedTopics.contains(detectedTopic)
         ? 'general'
         : detectedTopic;
-    final situation =
-        avoidedTopics.isEmpty && !rejectedInterpretation
+    final situation = !topicRejected && !rejectedInterpretation
         ? directSituation
         : null;
-    // Acceptance pack (mind_cat_acceptance_replies_72): only attempted when
-    // none of the narrower, already-tested [ReplySituation] combinations
-    // fired (dismissed_angry, anger_regret, praise_pressure, interview_guilt,
-    // joy_and_worry, and its _everyday list) and topic-level feedback hasn't
-    // asked for the generic neutral path, mirroring how [situation]/[tone]
-    // are already gated above. This keeps every existing situation-based
-    // reply byte-for-byte unchanged; the acceptance pack only ever fills in
-    // the broader, simpler first-person statements ReplySituation's own
-    // narrow regexes don't already cover (e.g. "사람들을 만나도 외로워." rather
-    // than the "나는 ... 외로워" prefix ReplySituation requires).
-    if (situation == null && avoidedTopics.isEmpty && !rejectedInterpretation) {
+    // Authored complete replies are the primary emotion response. Previously
+    // a matching legacy situation returned first, so common inputs such as
+    // "나는 오늘 외로워" never reached the newly supplied reply pack.
+    if (!topicRejected && !rejectedInterpretation) {
       final acceptance = _composeAcceptance(
+        categoryId: acceptanceId,
         letterText: letterText,
         style: style,
         catName: catName,
@@ -188,8 +212,9 @@ class PersonalReplyEngine {
       );
       if (acceptance != null) return acceptance;
     }
-    final toneName = avoidedTopics.isNotEmpty || rejectedInterpretation
-        ? 'neutral' : detectedTone;
+    final toneName = topicRejected || rejectedInterpretation
+        ? 'neutral'
+        : detectedTone;
     final tone = replyToneContent[toneName]!;
     // Select the least repetitive candidate. Relevance and requested mode remain
     // hard constraints even after all finite phrase pools have been used.
@@ -215,22 +240,29 @@ class PersonalReplyEngine {
       final opening = pick(tone['openings']!);
       final listening = pick(situation?.listening ?? tone['listening']!);
       final ending = pick(tone['closings']!);
-      final wantsListening =
-          AcceptanceReplyMatcher.wantsListeningOnly(letterText);
+      final wantsListening = AcceptanceReplyMatcher.wantsListeningOnly(
+        letterText,
+      );
       final effectiveStyle = letterText.trim().isEmpty || wantsListening
           ? ReplyStyle.listen
           : style;
       final extra = switch (effectiveStyle) {
         ReplyStyle.listen => '',
-        ReplyStyle.reflect => pick(situation?.reflections ?? tone['reflections']!),
-        ReplyStyle.suggest => pick(situation?.suggestions ??
-            (toneName == 'neutral' && topic != 'general'
-                ? extraSuggestions[topic] ?? tone['suggestions']!
-                : tone['suggestions']!)),
+        ReplyStyle.reflect => pick(
+          situation?.reflections ?? tone['reflections']!,
+        ),
+        ReplyStyle.suggest => pick(
+          situation?.suggestions ??
+              (toneName == 'neutral' && topic != 'general'
+                  ? extraSuggestions[topic] ?? tone['suggestions']!
+                  : tone['suggestions']!),
+        ),
       };
       final parts = [opening, listening, if (extra.isNotEmpty) extra, ending];
       final body = parts.join('\n\n');
-      var score = recentTexts.take(20).any((old) => old.contains(body)) ? 100.0 : 0.0;
+      var score = recentTexts.take(20).any((old) => old.contains(body))
+          ? 100.0
+          : 0.0;
       for (var i = 0; i < recentParts.length && i < 20; i++) {
         final weight = 1.0 / (1 + i * .12);
         for (final part in parts) {
@@ -267,8 +299,12 @@ class PersonalReplyEngine {
           ending,
           '— $catName',
         ].join('\n\n');
-        best = PersonalReply(text, parts, topic,
-          situation: situation?.id ?? 'tone:$toneName');
+        best = PersonalReply(
+          text,
+          parts,
+          topic,
+          situation: situation?.id ?? 'tone:$toneName',
+        );
       }
     }
     // The 48 random attempts above independently draw each field from its
@@ -285,17 +321,20 @@ class PersonalReplyEngine {
       final openings = tone['openings']!;
       final listenings = situation?.listening ?? tone['listening']!;
       final endings = tone['closings']!;
-      final wantsListening = AcceptanceReplyMatcher.wantsListeningOnly(letterText);
+      final wantsListening = AcceptanceReplyMatcher.wantsListeningOnly(
+        letterText,
+      );
       final effectiveStyle = letterText.trim().isEmpty || wantsListening
           ? ReplyStyle.listen
           : style;
       final extras = switch (effectiveStyle) {
         ReplyStyle.listen => <String>[''],
         ReplyStyle.reflect => situation?.reflections ?? tone['reflections']!,
-        ReplyStyle.suggest => situation?.suggestions ??
-            (toneName == 'neutral' && topic != 'general'
-                ? extraSuggestions[topic] ?? tone['suggestions']!
-                : tone['suggestions']!),
+        ReplyStyle.suggest =>
+          situation?.suggestions ??
+              (toneName == 'neutral' && topic != 'general'
+                  ? extraSuggestions[topic] ?? tone['suggestions']!
+                  : tone['suggestions']!),
       };
       PersonalReply? fallback;
       var fallbackScore = double.infinity;
@@ -303,7 +342,12 @@ class PersonalReplyEngine {
         for (final listening in listenings) {
           for (final extra in extras) {
             for (final ending in endings) {
-              final parts = [opening, listening, if (extra.isNotEmpty) extra, ending];
+              final parts = [
+                opening,
+                listening,
+                if (extra.isNotEmpty) extra,
+                ending,
+              ];
               final text = [
                 opening,
                 listening,
@@ -326,8 +370,12 @@ class PersonalReplyEngine {
               }
               if (score < fallbackScore) {
                 fallbackScore = score;
-                fallback = PersonalReply(text, parts, topic,
-                  situation: situation?.id ?? 'tone:$toneName');
+                fallback = PersonalReply(
+                  text,
+                  parts,
+                  topic,
+                  situation: situation?.id ?? 'tone:$toneName',
+                );
               }
             }
           }
@@ -346,6 +394,7 @@ class PersonalReplyEngine {
   /// lib/data/replies/acceptance_reply_content.dart, per 02_적용_원칙.txt
   /// section 3 ("하나의 완성 답장을 선택한다... 조합하지 않는다").
   PersonalReply? _composeAcceptance({
+    required String? categoryId,
     required String letterText,
     required ReplyStyle style,
     required String catName,
@@ -356,7 +405,6 @@ class PersonalReplyEngine {
     required Set<String> avoidedSituations,
     required int repetitionWindow,
   }) {
-    final categoryId = AcceptanceReplyMatcher.detect(letterText);
     if (categoryId == null) return null;
     final situationId = 'accept:$categoryId';
     if (avoidedSituations.contains(situationId)) return null;
@@ -367,9 +415,7 @@ class PersonalReplyEngine {
     final reflectPool = category.reflectOptional.map((r) => r.text).toList();
     // "조언이나 질문을 원하지 않는 사용자에게는 제안하지 마": a listening-only
     // request drops the reflect_optional pool entirely, regardless of style.
-    final listeningOnly = AcceptanceReplyMatcher.wantsListeningOnly(
-      letterText,
-    );
+    final listeningOnly = AcceptanceReplyMatcher.wantsListeningOnly(letterText);
     // ReplyStyle.listen ("그냥 들어줘") never adds a reflection/suggestion extra
     // anywhere else in this engine (see the opening/listening/ending-only
     // path below for tone/situation replies); reflect_optional is this
@@ -391,12 +437,16 @@ class PersonalReplyEngine {
         .take(3)
         .expand((parts) => parts)
         .any(_allReflectOptionalTexts.contains);
-    final offerReflection = !listeningOnly &&
+    final offerReflection =
+        !listeningOnly &&
         !recentlyReflected &&
         style != ReplyStyle.listen &&
         reflectPool.isNotEmpty &&
         random.nextInt(4) == 0;
-    final candidates = <String>[...receivePool, if (offerReflection) ...reflectPool];
+    final candidates = <String>[
+      ...receivePool,
+      if (offerReflection) ...reflectPool,
+    ];
 
     // Same anti-repetition scoring shape as the ReplyIntent branch above:
     // prefer a candidate that hasn't appeared in recent parts/texts, then
@@ -419,10 +469,15 @@ class PersonalReplyEngine {
       return score;
     }
 
-    final fresh = candidates.where((candidate) =>
-        !cooldown.contains(candidate) &&
-        !recentTexts.take(repetitionWindow.clamp(3, 6))
-            .any((old) => old.contains(candidate))).toList();
+    final fresh = candidates
+        .where(
+          (candidate) =>
+              !cooldown.contains(candidate) &&
+              !recentTexts
+                  .take(repetitionWindow.clamp(3, 6))
+                  .any((old) => old.contains(candidate)),
+        )
+        .toList();
     final eligible = fresh.isEmpty ? candidates : fresh;
     final shuffled = List<String>.of(eligible)..shuffle(random);
     var selected = shuffled.first;

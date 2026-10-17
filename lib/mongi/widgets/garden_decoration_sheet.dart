@@ -1,4 +1,6 @@
 import '../../widgets/subscription_gate.dart';
+import '../../screens/account_screen.dart';
+import '../../services/subscription_service.dart';
 import '../../theme.dart' show AppColors;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -9,8 +11,9 @@ import '../providers/garden_provider.dart';
 
 /// "정원 꾸미기" 바텀시트 - [GardenDecoration.all]을 그대로 순회해서 그리므로
 /// 새 장식 아이템을 추가해도 이 화면 코드는 수정할 필요가 없다.
-/// - 무료 아이템: 마일스톤을 달성하면 잠금 해제 -> 탭해서 장착/해제
-/// - 프리미엄 아이템: 정원 장식팩을 구매하면 3종 모두 한 번에 잠금 해제
+/// - 기본 장식: 기록·명상으로 모은 빛의 정수 60개로 받아 배치한다.
+/// - 구독 장식: 구독 권한을 확인하고 받은 뒤 계속 소유한다.
+/// 이전에 획득하거나 잠금 해제한 장식은 그대로 사용할 수 있다.
 void showGardenDecorationSheet(BuildContext context) {
   showModalBottomSheet(
     context: context,
@@ -21,7 +24,12 @@ void showGardenDecorationSheet(BuildContext context) {
 }
 
 class GardenDecorationSheet extends StatefulWidget {
-  const GardenDecorationSheet({super.key});
+  const GardenDecorationSheet({
+    super.key,
+    this.ensureSignedIn = AccountScreen.ensureSignedIn,
+  });
+
+  final Future<bool> Function(BuildContext) ensureSignedIn;
 
   @override
   State<GardenDecorationSheet> createState() => _GardenDecorationSheetState();
@@ -30,42 +38,40 @@ class GardenDecorationSheet extends StatefulWidget {
 class _GardenDecorationSheetState extends State<GardenDecorationSheet> {
   bool _purchasing = false;
 
-  /// [GardenProvider]는 AppLocalizations에 의존하지 않으므로, 원시 상태를
-  /// 넘겨 다국어 진행 문구를 조립하는 것은 이 화면(UI 계층)의 책임이다.
-  String? _progressLabel(
-    AppLocalizations l10n,
-    GardenProvider garden,
-    GardenDecoration deco,
-  ) {
-    return garden_deco_l10n.decorationProgressLabel(
-      l10n,
-      decoration: deco,
-      isUnlocked: garden.isDecorationUnlocked(deco),
-      streakDays: garden.streakDays,
-      progress: garden.progress,
-      seedCounts: garden.seedCounts,
-    );
+  String _status(GardenProvider garden, GardenDecoration deco) {
+    if (garden.isDecorationUnlocked(deco)) {
+      return garden.isDecorationEquipped(deco)
+          ? '정원에 놓여 있어요 · 눌러서 보관'
+          : '사용할 수 있어요 · 눌러서 배치';
+    }
+    return deco.isPremium
+        ? '구독자를 위한 선물 · 한 번 받으면 계속 소유해요'
+        : '빛의 정수 60개 · 눌러서 받고 배치';
   }
 
   Future<void> _onTapDecoration(GardenDecoration deco) async {
-    final l10n = AppLocalizations.of(context);
+    if (_purchasing) return;
     final garden = context.read<GardenProvider>();
-    await garden.refreshSubscription();
-    if (!mounted) return;
-    if (garden.isDecorationUnlocked(deco)) {
-      await garden.toggleDecorationEquipped(deco);
-      return;
-    }
-    if (deco.isPremium) {
-      await _showPurchaseConfirm();
-    } else {
-      final progress = _progressLabel(l10n, garden, deco);
-      final hint = garden_deco_l10n.decorationUnlockHint(l10n, deco);
-      _showSnack(
-        progress == null
-            ? hint
-            : l10n.gardenDecoUnlockHintWithProgress(hint, progress),
-      );
+    setState(() => _purchasing = true);
+    try {
+      await garden.refreshSubscription();
+      if (!mounted) return;
+      if (garden.isDecorationUnlocked(deco)) {
+        await garden.toggleDecorationEquipped(deco);
+      } else if (deco.isPremium) {
+        await _showPurchaseConfirm();
+      } else {
+        await garden.obtainDecoration(deco);
+        if (mounted) _showSnack('${deco.label}을 정원에 놓았어요.');
+      }
+    } catch (error) {
+      if (mounted) {
+        _showSnack(
+          error is StateError ? error.message : '장식을 저장하지 못했어요. 다시 시도해 주세요.',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _purchasing = false);
     }
   }
 
@@ -76,13 +82,24 @@ class _GardenDecorationSheetState extends State<GardenDecorationSheet> {
   }
 
   Future<void> _onRestore() async {
-    final l10n = AppLocalizations.of(context);
+    if (_purchasing) return;
     final garden = context.read<GardenProvider>();
     setState(() => _purchasing = true);
-    await garden.restoreDecorationPackPurchase();
-    if (!mounted) return;
-    setState(() => _purchasing = false);
-    _showSnack(l10n.seasonPassRestoreConfirmedSnackbar);
+    try {
+      if (!await widget.ensureSignedIn(context) || !mounted) return;
+      final result = await garden.restoreDecorationPackPurchase();
+      if (mounted) _showSnack(result.message);
+    } catch (_) {
+      if (mounted) {
+        _showSnack(
+          const SubscriptionRestoreResult(
+            SubscriptionRestoreStatus.unavailable,
+          ).message,
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _purchasing = false);
+    }
   }
 
   void _showSnack(String message) {
@@ -127,9 +144,16 @@ class _GardenDecorationSheetState extends State<GardenDecorationSheet> {
                 ),
               ),
               const SizedBox(height: 4),
-              Text(
-                l10n.gardenDecoSheetSubtitle,
-                style: const TextStyle(fontSize: 12, color: AppColors.inkSoft),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Text(
+                  '빛의 정수 ${garden.lightEssence}개 · 기록이나 명상을 마치면 하루 한 번 20개를 받아요.',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.inkSoft,
+                  ),
+                ),
               ),
               const SizedBox(height: 16),
               Expanded(
@@ -137,13 +161,13 @@ class _GardenDecorationSheetState extends State<GardenDecorationSheet> {
                   controller: scrollController,
                   padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
                   children: [
-                    _sectionLabel(l10n.gardenDecoFreeSectionLabel),
+                    _sectionLabel('기본 장식 · 빛의 정수로 꾸미기'),
                     const SizedBox(height: 8),
                     ...GardenDecoration.all
                         .where((d) => !d.isPremium)
                         .map((d) => _decorationTile(garden, d, l10n)),
                     const SizedBox(height: 20),
-                    _sectionLabel(l10n.gardenDecoPremiumSectionLabel),
+                    _sectionLabel('구독자 정원 선물'),
                     const SizedBox(height: 8),
                     ...GardenDecoration.all
                         .where((d) => d.isPremium)
@@ -153,7 +177,7 @@ class _GardenDecorationSheetState extends State<GardenDecorationSheet> {
                       Center(
                         child: TextButton(
                           onPressed: _purchasing ? null : _onRestore,
-                          child: Text(l10n.gardenDecoRestoreButton),
+                          child: const Text('구독 복원하기'),
                         ),
                       ),
                     if (_purchasing) const SizedBox(height: 8),
@@ -189,7 +213,7 @@ class _GardenDecorationSheetState extends State<GardenDecorationSheet> {
       padding: const EdgeInsets.only(bottom: 10),
       child: InkWell(
         borderRadius: BorderRadius.circular(18),
-        onTap: () => _onTapDecoration(deco),
+        onTap: _purchasing ? null : () => _onTapDecoration(deco),
         child: Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
@@ -259,40 +283,12 @@ class _GardenDecorationSheetState extends State<GardenDecorationSheet> {
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      unlocked
-                          ? (equipped
-                                ? l10n.gardenDecoEquippedStatus
-                                : l10n.gardenDecoTapToPlaceStatus)
-                          : garden_deco_l10n.decorationUnlockHint(l10n, deco),
+                      _status(garden, deco),
                       style: const TextStyle(
                         fontSize: 11.5,
                         color: AppColors.inkSoft,
                       ),
                     ),
-                    if (!unlocked &&
-                        _progressLabel(l10n, garden, deco) != null) ...[
-                      const SizedBox(height: 4),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 3,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFFF3E9),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          l10n.gardenDecoProgressBadge(
-                            _progressLabel(l10n, garden, deco)!,
-                          ),
-                          style: const TextStyle(
-                            fontSize: 10.5,
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFFB26A00),
-                          ),
-                        ),
-                      ),
-                    ],
                   ],
                 ),
               ),
@@ -301,7 +297,9 @@ class _GardenDecorationSheetState extends State<GardenDecorationSheet> {
                     ? (equipped
                           ? Icons.check_circle
                           : Icons.radio_button_unchecked)
-                    : Icons.lock_outline,
+                    : (deco.isPremium
+                          ? Icons.lock_outline
+                          : Icons.add_circle_outline),
                 color: unlocked
                     ? const Color(0xFF7FB37A)
                     : Colors.grey.shade400,

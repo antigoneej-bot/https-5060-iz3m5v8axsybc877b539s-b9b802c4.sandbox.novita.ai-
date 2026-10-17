@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_app/services/reply_situation.dart';
 import 'package:flutter_app/services/personal_reply_engine.dart';
 import 'package:flutter_app/models/reply_style.dart';
+import 'package:flutter_app/data/replies/acceptance_reply_content.dart';
 
 void main() {
   test('past feelings and another person are not treated as current self', () {
@@ -34,7 +35,14 @@ void main() {
       style: ReplyStyle.listen,
       catName: '몽이',
     );
-    expect(reply.parts.any(s.listening.contains), isTrue);
+    expect(reply.situation, 'accept:21');
+    expect(reply.parts, hasLength(1));
+    expect(
+      acceptanceReplyContent['21']!.receive.map((r) => r.text),
+      contains(reply.parts.single),
+    );
+    expect(RegExp(r'기쁨|기쁘').hasMatch(reply.text), isTrue);
+    expect(reply.text, contains('불안'));
     expect(ReplySituation.detect('나는 기쁘지만 불안하지 않아.'), isNull);
     expect(ReplySituation.detect('친구가 기쁘지만 불안하대.'), isNull);
   });
@@ -45,10 +53,19 @@ void main() {
         final history = <List<String>>[];
         for (var i = 0; i < 12; i++) {
           final reply = PersonalReplyEngine(random: Random(i)).compose(
-            letterText: '나는 오늘 외로워.',
+            letterText: '상사가 칭찬했는데 부담스러워.',
             style: style,
             catName: '몽이',
             recentParts: history.reversed.toList(),
+          );
+          expect(reply.situation, 'praise_pressure');
+          expect(reply.parts, hasLength(4));
+          final situation = ReplySituation.detect('상사가 칭찬했는데 부담스러워.')!;
+          expect(
+            style == ReplyStyle.reflect
+                ? situation.reflections
+                : situation.suggestions,
+            contains(reply.parts[2]),
           );
           expect(
             history.reversed.take(3).map((p) => p[2]),

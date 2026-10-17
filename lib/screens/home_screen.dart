@@ -87,11 +87,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     // 다시 호출되지 않기 때문).
     if (state == AppLifecycleState.resumed) {
       _handleDeepLink();
-      unawaited(
-        NotificationService().restoreIfEnabled().catchError((Object _) {
-          // Consent and cancellation are retried on the next foreground event.
-        }),
-      );
     }
   }
 

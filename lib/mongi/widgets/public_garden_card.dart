@@ -1,4 +1,4 @@
-import 'garden_world_view.dart';
+import '../screens/garden_visit_screen.dart';
 import 'package:flutter/material.dart';
 
 import '../../theme.dart' show AppColors;
@@ -85,41 +85,21 @@ class PublicGardenCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          const Text(
-            '정원 모습만 함께 봐요 · 마음 기록은 비공개',
-            style: TextStyle(fontSize: 12, color: AppColors.inkSoft),
-          ),
           const SizedBox(height: 12),
-          if (garden.layout != null)
-            OutlinedButton.icon(
-              icon: const Icon(Icons.landscape_outlined),
-              label: const Text('이 정원 산책하기'),
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => Scaffold(
-                    appBar: AppBar(
-                      title: Text('${garden.nickname ?? "이웃"}의 정원'),
-                    ),
-                    body: GardenWorldView(
-                      readOnly: true,
-                      publicMemoryStage: garden.memoryTreeStage,
-                      publicCheerBed: garden.hasCheerFlowers,
-                      reactions: garden.reactions,
-                      flowerKinds: garden.flowerKinds,
-                      layout: garden.layout!,
-                      seeds: garden.seedCounts,
-                      decorations: garden.equippedDecorationIds,
-                      onMove: (_, _) async {},
-                      onMemory: (_) {},
-                      onPlant: () {},
-                      onDecorate: () {},
-                    ),
-                  ),
+          OutlinedButton.icon(
+            icon: const Icon(Icons.landscape_outlined),
+            label: const Text('이 정원 방문하기'),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => GardenVisitScreen(
+                  gardenId: garden.gardenId,
+                  nickname: garden.nickname,
                 ),
               ),
             ),
-          if (garden.treeStageIndex >= 0)
+          ),
+          if (garden.treeStageIndex >= 0 &&
+              garden.treeStageIndex < TreeGrowth.stageAssets.length)
             Row(
               children: [
                 Image.asset(
@@ -172,30 +152,32 @@ class PublicGardenCard extends StatelessWidget {
                   .toList(),
             ),
           ],
-          const SizedBox(height: 14),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: alreadyCheeredToday ? null : onCheer,
-              icon: const Text('💌', style: TextStyle(fontSize: 14)),
-              label: Text(
-                alreadyCheeredToday
-                    ? l10n.publicGardenCheerAlreadySentToday
-                    : l10n.publicGardenCheerButton,
-                style: const TextStyle(fontWeight: FontWeight.w800),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFB1466E),
-                foregroundColor: Colors.white,
-                disabledBackgroundColor: const Color(0xFFE6DDD6),
-                disabledForegroundColor: const Color(0xFF9C8F84),
-                padding: const EdgeInsets.symmetric(vertical: 11),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+          if (onCheer != null) ...[
+            const SizedBox(height: 14),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: alreadyCheeredToday ? null : onCheer,
+                icon: const Text('💌', style: TextStyle(fontSize: 14)),
+                label: Text(
+                  alreadyCheeredToday
+                      ? l10n.publicGardenCheerAlreadySentToday
+                      : l10n.publicGardenCheerButton,
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFB1466E),
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor: const Color(0xFFE6DDD6),
+                  disabledForegroundColor: const Color(0xFF9C8F84),
+                  padding: const EdgeInsets.symmetric(vertical: 11),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
               ),
             ),
-          ),
+          ],
         ],
       ),
     );

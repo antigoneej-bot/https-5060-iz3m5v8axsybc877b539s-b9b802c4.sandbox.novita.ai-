@@ -62,7 +62,6 @@ void main() {
                   key: ValueKey(scenario),
                   onWrite: () => tapped.add('write'),
                   onRest: () => tapped.add('rest'),
-                  onRun: () => tapped.add('run'),
                   onGarden: () => tapped.add('garden'),
                 ),
               ),
@@ -86,12 +85,13 @@ void main() {
         ).writeAsBytes(bytes!.buffer.asUint8List());
         img.dispose();
       });
-      for (final label in ['편지 쓰기', '조용히 쉬기', '몽이와 달리기', '내 정원으로 가기']) {
+      expect(find.text('몽이와 달리기'), findsNothing);
+      for (final label in ['편지 쓰기', '조용히 쉬기', '내 정원으로 가기']) {
         await tester.ensureVisible(find.text(label));
         await tester.tap(find.text(label));
         await tester.pumpAndSettle();
       }
-      expect(tapped, ['write', 'rest', 'run', 'garden']);
+      expect(tapped, ['write', 'rest', 'garden']);
       expect(tester.takeException(), isNull, reason: '$scenario actions');
     }
     await tester.pumpWidget(const SizedBox());

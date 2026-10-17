@@ -1,10 +1,5 @@
 // ignore_for_file: invalid_use_of_visible_for_testing_member
-import 'package:flame/flame.dart';
-import 'package:flutter_app/mongi/screens/runner_game_screen.dart';
-import 'package:flutter_app/mongi/screens/onboarding_screen.dart';
-import 'package:flutter_app/mongi/screens/season_pass_screen.dart';
 import 'package:flutter_app/mongi/screens/mood_trend_screen.dart';
-import 'package:flutter_app/mongi/models/emotion.dart';
 import 'package:flutter_app/mongi/services/sound_manager.dart';
 import 'package:flutter_app/screens/cat_shop_screen.dart';
 import 'package:flutter_app/screens/emotion_statistics_screen.dart';
@@ -28,7 +23,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_app/theme.dart';
 import 'package:flutter_app/mongi/providers/garden_provider.dart';
 import 'package:flutter_app/mongi/l10n/gen/app_localizations.dart';
-import 'package:flutter_app/mongi/screens/shop_screen.dart';
 import 'package:flutter_app/mongi/screens/settings_screen.dart';
 import 'package:flutter_app/mongi/screens/diary_screen.dart';
 import 'package:flutter_app/mongi/screens/mind_report_screen.dart';
@@ -44,7 +38,6 @@ void main() {
     GlobalAudioplayersPlatformInterface.instance =
         FakeGlobalAudioplayersPlatform();
     SharedPreferences.setMockInitialValues({});
-    Flame.images.prefix = 'assets/mongi/images/';
     SoundManager.instance.setEnabled(false);
     await tester.runAsync(() async {
       for (final entry in {
@@ -86,13 +79,6 @@ void main() {
     addTearDown(care.dispose);
     addTearDown(garden.dispose);
     final pages = <String, Widget>{
-      'mongi-runner': RunnerGameScreen(
-        emotions: [Emotion.all.first],
-        targetName: null,
-        practice: true,
-      ),
-      'mongi-onboarding': const OnboardingScreen(isReplay: true),
-      'mongi-season': const SeasonPassScreen(),
       'mongi-trends': const MoodTrendScreen(),
       'garden-statistics': const EmotionStatisticsScreen(),
       'garden-shop': const Scaffold(
@@ -101,7 +87,6 @@ void main() {
           child: CatShopScreen(),
         ),
       ),
-      'mongi-shop': const ShopScreen(),
       'mongi-settings': const SettingsScreen(),
       'mongi-diary': const DiaryScreen(),
       'mongi-report': const MindReportScreen(),

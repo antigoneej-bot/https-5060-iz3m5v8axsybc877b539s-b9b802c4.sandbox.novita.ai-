@@ -15,6 +15,11 @@ void main() {
     ]);
     expect(gardenMoments[1].isAvailable(empty, 1), isTrue);
     expect(gardenMoments[2].isAvailable(empty.copy(stage: 2), 0), isTrue);
+    final cared = empty.claimCareDay(DateTime(2026, 10, 16));
+    expect(cared.stage, 1);
+    expect(gardenMoments[2].isAvailable(cared, 0), isTrue);
+    expect(cared.seedTokens, 1);
+    expect(cared.essence, 20);
     expect(gardenMoments[3].isAvailable(empty.copy(seedTokens: 5), 0), isFalse);
     expect(
       gardenMoments[3].isAvailable(empty.copy(seeds: {'pine': 1}), 0),

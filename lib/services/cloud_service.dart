@@ -1,14 +1,33 @@
 import 'dart:convert';
 import 'dart:math';
-import '../mongi/models/public_garden_status.dart';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:cryptography/cryptography.dart';
+import 'account_identity_policy.dart';
+import '../mongi/models/public_garden_status.dart';
+import '../mongi/models/garden_village.dart';
 
 class CloudService {
+  static User? get currentUser =>
+      Firebase.apps.isEmpty ? null : FirebaseAuth.instance.currentUser;
+
+  static Future<bool> hasTrustedAccount([User? account]) async {
+    final user = account ?? currentUser;
+    if (user == null || user.isAnonymous) return false;
+    final token = await user.getIdTokenResult();
+    if (currentUser?.uid != user.uid) return false;
+    return AccountIdentityPolicy.isTrusted(
+      isAnonymous: user.isAnonymous,
+      emailVerified: user.emailVerified,
+      signInProvider: token.signInProvider,
+      claims: token.claims,
+    );
+  }
+
   static final entitlementChanges = ValueNotifier<int>(0);
   static const endpoint = String.fromEnvironment('GARDEN_BACKEND_URL');
   static bool get enabled {
@@ -25,8 +44,13 @@ class CloudService {
     final uri = Uri.tryParse(endpoint);
     if (uri == null || uri.scheme != 'https')
       throw StateError('서버 연결 준비가 필요해요.');
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) throw StateError('먼저 로그인해 주세요.');
+    final user = currentUser;
+    final deletingOwnAccount =
+        action == 'deleteCloudAccount' && user != null && !user.isAnonymous;
+    if (user == null ||
+        (!deletingOwnAccount && !await hasTrustedAccount(user))) {
+      throw const CloudException('authentication-required');
+    }
     if (expectedUid != null && user.uid != expectedUid)
       throw const CloudException('account-changed');
     if ({'backup', 'listBackups', 'downloadBackup'}.contains(action))
@@ -35,7 +59,7 @@ class CloudService {
     final appCheck = await FirebaseAppCheck.instance.getToken();
     if (token == null || appCheck == null)
       throw StateError('로그인 상태를 다시 확인해 주세요.');
-    if (FirebaseAuth.instance.currentUser?.uid != user.uid)
+    if (currentUser?.uid != user.uid)
       throw const CloudException('account-changed');
     final response = await http
         .post(
@@ -48,7 +72,7 @@ class CloudService {
           body: jsonEncode({'action': action, ...params}),
         )
         .timeout(const Duration(seconds: 50));
-    if (FirebaseAuth.instance.currentUser?.uid != user.uid)
+    if (currentUser?.uid != user.uid)
       throw const CloudException('account-changed');
     if (response.statusCode != 200) {
       dynamic body;
@@ -70,28 +94,76 @@ class CloudService {
     final owner = await _secure.read(key: 'garden_cloud_owner');
     if (owner != null && owner != uid)
       throw const CloudException('garden-owner-mismatch');
-    if (FirebaseAuth.instance.currentUser?.uid != uid)
-      throw const CloudException('account-changed');
+    if (currentUser?.uid != uid) throw const CloudException('account-changed');
     if (bind && owner == null)
       await _secure.write(key: 'garden_cloud_owner', value: uid);
+  }
+
+  /// The backend's account lease rejects a busy request before its action
+  /// starts. Retry only that explicit rejection, never an uncertain timeout or
+  /// connection failure. Every attempt and result stays bound to its owner.
+  static Future<T> retryAccountBusy<T>({
+    required String owner,
+    required Future<T> Function() action,
+    String? Function()? currentOwner,
+    Future<void> Function(Duration)? wait,
+  }) async {
+    final readOwner = currentOwner ?? () => currentUser?.uid;
+    final delay = wait ?? (Duration duration) => Future<void>.delayed(duration);
+    const delays = [200, 500, 1000];
+    for (var attempt = 0; ; attempt++) {
+      if (readOwner() != owner) throw const CloudException('account-changed');
+      try {
+        final result = await action();
+        if (readOwner() != owner) throw const CloudException('account-changed');
+        return result;
+      } on CloudException catch (error) {
+        if (error.code != 'account-busy' || attempt >= delays.length) {
+          rethrow;
+        }
+        await delay(Duration(milliseconds: delays[attempt]));
+      }
+    }
+  }
+
+  static Future<Map<String, dynamic>> _gardenCall(
+    String action, [
+    Map<String, dynamic> params = const {},
+    String? expectedUid,
+  ]) async {
+    final owner = expectedUid ?? currentUser?.uid;
+    if (owner == null) throw const CloudException('authentication-required');
+    return retryAccountBusy(
+      owner: owner,
+      action: () => call(action, params, owner),
+    );
   }
 
   static Future<void> clearGardenOwner() =>
       _secure.delete(key: 'garden_cloud_owner');
   static Future<String> accountId() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null || !user.emailVerified)
-      throw StateError('이메일 인증 후 구매해 주세요.');
+    final user = currentUser;
+    if (user == null || !await hasTrustedAccount(user))
+      throw const CloudException('authentication-required');
     final hash = await Sha256().hash(utf8.encode(user.uid));
+    if (currentUser?.uid != user.uid)
+      throw const CloudException('account-changed');
     return hash.bytes
         .map((byte) => byte.toRadixString(16).padLeft(2, '0'))
         .join();
   }
 
   static Future<Map<String, dynamic>> verify(String token) async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    final result = await call('verify', {'token': token});
-    if (uid != null && FirebaseAuth.instance.currentUser?.uid == uid) {
+    final uid = currentUser?.uid;
+    if (uid == null) throw const CloudException('authentication-required');
+    // Play's purchase callback may arrive while the app-resume status request
+    // holds the account lease. Only a confirmed pre-action busy rejection is
+    // safe to retry; never start another purchase or replay a timed-out request.
+    final result = await retryAccountBusy(
+      owner: uid,
+      action: () => call('verify', {'token': token}, uid),
+    );
+    if (currentUser?.uid == uid) {
       await _secure.write(key: 'entitlement_$uid', value: jsonEncode(result));
       entitlementChanges.value++;
     }
@@ -99,9 +171,13 @@ class CloudService {
   }
 
   static Future<Map<String, dynamic>> refreshEntitlement() async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    final result = await call('status');
-    if (uid != null && FirebaseAuth.instance.currentUser?.uid == uid) {
+    final uid = currentUser?.uid;
+    if (uid == null) throw const CloudException('authentication-required');
+    final result = await retryAccountBusy(
+      owner: uid,
+      action: () => call('status', const {}, uid),
+    );
+    if (currentUser?.uid == uid) {
       await _secure.write(key: 'entitlement_$uid', value: jsonEncode(result));
       entitlementChanges.value++;
     }
@@ -110,9 +186,10 @@ class CloudService {
 
   static Future<String> subscriptionStatusLabel() async {
     if (!enabled) return '무료 이용 중';
-    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final uid = currentUser?.uid;
     if (uid == null) return '무료 이용 중';
     final raw = await _secure.read(key: 'entitlement_$uid');
+    if (currentUser?.uid != uid) return '무료 이용 중';
     if (raw == null) return '무료 이용 중';
     try {
       final record = jsonDecode(raw) as Map;
@@ -139,7 +216,7 @@ class CloudService {
   static Future<PublicGardenStatusSnapshot> getMyPublicGardenStatus({
     required String owner,
   }) async => PublicGardenStatusSnapshot.fromJson(
-    await call('getMyPublicGardenStatus', const {}, owner),
+    await _gardenCall('getMyPublicGardenStatus', const {}, owner),
   );
 
   /// 씨앗·장식·성장 단계만 공개한다. 개인 기록은 서버 스키마에서 거부한다.
@@ -153,8 +230,13 @@ class CloudService {
     bool hasCheerFlowers = false,
     List<String> flowerKinds = const [],
     String? nickname,
+    GardenVisibility? visibility,
+    bool? discoveryOptIn,
+    bool? receiveGifts,
+    bool appearanceOnly = false,
   }) async {
-    final result = await call('publishGarden', {
+    final result = await _gardenCall('publishGarden', {
+      if (appearanceOnly) 'appearanceOnly': true,
       'snapshot': {
         if (layout != null) 'layout': layout,
         'seedCounts': seedCounts,
@@ -165,6 +247,9 @@ class CloudService {
         'flowerKinds': flowerKinds,
       },
       if (nickname != null) 'nickname': nickname,
+      if (visibility != null) 'visibility': visibility.name,
+      if (discoveryOptIn != null) 'discoveryOptIn': discoveryOptIn,
+      if (receiveGifts != null) 'receiveGifts': receiveGifts,
     }, owner);
     return PublicGardenStatusSnapshot.fromJson(result);
   }
@@ -173,13 +258,13 @@ class CloudService {
   static Future<PublicGardenStatusSnapshot> unpublishGarden({
     required String owner,
   }) async => PublicGardenStatusSnapshot.fromJson(
-    await call('unpublishGarden', const {}, owner),
+    await _gardenCall('unpublishGarden', const {}, owner),
   );
 
   /// 다른 사람들이 공개한 정원을 무작위 순서로 가져온다(인기순/최신순
   /// 정렬 없음 - 순서 자체가 매번 새로 섞인다).
   static Future<List<Map<String, dynamic>>> listPublicGardens() async {
-    final result = await call('listPublicGardens');
+    final result = await _gardenCall('listPublicGardens');
     final gardens = result['gardens'];
     if (gardens is! List) return [];
     return gardens.map((e) => Map<String, dynamic>.from(e as Map)).toList();
@@ -193,17 +278,49 @@ class CloudService {
     int giftLightEssence = 0,
     String flowerKind = 'daisy',
     String? reaction,
-  }) => call('sendPublicCheer', {
+    String deliveryKind = 'gift',
+    String? owner,
+  }) => _gardenCall('sendPublicCheer', {
     'gardenId': gardenId,
     'messageIndex': messageIndex,
-    'flowerKind': flowerKind,
+    'flowerKind': deliveryKind == 'cheer' ? null : flowerKind,
     'reaction': reaction,
     'giftLightEssence': giftLightEssence,
-  });
+    'deliveryKind': deliveryKind,
+  }, owner);
+
+  static Future<ReceivedCheerBatch> listMyCheersBatch({
+    required String owner,
+    String? cursor,
+    int pageSize = 30,
+  }) async => ReceivedCheerBatch.fromJson(
+    await _gardenCall('listMyCheers', {
+      if (cursor != null) 'cursor': cursor,
+      'pageSize': pageSize,
+    }, owner),
+  );
+
+  /// The gift is server-owned. Local currency or seed counts cannot authorize
+  /// this transfer. Reusing requestId retries the same atomic operation.
+  static Future<void> sendGardenGift({
+    required String owner,
+    required String gardenId,
+    required String sourceCheerId,
+    required String requestId,
+  }) async {
+    final result = await _gardenCall('sendGardenGift', {
+      'gardenId': gardenId,
+      'sourceCheerId': sourceCheerId,
+      'requestId': requestId,
+    }, owner);
+    if (result['sent'] != true || result['sourceCheerId'] != sourceCheerId) {
+      throw const CloudException('invalid-delivery-receipt');
+    }
+  }
 
   /// 내가 아직 확인하지 않은(claim하지 않은) 받은 응원 목록.
   static Future<List<Map<String, dynamic>>> listMyCheers() async {
-    final result = await call('listMyCheers');
+    final result = await _gardenCall('listMyCheers');
     final cheers = result['cheers'];
     if (cheers is! List) return [];
     return cheers.map((e) => Map<String, dynamic>.from(e as Map)).toList();
@@ -211,16 +328,20 @@ class CloudService {
 
   /// 받은 응원 하나를 확인 처리하고, 함께 온 빛의 정수 선물을 수령한다.
   /// 이미 확인한 응원이면 서버가 0을 돌려준다(중복 지급 방지).
-  static Future<void> confirmFlowerPlanted(String id, String flowerKind) async {
-    final result = await call('confirmFlowerPlanted', {
+  static Future<void> confirmFlowerPlanted(
+    String id,
+    String flowerKind, {
+    String? owner,
+  }) async {
+    final result = await _gardenCall('confirmFlowerPlanted', {
       'id': id,
       'flowerKind': flowerKind,
-    });
+    }, owner);
     if (result['confirmed'] != true) throw StateError('꽃 소식을 확인하지 못했어요.');
   }
 
   static Future<List<Map<String, dynamic>>> listFlowerBlooms() async {
-    final result = await call('listFlowerBlooms');
+    final result = await _gardenCall('listFlowerBlooms');
     return (result['blooms'] as List? ?? [])
         .map((e) => Map<String, dynamic>.from(e as Map))
         .toList();
@@ -255,7 +376,7 @@ class CloudService {
     required String owner,
     required String deviceId,
   }) async {
-    final result = await call('claimCheerV2', {
+    final result = await _gardenCall('claimCheerV2', {
       'id': id,
       'deviceId': deviceId,
     }, owner);
@@ -280,7 +401,7 @@ class CloudService {
     required String owner,
     required String deviceId,
   }) async {
-    final result = await call('ackCheer', {
+    final result = await _gardenCall('ackCheer', {
       'id': id,
       'receipt': receipt,
       'deviceId': deviceId,
@@ -359,9 +480,10 @@ class CloudService {
   }
 
   static Future<bool> cachedPremium() async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final uid = currentUser?.uid;
     if (uid == null) return false;
     final raw = await _secure.read(key: 'entitlement_$uid');
+    if (currentUser?.uid != uid) return false;
     if (raw == null) return false;
     try {
       final result = jsonDecode(raw);
@@ -405,6 +527,26 @@ class CloudException implements Exception {
     'cheer-already-sent-today' => '이 정원에는 오늘 이미 응원을 보냈어요. 내일 다시 전해주세요.',
     'garden-not-found' => '정원을 찾을 수 없어요. 방금 전 다른 분이 공개를 멈췄을 수 있어요.',
     'cannot-cheer-self' => '내 정원에는 응원을 보낼 수 없어요.',
+    'invalid-invite-code' => '초대 코드를 다시 확인해 주세요.',
+    'invalid-profile' => '정원 이름과 공개 설정을 다시 확인해 주세요.',
+    'neighbor-request-not-found' => '이웃 신청이 달라졌어요. 목록을 새로고침해 주세요.',
+    'neighbor-required' => '서로 이웃이 된 뒤 꽃을 선물할 수 있어요.',
+    'already-neighbors' => '이미 연결된 이웃이에요.',
+    'request-already-sent' => '이미 이웃 신청을 보냈어요. 잠시 기다려 주세요.',
+    'cannot-neighbor-self' => '내 초대 코드예요. 이웃의 코드를 입력해 주세요.',
+    'blocked-user' => '이 정원과는 지금 연결할 수 없어요.',
+    'gifts-disabled' => '이 이웃은 지금 선물을 받지 않고 있어요.',
+    'cheer-transferred' => '이미 다른 이웃에게 보낸 꽃이에요. 목록을 새로고침해 주세요.',
+    'gift-not-available' => '지금 선물할 수 없는 꽃이에요. 목록을 새로고침해 주세요.',
+    'gift-already-planted' => '이미 심은 꽃은 선물할 수 없어요.',
+    'flower-already-planted' => '이미 심은 꽃은 선물할 수 없어요.',
+    'invalid-garden-gift' => '보낼 응원이나 꽃을 다시 선택해 주세요.',
+    'invalid-bloom' => '이 꽃의 심기 정보를 확인하지 못했어요. 목록을 새로고침해 주세요.',
+    'request-conflict' => '이 선물의 전송 정보가 달라졌어요. 목록을 다시 열어 주세요.',
+    'invalid-target' => '연결할 이웃을 다시 선택해 주세요.',
+    'invalid-message' => '응원 문구를 다시 선택해 주세요.',
+    'invalid-report' => '신고 사유를 다시 선택해 주세요.',
+    'unknown-action' => '냥이 마을 서버 업데이트가 필요해요. 잠시 후 다시 이용해 주세요.',
     'invalid-snapshot' => '정원 정보를 공개하는 데 문제가 있었어요. 잠시 후 다시 시도해 주세요.',
     'admin-required' => '관리자 계정만 할 수 있어요.',
     'invalid-news' => '소식 내용을 다시 확인해 주세요.',

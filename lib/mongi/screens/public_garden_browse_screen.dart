@@ -1,223 +1,259 @@
-import '../widgets/garden_cheer_composer.dart';
-import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'dart:async';
 
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+
+import '../../services/garden_village_service.dart';
+import '../../services/social_auth_service.dart';
 import '../../theme.dart' show AppColors;
-import '../l10n/gen/app_localizations.dart';
+import '../../widgets/account_entry_card.dart';
 import '../models/public_garden.dart';
-import '../providers/garden_provider.dart';
 import '../widgets/public_garden_card.dart';
 
-/// "다른 정원 둘러보기" - 다른 사람들이 공개한 정원을 무작위 순서로
-/// 구경하고, 큐레이션된 문구로 응원을 보내는 화면.
-///
-/// [설계 원칙]
-/// - 방문자는 다른 사람의 정원을 읽기전용으로만 본다 - 배치를 바꾸거나
-///   반출(복사/가져오기)할 수 있는 조작은 이 화면에 애초에 없다.
-/// - 정원들은 서버가 요청마다 새로 무작위 샘플링한 순서로 온다 - "인기순",
-///   "응원 많이 받은 순" 같은 정렬은 절대 만들지 않는다.
-/// - 응원을 보냈다고 상대에게 "답장하라"는 알림/배지를 만들지 않는다(답례
-///   강요 금지). 보내는 쪽도 하루 한 번(서버가 강제)만 보낼 수 있다.
 class PublicGardenBrowseScreen extends StatefulWidget {
-  const PublicGardenBrowseScreen({super.key});
-
+  const PublicGardenBrowseScreen({
+    super.key,
+    this.embedded = false,
+    this.service,
+    this.accountReady,
+    this.currentAccount,
+    this.accountChanges,
+  });
+  final bool embedded;
+  final GardenVillageService? service;
+  final Future<bool> Function()? accountReady;
+  final String? Function()? currentAccount;
+  final Stream<String?>? accountChanges;
   @override
   State<PublicGardenBrowseScreen> createState() =>
       _PublicGardenBrowseScreenState();
 }
 
 class _PublicGardenBrowseScreenState extends State<PublicGardenBrowseScreen> {
-  bool _loading = true;
-  String? _error;
+  late GardenVillageService _service;
+  StreamSubscription<String?>? _auth;
+  bool _loading = true, _needsAccount = false, _loadingMore = false;
+  String? _error, _pageError, _owner, _nextCursor;
+  int _request = 0;
   List<PublicGarden> _gardens = const [];
-  final Set<String> _cheeredThisVisit = {};
-  final Set<String> _sending = {};
-  bool _composing = false;
+
+  String? get _currentOwner => widget.currentAccount != null
+      ? widget.currentAccount!()
+      : widget.service?.accountOwner ?? SocialAuthService.currentUser?.uid;
 
   @override
   void initState() {
     super.initState();
+    _service = widget.service ?? GardenVillageService();
+    _owner = _currentOwner;
+    final changes =
+        widget.accountChanges ??
+        (SocialAuthService.firebaseReady
+            ? FirebaseAuth.instance.authStateChanges().map((user) => user?.uid)
+            : null);
+    _auth = changes?.listen((owner) {
+      if (!mounted || owner == _owner) return;
+      _owner = owner;
+      _request++;
+      _service = widget.service ?? GardenVillageService();
+      setState(() {
+        _gardens = const [];
+        _nextCursor = null;
+        _pageError = null;
+      });
+      _load();
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) => _load());
   }
 
+  @override
+  void dispose() {
+    _request++;
+    _auth?.cancel();
+    super.dispose();
+  }
+
+  bool _isCurrent(int request, String? owner) =>
+      mounted && request == _request && owner == _currentOwner;
+
   Future<void> _load() async {
+    if (!mounted) return;
+    final request = ++_request;
+    final owner = _currentOwner;
     setState(() {
       _loading = true;
+      _loadingMore = false;
+      _needsAccount = false;
       _error = null;
+      _pageError = null;
     });
     try {
-      final garden = context.read<GardenProvider>();
-      final gardens = await garden.loadPublicGardens();
-      if (!mounted) return;
+      final ready =
+          await (widget.accountReady?.call() ??
+              SocialAuthService.isAccountReady());
+      if (!_isCurrent(request, owner)) return;
+      if (!ready) {
+        setState(() {
+          _needsAccount = true;
+          _loading = false;
+          _gardens = const [];
+          _nextCursor = null;
+        });
+        return;
+      }
+      final page = await _service.listPublicGardensPage();
+      if (!_isCurrent(request, owner)) return;
       setState(() {
-        _gardens = gardens;
+        _gardens = {
+          for (final garden in page.gardens) garden.gardenId: garden,
+        }.values.toList();
+        _nextCursor = page.nextCursor;
         _loading = false;
       });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _error = e.toString();
-        _loading = false;
-      });
+    } catch (error) {
+      if (_isCurrent(request, owner)) {
+        setState(() {
+          _error = error.toString();
+          _loading = false;
+        });
+      }
     }
   }
 
-  Future<void> _openCheerDialog(PublicGarden target) async {
-    if (_composing ||
-        _sending.contains(target.gardenId) ||
-        _cheeredThisVisit.contains(target.gardenId))
-      return;
-    _composing = true;
+  Future<void> _loadMore() async {
+    final cursor = _nextCursor;
+    if (_loading || _loadingMore || cursor == null) return;
+    final request = _request;
+    final owner = _currentOwner;
+    setState(() {
+      _loadingMore = true;
+      _pageError = null;
+    });
     try {
-      final picked = await composeGardenCheer(context);
-      if (picked == null || !mounted) return;
-      await _sendCheer(
-        target,
-        picked.message,
-        flowerKind: picked.flower,
-        reaction: picked.reaction,
-      );
+      final page = await _service.listPublicGardensPage(cursor: cursor);
+      if (!_isCurrent(request, owner)) return;
+      if (page.nextCursor == cursor) {
+        throw const FormatException('다음 정원을 불러오지 못했어요. 다시 시도해 주세요.');
+      }
+      setState(() {
+        _gardens = {
+          for (final garden in _gardens) garden.gardenId: garden,
+          for (final garden in page.gardens) garden.gardenId: garden,
+        }.values.toList();
+        _nextCursor = page.nextCursor;
+      });
+    } catch (error) {
+      if (_isCurrent(request, owner)) {
+        setState(() => _pageError = error.toString());
+      }
     } finally {
-      _composing = false;
-    }
-  }
-
-  Future<void> _sendCheer(
-    PublicGarden target,
-    int messageIndex, {
-    String flowerKind = 'daisy',
-    String? reaction,
-  }) async {
-    if (_sending.contains(target.gardenId)) return;
-    setState(() => _sending.add(target.gardenId));
-    final l10n = AppLocalizations.of(context);
-    final garden = context.read<GardenProvider>();
-    try {
-      await garden.sendPublicCheer(
-        gardenId: target.gardenId,
-        messageIndex: messageIndex,
-        flowerKind: flowerKind,
-        reaction: reaction,
-      );
-      if (!mounted) return;
-      setState(() => _cheeredThisVisit.add(target.gardenId));
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(l10n.publicGardenCheerSentSnackbar),
-          duration: const Duration(seconds: 2),
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('응원을 보내지 못했어요. 연결과 오늘 보낸 응원을 확인해 주세요.')),
-      );
-    } finally {
-      if (mounted) setState(() => _sending.remove(target.gardenId));
+      if (_isCurrent(request, owner)) setState(() => _loadingMore = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    return Scaffold(
-      backgroundColor: AppColors.bg0,
-      appBar: AppBar(
-        backgroundColor: AppColors.bg0,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.ink),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: Text(
-          l10n.publicGardenBrowseTitle,
-          style: const TextStyle(
-            color: AppColors.ink,
-            fontWeight: FontWeight.w800,
-            fontSize: 16,
-          ),
-        ),
-        centerTitle: true,
-      ),
-      body: RefreshIndicator(onRefresh: _load, child: _buildBody(l10n)),
-    );
+    final content = RefreshIndicator(onRefresh: _load, child: _body());
+    return widget.embedded
+        ? content
+        : Scaffold(
+            backgroundColor: AppColors.bg0,
+            appBar: AppBar(
+              title: const Text('정원 둘러보기'),
+              backgroundColor: AppColors.bg0,
+            ),
+            body: content,
+          );
   }
 
-  Widget _buildBody(AppLocalizations l10n) {
-    if (_loading) {
+  Widget _body() {
+    if (_loading && _gardens.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }
-    if (_error != null) {
+    if (_needsAccount) {
       return ListView(
+        padding: const EdgeInsets.all(20),
         children: [
-          const SizedBox(height: 80),
-          Icon(Icons.error_outline, size: 40, color: Colors.grey.shade400),
+          const Text('로그인하면 이웃의 정원에 방문하고 응원을 남길 수 있어요.'),
           const SizedBox(height: 12),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Text(
-              _error!,
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: AppColors.inkSoft),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Center(
-            child: ElevatedButton(onPressed: _load, child: const Text('다시 시도')),
+          AccountEntryCard(
+            onChanged: () async {
+              _service = widget.service ?? GardenVillageService();
+              await _load();
+            },
           ),
         ],
       );
     }
+    if (_error != null && _gardens.isEmpty) {
+      return ListView(
+        padding: const EdgeInsets.all(24),
+        children: [
+          const Icon(Icons.cloud_off_outlined, size: 40),
+          const SizedBox(height: 16),
+          Text(_error!, textAlign: TextAlign.center),
+          const SizedBox(height: 16),
+          OutlinedButton(onPressed: _load, child: const Text('다시 연결하기')),
+        ],
+      );
+    }
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
       children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          decoration: BoxDecoration(
-            color: AppColors.catSageBg,
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('🌍', style: TextStyle(fontSize: 18)),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  l10n.publicGardenBrowseNotice,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFF8A7F76),
-                    height: 1.4,
-                  ),
-                ),
-              ),
-            ],
+        if (_loading) const LinearProgressIndicator(),
+        if (_error != null) ...[
+          Text(_error!),
+          TextButton(onPressed: _load, child: const Text('새로고침 다시 시도')),
+        ],
+        const Card(
+          child: Padding(
+            padding: EdgeInsets.all(16),
+            child: Text(
+              '둘러보기에 동의한 정원만 보여요. 마음에 드는 정원에 방문해 응원을 남기거나 이웃을 신청해 보세요. 인기 순위는 없어요.',
+              style: TextStyle(height: 1.5),
+            ),
           ),
         ),
-        const SizedBox(height: 16),
-        if (_gardens.isEmpty)
-          Padding(
-            padding: const EdgeInsets.only(top: 60),
-            child: Center(
-              child: Text(
-                l10n.publicGardenBrowseEmpty,
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: AppColors.inkSoft),
-              ),
+        const SizedBox(height: 12),
+        if (_gardens.isEmpty && _nextCursor == null)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 40),
+            child: Text(
+              '지금 둘러볼 수 있는 정원이 없어요.\n내 이웃에서 친구 코드로 연결할 수도 있어요.',
+              textAlign: TextAlign.center,
+              style: TextStyle(height: 1.6),
             ),
-          )
-        else
-          ..._gardens.map(
-            (g) => Padding(
-              padding: const EdgeInsets.only(bottom: 14),
-              child: PublicGardenCard(
-                garden: g,
-                alreadyCheeredToday: _cheeredThisVisit.contains(g.gardenId),
-                onCheer: _sending.contains(g.gardenId)
-                    ? null
-                    : () => _openCheerDialog(g),
-              ),
+          ),
+        if (_gardens.isEmpty && _nextCursor != null)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 20),
+            child: Text('이 구간에는 방문할 수 있는 정원이 없어요. 다음 정원도 둘러보세요.'),
+          ),
+        ..._gardens.map(
+          (garden) => Padding(
+            padding: const EdgeInsets.only(bottom: 14),
+            child: PublicGardenCard(garden: garden, alreadyCheeredToday: false),
+          ),
+        ),
+        if (_pageError != null) Text(_pageError!),
+        if (_nextCursor != null)
+          OutlinedButton.icon(
+            key: const Key('public-gardens-more'),
+            onPressed: _loadingMore || _loading ? null : _loadMore,
+            icon: _loadingMore
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.expand_more),
+            label: Text(
+              _loadingMore
+                  ? '정원을 불러오고 있어요…'
+                  : _pageError != null
+                  ? '다음 정원 다시 불러오기'
+                  : '다른 정원 더 보기',
             ),
           ),
       ],

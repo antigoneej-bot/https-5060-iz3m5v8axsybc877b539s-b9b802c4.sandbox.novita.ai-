@@ -1,19 +1,19 @@
-import { validGardenGift, liveReactions, newGardenReaction } from './garden-gifts.js';
-import { readOwnPublicGardenStatus } from './public-garden-status.js';
+import * as village from './garden-village.js';
 import { confirmGardenBloom } from './garden-blooms.js';
-import { acceptsGiftAmount, beginCheerDelivery, acknowledgeCheerDelivery } from './cheer-delivery.js';
+import { beginCheerDelivery, acknowledgeCheerDelivery } from './cheer-delivery.js';
 import { removeAccountReservations } from './account-reservations.js';
+import { hasTrustedAccount, isSignedInAccount, hasRecentAuthentication } from './account-identity.js';
+export { socialAuth } from './social-auth.js';
 import { randomUUID } from 'node:crypto';
 import { initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { getAppCheck } from 'firebase-admin/app-check';
-import { getFirestore, FieldValue } from 'firebase-admin/firestore';
+import { getFirestore, FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
 import { onRequest } from 'firebase-functions/v2/https';
 import { onMessagePublished } from 'firebase-functions/v2/pubsub';
 import { GoogleAuth } from 'google-auth-library';
 import { PACKAGE, PRODUCTS, entitlement, assertOwner, tokenHash, validEnvelope, nextAccountLease, accountHash,
-  sanitizeNickname, validatePublicSnapshot, PUBLIC_CHEER_MESSAGE_COUNT,
   isAdminEmail, validateGardenNewsInput, sanitizeReservationNote } from './policy.js';
 initializeApp();
 const db = getFirestore();
@@ -99,9 +99,12 @@ export const gardenApi = onRequest({region:'asia-northeast3', maxInstances:3, ti
     const attestation = await getAppCheck().verifyToken(req.get('X-Firebase-AppCheck') ?? '');
     if (!process.env.GARDEN_ANDROID_APP_ID || attestation.appId !== process.env.GARDEN_ANDROID_APP_ID) throw new Error();
   } catch {res.status(401).json({error:'authentication-required'});return;}
-  if (!identity.email_verified) {res.status(403).json({error:'verify-email'});return;}
-  const uid = identity.uid;
   const action = req.body?.action;
+  if (action === 'deleteCloudAccount') {
+    if (!isSignedInAccount(identity)) {res.status(401).json({error:'authentication-required'});return;}
+    if (!hasRecentAuthentication(identity)) {res.status(403).json({error:'recent-login-required'});return;}
+  } else if (!hasTrustedAccount(identity)) {res.status(403).json({error:'verify-email'});return;}
+  const uid = identity.uid;
   let lease;
   try {
     lease = await acquireAccountLease(uid, action);
@@ -141,116 +144,50 @@ export const gardenApi = onRequest({region:'asia-northeast3', maxInstances:3, ti
       res.json({envelope:JSON.parse(bytes.toString('utf8'))});return;
     }
     // ── 3단계: 공개정원 / 응원 (opt-in, read-only visits, no ranking) ──
+    const villageDeps = {stamp: () => FieldValue.serverTimestamp(), timestampFromParts: (seconds, nanos) => new Timestamp(seconds, nanos)};
+    const villageActions = {
+      getVillageProfile: village.getVillageProfile,
+      updateVillageProfile: village.updateVillageProfile,
+      listNeighbors: village.listNeighbors,
+      lookupNeighbor: village.lookupNeighbor,
+      requestNeighbor: village.requestNeighbor,
+      respondNeighbor: village.respondNeighbor,
+      removeNeighbor: village.removeNeighbor,
+      getNeighborGarden: village.getNeighborGarden,
+      blockNeighbor: village.blockNeighbor,
+      reportGarden: village.reportGarden,
+      sendGardenGift: village.sendGardenGift,
+    };
+    if (Object.hasOwn(villageActions, action)) {
+      const result = action === 'getVillageProfile'
+        ? await village.getVillageProfile(db, uid, villageDeps)
+        : await villageActions[action](db, uid, req.body, villageDeps);
+      res.json(result); return;
+    }
     if (action === 'getMyPublicGardenStatus') {
-      res.json(await readOwnPublicGardenStatus(db, uid));return;
+      res.json(await village.villagePublicationStatus(db, uid));return;
     }
     if (action === 'publishGarden') {
-      const snapshot = req.body.snapshot;
-      if (!validatePublicSnapshot(snapshot)) {res.status(400).json({error:'invalid-snapshot'});return;}
-      const nickname = sanitizeNickname(req.body.nickname);
-      await db.doc(`publicGardens/${uid}`).set({
-        nickname, seedCounts: snapshot.seedCounts,
-        equippedDecorationIds: snapshot.equippedDecorationIds,
-        treeStageIndex: snapshot.treeStageIndex,
-        memoryTreeStage: snapshot.memoryTreeStage ?? 0,
-        hasCheerFlowers: snapshot.hasCheerFlowers ?? false,
-        flowerKinds: snapshot.flowerKinds ?? [],
-        layout: snapshot.layout ?? null,
-        updatedAt: FieldValue.serverTimestamp(),
-        // Random-sample key; refreshed on every publish so recently-updated
-        // gardens reshuffle into new random draws (no popularity ranking).
-        rand: Math.random(),
-      }, {merge: true});
-      res.json({published:true, nickname});return;
+      res.json(await village.publishVillageGarden(db, uid, req.body, villageDeps));return;
     }
     if (action === 'unpublishGarden') {
-      await db.doc(`publicGardens/${uid}`).delete();
-      res.json({published:false, nickname:null});return;
+      res.json(await village.unpublishVillageGarden(db, uid, villageDeps));return;
     }
     if (action === 'listPublicGardens') {
-      const limit = 12;
-      const threshold = Math.random();
-      const seen = new Map();
-      const first = await db.collection('publicGardens').where('rand','>=',threshold).orderBy('rand').limit(limit).get();
-      for (const doc of first.docs) seen.set(doc.id, doc);
-      if (seen.size < limit) {
-        const rest = await db.collection('publicGardens').orderBy('rand').limit(limit).get();
-        for (const doc of rest.docs) { if (seen.size >= limit) break; seen.set(doc.id, doc); }
-      }
-      const gardens = [...seen.values()]
-        .filter(doc => doc.id !== uid)
-        .map(doc => {
-          const data = doc.data();
-          // Deliberately omit any cheer/visit counters here - visitors must
-          // never see a popularity ranking of other people's gardens.
-          return {gardenId: doc.id, nickname: data.nickname ?? null,
-            seedCounts: data.seedCounts, equippedDecorationIds: data.equippedDecorationIds,
-            treeStageIndex: data.treeStageIndex, layout: data.layout ?? null,
-            memoryTreeStage: data.memoryTreeStage ?? 0, hasCheerFlowers: data.hasCheerFlowers === true, flowerKinds: data.flowerKinds ?? [], reactions: liveReactions(data.reactions)};
-        });
-      res.json({gardens});return;
+      res.json(await village.listDiscoverableGardens(db, uid, req.body));return;
     }
     if (action === 'sendPublicCheer') {
-      const targetId = req.body.gardenId;
-      const messageIndex = req.body.messageIndex;
-      if (!validGardenGift(req.body)) {res.status(400).json({error:'invalid-garden-gift'});return;}
-      const flowerKind = req.body.flowerKind ?? 'daisy';
-      const reaction = newGardenReaction(req.body.reaction);
-      if (typeof targetId !== 'string' || !targetId || targetId.includes('/') || targetId.length > 128) {res.status(400).json({error:'invalid-target'});return;}
-      if (targetId === uid) {res.status(400).json({error:'cannot-cheer-self'});return;}
-      if (!Number.isInteger(messageIndex) || messageIndex < 0 || messageIndex >= PUBLIC_CHEER_MESSAGE_COUNT) {
-        res.status(400).json({error:'invalid-message'});return;
-      }
-      if (!acceptsGiftAmount(req.body.giftLightEssence)) {
-        res.status(403).json({error:'currency-gifts-unavailable'});return;
-      }
-      const giftLightEssence = 0;
-      const today = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
-      const fingerprint = JSON.stringify([messageIndex, flowerKind, req.body.reaction ?? null]);
-      const logRef = db.doc(`cheerSentLog/${uid}_${targetId}`);
-      await db.runTransaction(async tx => {
-        const log = await tx.get(logRef);
-        const gardenRef = db.doc(`publicGardens/${targetId}`);
-        const target = await tx.get(gardenRef);
-        const targetLock = await tx.get(db.doc(`accountLocks/${accountHash(targetId)}`));
-        if (!target.exists || targetLock.data()?.deleting || targetLock.data()?.deleted) {
-          throw new Error('garden-not-found');
-        }
-        if (log.data()?.date === today) {
-          if (log.data()?.fingerprint === fingerprint) return; // Lost response: replay success.
-          throw new Error('cheer-already-sent-today');
-        }
-        tx.set(logRef, {date: today, fingerprint});
-        if (reaction) tx.update(gardenRef, {reactions: [...liveReactions(target.data()?.reactions), reaction].slice(-12)});
-        const receivedRef = db.collection(`users/${targetId}/receivedCheers`).doc();
-        tx.set(receivedRef, {
-          messageIndex, giftLightEssence, flowerKind, reaction, senderId: uid, claimed: false,
-          createdAt: FieldValue.serverTimestamp(),
-        });
-      });
-      res.json({sent:true});return;
+      res.json(await village.sendVillageCheer(db, uid, req.body, villageDeps));return;
     }
     if (action === 'listMyCheers') {
-      // Sort in memory (not orderBy) to avoid requiring a composite index.
-      const unclaimed = await db.collection(`users/${uid}/receivedCheers`).where('claimed','==',false).limit(30).get();
-      const active = await db.collection(`users/${uid}/receivedCheers`).where('reaction.expiresAt','>',new Date().toISOString()).limit(30).get();
-      const pending = await db.collection(`users/${uid}/receivedCheers`).where('deliveryPending','==',true).limit(30).get();
-      const docs = new Map([...unclaimed.docs, ...active.docs, ...pending.docs].map(d => [d.id, d]));
-      const cheers = [...docs.values()]
-        .map(doc => ({id: doc.id, messageIndex: doc.data().messageIndex,
-          giftLightEssence: doc.data().giftLightEssence,
-          flowerKind: doc.data().flowerKind ?? 'daisy', reaction: liveReactions([doc.data().reaction])[0] ?? null,
-          createdAt: doc.data().createdAt?.toDate().toISOString() ?? null}))
-        .sort((a,b) => (b.createdAt ?? '').localeCompare(a.createdAt ?? ''));
-      res.json({cheers});return;
+      res.json(await village.listVillageCheers(db, uid, req.body, villageDeps));return;
     }
     if (action === 'confirmFlowerPlanted') {
       const result = await confirmGardenBloom(db, uid, req.body.id, req.body.flowerKind, {stamp: () => FieldValue.serverTimestamp(), accountHash});
       res.json(result);return;
     }
     if (action === 'listFlowerBlooms') {
-      const snap = await db.collection(`users/${uid}/flowerBlooms`).orderBy('createdAt','desc').limit(30).get();
-      res.json({blooms:snap.docs.map(doc => ({id:doc.id, flowerKind:doc.data().flowerKind, createdAt:doc.data().createdAt?.toDate().toISOString() ?? null}))});return;
+      res.json(await village.listVillageBlooms(db, uid));return;
     }
     if (action === 'claimCheer' || action === 'claimCheerV2') {
       res.json(await beginCheerDelivery(db, uid, req.body.id, {legacy: action === 'claimCheer', deviceId: req.body.deviceId}));return;
@@ -277,7 +214,7 @@ export const gardenApi = onRequest({region:'asia-northeast3', maxInstances:3, ti
       res.json({news});return;
     }
     if (action === 'adminCreateGardenNews' || action === 'adminUpdateGardenNews') {
-      if (!isAdminEmail(identity.email)) {res.status(403).json({error:'admin-required'});return;}
+      if (identity.email_verified !== true || !isAdminEmail(identity.email)) {res.status(403).json({error:'admin-required'});return;}
       const parsed = validateGardenNewsInput(req.body.news);
       if (!parsed) {res.status(400).json({error:'invalid-news'});return;}
       if (action === 'adminCreateGardenNews') {
@@ -297,7 +234,7 @@ export const gardenApi = onRequest({region:'asia-northeast3', maxInstances:3, ti
       res.json({id});return;
     }
     if (action === 'adminDeleteGardenNews') {
-      if (!isAdminEmail(identity.email)) {res.status(403).json({error:'admin-required'});return;}
+      if (identity.email_verified !== true || !isAdminEmail(identity.email)) {res.status(403).json({error:'admin-required'});return;}
       const id = req.body.id;
       if (typeof id !== 'string' || !id) {res.status(400).json({error:'invalid-id'});return;}
       await db.doc(`gardenNews/${id}`).delete();
@@ -308,7 +245,7 @@ export const gardenApi = onRequest({region:'asia-northeast3', maxInstances:3, ti
       res.json({deleted:true});return;
     }
     if (action === 'adminListGardenNewsReservations') {
-      if (!isAdminEmail(identity.email)) {res.status(403).json({error:'admin-required'});return;}
+      if (identity.email_verified !== true || !isAdminEmail(identity.email)) {res.status(403).json({error:'admin-required'});return;}
       const newsId = req.body.newsId;
       if (typeof newsId !== 'string' || !newsId) {res.status(400).json({error:'invalid-id'});return;}
       const snap = await db.collection('gardenNewsReservations').where('newsId','==',newsId).get();
@@ -333,7 +270,7 @@ export const gardenApi = onRequest({region:'asia-northeast3', maxInstances:3, ti
         if (data.capacity == null) throw new Error('reservation-not-available');
         const reservedCount = data.reservedCount ?? 0;
         if (reservedCount >= data.capacity) throw new Error('reservation-full');
-        tx.set(reservationRef, {newsId, uid, email: identity.email, note,
+        tx.set(reservationRef, {newsId, uid, email: identity.email_verified === true ? identity.email ?? null : null, note,
           createdAt: FieldValue.serverTimestamp()});
         tx.update(newsRef, {reservedCount: reservedCount + 1});
       });
@@ -360,9 +297,10 @@ export const gardenApi = onRequest({region:'asia-northeast3', maxInstances:3, ti
       res.json({newsIds: snap.docs.map(doc => doc.data().newsId)});return;
     }
     if (action === 'deleteCloudAccount') {
-      if (Date.now()/1000 - identity.auth_time > 300) {res.status(403).json({error:'recent-login-required'});return;}
+      if (!hasRecentAuthentication(identity)) {res.status(403).json({error:'recent-login-required'});return;}
       await lease.ref.set({deleting:true}, {merge:true});
       await removeAccountReservations(db, uid);
+      await village.removeVillageAccount(db, uid);
       await getStorage().bucket().deleteFiles({prefix:`backups/${uid}/`});
       // publicGardens lives outside users/{uid}; remove it explicitly so a
       // deleted account's garden immediately stops appearing to visitors.
@@ -373,6 +311,9 @@ export const gardenApi = onRequest({region:'asia-northeast3', maxInstances:3, ti
       for (const doc of owned.docs) await doc.ref.set({deleted:true});
       await lease.ref.set({deleted:true}, {merge:true});
       await getAuth().deleteUser(uid);
+      // Only this final marker permits a social identity to create a NEW UID.
+      // A partially failed deletion stays locked and never revives old records.
+      await lease.ref.set({deletionCompleted:true}, {merge:true});
       res.json({deleted:true});return;
     }
     res.status(400).json({error:'unknown-action'});
@@ -381,12 +322,15 @@ export const gardenApi = onRequest({region:'asia-northeast3', maxInstances:3, ti
       'invalid-bloom','cheer-not-found','account-deleting','cheer-already-sent-today','news-not-found','already-reserved',
       'reservation-closed','reservation-not-available','reservation-full',
       'garden-not-found','invalid-id','invalid-garden-gift','invalid-delivery-receipt','client-update-required',
-      'delivery-other-device','invalid-delivery-device'];
+      'delivery-other-device','invalid-delivery-device', 'invalid-profile', 'invalid-invite-code',
+      'neighbor-request-not-found', 'neighbor-required', 'gifts-disabled', 'invalid-report',
+      'cheer-transferred', 'flower-already-planted', 'request-conflict', 'invalid-target',
+      'invalid-message', 'invalid-snapshot', 'invalid-cursor', 'invalid-page-size', 'currency-gifts-unavailable'];
     const code = expected.includes(error.message) ? error.message : 'temporarily-unavailable';
     const statusCode = code === 'rate-limit' ? 429
-      : ['cheer-already-sent-today','already-reserved'].includes(code) ? 409
-      : ['news-not-found','garden-not-found','cheer-not-found'].includes(code) ? 404
-      : ['invalid-id','invalid-garden-gift','invalid-delivery-receipt','invalid-delivery-device'].includes(code) ? 400
+      : ['cheer-already-sent-today','already-reserved','request-conflict','cheer-transferred','flower-already-planted'].includes(code) ? 409
+      : ['news-not-found','garden-not-found','cheer-not-found','neighbor-request-not-found'].includes(code) ? 404
+      : ['invalid-id','invalid-garden-gift','invalid-delivery-receipt','invalid-delivery-device','invalid-profile','invalid-invite-code','invalid-report','invalid-target','invalid-message','invalid-snapshot','invalid-cursor','invalid-page-size'].includes(code) ? 400
       : code === 'temporarily-unavailable' ? 503 : 403;
     res.status(statusCode).json({error:code});
   } finally {

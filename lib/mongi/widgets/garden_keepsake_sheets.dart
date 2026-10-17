@@ -129,7 +129,10 @@ Future<void> showCheerFlowers(
         valueListenable: CheerFlowerStore.instance,
         builder: (context, _, _) {
           final owner = currentGardenOwner();
-          final flowers = CheerFlowerStore.instance.forOwner(owner);
+          final flowers = CheerFlowerStore.instance
+              .forOwner(owner)
+              .where((f) => f.hasFlower)
+              .toList();
           return Column(
             children: [
               const Padding(
@@ -184,8 +187,8 @@ Future<void> showCheerFlowers(
                       ),
                       subtitle: Text(
                         flower.planted
-                            ? '${_receivedOn(flower)}\n${gardenFlowerNames[flower.flowerKind]} · 눌러서 꽃 바꾸기${flower.bloomPending ? '\n꽃은 저장됐어요 · 꽃 소식은 연결되면 전달해요' : ''}'
-                            : '${_receivedOn(flower)}\n${gardenFlowerNames[flower.flowerKind]} · 눌러서 꽃 고르기',
+                            ? '${_receivedOn(flower)}\n${gardenFlowerNames[flower.flowerKind]} · 정원에 심은 꽃${flower.bloomPending ? '\n연결되면 심기 기록을 확인해요' : ''}'
+                            : '${_receivedOn(flower)}\n${gardenFlowerNames[flower.flowerKind]} · 눌러서 선물 보기',
                       ),
                       trailing: flower.planted
                           ? const Icon(Icons.check)
@@ -207,7 +210,7 @@ Future<void> showCheerFlowers(
                                           ).showSnackBar(
                                             const SnackBar(
                                               content: Text(
-                                                '꽃을 저장하지 못했어요. 다시 눌러 주세요.',
+                                                '꽃을 심지 못했어요. 연결 상태와 받은 마음을 확인한 뒤 다시 시도해 주세요.',
                                               ),
                                             ),
                                           );
@@ -232,52 +235,76 @@ Future<void> chooseFlower(
   String owner,
   CheerFlower flower,
 ) async {
-  final picked = await showModalBottomSheet<String>(
+  final plant = await showModalBottomSheet<bool>(
     context: context,
-    builder: (context) => SafeArea(
-      child: Padding(
+    isScrollControlled: true,
+    builder: (sheetContext) => SafeArea(
+      child: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
-        child: Wrap(
-          spacing: 10,
-          children: gardenFlowerNames.entries
-              .map(
-                (e) => SizedBox(
-                  width: 90,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      SizedBox(
-                        width: 80,
-                        height: 80,
-                        child: GardenFlowerArt(kind: e.key),
-                      ),
-                      TextButton(
-                        onPressed: () => Navigator.pop(context, e.key),
-                        child: Text(e.value),
-                      ),
-                    ],
-                  ),
-                ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Center(
+              child: SizedBox(
+                width: 100,
+                height: 100,
+                child: GardenFlowerArt(kind: flower.flowerKind),
+              ),
+            ),
+            Text(
+              gardenFlowerNames[flower.flowerKind] ?? '응원 꽃',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 20),
+            ),
+            const SizedBox(height: 12),
+            Text(_receivedOn(flower), textAlign: TextAlign.center),
+            const SizedBox(height: 8),
+            Text(
+              publicCheerOptionText(
+                AppLocalizations.of(context),
+                flower.messageIndex,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            if (!flower.planted)
+              FilledButton.icon(
+                onPressed: () => Navigator.pop(sheetContext, true),
+                icon: const Icon(Icons.local_florist_outlined),
+                label: const Text('이 꽃을 정원에 심기'),
               )
-              .toList(),
+            else
+              const Text('정원에 심은 꽃이에요.', textAlign: TextAlign.center),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: () => Navigator.pop(sheetContext),
+              child: const Text('닫기'),
+            ),
+          ],
         ),
       ),
     ),
   );
-  if (picked == null) return;
+  if (plant != true) return;
   try {
-    await plantGardenFlower(owner, flower.id, flowerKind: picked);
+    await plantGardenFlower(owner, flower.id);
   } catch (_) {
-    if (context.mounted)
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('꽃을 저장하지 못했어요. 다시 눌러 주세요.')));
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('꽃을 심지 못했어요. 연결 상태와 받은 마음을 확인한 뒤 다시 시도해 주세요.'),
+        ),
+      );
+    }
   }
 }
 
 String _receivedOn(CheerFlower flower) {
   final day = flower.createdAt?.toLocal();
+  final from = flower.senderNickname?.trim();
+  final sender = from == null || from.isEmpty ? '이웃이 전한 마음' : '$from님이 전한 마음';
   return day == null
-      ? '나에게 도착한 응원'
-      : '${day.year}.${day.month}.${day.day}에 도착한 응원';
+      ? sender
+      : '$sender\n${day.year}.${day.month}.${day.day}에 받은 선물';
 }

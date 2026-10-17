@@ -1,19 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 cd "$(dirname "$0")/.."
-if ! command -v flutter >/dev/null 2>&1; then
-  echo 'Flutter SDK is required. No release bundle was built.' >&2
-  exit 127
-fi
-case "${GARDEN_BACKEND_URL:-}" in
-  https://?*) ;;
-  *) echo 'Set GARDEN_BACKEND_URL to the deployed and verified HTTPS gardenApi endpoint.' >&2; exit 1 ;;
-esac
-if [[ ! -f android/key.properties ]]; then
-  echo 'Release signing configuration android/key.properties is required.' >&2
-  exit 1
-fi
-flutter pub get
-flutter analyze
-flutter test
-flutter build appbundle --release --dart-define="GARDEN_BACKEND_URL=$GARDEN_BACKEND_URL"
+# Test APKs and Play bundles must use the same login/server configuration.
+source tool/android_build_config.sh
+prepare_android_release
+flutter build appbundle "${android_release_args[@]}"
+printf '%s\n' 'AAB: build/app/outputs/bundle/release/app-release.aab'
+printf '%s\n' 'Upload to the existing Play app internal test track, then test login on a phone.'

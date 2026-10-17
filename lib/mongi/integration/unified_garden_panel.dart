@@ -1,4 +1,5 @@
 import 'garden_care_tree.dart';
+import 'garden_anniversary_section.dart';
 import '../widgets/garden_tool_sheet.dart';
 import 'garden_moments_card.dart';
 import '../providers/garden_provider.dart';
@@ -12,11 +13,13 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../data/shadow_cats_data.dart';
 import '../../providers/app_state_provider.dart';
+import '../../providers/cat_care_provider.dart';
+import '../../utils/companion_name.dart';
 import '../models/garden_decoration.dart';
 import '../models/seed.dart';
 import 'mongi_garden_store.dart';
 
-/// The existing cat collection and runner rewards share this garden screen.
+/// Cat encounters, records and care rewards share this garden screen.
 class UnifiedGardenPanel extends StatefulWidget {
   final String? section;
   const UnifiedGardenPanel({super.key, this.section});
@@ -188,6 +191,7 @@ class _UnifiedGardenPanelState extends State<UnifiedGardenPanel> {
                 }),
               ],
               if (section == 'memories') ...[
+                GardenAnniversarySection(data: data, cats: cats),
                 if (!data.seeds.values.any((count) => count > 0))
                   const Padding(
                     padding: EdgeInsets.all(16),
@@ -207,7 +211,16 @@ class _UnifiedGardenPanelState extends State<UnifiedGardenPanel> {
                             ? PlantMemoryStore.instance.value[plant.id]!.name
                             : plant.label,
                       ),
-                      subtitle: const Text('이 식물에 이름과 추억 남기기'),
+                      subtitle: Text(
+                        PlantMemoryStore
+                                    .instance
+                                    .value[plant.id]
+                                    ?.timeline
+                                    .isNotEmpty ==
+                                true
+                            ? '추억 ${PlantMemoryStore.instance.value[plant.id]!.timeline.length}개 · 이름과 기념일 살펴보기'
+                            : '이름 · 기념일 · 날짜별 추억 남기기',
+                      ),
                       trailing: const Icon(Icons.edit_outlined),
                       onTap: () => showDialog<void>(
                         context: context,
@@ -225,7 +238,12 @@ class _UnifiedGardenPanelState extends State<UnifiedGardenPanel> {
                     ),
                   ),
                   icon: const Icon(Icons.menu_book),
-                  label: const Text('몽이의 정원 이야기'),
+                  label: Text(
+                    companionCopy(
+                      '몽이의 정원 이야기',
+                      context.watch<CatCareProvider>().displayName,
+                    ),
+                  ),
                 ),
                 GardenCareNote(data: data),
                 GardenMomentsCard(data: data, catCount: cats.length),

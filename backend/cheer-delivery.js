@@ -20,6 +20,14 @@ export async function beginCheerDelivery(db, uid, id, {legacy = false, deviceId}
     const doc = await tx.get(ref);
     if (!doc.exists) throw new Error('cheer-not-found');
     const data = doc.data();
+    if (data.transferred) throw new Error('cheer-transferred');
+    if (typeof data.senderId === 'string') {
+      const [blocked, blockedBy] = await Promise.all([
+        tx.get(db.doc(`users/${uid}/blockedNeighbors/${data.senderId}`)),
+        tx.get(db.doc(`users/${data.senderId}/blockedNeighbors/${uid}`)),
+      ]);
+      if (blocked.exists || blockedBy.exists) throw new Error('cheer-not-found');
+    }
     if (data.deliveryPending === true) {
       if (legacy) throw new Error('client-update-required');
       if (!deviceId || data.deliveryDeviceId !== deviceId) throw new Error('delivery-other-device');

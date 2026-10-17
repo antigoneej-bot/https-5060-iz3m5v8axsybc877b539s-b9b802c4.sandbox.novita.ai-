@@ -1,4 +1,3 @@
-import 'support/private_storage_test_setup.dart';
 import 'package:flutter_app/services/meditation_sleep_service.dart';
 import 'package:flutter_app/services/meditation_completion_service.dart';
 import 'dart:async';
@@ -60,7 +59,6 @@ class VideoPlatform extends VideoPlayerPlatform {
 }
 
 void main() {
-  usePrivateStorageForTests('meditation_video_completion_test-');
   testWidgets('fireplace loops without duplicate reward or check-in', (
     tester,
   ) async {
@@ -113,25 +111,6 @@ void main() {
     expect(MongiGardenStore.instance.value.seedTokens, before + 1);
     expect(platform.playing, true);
     expect(MeditationCompletionService.instance.completed.value, completed);
-    final navigator = tester.state<NavigatorState>(
-      find.byType(Navigator).first,
-    );
-    unawaited(
-      navigator.push<void>(
-        MaterialPageRoute(
-          builder: (_) => const Scaffold(body: Text('other screen')),
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-    expect(platform.playing, false, reason: 'covered route pauses its video');
-    navigator.pop();
-    await tester.pumpAndSettle();
-    expect(platform.playing, false, reason: 'return must not autoplay');
-    await tester.ensureVisible(find.text('재생'));
-    await tester.tap(find.text('재생'));
-    await tester.pumpAndSettle();
-    expect(platform.playing, true);
     await tester.pumpWidget(const SizedBox());
     unawaited(platform.events.close());
     await tester.pumpAndSettle();

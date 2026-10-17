@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'meditation_timer_policy.dart';
 import 'package:flutter/foundation.dart';
 
 /// One timer belongs to one active player. Absolute deadlines survive delayed
@@ -51,22 +50,14 @@ class MeditationSleepService extends ChangeNotifier {
 
   Future<void> setTimer(int? minutes) async {
     if (owner == null) return;
-    if (!MeditationTimerPolicy.allows(minutes)) return;
+    if (minutes != null && ![15, 30, 60].contains(minutes)) return;
     final generation = ++_generation;
     _timer?.cancel();
     deadline = minutes == null
         ? null
         : DateTime.now().add(Duration(minutes: minutes));
     factor = 1;
-    try {
-      await _volume?.call(1);
-    } catch (_) {
-      if (generation == _generation) {
-        deadline = null;
-        notifyListeners();
-      }
-      rethrow;
-    }
+    await _volume?.call(1);
     if (generation != _generation) return;
     if (deadline != null)
       _timer = Timer.periodic(
@@ -87,13 +78,8 @@ class MeditationSleepService extends ChangeNotifier {
     final generation = _generation;
     final left = deadline!.difference(now ?? DateTime.now()).inMilliseconds;
     try {
-      factor = MeditationTimerPolicy.fadeFactor(Duration(milliseconds: left));
-      // A fade failure must not skip the requested stop at the deadline.
-      try {
-        await _volume?.call(factor);
-      } catch (_) {
-        if (left > 0) return;
-      }
+      factor = (left / 10000).clamp(0.0, 1.0);
+      await _volume?.call(factor);
       if (!identical(owner, current) || generation != _generation) return;
       if (left <= 0) {
         final stop = _stop;

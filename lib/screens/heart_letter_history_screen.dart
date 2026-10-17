@@ -1,4 +1,6 @@
+import 'dart:async';
 import '../widgets/saved_heart_reply.dart';
+import '../widgets/reply_support_actions.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/special_letter_entry.dart';
@@ -14,9 +16,52 @@ import '../widgets/feature_scaffold.dart';
 /// [HeartLettersScreen]의 답장 결과 화면에서 "지난 편지 보기"를 눌렀을 때
 /// 진입합니다. 자체적으로 [FeatureScaffold]를 감싸 뒤로가기와 배경을
 /// 다른 화면들과 동일하게 유지합니다.
-class HeartLetterHistoryScreen extends StatelessWidget {
+class HeartLetterHistoryScreen extends StatefulWidget {
   final SpecialLetterType type;
   const HeartLetterHistoryScreen({super.key, required this.type});
+
+  @override
+  State<HeartLetterHistoryScreen> createState() =>
+      _HeartLetterHistoryScreenState();
+}
+
+class _HeartLetterHistoryScreenState extends State<HeartLetterHistoryScreen>
+    with WidgetsBindingObserver {
+  Timer? _arrivalTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    _arrivalTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && mounted) setState(() {});
+  }
+
+  void _scheduleArrival(List<SpecialLetterEntry> entries) {
+    _arrivalTimer?.cancel();
+    final pending = entries.where((entry) => !entry.isReplyReady).toList()
+      ..sort((a, b) => a.replyAvailableAt.compareTo(b.replyAvailableAt));
+    if (pending.isEmpty) return;
+    final wait = pending.first.replyAvailableAt.difference(DateTime.now());
+    _arrivalTimer = Timer(
+      wait.isNegative
+          ? const Duration(milliseconds: 100)
+          : wait + const Duration(milliseconds: 100),
+      () {
+        if (mounted) setState(() {});
+      },
+    );
+  }
 
   static const Map<SpecialLetterType, ({Color accent, Color background})>
   _palette = {
@@ -40,8 +85,10 @@ class HeartLetterHistoryScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final type = widget.type;
     final palette = _palette[type]!;
     final entries = SpecialLetterService.getEntriesOfType(type);
+    _scheduleArrival(entries);
     return FeatureScaffold(
       title: type.label,
       child: Column(
@@ -65,12 +112,16 @@ class HeartLetterHistoryScreen extends StatelessWidget {
           ),
           const SizedBox(height: 24),
           if (entries.isEmpty)
-            _EmptyHistoryHint(accent: palette.accent, background: palette.background)
+            _EmptyHistoryHint(
+              accent: palette.accent,
+              background: palette.background,
+            )
           else
             for (int i = 0; i < entries.length; i++)
               Padding(
                 padding: const EdgeInsets.only(bottom: 14),
                 child: _HistoryLetterCard(
+                  key: ValueKey(entries[i].id),
                   entry: entries[i],
                   accent: palette.accent,
                   background: palette.background,
@@ -100,7 +151,11 @@ class _EmptyHistoryHint extends StatelessWidget {
           Text(
             '언제든 짧게 한 통 적어보세요.\n답장은 내일 아침에 도착해요.',
             textAlign: TextAlign.center,
-            style: bodyFont(fontSize: 12.5, color: AppColors.inkSoft, height: 1.6),
+            style: bodyFont(
+              fontSize: 12.5,
+              color: AppColors.inkSoft,
+              height: 1.6,
+            ),
           ),
         ],
       ),
@@ -117,6 +172,7 @@ class _HistoryLetterCard extends StatefulWidget {
   final Color background;
   final int floatSeed;
   const _HistoryLetterCard({
+    super.key,
     required this.entry,
     required this.accent,
     required this.background,
@@ -131,17 +187,16 @@ class _HistoryLetterCardState extends State<_HistoryLetterCard> {
   bool _expanded = false;
 
   void _onExpandToggle() {
-    final entry = widget.entry;
-    if (entry.isReplyReady && !entry.replySeen) {
-      SpecialLetterService.markReplySeen(entry.id);
-    }
     setState(() => _expanded = !_expanded);
   }
 
   @override
   Widget build(BuildContext context) {
     final entry = widget.entry;
-    final dateLabel = DateFormat('yyyy.MM.dd (E) HH:mm', 'ko_KR').format(entry.createdAt);
+    final dateLabel = DateFormat(
+      'yyyy.MM.dd (E) HH:mm',
+      'ko_KR',
+    ).format(entry.createdAt);
     return GlassBlob(
       accent: widget.accent,
       background: widget.background,
@@ -172,11 +227,15 @@ class _HistoryLetterCardState extends State<_HistoryLetterCard> {
             child: Text(
               entry.letterText,
               maxLines: _expanded ? null : 2,
-              overflow: _expanded ? TextOverflow.visible : TextOverflow.ellipsis,
+              overflow: _expanded
+                  ? TextOverflow.visible
+                  : TextOverflow.ellipsis,
               style: bodyFont(fontSize: 13, color: AppColors.moon, height: 1.6),
             ),
           ),
           const SizedBox(height: 12),
+          if (!entry.isReplyReady)
+            ReplySupportActions(letterText: entry.letterText),
           if (!entry.isReplyReady)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -226,7 +285,10 @@ class _HistoryLetterCardState extends State<_HistoryLetterCard> {
                     ],
                   ),
                   const SizedBox(height: 6),
-                  SavedHeartReply(key: ValueKey('heart:${entry.id}'), entry: entry),
+                  SavedHeartReply(
+                    key: ValueKey('heart:${entry.id}'),
+                    entry: entry,
+                  ),
                 ],
               ),
             ),

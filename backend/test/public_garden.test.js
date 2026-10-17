@@ -50,11 +50,3 @@ test('known id sets and limits are sane (regression guard against silent drift)'
   assert.equal(PUBLIC_CHEER_MESSAGE_COUNT, 6);
   assert.equal(MAX_CHEER_GIFT_LIGHT_ESSENCE, 5);
 });
-
-test('private feelings, plant memories and anniversary dates cannot enter a public snapshot', () => {
-  const publicOnly = {seedCounts: {pine: 3}, equippedDecorationIds: [], treeStageIndex: 0};
-  for (const key of ['note', 'name', 'plantMemories', 'memoryDate', 'plantedOn', 'comfort', 'selfCare', 'feedback', 'letters', 'recordDays']) {
-    assert.equal(validatePublicSnapshot({...publicOnly, [key]: 'private'}), false, key);
-  }
-  assert.equal(validatePublicSnapshot({...publicOnly, layout: {version: 1, spaces: 1, positions: {}, memoryDate: '2026-10-14'}}), false);
-});

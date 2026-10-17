@@ -1,10 +1,11 @@
 import 'dart:async';
-import 'garden_memories_screen.dart';
+import '../../services/garden_return_store.dart';
+import '../widgets/garden_return_sheet.dart';
+
+import 'garden_village_screen.dart';
 import '../widgets/companion_name_editor.dart';
 import '../../providers/cat_care_provider.dart';
 import '../integration/garden_bloom_sync.dart';
-import '../integration/garden_background_sync.dart';
-import '../../services/cloud_service.dart';
 import 'package:flutter/material.dart';
 import '../services/sound_manager.dart';
 import '../../services/sound_service.dart';
@@ -42,6 +43,9 @@ class GardenWorldScreen extends StatefulWidget {
 class _GardenWorldScreenState extends State<GardenWorldScreen>
     with WidgetsBindingObserver {
   bool _ownsRestAudio = false, _foreground = true, _disposed = false;
+  bool _syncingFlowers = false;
+  String? _syncOwner;
+  int _syncRequest = 0;
   Future<void> _audioQueue = Future.value();
   void _restAudio(bool requested) {
     _audioQueue = _audioQueue
@@ -69,15 +73,21 @@ class _GardenWorldScreenState extends State<GardenWorldScreen>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     _foreground = state == AppLifecycleState.resumed;
     _restAudio(_quiet);
-    if (_foreground && !_loading && _error == null) {
-      unawaited(_syncRemote());
+    if (_foreground) {
+      unawaited(_syncReceivedFlowers());
+    } else {
+      // A late response may update its owner's cache, but cannot start another
+      // request or show a stale error after this foreground session ends.
+      _syncRequest++;
+      _syncingFlowers = false;
+      _syncOwner = null;
     }
   }
 
   @override
   void dispose() {
     _disposed = true;
-    _remoteSync.dispose();
+    _syncRequest++;
     WidgetsBinding.instance.removeObserver(this);
     _restAudio(false);
     super.dispose();
@@ -85,14 +95,12 @@ class _GardenWorldScreenState extends State<GardenWorldScreen>
 
   bool _loading = true, _quiet = false, _recordNoteShown = false;
   String? _error;
+  GardenReturnSummary? _returnSummary;
+  String? _returnOwner;
   final _layout = GardenLayoutStore.instance;
-  final _remoteSync = GardenBackgroundSync();
   @override
   void initState() {
     super.initState();
-    _remoteSync.onChanged = () {
-      if (mounted) setState(() {});
-    };
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _load();
@@ -112,13 +120,37 @@ class _GardenWorldScreenState extends State<GardenWorldScreen>
       await CheerFlowerStore.instance.reload();
       StorageService.getAllLetters();
       await _grow();
+      // Local visit markers never delay opening or become a garden error.
+      try {
+        if (!mounted) return;
+        final owner =
+            context.read<GardenProvider>().publicGardenAccount ?? 'guest';
+        final data = MongiGardenStore.instance.value;
+        final summary = await GardenReturnStore.instance.recordVisit(
+          owner,
+          seeds: data.seeds,
+          recordDays: gardenRecordDays(
+            data.recordDays,
+            StorageService.getAllLetters().map((entry) => entry.date),
+            now: DateTime.now(),
+          ).length,
+        );
+        await GardenReturnStore.instance.reload(owner);
+        if (mounted &&
+            (context.read<GardenProvider>().publicGardenAccount ?? 'guest') ==
+                owner) {
+          _returnSummary = summary;
+          _returnOwner = owner;
+        }
+      } catch (_) {}
     } catch (_) {
       _error = '정원 배치를 불러오지 못했어요. 기록은 그대로 보관하고 있어요.';
     }
     if (mounted) {
       setState(() => _loading = false);
-      // Render saved plants and memories immediately; online cheers are extra.
-      if (_error == null) unawaited(_syncRemote());
+      // Open the saved personal garden before waiting for any network work.
+      // A slow server must not turn an offline garden into a loading screen.
+      if (_error == null) unawaited(_syncReceivedFlowers());
       if (_error == null && widget.showRecordNote && !_recordNoteShown) {
         _recordNoteShown = true;
         WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -138,38 +170,47 @@ class _GardenWorldScreenState extends State<GardenWorldScreen>
     }
   }
 
-  Future<void> _syncRemote() async {
-    if (!mounted || _loading || _error != null || !CloudService.enabled) return;
-    final owner = currentGardenOwner();
-    if (owner == null) return;
+  Future<void> _syncReceivedFlowers() async {
+    if (!mounted || !_foreground || _loading || _error != null) return;
     final garden = context.read<GardenProvider>();
-    await _remoteSync.refresh(
-      owner: owner,
-      isCurrentOwner: () => currentGardenOwner() == owner,
-      sendPendingFlowers: () async {
-        final attempted = CheerFlowerStore.instance
-            .forOwner(owner)
-            .where((flower) => flower.planted && flower.bloomPending)
-            .take(5)
-            .map((flower) => flower.id)
-            .toSet();
-        await GardenBloomSync.flush(owner);
-        // flush deliberately preserves failed outbox rows instead of throwing.
-        // Report only the batch attempted here, not later queued flowers.
-        if (currentGardenOwner() == owner &&
-            CheerFlowerStore.instance
-                .forOwner(owner)
-                .any(
-                  (flower) =>
-                      attempted.contains(flower.id) && flower.bloomPending,
-                )) {
-          throw StateError('응원 꽃 소식이 전송 대기 중이에요.');
-        }
-      },
-      receiveCheers: () async {
-        if (currentGardenOwner() == owner) await garden.loadMyPublicCheers();
-      },
-    );
+    final owner = garden.publicGardenAccount;
+    if (owner == null || (_syncingFlowers && _syncOwner == owner)) return;
+    final request = ++_syncRequest;
+    _syncingFlowers = true;
+    _syncOwner = owner;
+    bool current() =>
+        mounted &&
+        !_disposed &&
+        _foreground &&
+        request == _syncRequest &&
+        garden.publicGardenAccount == owner;
+    try {
+      // Preserve legacy planting receipt ordering. Both these services also
+      // bind network writes/results to the signed-in owner themselves.
+      await GardenBloomSync.flush(owner);
+      if (!current()) return;
+      await garden.loadMyPublicCheers();
+    } catch (_) {
+      if (current()) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('내 정원은 사용할 수 있어요. 새로 받은 마음은 연결 후 다시 확인해 주세요.'),
+            duration: const Duration(seconds: 7),
+            action: SnackBarAction(
+              label: '다시 확인',
+              onPressed: () {
+                if (current()) unawaited(_syncReceivedFlowers());
+              },
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (request == _syncRequest) {
+        _syncingFlowers = false;
+        _syncOwner = null;
+      }
+    }
   }
 
   Future<void> _grow() async {
@@ -190,7 +231,6 @@ class _GardenWorldScreenState extends State<GardenWorldScreen>
         await showDialog<void>(
           context: context,
           builder: (_) => PlantMemoryEditor(plant: seed),
-          barrierDismissible: false,
         );
         await _grow();
       }
@@ -227,7 +267,9 @@ class _GardenWorldScreenState extends State<GardenWorldScreen>
                   if (store.value.seedTokens == 0)
                     const Padding(
                       padding: EdgeInsets.symmetric(vertical: 10),
-                      child: Text('씨앗이 아직 없어요. 기존 돌봄·기록 보상이나 달리기에서 모을 수 있어요.'),
+                      child: Text(
+                        '씨앗이 아직 없어요. 편지를 남기거나 명상을 마치면 하루 한 번 씨앗을 받을 수 있어요.',
+                      ),
                     ),
                   for (final seed in SeedType.all)
                     ListTile(
@@ -293,7 +335,7 @@ class _GardenWorldScreenState extends State<GardenWorldScreen>
           ? null
           : AppBar(
               title: Text(
-                '내 정원',
+                '나의 넓은 정원',
                 style: titleFont(
                   fontSize: 22,
                   color: AppColors.titlePastelGreen,
@@ -302,24 +344,46 @@ class _GardenWorldScreenState extends State<GardenWorldScreen>
               backgroundColor: AppColors.bg0,
               surfaceTintColor: Colors.transparent,
               elevation: 0,
-              actions: [
-                if (_remoteSync.failed)
-                  IconButton(
-                    key: const ValueKey('garden-sync-retry'),
-                    tooltip: '응원 소식 다시 연결 · 내 정원은 저장되어 있어요',
-                    icon: const Icon(Icons.cloud_off_outlined),
-                    onPressed: _syncRemote,
-                  ),
-                IconButton(
-                  tooltip: '정원에 남긴 기억',
-                  icon: const Icon(Icons.calendar_month_outlined),
-                  onPressed: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const GardenMemoriesScreen(),
-                    ),
+              bottom: PreferredSize(
+                preferredSize: const Size.fromHeight(48),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TextButton.icon(
+                          onPressed: () => showGardenReturnSheet(
+                            context,
+                            _returnOwner ==
+                                    (garden.publicGardenAccount ?? 'guest')
+                                ? _returnSummary
+                                : null,
+                          ),
+                          icon: ReceivedHeartIcon(
+                            owner: garden.publicGardenAccount,
+                          ),
+                          label: const Text('정원 소식'),
+                        ),
+                      ),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () => Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => const GardenVillageScreen(),
+                            ),
+                          ),
+                          icon: const Icon(
+                            Icons.holiday_village_outlined,
+                            size: 18,
+                          ),
+                          label: const Text('냥이 마을'),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
+              ),
+              actions: [
                 IconButton(
                   tooltip: '고양이 이름 변경',
                   onPressed: () => editCompanionName(context),

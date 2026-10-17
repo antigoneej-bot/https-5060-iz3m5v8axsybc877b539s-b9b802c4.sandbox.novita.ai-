@@ -6,24 +6,18 @@ import '../providers/cat_care_provider.dart';
 import '../providers/promise_provider.dart';
 import '../mongi/providers/garden_provider.dart';
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/backup_codec.dart';
 import '../services/backup_service.dart';
-import '../services/backup_file_reader.dart';
-import '../services/app_reload_service.dart';
-import '../services/draft_service.dart';
-import '../services/media_coordinator.dart';
-import '../services/meditation_completion_service.dart';
-import '../services/storage_service.dart';
-import '../widgets/restore_complete_dialog.dart';
 import '../services/cloud_service.dart';
 import '../services/auto_backup_service.dart';
-import '../services/subscription_service.dart';
+import '../services/social_auth_service.dart';
+import 'account_screen.dart';
 import '../theme.dart';
 
 class DataSafetyScreen extends StatefulWidget {
@@ -35,15 +29,6 @@ class DataSafetyScreen extends StatefulWidget {
 class _DataSafetyScreenState extends State<DataSafetyScreen> {
   bool _busy = false;
   String _message = '기록은 현재 이 기기에 저장됩니다.';
-  final _email = TextEditingController();
-  final _loginPassword = TextEditingController();
-  @override
-  void dispose() {
-    _email.dispose();
-    _loginPassword.dispose();
-    super.dispose();
-  }
-
   Future<void> _work(Future<void> Function() action) async {
     if (_busy) return;
     setState(() => _busy = true);
@@ -62,7 +47,7 @@ class _DataSafetyScreenState extends State<DataSafetyScreen> {
               : '완료하지 못했어요. 암호·파일·저장 공간과 연결을 확인해 주세요. 기존 기록은 지우지 않았어요.',
         );
     } finally {
-      AutoBackupService.instance.paused = AppReloadService.needsReload;
+      AutoBackupService.instance.paused = false;
       if (mounted) {
         if (CloudService.enabled) {
           final app = context.read<AppStateProvider>();
@@ -172,10 +157,12 @@ class _DataSafetyScreenState extends State<DataSafetyScreen> {
       builder: (context) => AlertDialog(
         title: const Text('복원 미리보기'),
         content: Text(
-          '백업 날짜: ${data['createdAt']}\n기록·초안·답장 항목: ${BackupService.count(data)}개\n\n'
+          '백업 날짜: ${data['createdAt']}\n'
+          '${BackupService.count(data) > 0 ? '기록·초안·답장 항목: ${BackupService.count(data)}개\n' : ''}'
+          '${(data['settings'] as Map).keys.any((key) => key is String && key.startsWith('meditation.')) ? '백업에 포함된 명상 목록·기록·코스 진행도 함께 반영해요.\n' : ''}\n'
           '기존 항목과 같은 ID는 현재 기록을 유지하고, 없는 항목만 추가해요.\n'
           '${existing ? '현재 정원 이름·성장 설정은 유지해요.' : '새 정원에는 백업의 이름·성장 설정도 가져와요.'}\n'
-          '복원을 마치면 복원한 정원을 바로 열 수 있어요.',
+          '복원 후 앱을 다시 열어 주세요.',
         ),
         actions: [
           TextButton(
@@ -192,27 +179,25 @@ class _DataSafetyScreenState extends State<DataSafetyScreen> {
     if (ok != true) return;
     if (cloudUid != null)
       await CloudService.ensureGardenOwner(cloudUid, bind: true);
-    await _prepareRestore();
-    final added = await BackupService.restore(data);
-    if (!mounted) return;
-    await _showRestoreComplete(added);
-  }
-
-  Future<void> _prepareRestore() async {
-    await MediaCoordinator.instance.stopAll();
-    await DraftTextController.flushAll();
-    await MeditationCompletionService.instance.prepareForBackup();
-  }
-
-  Future<void> _showRestoreComplete(int added, {String title = '복원 완료'}) async {
+    await BackupService.restore(data);
     if (!mounted) return;
     await showDialog<void>(
       context: context,
       barrierDismissible: false,
-      builder: (_) => RestoreCompleteDialog(
-        title: title,
-        added: added,
-        reload: AppReloadService.reload,
+      builder: (context) => PopScope(
+        canPop: false,
+        child: AlertDialog(
+          title: const Text('복원 완료'),
+          content: const Text(
+            '백업 복원을 마쳤어요. 같은 ID의 기존 기록은 유지했어요. 반영된 기록과 설정을 보려면 앱을 닫은 뒤 다시 열어 주세요.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => SystemNavigator.pop(),
+              child: const Text('앱 닫기'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -220,65 +205,13 @@ class _DataSafetyScreenState extends State<DataSafetyScreen> {
   Future<void> _import() async {
     final selected = await FilePicker.platform.pickFiles(
       type: FileType.any,
-      withData: kIsWeb,
+      withData: false,
     );
-    if (selected == null || selected.files.isEmpty) return;
-    final file = selected.files.single;
-    final bytes = await readBackupFileBytes(
-      declaredSize: file.size,
-      maxBytes: BackupCodec.maxBytes,
-      bytes: file.bytes,
-      // A browser's PlatformFile may not expose a native path at all.
-      path: kIsWeb ? null : file.path,
-    );
-    await _restoreBytes(bytes);
-  }
-
-  Future<void> _recoverLegacyRecords() async {
-    final summary = await StorageService.getLegacyRecoverySummary();
-    if (!mounted) return;
-    if (summary.isEmpty) {
-      setState(() => _message = '이전 버전에서 추가로 가져올 기록이 없어요.');
-      return;
-    }
-    final total = summary.values.fold<int>(0, (sum, count) => sum + count);
-    final accepted = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('이전 버전의 기록 확인'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              for (final entry in summary.entries)
-                Text(
-                  '${StorageService.legacyRecoveryLabels[entry.key] ?? entry.key}: ${entry.value}개',
-                ),
-              const SizedBox(height: 16),
-              const Text(
-                '이전 버전에서 남아 있는 기록이에요. 이미 삭제했던 기록이 포함될 수 있어요. '
-                '확인하면 현재 없는 기록만 추가하고 같은 ID는 현재 기록을 유지해요.',
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('취소'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text('확인하고 $total개 복원'),
-          ),
-        ],
-      ),
-    );
-    if (accepted != true) return;
-    await _prepareRestore();
-    final added = await StorageService.restoreLegacyGuestData();
-    await _showRestoreComplete(added, title: '이전 기록 복원 완료');
+    if (selected == null || selected.files.single.path == null) return;
+    final file = File(selected.files.single.path!);
+    if (await file.length() > BackupCodec.maxBytes)
+      throw const FormatException('파일이 너무 커요.');
+    await _restoreBytes(await file.readAsBytes());
   }
 
   Future<void> _cloudRestore() async {
@@ -318,34 +251,9 @@ class _DataSafetyScreenState extends State<DataSafetyScreen> {
     );
   }
 
-  Future<void> _signIn(bool create) async {
-    if (create) {
-      final credential = await FirebaseAuth.instance
-          .createUserWithEmailAndPassword(
-            email: _email.text.trim(),
-            password: _loginPassword.text,
-          );
-      await credential.user!.sendEmailVerification();
-      if (mounted) setState(() => _message = '인증 메일을 확인한 뒤 아래의 인증 확인을 눌러 주세요.');
-    } else {
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: _email.text.trim(),
-        password: _loginPassword.text,
-      );
-      if (mounted)
-        setState(
-          () =>
-              _message = '로그인했어요. 이 기기에는 하나의 정원이 저장되며 로그인만으로 다른 기록을 가져오지는 않아요.',
-        );
-    }
-    _loginPassword.clear();
-  }
-
   @override
   Widget build(BuildContext context) {
-    final user = CloudService.enabled
-        ? FirebaseAuth.instance.currentUser
-        : null;
+    final user = SocialAuthService.currentUser;
     return PopScope(
       canPop: !_busy,
       child: Scaffold(
@@ -400,10 +308,6 @@ class _DataSafetyScreenState extends State<DataSafetyScreen> {
               onPressed: _busy ? null : () => _work(_import),
               child: const Text('백업 파일에서 복원'),
             ),
-            TextButton(
-              onPressed: _busy ? null : () => _work(_recoverLegacyRecords),
-              child: const Text('이전 버전의 누락 기록 확인'),
-            ),
             const Divider(height: 32),
             ValueListenableBuilder<bool>(
               valueListenable: AnalyticsService.sharingEnabled,
@@ -444,14 +348,31 @@ class _DataSafetyScreenState extends State<DataSafetyScreen> {
               onPressed: _busy
                   ? null
                   : () => _work(() async {
-                      if (!await BackupService.hasDeferred() &&
-                          !await BackupService.hasPending()) {
+                      if (!await BackupService.hasDeferred()) {
                         if (mounted) setState(() => _message = '보류한 복원이 없어요.');
                         return;
                       }
-                      await _prepareRestore();
-                      final added = await BackupService.retryDeferred();
-                      await _showRestoreComplete(added, title: '보류한 복원 완료');
+                      await BackupService.retryDeferred();
+                      if (!mounted) return;
+                      await showDialog<void>(
+                        context: context,
+                        barrierDismissible: false,
+                        builder: (context) => PopScope(
+                          canPop: false,
+                          child: AlertDialog(
+                            title: const Text('보류한 복원 완료'),
+                            content: const Text(
+                              '보류한 백업 복원을 마쳤어요. 반영된 기록과 설정을 보려면 앱을 닫은 뒤 다시 열어 주세요.',
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => SystemNavigator.pop(),
+                                child: const Text('앱 닫기'),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
                     }),
               child: const Text('보류한 복원 다시 시도'),
             ),
@@ -495,85 +416,28 @@ class _DataSafetyScreenState extends State<DataSafetyScreen> {
               child: const Text('보류한 복원 그만하기'),
             ),
             const Divider(height: 32),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.account_circle_outlined),
+              title: Text(user == null ? '간편 로그인' : '내 계정 관리'),
+              subtitle: const Text('카카오 · 네이버 · 구글 · 페이스북'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: _busy
+                  ? null
+                  : () => _work(() async {
+                      await Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const AccountScreen(),
+                        ),
+                      );
+                    }),
+            ),
             if (!CloudService.enabled)
-              const Text(
-                '계정과 자동 백업은 서버 연결 준비 후 이용할 수 있어요. 현재는 위의 파일 백업을 이용해 주세요.',
-              )
+              const Text('서버 백업은 연결 준비 후 이용할 수 있어요. 현재는 위의 파일 백업을 이용해 주세요.')
             else ...[
-              if (user == null) ...[
-                const Text('자동 백업·서버 결제 확인을 위한 계정'),
-                TextField(
-                  controller: _email,
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(labelText: '이메일'),
-                ),
-                TextField(
-                  controller: _loginPassword,
-                  obscureText: true,
-                  enableSuggestions: false,
-                  autocorrect: false,
-                  decoration: const InputDecoration(labelText: '로그인 비밀번호'),
-                ),
-                Wrap(
-                  spacing: 8,
-                  children: [
-                    TextButton(
-                      onPressed: _busy
-                          ? null
-                          : () => _work(() => _signIn(false)),
-                      child: const Text('로그인'),
-                    ),
-                    TextButton(
-                      onPressed: _busy
-                          ? null
-                          : () => _work(() => _signIn(true)),
-                      child: const Text('계정 만들기'),
-                    ),
-                    TextButton(
-                      onPressed: _busy
-                          ? null
-                          : () => _work(() async {
-                              await FirebaseAuth.instance
-                                  .sendPasswordResetEmail(
-                                    email: _email.text.trim(),
-                                  );
-                              if (mounted)
-                                setState(
-                                  () => _message =
-                                      '입력한 이메일의 비밀번호 재설정 안내를 확인해 주세요.',
-                                );
-                            }),
-                      child: const Text('비밀번호 재설정'),
-                    ),
-                  ],
-                ),
-              ] else ...[
-                Text('계정: ${user.email ?? ''}'),
-                TextButton(
-                  onPressed: _busy
-                      ? null
-                      : () => _work(() async {
-                          await user.reload();
-                          await FirebaseAuth.instance.currentUser?.getIdToken(
-                            true,
-                          );
-                          final verified =
-                              FirebaseAuth
-                                  .instance
-                                  .currentUser
-                                  ?.emailVerified ==
-                              true;
-                          if (verified)
-                            await SubscriptionService().restorePurchases();
-                          if (mounted)
-                            setState(
-                              () => _message = verified
-                                  ? '이메일 인증을 확인했어요.'
-                                  : '아직 이메일 인증 전이에요.',
-                            );
-                        }),
-                  child: const Text('이메일 인증 확인'),
-                ),
+              if (user == null)
+                const Text('서버 백업을 이용하려면 위에서 로그인해 주세요.')
+              else ...[
                 const Text(
                   '이 기기의 정원 전체를 이 계정에 백업합니다. 처음 백업하거나 서버에서 복원한 계정에 연결되며 다른 계정으로는 백업·복원할 수 없어요. 로그아웃해도 기기 기록은 남아요.',
                 ),
@@ -642,8 +506,7 @@ class _DataSafetyScreenState extends State<DataSafetyScreen> {
                   onPressed: _busy
                       ? null
                       : () => _work(() async {
-                          await AutoBackupService.instance.disable();
-                          await FirebaseAuth.instance.signOut();
+                          await SocialAuthService.signOut();
                           if (mounted)
                             setState(
                               () => _message = '로그아웃했어요. 이 기기의 기록은 그대로 남아 있어요.',
@@ -678,8 +541,7 @@ class _DataSafetyScreenState extends State<DataSafetyScreen> {
                           if (confirm != true) return;
                           await CloudService.call('deleteCloudAccount');
                           await CloudService.clearGardenOwner();
-                          await AutoBackupService.instance.disable();
-                          await FirebaseAuth.instance.signOut();
+                          await SocialAuthService.signOut();
                           if (mounted)
                             setState(
                               () => _message =

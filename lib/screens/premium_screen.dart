@@ -1,7 +1,8 @@
 import '../services/cloud_service.dart';
-import 'data_safety_screen.dart';
+import 'account_screen.dart';
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../theme.dart';
@@ -34,8 +35,27 @@ class _PremiumScreenState extends State<PremiumScreen> {
   SubscriptionPlan _selectedPlan = SubscriptionPlan.yearly;
   SubscriptionPlan _activePlan = SubscriptionPlan.monthly;
 
+  bool get _supportedStore =>
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+
   bool get _billingReady =>
-      SubscriptionService.storeBillingEnabled && CloudService.enabled;
+      _supportedStore &&
+      SubscriptionService.storeBillingEnabled &&
+      CloudService.enabled &&
+      _sub.hasProduct(_selectedPlan);
+
+  String get _billingCaption {
+    if (!_supportedStore) {
+      return '구독 구매와 복원은 Google Play에서 설치한 Android 앱에서 이용할 수 있어요.';
+    }
+    if (!SubscriptionService.storeBillingEnabled || !CloudService.enabled) {
+      return SubscriptionService.billingComingSoonCaption;
+    }
+    if (!_sub.hasProduct(_selectedPlan)) {
+      return '선택한 구독 상품을 불러오지 못했어요. 연결을 확인한 뒤 다시 확인해 주세요.';
+    }
+    return '언제든 해지할 수 있어요 · 구독은 자동 갱신됩니다';
+  }
 
   @override
   void initState() {
@@ -45,31 +65,42 @@ class _PremiumScreenState extends State<PremiumScreen> {
   }
 
   Future<void> _load() async {
-    await _sub.refreshProducts();
-    final premium = await _sub.isPremium();
-    final plan = await _sub.currentPlan();
-    final statusLabel = await CloudService.subscriptionStatusLabel();
-    if (!mounted) return;
-    setState(() {
-      _isPremium = premium;
-      _activePlan = plan;
-      _statusLabel = statusLabel;
-      _loading = false;
-    });
+    if (mounted) setState(() => _loading = true);
+    try {
+      if (_supportedStore) await _sub.refreshProducts();
+      final premium = await _sub.isPremium();
+      final plan = await _sub.currentPlan();
+      final statusLabel = await CloudService.subscriptionStatusLabel();
+      if (!mounted) return;
+      setState(() {
+        _isPremium = premium;
+        _activePlan = plan;
+        _statusLabel = statusLabel;
+      });
+    } catch (_) {
+      if (mounted) {
+        setState(() => _statusLabel = '이용 상태를 확인하지 못했어요. 다시 확인해 주세요.');
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
   }
 
   Future<void> _purchase() async {
     if (_purchasing) return;
     if (!_billingReady) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(SubscriptionService.billingComingSoonCaption),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(_billingCaption)));
       return;
     }
     setState(() => _purchasing = true);
+    if (!await AccountScreen.ensureSignedIn(context)) {
+      if (mounted) setState(() => _purchasing = false);
+      return;
+    }
+    if (!mounted) return;
     var ok = false;
     try {
       ok = await _sub.purchasePremium(plan: _selectedPlan);
@@ -130,15 +161,26 @@ class _PremiumScreenState extends State<PremiumScreen> {
     if (_purchasing) return;
     if (!SubscriptionService.storeBillingEnabled) return;
     setState(() => _purchasing = true);
-    var ok = await _sub.isPremium();
+    if (!await AccountScreen.ensureSignedIn(context)) {
+      if (mounted) setState(() => _purchasing = false);
+      return;
+    }
+    if (!mounted) return;
+    var result = SubscriptionRestoreResult(
+      SubscriptionRestoreStatus.unavailable,
+      active: _isPremium,
+    );
     try {
-      ok = await _sub.restorePurchases();
+      result = await _sub.restorePurchasesWithResult();
       _activePlan = await _sub.currentPlan();
+    } catch (_) {
+      // Keep the known entitlement, but never describe an unchecked restore
+      // as a success. The next attempt can query the store again.
     } finally {
       if (mounted) {
         setState(() {
           _purchasing = false;
-          _isPremium = ok;
+          _isPremium = result.active;
         });
       }
     }
@@ -155,17 +197,9 @@ class _PremiumScreenState extends State<PremiumScreen> {
         } catch (_) {}
       }());
     }
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          _sub.restoreUnavailable
-              ? '스토어에 연결하지 못했어요. 기존 이용 상태를 유지했으니 잠시 후 다시 시도해 주세요.'
-              : ok
-              ? '구매 내역을 복원했어요'
-              : '복원할 구독이 없어요',
-        ),
-      ),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(result.message)));
   }
 
   @override
@@ -214,19 +248,17 @@ class _PremiumScreenState extends State<PremiumScreen> {
                                   activePlan: _activePlan,
                                 ),
                                 const SizedBox(height: 18),
-                                if (CloudService.enabled)
-                                  TextButton(
-                                    onPressed: () async {
-                                      await Navigator.of(context).push(
-                                        MaterialPageRoute(
-                                          builder: (_) =>
-                                              const DataSafetyScreen(),
-                                        ),
-                                      );
-                                      await _load();
-                                    },
-                                    child: const Text('구매 계정 로그인·인증'),
-                                  ),
+                                TextButton(
+                                  onPressed: () async {
+                                    await Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (_) => const AccountScreen(),
+                                      ),
+                                    );
+                                    await _load();
+                                  },
+                                  child: const Text('간편 로그인 · 구매 계정 관리'),
+                                ),
                                 if (!_isPremium) ...[
                                   _PlanSelector(
                                     selected: _selectedPlan,
@@ -268,10 +300,16 @@ class _PremiumScreenState extends State<PremiumScreen> {
                                   _PrimaryPurchaseButton(
                                     loading: _purchasing,
                                     enabled: _billingReady,
+                                    disabledLabel: !_supportedStore
+                                        ? 'Android 앱에서 이용'
+                                        : _sub.hasProduct(_selectedPlan)
+                                        ? '결제 연결 준비 중'
+                                        : '구독 상품 확인 필요',
                                     onTap: _purchase,
                                   ),
-                                  if (SubscriptionService
-                                      .storeBillingEnabled) ...[
+                                  if (_supportedStore &&
+                                      SubscriptionService
+                                          .storeBillingEnabled) ...[
                                     const SizedBox(height: 10),
                                     _SecondaryButton(
                                       label: '구매 복원',
@@ -281,10 +319,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
                                   const SizedBox(height: 10),
                                   Center(
                                     child: Text(
-                                      _billingReady
-                                          ? '언제든 해지할 수 있어요 · 구독은 자동 갱신됩니다'
-                                          : SubscriptionService
-                                                .billingComingSoonCaption,
+                                      _billingCaption,
                                       textAlign: TextAlign.center,
                                       style: bodyFont(
                                         fontSize: 11,
@@ -292,6 +327,11 @@ class _PremiumScreenState extends State<PremiumScreen> {
                                       ),
                                     ),
                                   ),
+                                  if (_supportedStore && !_billingReady)
+                                    TextButton(
+                                      onPressed: _purchasing ? null : _load,
+                                      child: const Text('구독 상품 다시 확인'),
+                                    ),
                                 ],
                               ],
                             ),
@@ -546,15 +586,13 @@ class _FeatureList extends StatelessWidget {
   static const _features = [
     ('🎁', '정원 장식 선물', '구독 장식을 받아 정원을 꾸며요. 이미 얻은 장식은 구독 종료 후에도 남아요'),
     ('📖', '정원의 이야기', '첫 장은 무료 · 공개된 다음 장은 구독과 기록 3일·5일 조건으로 열려요'),
-    ('🌿', '광고 없이 편안하게', '구독과 무료체험 기간에는 광고가 표시되지 않아요'),
     ('💌', '고양이 답장 전체 이용', '기록은 무료 · 무료 답장 하루 1회 · 구독하면 추가 답장도 함께'),
     ('📊', '상세 주간·월간 감정통계', '내 기록의 흐름과 감정별 빈도·패턴을 살펴봐요'),
     ('🎧', '모든 공개 명상·리추얼', '숲 명상과 빗소리는 무료 · 구독하면 전체 콘텐츠 이용'),
-    ('🐾', '몽이 게임 아이템 사용', '무료로 모아둔 아이템을 게임에서 사용해요 · 별도 현금 결제 없음'),
     ('📊', '기록 패턴 살펴보기', '지난달/분기 비교, 요일·시간대 패턴, 다시 떠오른 감정까지 살펴보기'),
     ('✨', '오늘의 카드와 내 마음', '내가 고른 감정과 무작위 카드를 나란히 보는 재미용 이야기'),
     ('🧠', '감정을 돌아보는 질문', '오늘의 감정을 더 깊이 들여다보는 이야기와 질문으로 내 경험 돌아보기'),
-    ('🌡️', '돌봄 온기 포인트 적립', '돌봄 온기가 100도를 넘을 때마다 포인트로 차곡차곡 쌓여요'),
+    ('🌡️', '돌봄 온기 포인트 적립', '돌봄 활동으로 온기가 100도에 닿을 때마다 포인트가 쌓여요'),
     ('📊', '지난달과 감정 기록 비교', '같은 기간의 기록 횟수와 자주 고른 감정을 나란히 살펴봐요'),
     ('🌱', '주제별 실천 여정', '준비된 작은 실천을 내 속도로 이어가요'),
   ];
@@ -612,10 +650,12 @@ class _PrimaryPurchaseButton extends StatelessWidget {
   final bool loading;
   final bool enabled;
   final VoidCallback onTap;
+  final String disabledLabel;
   const _PrimaryPurchaseButton({
     required this.loading,
     required this.onTap,
     this.enabled = true,
+    this.disabledLabel = '구독 상품 확인 필요',
   });
 
   @override
@@ -647,9 +687,7 @@ class _PrimaryPurchaseButton extends StatelessWidget {
                 ),
               )
             : Text(
-                enabled
-                    ? '마음냥 구독 시작하기'
-                    : SubscriptionService.billingComingSoonLabel,
+                enabled ? '마음냥 구독 시작하기' : disabledLabel,
                 style: serifFont(
                   fontSize: 15.5,
                   color: enabled ? Colors.white : AppColors.inkSoft,

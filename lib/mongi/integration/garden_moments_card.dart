@@ -32,7 +32,7 @@ class GardenMomentsCard extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            '편지를 쓰고, 쉬고, 달리며 생긴 작은 장면들이에요.',
+            '편지를 쓰고, 쉬고, 정원을 가꾸며 생긴 작은 장면들이에요.',
             style: bodyFont(fontSize: 14, color: AppColors.inkSoft),
           ),
           const SizedBox(height: 10),

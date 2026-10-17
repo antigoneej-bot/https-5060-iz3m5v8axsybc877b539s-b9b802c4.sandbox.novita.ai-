@@ -88,7 +88,7 @@ class _ReplyFeedbackState extends State<ReplyFeedback> {
           ],
         ),
         const Text(
-          '다음 답장에서 잘 맞았던 표현을 참고하고, 엇나간 해석과 반복 문장은 줄여요. 평가는 이 기기에 저장되며, 이미 받은 편지는 바뀌지 않아요.',
+          '평가는 이 기기에 저장되며 다음 답장의 표현 선택에 참고해요. 평가만으로 이미 받은 답장이 바뀌지는 않아요.',
           style: TextStyle(fontSize: 12, height: 1.6, color: AppColors.inkSoft),
         ),
       ],

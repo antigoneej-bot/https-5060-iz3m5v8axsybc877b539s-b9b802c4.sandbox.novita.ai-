@@ -9,18 +9,26 @@ export async function confirmGardenBloom(db, recipient, cheerId, flowerKind, {st
     const snap = await tx.get(ref);
     if (!snap.exists) throw new Error('cheer-not-found');
     const cheer = snap.data();
+    if (cheer.transferred) throw new Error('cheer-transferred');
+    if (cheer.deliveryKind === 'cheer') throw new Error('invalid-bloom');
     if (cheer.bloomConfirmed) return {confirmed: true, notified: false};
+    if (flowerKind !== (cheer.flowerKind ?? 'daisy')) throw new Error('invalid-bloom');
     const sender = cheer.senderId;
     let canNotify = typeof sender === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(sender) && sender !== recipient;
     if (canNotify) {
-      const lock = await tx.get(db.doc(`accountLocks/${accountHash(sender)}`));
+      const [lock, blocked, blockedBy] = await Promise.all([
+        tx.get(db.doc(`accountLocks/${accountHash(sender)}`)),
+        tx.get(db.doc(`users/${recipient}/blockedNeighbors/${sender}`)),
+        tx.get(db.doc(`users/${sender}/blockedNeighbors/${recipient}`)),
+      ]);
+      if (blocked.exists || blockedBy.exists) throw new Error('cheer-not-found');
       canNotify = !lock.data()?.deleted && !lock.data()?.deleting;
     }
     // Old cheers have no sender, but can still be planted and acknowledged safely.
     tx.update(ref, {bloomConfirmed: true, plantedFlowerKind: flowerKind, plantedAt: stamp()});
     if (canNotify) {
       tx.set(db.doc(`users/${sender}/flowerBlooms/${bloomReceiptId(recipient, cheerId)}`), {
-        flowerKind, createdAt: stamp(),
+        flowerKind, recipientId: recipient, createdAt: stamp(),
       });
     }
     return {confirmed: true, notified: canNotify};

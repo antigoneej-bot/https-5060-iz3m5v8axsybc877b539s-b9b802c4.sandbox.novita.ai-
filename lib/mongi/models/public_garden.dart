@@ -14,6 +14,7 @@ class PublicGarden {
   final bool hasCheerFlowers;
   final List<GardenReaction> reactions;
   final List<String> flowerKinds;
+  final bool? receiveGifts;
 
   /// 정원 소유자의 uid. 응원을 보낼 때 대상 식별자로만 쓰인다(화면에 그대로
   /// 노출하지 않는다).
@@ -33,6 +34,7 @@ class PublicGarden {
     this.hasCheerFlowers = false,
     this.reactions = const [],
     this.flowerKinds = const [],
+    this.receiveGifts,
     required this.gardenId,
     required this.nickname,
     required this.seedCounts,
@@ -45,6 +47,9 @@ class PublicGarden {
     final rawDecorationIds = json['equippedDecorationIds'];
     final stage = json['memoryTreeStage'];
     return PublicGarden(
+      receiveGifts: json['receiveGifts'] is bool
+          ? json['receiveGifts'] as bool
+          : null,
       memoryTreeStage: stage is int ? stage.clamp(0, 4) : 0,
       hasCheerFlowers: json['hasCheerFlowers'] == true,
       flowerKinds:
@@ -84,6 +89,16 @@ class ReceivedCheer {
   final DateTime? createdAt;
   final String flowerKind;
   final GardenReaction? reaction;
+  final String? senderGardenId;
+  final String? senderNickname;
+  final String deliveryKind;
+  final bool claimed;
+  final bool bloomConfirmed;
+  final bool hasFlower;
+  final String? plantedFlowerKind;
+
+  /// The backend rechecks ownership and planting within the transfer commit.
+  bool get canGift => hasFlower && !bloomConfirmed && giftLightEssence == 0;
 
   const ReceivedCheer({
     required this.id,
@@ -92,11 +107,37 @@ class ReceivedCheer {
     required this.createdAt,
     this.flowerKind = 'daisy',
     this.reaction,
+    this.senderGardenId,
+    this.senderNickname,
+    this.deliveryKind = 'gift',
+    this.claimed = false,
+    this.bloomConfirmed = false,
+    this.hasFlower = true,
+    this.plantedFlowerKind,
   });
 
   factory ReceivedCheer.fromJson(Map<String, dynamic> json) {
     final createdAtRaw = json['createdAt']?.toString();
     return ReceivedCheer(
+      senderGardenId: json['senderGardenId'] is String
+          ? json['senderGardenId'] as String
+          : null,
+      senderNickname: json['senderNickname'] is String
+          ? json['senderNickname'] as String
+          : null,
+      deliveryKind: json['deliveryKind'] == 'cheer' ? 'cheer' : 'gift',
+      claimed: json['claimed'] == true,
+      bloomConfirmed: json['bloomConfirmed'] == true,
+      plantedFlowerKind:
+          gardenFlowerNames.containsKey(json['plantedFlowerKind'])
+          ? json['plantedFlowerKind'] as String
+          : null,
+      // Older servers sent a flower with every cheer and did not send kind.
+      // New pure emoji cheers explicitly contain deliveryKind='cheer'.
+      hasFlower:
+          json['deliveryKind'] != 'cheer' &&
+          (json['flowerKind'] == null ||
+              gardenFlowerNames.containsKey(json['flowerKind'])),
       flowerKind: gardenFlowerNames.containsKey(json['flowerKind'])
           ? json['flowerKind'] as String
           : 'daisy',

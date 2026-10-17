@@ -31,25 +31,49 @@ class PlantMemoryStore extends ValueNotifier<Map<String, PlantMemory>> {
   }
 
   Future<void> reload() => _serial(_refresh);
-  Future<void> save(
-    String plantId,
-    String name,
-    String note, {
-    DateTime? memoryDate,
-  }) => _serial(() async {
-    final data = PlantMemory(
-      plantId: plantId,
-      name: name.trim(),
-      note: note.trim(),
-      updatedAt: DateTime.now(),
-      memoryDate: memoryDate,
-    ).toJson();
+
+  /// Compatibility entry point for older callers. A new scene appends to the
+  /// timeline instead of silently replacing the earlier memory.
+  Future<void> save(String plantId, String name, String note) =>
+      _serial(() async {
+        await _refresh();
+        final previous = value[plantId];
+        final entries = [...?previous?.timeline];
+        final trimmed = note.trim();
+        final now = DateTime.now();
+        if (trimmed.isNotEmpty &&
+            (entries.isEmpty || entries.last.note != trimmed)) {
+          entries.add(
+            PlantMemoryEntry(
+              id: 'memory-${now.microsecondsSinceEpoch}',
+              on: plantMemoryDay(now),
+              note: trimmed,
+            ),
+          );
+        }
+        await _write(
+          PlantMemory(
+            plantId: plantId,
+            name: name.trim(),
+            note: entries.isEmpty ? '' : entries.last.note,
+            updatedAt: now,
+            anniversaryOn: previous?.anniversaryOn,
+            entries: entries,
+          ),
+        );
+      });
+
+  Future<void> saveMemory(PlantMemory memory) => _serial(() => _write(memory));
+
+  Future<void> _write(PlantMemory memory) async {
+    final data = memory.toJson();
     PlantMemory.fromJson(data);
     final box = await HiveEncryption.openBox(boxName);
-    await box.put(plantId, data);
+    await box.put(memory.plantId, data);
     await box.flush();
     await _refresh();
-  });
+  }
+
   Future<void> remove(String plantId) => _serial(() async {
     final box = await HiveEncryption.openBox(boxName);
     await box.delete(plantId);

@@ -38,32 +38,36 @@ class AppTutorialScreen extends StatelessWidget {
             _FeatureBullet(
               emoji: '🐾',
               title: '그림자 고양이 여정',
-              desc: '지금까지 만난 고양이 수(총 37마리 기준)와 진행률을 보여주고, '
+              desc:
+                  '지금까지 만난 고양이 수(총 37마리 기준)와 진행률을 보여주고, '
                   '"오늘의 고양이 만나기" 버튼으로 고양이선택 탭으로 바로 이동해요.',
             ),
             _FeatureBullet(
               emoji: '🔥',
               title: '며칠째 함께하는 중 (스트릭)',
-              desc: '앱을 연속으로 방문한 날짜 수를 보여줘요. 하루라도 건너뛰면 '
+              desc:
+                  '앱을 연속으로 방문한 날짜 수를 보여줘요. 하루라도 건너뛰면 '
                   '다시 1일부터 세어져요.',
             ),
             _FeatureBullet(
               emoji: '🌱',
               title: '성장 현황',
-              desc: '아기고양이 모찌가 지금 아기 / 청소년 / 청년 / 성묘 중 어느 '
+              desc:
+                  '내 고양이가 지금 아기 / 청소년 / 청년 / 성묘 중 어느 '
                   '단계인지 한눈에 보여줘요.',
             ),
             _FeatureBullet(
               emoji: '🔗',
-              title: '8개의 정원 산책로 카드',
-              desc: '명상·움직임, 돌봄 온기 기록, 마음 돌보기, 오늘의 고양이 카드, '
-                  '오늘의 약속, 그림자 방울 터뜨리기, 주간 그림자 지도, 하루 닫기까지 '
-                  '아래로 하나씩 이어져 있어요. 카드를 누르면 각 기능으로 이동해요.',
+              title: '오늘의 마음 돌봄과 더 보기',
+              desc:
+                  '홈에서 편지 쓰기, 조용히 쉬기, 내 정원을 골라요. '
+                  '다른 기능은 "마음 돌보기 · 편지 · 더 보기"를 펼쳐 찾아볼 수 있어요.',
             ),
             _FeatureBullet(
               emoji: '💌',
               title: '답장 · 새싹 · 회고 배너',
-              desc: '고양이의 답장이 도착했거나, 묻어둔 감정이 새싹으로 떠올랐거나, '
+              desc:
+                  '고양이의 답장이 도착했거나, 묻어둔 감정이 새싹으로 떠올랐거나, '
                   '주간/월간 돌아보기가 준비됐을 때만 상단에 조용히 나타나요. '
                   '강제 알림이 아니라 눌러야만 열리는 카드예요.',
             ),
@@ -79,7 +83,8 @@ class AppTutorialScreen extends StatelessWidget {
             _FeatureBullet(
               emoji: '1️⃣',
               title: '고양이 고르기',
-              desc: '37마리 고양이 중, 지금 내 기분과 가장 닮은 한 마리를 '
+              desc:
+                  '37마리 고양이 중, 지금 내 기분과 가장 닮은 한 마리를 '
                   '직접 골라요.',
               badge: _Badge.free,
             ),
@@ -91,7 +96,8 @@ class AppTutorialScreen extends StatelessWidget {
             _FeatureBullet(
               emoji: '3️⃣',
               title: '편지쓰기',
-              desc: '그 고양이에게 하고 싶은 말을 편지로 남겨요. 다음날 아침 '
+              desc:
+                  '그 고양이에게 하고 싶은 말을 편지로 남겨요. 다음날 아침 '
                   '고양이의 답장이 도착해요(기록 탭에서 확인).',
             ),
             _FeatureBullet(
@@ -101,8 +107,10 @@ class AppTutorialScreen extends StatelessWidget {
             ),
             _FeatureBullet(
               emoji: '5️⃣',
-              title: '돌봄 온기 체크 · 완료',
-              desc: '편지를 쓰기 전/후 돌봄 온기를 기록해 변화를 남겨요.',
+              title: '기록 완료 · 정원 돌보기',
+              desc:
+                  '편지를 보내면 활동을 표시하는 돌봄 온기가 1도 올라요. '
+                  '명상은 원할 때 이어가세요. 이 온도는 감정 상태를 평가하는 점수가 아니에요.',
             ),
           ],
         ),
@@ -116,21 +124,24 @@ class AppTutorialScreen extends StatelessWidget {
             _FeatureBullet(
               emoji: '📚',
               title: '카테고리별 자유 열람',
-              desc: '우울할 때, 화날 때, 불안할 때 등 상황별 카테고리로 나뉜 '
+              desc:
+                  '우울할 때, 화날 때, 불안할 때 등 상황별 카테고리로 나뉜 '
                   '가이드를 원하는 만큼 펼쳐서 볼 수 있어요.',
               badge: _Badge.free,
             ),
             _FeatureBullet(
               emoji: '🎬',
               title: '영상으로 따라하기',
-              desc: '일부 가이드는 영상이 준비되면 "영상으로 따라하기" 버튼이 '
+              desc:
+                  '일부 가이드는 영상이 준비되면 "영상으로 따라하기" 버튼이 '
                   '자동으로 나타나요. 아직 영상이 없는 가이드는 텍스트 단계만 '
                   '보여줘요.',
             ),
             _FeatureBullet(
               emoji: '🔁',
               title: '고양이선택에서도 바로 접근',
-              desc: '고양이에게 편지를 쓴 뒤 "명상 추천"을 누르면, 지금 감정에 '
+              desc:
+                  '고양이에게 편지를 쓴 뒤 "명상 추천"을 누르면, 지금 감정에 '
                   '맞는 카테고리만 펼쳐진 채로 이 화면과 같은 가이드를 보여줘요.',
             ),
           ],
@@ -144,8 +155,8 @@ class AppTutorialScreen extends StatelessWidget {
           items: const [
             _FeatureBullet(
               emoji: '📈',
-              title: '돌봄 온기 기록',
-              desc: '그동안 기록한 돌봄 온기를 주간/월간 그래프로 볼 수 있어요.',
+              title: '마음온도기록',
+              desc: '그동안 기록한 마음 온도를 주간/월간 그래프로 볼 수 있어요.',
               badge: _Badge.free,
             ),
             _FeatureBullet(
@@ -157,14 +168,16 @@ class AppTutorialScreen extends StatelessWidget {
             _FeatureBullet(
               emoji: '📖',
               title: '이번 달 돌아보기',
-              desc: '한 달간의 감정 흐름을 문장으로 정리해줘요. 더 깊은 리플렉션 '
+              desc:
+                  '한 달간의 감정 흐름을 문장으로 정리해줘요. 더 깊은 리플렉션 '
                   '레터(그때의 나에게 답장 쓰기)는 정원 플러스 전용이에요.',
               badge: _Badge.plus,
             ),
             _FeatureBullet(
               emoji: '💌',
               title: '보낸 편지 목록',
-              desc: '지금까지 고양이에게 쓴 편지를 모두 모아 보여줘요. 편지를 '
+              desc:
+                  '지금까지 고양이에게 쓴 편지를 모두 모아 보여줘요. 편지를 '
                   '누르면 상세 내용과 답장을 다시 볼 수 있어요.',
               badge: _Badge.free,
             ),
@@ -188,15 +201,25 @@ class AppTutorialScreen extends StatelessWidget {
               desc: '구독 상태를 확인하고, 구독/해지 화면으로 이동할 수 있어요.',
             ),
             _FeatureBullet(
+              emoji: '🌷',
+              title: '냥이 마을 · 내 이웃',
+              desc:
+                  '로그인 후 친구 코드로 이웃을 찾거나 공개된 정원을 둘러봐요. '
+                  '이웃 신청을 수락하면 서로의 정원을 방문하고 응원과 꽃을 나눌 수 있어요. '
+                  '방문을 받으려면 정원 공개 범위도 설정해 주세요.',
+            ),
+            _FeatureBullet(
               emoji: '⚙️',
               title: '설정',
-              desc: '배경음악·효과음 켜고 끄기, 아침/저녁 리마인더 알림을 '
+              desc:
+                  '배경음악·효과음 켜고 끄기, 아침/저녁 리마인더 알림을 '
                   '관리해요.',
             ),
             _FeatureBullet(
               emoji: '📘',
               title: '앱 소개 · 개인정보처리방침',
-              desc: '이 앱이 무엇에 기반했는지 더 깊은 소개와, 개인정보 처리 '
+              desc:
+                  '이 앱이 무엇에 기반했는지 더 깊은 소개와, 개인정보 처리 '
                   '방침을 확인할 수 있어요.',
             ),
           ],
@@ -204,34 +227,34 @@ class AppTutorialScreen extends StatelessWidget {
         _TutorialSection(
           emoji: '🐾',
           title: '마음 돌보기',
-          subtitle: '아기고양이 모찌를 함께 키우는 육성 공간',
+          subtitle: '내가 이름 지은 고양이와 함께하는 돌봄 공간',
           accent: AppColors.blobPeriwinkleAccent,
           background: AppColors.blobPeriwinkle,
           items: const [
             _FeatureBullet(
               emoji: '🍚',
               title: '밥 주기 · 물 주기 · 목욕 · 청소',
-              desc: '하루 동안 모찌를 돌보며 돌봄 온기를 조금씩 올려요.',
+              desc: '하루 동안 고양이를 돌보며 돌봄 온기를 조금씩 쌓아요.',
               badge: _Badge.free,
             ),
             _FeatureBullet(
               emoji: '🐱',
-              title: '모찌의 감정 반응',
-              desc: '며칠 만에 돌아왔는지에 따라 모찌의 표정이 반갑고 신났는지, '
-                  '기다렸는지, 서운했는지, 걱정했는지로 바뀌어요.',
+              title: '고양이의 반응',
+              desc: '고양이가 표정과 짧은 인사로 반겨줘요. 쉬었다 돌아와도 괜찮아요.',
             ),
             _FeatureBullet(
               emoji: '🌿',
               title: '성장 단계',
-              desc: '아기 → 청소년 → 청년 → 성묘 순으로 자라나요. 아기 단계는 '
-                  '진짜 프레임 애니메이션(모찌)이고, 이후 단계는 정지 이미지에 '
-                  '숨쉬기·부유 같은 잔잔한 움직임을 더한 모습으로 표현돼요.',
+              desc:
+                  '함께 돌보며 아기 → 청소년 → 청년 → 성묘 순으로 자라나요. '
+                  '지금까지 함께한 모습과 성장 단계를 돌아볼 수 있어요.',
             ),
             _FeatureBullet(
               emoji: '🛍️',
               title: '정원 플러스 상점',
-              desc: '돌봄 온기가 100도에 닿을 때마다 쌓이는 포인트로 먹거리, '
-                  '옷·악세서리, 우리집 가구를 구매해요.',
+              desc:
+                  '구독자는 돌봄 온기가 100도에 닿을 때마다 포인트를 받아요. '
+                  '그림자 방울로도 포인트를 모을 수 있고, 상점에서 먹거리와 꾸미기 아이템에 써요.',
             ),
             _FeatureBullet(
               emoji: '🏅',
@@ -241,14 +264,16 @@ class AppTutorialScreen extends StatelessWidget {
             _FeatureBullet(
               emoji: '🎓',
               title: '졸업 앨범',
-              desc: '성체까지 다 키운 고양이를 졸업일과 함께 모아봐요. 37마리 '
+              desc:
+                  '성체까지 다 키운 고양이를 졸업일과 함께 모아봐요. 37마리 '
                   '전체를 졸업시키는 게 목표예요.',
               badge: _Badge.free,
             ),
             _FeatureBullet(
               emoji: '🍼',
               title: '새 아기고양이',
-              desc: '한 마리를 졸업시키면, 다음으로 키울 아기고양이를 새로 고를 '
+              desc:
+                  '한 마리를 졸업시키면, 다음으로 키울 아기고양이를 새로 고를 '
                   '수 있어요.',
             ),
           ],
@@ -263,20 +288,23 @@ class AppTutorialScreen extends StatelessWidget {
             _FeatureBullet(
               emoji: '🔮',
               title: '오늘의 고양이 카드 (카드뽑기)',
-              desc: '무작위로 뽑는 재미용 카드예요. 심리 검사나 미래 예측이 아니며, '
+              desc:
+                  '무작위로 뽑는 재미용 카드예요. 심리 검사나 미래 예측이 아니며, '
                   '마음에 와닿는 이야기만 가볍게 돌아보세요.',
             ),
             _FeatureBullet(
               emoji: '🌸',
               title: '오늘의 약속',
-              desc: '오늘 나를 위해 지켜주고 싶은 작은 일을 남기고, 지킨 만큼 '
+              desc:
+                  '오늘 나를 위해 지켜주고 싶은 작은 일을 남기고, 지킨 만큼 '
                   '체크해나가요. "할 일 목록"이 아니라 스스로에게 건네는 '
                   '다정한 약속이에요.',
             ),
             _FeatureBullet(
               emoji: '🫧',
               title: '오늘의 그림자 방울 터뜨리기',
-              desc: '오늘 감정체크(편지쓰기)를 마친 뒤에만 열려요. 오늘 마주한 '
+              desc:
+                  '오늘 감정체크(편지쓰기)를 마친 뒤에만 열려요. 오늘 마주한 '
                   '감정을 방울로 만나 하나씩 터뜨리며 가만히 놓아주는 시간이에요.',
             ),
             _FeatureBullet(
@@ -288,7 +316,8 @@ class AppTutorialScreen extends StatelessWidget {
             _FeatureBullet(
               emoji: '🗺️',
               title: '주간 그림자 지도',
-              desc: '이번 주 자주 마주한 감정 Top 3를 지도처럼 보여줘요. 지난 '
+              desc:
+                  '이번 주 자주 마주한 감정 Top 3를 지도처럼 보여줘요. 지난 '
                   '달/분기 비교와 요일·시간대 패턴은 정원 플러스에서 더 '
                   '깊이 볼 수 있어요.',
               badge: _Badge.plus,
@@ -308,7 +337,11 @@ class AppTutorialScreen extends StatelessWidget {
           child: Text(
             '궁금한 점을 하나씩 눌러보며,\n천천히 정원을 걸어보세요 🐈‍⬛',
             textAlign: TextAlign.center,
-            style: bodyFont(fontSize: 12, color: AppColors.inkSoft, height: 1.7),
+            style: bodyFont(
+              fontSize: 12,
+              color: AppColors.inkSoft,
+              height: 1.7,
+            ),
           ),
         ),
       ],
@@ -453,7 +486,9 @@ class _BadgeChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isPlus = badge == _Badge.plus;
-    final color = isPlus ? AppColors.blobLavenderAccent : AppColors.blobMintAccent;
+    final color = isPlus
+        ? AppColors.blobLavenderAccent
+        : AppColors.blobMintAccent;
     return Container(
       margin: const EdgeInsets.only(left: 8),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -606,9 +641,13 @@ class _PlusComparisonCard extends StatelessWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  '37마리 고양이, 마음 돌보기, 명상 가이드 전체, 기록 기본 기능은 '
-                  '누구나 무료로 계속 이용할 수 있어요.',
-                  style: bodyFont(fontSize: 12, color: AppColors.moon, height: 1.6),
+                  '37마리 고양이, 기록과 기본 정원, 기본 주간 통계는 무료예요. '
+                  '무료 답장은 하루 1회이고, 명상 콘텐츠는 숲 명상과 빗소리부터 이용할 수 있어요.',
+                  style: bodyFont(
+                    fontSize: 12,
+                    color: AppColors.moon,
+                    height: 1.6,
+                  ),
                 ),
               ),
             ],
@@ -620,10 +659,13 @@ class _PlusComparisonCard extends StatelessWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  '정원 플러스(월 구독)는 주간 그림자 지도의 심층 분석(지난달/분기 '
-                  '비교, 요일·시간대 패턴)과 이번 달 돌아보기의 리플렉션 레터를 '
-                  '추가로 열어줘요.',
-                  style: bodyFont(fontSize: 12, color: AppColors.moon, height: 1.6),
+                  '마음냥 구독은 정원 장식과 공개된 이야기, 추가 답장, 전체 공개 명상, '
+                  '상세 주간·월간 통계를 넓혀줘요. 요금과 이용 조건은 구독 화면에서 확인해 주세요.',
+                  style: bodyFont(
+                    fontSize: 12,
+                    color: AppColors.moon,
+                    height: 1.6,
+                  ),
                 ),
               ),
             ],
@@ -632,9 +674,9 @@ class _PlusComparisonCard extends StatelessWidget {
           Align(
             alignment: Alignment.centerRight,
             child: TextButton(
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const PremiumScreen()),
-              ),
+              onPressed: () => Navigator.of(
+                context,
+              ).push(MaterialPageRoute(builder: (_) => const PremiumScreen())),
               child: Text(
                 '정원 플러스 자세히 보기 →',
                 style: bodyFont(
@@ -678,9 +720,9 @@ class _BasisCard extends StatelessWidget {
           Align(
             alignment: Alignment.centerRight,
             child: TextButton(
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const AboutAppScreen()),
-              ),
+              onPressed: () => Navigator.of(
+                context,
+              ).push(MaterialPageRoute(builder: (_) => const AboutAppScreen())),
               child: Text(
                 '더 깊은 이야기 읽어보기 →',
                 style: bodyFont(

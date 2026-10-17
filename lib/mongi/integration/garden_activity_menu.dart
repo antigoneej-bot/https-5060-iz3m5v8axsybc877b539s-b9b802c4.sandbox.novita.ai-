@@ -8,6 +8,7 @@ import '../screens/emotion_calendar_screen.dart';
 import '../screens/emotion_collection_screen.dart';
 import '../screens/growth_milestone_screen.dart';
 import '../screens/mind_report_screen.dart';
+import '../screens/garden_care_entry_screen.dart';
 
 /// 정원 통합(마음냥 정원 + 몽이네 정원) 이후, 기존 "몽이네 정원" 화면
 /// 상단에 흩어져 있던 6가지 기록·활동 바로가기(마음 리포트/감정 도감/
@@ -64,7 +65,10 @@ class GardenActivityMenuButton extends StatelessWidget {
       builder: (sheetContext) => FractionallySizedBox(
         heightFactor: .85,
         child: SingleChildScrollView(
-          child: _GardenActivitySheet(garden: garden),
+          child: _GardenActivitySheet(
+            garden: garden,
+            navigationContext: context,
+          ),
         ),
       ),
     );
@@ -73,7 +77,11 @@ class GardenActivityMenuButton extends StatelessWidget {
 
 class _GardenActivitySheet extends StatelessWidget {
   final GardenProvider garden;
-  const _GardenActivitySheet({required this.garden});
+  final BuildContext navigationContext;
+  const _GardenActivitySheet({
+    required this.garden,
+    required this.navigationContext,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -107,10 +115,21 @@ class _GardenActivitySheet extends StatelessWidget {
             const Divider(height: 1),
             _tile(
               context,
+              emoji: '🌿',
+              title: '정원에서 마음 돌보기',
+              subtitle: '마음 체크인·고요한 시간·짧은 호흡·작은 실천',
+              onTap: () => Navigator.of(navigationContext).push(
+                MaterialPageRoute(
+                  builder: (_) => const GardenCareEntryScreen(),
+                ),
+              ),
+            ),
+            _tile(
+              context,
               emoji: '💗',
               title: '마음 리포트',
               subtitle: '주간 리포트·마음 흐름·요일별 패턴을 한눈에',
-              onTap: () => Navigator.of(context).push(
+              onTap: () => Navigator.of(navigationContext).push(
                 MaterialPageRoute(builder: (_) => const MindReportScreen()),
               ),
             ),
@@ -119,7 +138,7 @@ class _GardenActivitySheet extends StatelessWidget {
               emoji: '📖',
               title: '감정 도감',
               subtitle: '지금까지 마주한 감정들을 모아보는 도감',
-              onTap: () => Navigator.of(context).push(
+              onTap: () => Navigator.of(navigationContext).push(
                 MaterialPageRoute(
                   builder: (_) => const EmotionCollectionScreen(),
                 ),
@@ -131,7 +150,7 @@ class _GardenActivitySheet extends StatelessWidget {
                 emoji: '🎬',
                 title: '성장 마일스톤',
                 subtitle: '몽이와 함께 자라온 순간을 돌아보는 다큐멘터리',
-                onTap: () => Navigator.of(context).push(
+                onTap: () => Navigator.of(navigationContext).push(
                   MaterialPageRoute(
                     builder: (_) => const GrowthMilestoneScreen(),
                   ),
@@ -143,7 +162,7 @@ class _GardenActivitySheet extends StatelessWidget {
               title: '정원 공유',
               subtitle: '지금까지 가꾼 정원을 카드로 만들어 공유하기',
               onTap: () => GardenGrowthShareSheet.show(
-                context,
+                navigationContext,
                 stageIndex: garden.treeStageIndex,
                 score: garden.score,
                 streakDays: garden.streakDays,
@@ -155,7 +174,7 @@ class _GardenActivitySheet extends StatelessWidget {
               emoji: '🗓️',
               title: '감정 캘린더',
               subtitle: '한 달간 마주한 감정을 히트맵으로 보기',
-              onTap: () => Navigator.of(context).push(
+              onTap: () => Navigator.of(navigationContext).push(
                 MaterialPageRoute(
                   builder: (_) => const EmotionCalendarScreen(),
                 ),
@@ -164,10 +183,10 @@ class _GardenActivitySheet extends StatelessWidget {
             _tile(
               context,
               emoji: '📔',
-              title: '감정 다이어리',
-              subtitle: '스테이지를 마칠 때마다 남긴 한 줄 기록',
+              title: '지난 감정 기록',
+              subtitle: '이전에 남긴 기록과 고요 모드의 한 줄을 다시 보기',
               onTap: () => Navigator.of(
-                context,
+                navigationContext,
               ).push(MaterialPageRoute(builder: (_) => const DiaryScreen())),
             ),
             const SizedBox(height: 8),

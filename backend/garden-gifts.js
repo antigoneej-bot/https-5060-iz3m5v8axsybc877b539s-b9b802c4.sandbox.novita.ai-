@@ -1,7 +1,7 @@
 export const FLOWERS = ['daisy','tulip','hydrangea','gypsophila','lavender'];
 export const REACTIONS = ['heart','star','hug','butterfly'];
 export function validGardenGift(body) {
-  return (body.flowerKind === undefined || FLOWERS.includes(body.flowerKind)) &&
+  return (body.flowerKind === undefined || (body.deliveryKind === 'cheer' && body.flowerKind === null) || FLOWERS.includes(body.flowerKind)) &&
     (body.reaction === undefined || body.reaction === null || REACTIONS.includes(body.reaction));
 }
 export function liveReactions(items, now = Date.now()) {

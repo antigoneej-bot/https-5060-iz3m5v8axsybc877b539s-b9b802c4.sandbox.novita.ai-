@@ -1,0 +1,36 @@
+{
+  "version": "1.0.15+18",
+  "base_version": "1.0.14+17",
+  "date": "2026-10-16",
+  "flutter_tests": {
+    "passed": 364,
+    "failed": 0,
+    "skipped": 0,
+    "log": "improvements-final-tests.log"
+  },
+  "backend_tests": {
+    "passed": 125,
+    "failed": 0,
+    "log": "v7-backend-tests.log"
+  },
+  "flutter_analyze": {
+    "errors": 0,
+    "warnings": 8,
+    "info": 204,
+    "log": "improvements-final-analyze.log"
+  },
+  "web_release_build": {
+    "passed": true,
+    "log": "improvements-web-build.log"
+  },
+  "manual_or_live_not_performed": [
+    "Firebase deployment",
+    "two real devices cross-account delivery",
+    "signed Android APK/AAB build",
+    "Play Store submission",
+    "iOS build"
+  ],
+  "assets_native_settings_changed": false,
+  "backend_redeploy_required": "functions:gardenApi",
+  "new_indexes": false
+}
