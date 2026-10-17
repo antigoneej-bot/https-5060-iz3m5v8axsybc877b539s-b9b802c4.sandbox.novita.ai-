@@ -13,6 +13,7 @@ import '../services/analytics_service.dart';
 import '../providers/app_state_provider.dart';
 import '../providers/cat_care_provider.dart';
 import '../providers/promise_provider.dart';
+import '../mongi/providers/garden_provider.dart';
 
 /// '마음냥 구독' 구독 안내 및 구매 화면 (페이월).
 ///
@@ -128,6 +129,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
       final app = context.read<AppStateProvider>();
       final care = context.read<CatCareProvider>();
       final promise = context.read<PromiseProvider>();
+      final garden = context.read<GardenProvider>();
       final planLabel = _selectedPlan == SubscriptionPlan.yearly
           ? 'yearly'
           : 'monthly';
@@ -136,10 +138,14 @@ class _PremiumScreenState extends State<PremiumScreen> {
           await AnalyticsService().logEvent(AnalyticsEvents.premiumPurchase, {
             'plan': planLabel,
           });
-          await app.refreshPremiumStatus();
-          // 케어/약속 provider의 isPremium도 즉시 맞춤
-          await care.load();
-          await promise.load();
+          // 구매 결과(ok)로 이미 구독 상태를 알고 있으므로, SubscriptionService를
+          // 다시 조회하거나(refreshPremiumStatus) 전체 상태를 재로딩(load)하지
+          // 않고 setAccountPremium으로 4개 provider를 즉시·일관되게 맞춥니다.
+          // 화면 재초기화·불필요한 재조회·구독 상태 불일치를 모두 피합니다.
+          app.setAccountPremium(true);
+          care.setAccountPremium(true);
+          promise.setAccountPremium(true);
+          garden.setAccountPremium(true);
         } catch (_) {}
       }());
       ScaffoldMessenger.of(
@@ -189,11 +195,18 @@ class _PremiumScreenState extends State<PremiumScreen> {
       final app = context.read<AppStateProvider>();
       final care = context.read<CatCareProvider>();
       final promise = context.read<PromiseProvider>();
+      final garden = context.read<GardenProvider>();
+      final active = result.active;
       unawaited(() async {
         try {
-          await app.refreshPremiumStatus();
-          await care.load();
-          await promise.load();
+          // result.active로 이미 복원된 구독 상태를 알고 있으므로, 동일하게
+          // setAccountPremium으로 4개 provider를 즉시 맞춥니다(재조회/전체
+          // 재로딩 없이). active가 false면(복원 실패) 구독자 상태로 되돌리지
+          // 않습니다.
+          app.setAccountPremium(active);
+          care.setAccountPremium(active);
+          promise.setAccountPremium(active);
+          garden.setAccountPremium(active);
         } catch (_) {}
       }());
     }
