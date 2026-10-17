@@ -4,6 +4,7 @@ import '../services/meditation_course_store.dart';
 import '../services/media_coordinator.dart';
 import '../data/solutions_data.dart';
 import '../theme.dart';
+import 'floating_box.dart';
 import 'guide_steps.dart';
 
 class MeditationCoursesCard extends StatefulWidget {
@@ -70,32 +71,42 @@ class _MeditationCoursesCardState extends State<MeditationCoursesCard> {
   @override
   Widget build(BuildContext context) => AnimatedBuilder(
     animation: store,
-    builder: (context, _) => Container(
-      margin: const EdgeInsets.symmetric(vertical: 12),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.blobLavender,
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: ExpansionTile(
-        tilePadding: EdgeInsets.zero,
-        childrenPadding: EdgeInsets.zero,
-        title: Text(
-          '내 속도로 이어가는 명상',
-          style: bodyFont(
-            fontSize: 16,
-            color: AppColors.ink,
-            fontWeight: FontWeight.w700,
+    builder: (context, _) => FloatingBox(
+      floatSeed: 33,
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.blobLavender,
+          borderRadius: BorderRadius.circular(26),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.lavenderInk.withValues(alpha: 0.14),
+              blurRadius: 18,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: ExpansionTile(
+          tilePadding: EdgeInsets.zero,
+          childrenPadding: EdgeInsets.zero,
+          title: Text(
+            '내 속도로 이어가는 명상',
+            style: titleFont(
+              fontSize: 17,
+              color: AppColors.lavenderInk,
+              fontWeight: FontWeight.w700,
+            ),
           ),
+          subtitle: Text(
+            '두 가지 과정 · 하루에 한 걸음',
+            style: pathLabelFont(fontSize: 13, color: AppColors.lavenderInk),
+          ),
+          children: [
+            if (_error != null) Text(_error!),
+            for (final c in meditationCourses) _course(c),
+          ],
         ),
-        subtitle: Text(
-          '두 가지 과정 · 하루에 한 걸음',
-          style: bodyFont(fontSize: 13, color: AppColors.lavenderInk),
-        ),
-        children: [
-          if (_error != null) Text(_error!),
-          for (final c in meditationCourses) _course(c),
-        ],
       ),
     ),
   );

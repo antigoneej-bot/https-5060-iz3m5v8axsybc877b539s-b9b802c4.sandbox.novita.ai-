@@ -105,7 +105,10 @@ class HomeTabScreen extends StatelessWidget {
         const SizedBox(height: 16),
         ExpansionTile(
           key: const PageStorageKey('home-growth'),
-          title: const Text('고양이와 함께한 기록'),
+          title: Text(
+            '고양이와 함께한 기록',
+            style: titleFont(fontSize: 17, color: AppColors.moon),
+          ),
           children: [
             _JourneyHero(
               metCount: app.metCatCount,
@@ -140,7 +143,10 @@ class HomeTabScreen extends StatelessWidget {
         const SizedBox(height: 12),
         ExpansionTile(
           key: const PageStorageKey('home-more'),
-          title: const Text('마음 돌보기 · 편지 · 더 보기'),
+          title: Text(
+            '마음 돌보기 · 편지 · 더 보기',
+            style: titleFont(fontSize: 17, color: AppColors.moon),
+          ),
           children: [
             _PathSignpost(title: '고양이를 만난 뒤엔, 이렇게 돌봐요'),
             const SizedBox(height: 6),
@@ -377,7 +383,10 @@ class HomeTabScreen extends StatelessWidget {
         ),
         ExpansionTile(
           key: const PageStorageKey('home-news'),
-          title: const Text('정원 소식 · 알림'),
+          title: Text(
+            '정원 소식 · 알림',
+            style: titleFont(fontSize: 17, color: AppColors.moon),
+          ),
           children: [
             const _SproutBannerArea(),
             const _ReflectionBannerArea(),
