@@ -6,6 +6,8 @@ import 'mongi/l10n/gen/app_localizations.dart' as mongi;
 import 'widgets/app_lock_gate.dart';
 import 'screens/startup_recovery_screen.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
+import 'services/app_reload_service.dart';
+import 'services/media_coordinator.dart';
 import 'services/cloud_service.dart';
 import 'services/social_auth_service.dart';
 import 'widgets/account_access_bridge.dart';
@@ -45,6 +47,7 @@ const String _localUserId = 'local_user';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  AppReloadService.reloadApp = _reloadAppAfterRestore;
   try {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
@@ -99,6 +102,76 @@ Future<void> _launchGarden() async {
   unawaited(SubscriptionService().init());
   AutoBackupService.instance.start();
   PostcardAttribution.check();
+}
+
+/// Replaces the widget tree after a backup/legacy-record restore so the UI
+/// reflects what was just written to disk — without force-closing the app.
+/// `_AppRoot._bootstrap()` already re-reads every provider's storage from
+/// scratch, so recreating [MysticCatApp] with a fresh [UniqueKey] is enough
+/// to pick up restored records; this function only needs to invalidate the
+/// lower-level in-memory caches ([AppReloadService.reloadStores]) first.
+/// On failure, control returns to [RestoreCompleteDialog] via the rethrow so
+/// the user can retry instead of being left on a dead loading screen with no
+/// way to confirm whether the restore ever finished being applied.
+Future<void> _reloadAppAfterRestore() async {
+  await MediaCoordinator.instance.stopAll();
+  await _optional('배경음 정리', SoundService().stopAll);
+  // Unmount old controllers/providers before reloading their backing stores.
+  runApp(
+    const MaterialApp(
+      home: Scaffold(body: Center(child: Text('복원한 기록을 다시 불러오고 있어요.'))),
+    ),
+  );
+  await WidgetsBinding.instance.endOfFrame;
+  try {
+    await AppReloadService.reloadStores();
+    SoundService().gardenSuspended = false;
+    runApp(MysticCatApp(key: UniqueKey()));
+  } catch (_) {
+    // The previous route has been disposed, so its dialog cannot show an
+    // error. Keep a root-level retry path instead of leaving a permanent
+    // loading screen with no way forward.
+    runApp(
+      MaterialApp(
+        home: Scaffold(
+          body: SafeArea(
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 24),
+                    child: Text(
+                      '기록을 다시 불러오지 못했어요. 저장된 기록은 유지돼요.',
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  FilledButton(
+                    onPressed: () {
+                      unawaited(
+                        _optional('기록 다시 불러오기', AppReloadService.reload),
+                      );
+                    },
+                    child: const Text('다시 불러오기'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    rethrow;
+  }
+}
+
+Future<void> _optional(String task, Future<void> Function() action) async {
+  try {
+    await action();
+  } catch (_) {
+    debugPrint('$task: 다시 시도할 수 있어요.');
+  }
 }
 
 class MysticCatApp extends StatelessWidget {

@@ -43,6 +43,21 @@ class MeditationCourseStore extends ChangeNotifier {
     _ready = null;
     throw e;
   });
+
+  /// Forces a fresh read from SharedPreferences, discarding any in-memory
+  /// cache. Used after a backup restore writes `meditation.courses` directly,
+  /// so this store's cached [progress]/[lastDays]/[active] cannot go stale.
+  Future<void> reload() async {
+    await _tail;
+    await (await SharedPreferences.getInstance()).reload();
+    _ready = null;
+    _armed = null;
+    active = null;
+    progress.clear();
+    lastDays.clear();
+    await load();
+  }
+
   Future<void> _load() async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString('meditation.courses');

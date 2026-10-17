@@ -16,8 +16,10 @@ import '../services/backup_codec.dart';
 import '../services/backup_service.dart';
 import '../services/cloud_service.dart';
 import '../services/auto_backup_service.dart';
+import '../services/app_reload_service.dart';
 import '../services/social_auth_service.dart';
 import '../services/storage_service.dart';
+import '../widgets/restore_complete_dialog.dart';
 import 'account_screen.dart';
 import '../theme.dart';
 
@@ -48,7 +50,9 @@ class _DataSafetyScreenState extends State<DataSafetyScreen> {
               : '완료하지 못했어요. 암호·파일·저장 공간과 연결을 확인해 주세요. 기존 기록은 지우지 않았어요.',
         );
     } finally {
-      AutoBackupService.instance.paused = false;
+      // A reload in progress must not let auto-backup read half-reloaded
+      // in-memory state; keep it paused until the reload actually finishes.
+      AutoBackupService.instance.paused = AppReloadService.needsReload;
       if (mounted) {
         if (CloudService.enabled) {
           final app = context.read<AppStateProvider>();
@@ -163,7 +167,7 @@ class _DataSafetyScreenState extends State<DataSafetyScreen> {
           '${(data['settings'] as Map).keys.any((key) => key is String && key.startsWith('meditation.')) ? '백업에 포함된 명상 목록·기록·코스 진행도 함께 반영해요.\n' : ''}\n'
           '기존 항목과 같은 ID는 현재 기록을 유지하고, 없는 항목만 추가해요.\n'
           '${existing ? '현재 정원 이름·성장 설정은 유지해요.' : '새 정원에는 백업의 이름·성장 설정도 가져와요.'}\n'
-          '복원 후 앱을 다시 열어 주세요.',
+          '복원을 마치면 복원한 정원을 바로 열 수 있어요.',
         ),
         actions: [
           TextButton(
@@ -180,25 +184,20 @@ class _DataSafetyScreenState extends State<DataSafetyScreen> {
     if (ok != true) return;
     if (cloudUid != null)
       await CloudService.ensureGardenOwner(cloudUid, bind: true);
-    await BackupService.restore(data);
+    final added = await BackupService.restore(data);
+    if (!mounted) return;
+    await _showRestoreComplete(added);
+  }
+
+  Future<void> _showRestoreComplete(int added, {String title = '복원 완료'}) async {
     if (!mounted) return;
     await showDialog<void>(
       context: context,
       barrierDismissible: false,
-      builder: (context) => PopScope(
-        canPop: false,
-        child: AlertDialog(
-          title: const Text('복원 완료'),
-          content: const Text(
-            '백업 복원을 마쳤어요. 같은 ID의 기존 기록은 유지했어요. 반영된 기록과 설정을 보려면 앱을 닫은 뒤 다시 열어 주세요.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => SystemNavigator.pop(),
-              child: const Text('앱 닫기'),
-            ),
-          ],
-        ),
+      builder: (_) => RestoreCompleteDialog(
+        title: title,
+        added: added,
+        reload: AppReloadService.reload,
       ),
     );
   }
@@ -262,25 +261,7 @@ class _DataSafetyScreenState extends State<DataSafetyScreen> {
     if (accepted != true) return;
     final added = await StorageService.restoreLegacyGuestData();
     if (!mounted) return;
-    await showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => PopScope(
-        canPop: false,
-        child: AlertDialog(
-          title: const Text('이전 기록 복원 완료'),
-          content: Text(
-            '$added개 항목을 추가했어요. 같은 ID의 기존 기록은 유지했어요. 반영된 기록을 보려면 앱을 닫은 뒤 다시 열어 주세요.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => SystemNavigator.pop(),
-              child: const Text('앱 닫기'),
-            ),
-          ],
-        ),
-      ),
-    );
+    await _showRestoreComplete(added, title: '이전 기록 복원 완료');
   }
 
   Future<void> _cloudRestore() async {
@@ -425,27 +406,9 @@ class _DataSafetyScreenState extends State<DataSafetyScreen> {
                         if (mounted) setState(() => _message = '보류한 복원이 없어요.');
                         return;
                       }
-                      await BackupService.retryDeferred();
+                      final added = await BackupService.retryDeferred();
                       if (!mounted) return;
-                      await showDialog<void>(
-                        context: context,
-                        barrierDismissible: false,
-                        builder: (context) => PopScope(
-                          canPop: false,
-                          child: AlertDialog(
-                            title: const Text('보류한 복원 완료'),
-                            content: const Text(
-                              '보류한 백업 복원을 마쳤어요. 반영된 기록과 설정을 보려면 앱을 닫은 뒤 다시 열어 주세요.',
-                            ),
-                            actions: [
-                              TextButton(
-                                onPressed: () => SystemNavigator.pop(),
-                                child: const Text('앱 닫기'),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
+                      await _showRestoreComplete(added, title: '보류한 복원 완료');
                     }),
               child: const Text('보류한 복원 다시 시도'),
             ),

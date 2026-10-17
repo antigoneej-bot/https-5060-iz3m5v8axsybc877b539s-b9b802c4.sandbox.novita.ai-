@@ -14,6 +14,21 @@ class MeditationLibraryStore extends ChangeNotifier {
     _ready = null;
     throw error;
   });
+
+  /// Forces a fresh read from SharedPreferences, discarding any in-memory
+  /// cache. Used after a backup restore writes `meditation.favorites` /
+  /// `meditation.recent` / `meditation.checkins` directly, so this store's
+  /// cached collections cannot go stale or duplicate entries.
+  Future<void> reload() async {
+    await _tail;
+    await (await SharedPreferences.getInstance()).reload();
+    _ready = null;
+    favorites.clear();
+    recent.clear();
+    checkIns.clear();
+    await load();
+  }
+
   Future<void> _load() async {
     final p = await SharedPreferences.getInstance();
     favorites.addAll(
