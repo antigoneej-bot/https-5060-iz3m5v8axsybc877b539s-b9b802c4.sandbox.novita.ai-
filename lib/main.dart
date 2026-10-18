@@ -38,6 +38,7 @@ import 'providers/promise_provider.dart';
 import 'providers/bubble_garden_provider.dart';
 import 'providers/buried_emotion_provider.dart';
 import 'theme.dart';
+import 'utils/feature_flags.dart';
 import 'widgets/stars_background.dart';
 import 'screens/home_screen.dart';
 import 'screens/welcome_intro_screen.dart';
@@ -75,8 +76,17 @@ Future<void> _launchGarden() async {
   if (Firebase.apps.isNotEmpty &&
       (CloudService.enabled || SocialAuthService.browserConfigured)) {
     try {
+      // ⚠️ QA 전용 분기: Play 스토어(비공개 테스트 트랙 포함)를 거치지
+      // 않고 직접 설치(사이드로딩)한 테스트 APK는 Play Integrity의
+      // "Play에서 설치됨" 검증을 통과할 수 없어 App Check 토큰 발급이
+      // 항상 실패한다. FeatureFlags.useAppCheckDebugProvider가 켜진
+      // 빌드(`--dart-define=APP_CHECK_DEBUG_PROVIDER=true`)에서만 디버그
+      // 프로바이더로 전환하고, 일반 빌드는 기존대로 Play Integrity를
+      // 사용한다. 정식 Play 스토어 출시 빌드에는 이 define을 넣지 않는다.
       await FirebaseAppCheck.instance.activate(
-        androidProvider: AndroidProvider.playIntegrity,
+        androidProvider: FeatureFlags.useAppCheckDebugProvider
+            ? AndroidProvider.debug
+            : AndroidProvider.playIntegrity,
       );
     } catch (_) {
       /* Cloud requests remain unavailable until attestation succeeds. */

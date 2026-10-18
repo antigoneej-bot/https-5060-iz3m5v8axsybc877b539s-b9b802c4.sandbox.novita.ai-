@@ -78,6 +78,29 @@ class MainActivity : FlutterActivity() {
                     else -> result.notImplemented()
                 }
             }
+        // ⚠️ QA 전용: App Check 디버그 프로바이더가 생성한 기기별 시크릿을
+        // 화면에서 바로 확인할 수 있게 읽어온다. 이 채널은 Play 스토어를
+        // 거치지 않는 사이드로딩 테스트 APK에서만 사용되며, 값 자체는
+        // Firebase App Check의 "디버그 토큰" 허용 목록에만 쓰인다.
+        // (com.google.firebase:firebase-appcheck-debug의 StorageHelper가
+        // 저장하는 위치("com.google.firebase.appcheck.debug.store.<persistenceKey>")와
+        // 키("com.google.firebase.appcheck.debug.DEBUG_SECRET")를 그대로 읽되,
+        // persistenceKey는 추측하지 않고 FirebaseApp에서 직접 조회한다.)
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "garden/app_check_debug")
+            .setMethodCallHandler { call, result ->
+                if (call.method == "readSecret") {
+                    try {
+                        val persistenceKey = com.google.firebase.FirebaseApp.getInstance().persistenceKey
+                        val prefs = getSharedPreferences(
+                            "com.google.firebase.appcheck.debug.store.$persistenceKey",
+                            MODE_PRIVATE,
+                        )
+                        result.success(prefs.getString("com.google.firebase.appcheck.debug.DEBUG_SECRET", null))
+                    } catch (e: Exception) {
+                        result.error("read-failed", e.message, null)
+                    }
+                } else result.notImplemented()
+            }
     }
 
     private fun readPostcardReferrer(result: MethodChannel.Result) {

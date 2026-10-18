@@ -47,4 +47,22 @@ class FeatureFlags {
   /// 자동으로 붙입니다(문장 원본은 그대로 두고 조합 단계에서만 덧붙임).
   /// false: 순수 텍스트만 사용(기존 방식).
   static const bool useLetterEmoji = true;
+
+  /// ⚠️ 테스트 전용: Firebase App Check를 Play Integrity 대신 디버그
+  /// 프로바이더로 활성화합니다. Play 스토어(비공개 테스트 트랙 포함)를
+  /// 거치지 않고 직접 설치(사이드로딩)한 APK는 Play Integrity의
+  /// "Play에서 설치됨" 검증을 통과할 수 없어, 간편로그인(카카오 등)의
+  /// App Check 토큰 발급이 항상 실패합니다. 디버그 프로바이더는 기기별
+  /// 고유 토큰을 Firebase 콘솔/Admin SDK에 미리 등록해두면 그 기기에서만
+  /// 예외적으로 통과시켜 줍니다.
+  ///
+  /// 기본값은 빌드 타임 환경변수 APP_CHECK_DEBUG_PROVIDER로 결정됩니다.
+  /// `flutter test`에는 이 define이 전달되지 않으므로 항상 false이며,
+  /// 일반 출시 빌드도 이 define을 넘기지 않으면 기존대로 Play Integrity를
+  /// 사용합니다. QA 사이드로딩 테스트 APK를 빌드할 때만
+  /// `flutter build apk --dart-define=APP_CHECK_DEBUG_PROVIDER=true` 로
+  /// 켭니다. 정식 Play 스토어 출시 빌드에는 절대 포함하면 안 됩니다.
+  static const bool useAppCheckDebugProvider = bool.fromEnvironment(
+    'APP_CHECK_DEBUG_PROVIDER',
+  );
 }
