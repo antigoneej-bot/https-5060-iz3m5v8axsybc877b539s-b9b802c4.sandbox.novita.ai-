@@ -75,12 +75,52 @@ test('callback returns only opaque session; browser never receives auth/access t
   assert.equal(url.searchParams.get('session'), r.session);
   assert.equal(s.minted.length, 0);
 });
-test('cancelled consent returns safe error and never creates an account', async () => {
-  const s = setup(), begin = await s.start(), state = new URL(begin.authorizationUrl).searchParams.get('state');
-  const result = await s.flow.callback({state, error:'access_denied<script>'});
-  assert.equal(new URL(result.redirectUrl).searchParams.get('error'), 'login-cancelled');
-  await assert.rejects(exchange(s, begin.session), /login-cancelled/);
-  assert.equal(s.profileCalls, 0); assert.equal(s.creates.length, 0);
+test('only explicit provider consent cancellation returns login-cancelled', async () => {
+  for (const [provider, fields] of [
+    ['kakao', {error:'access_denied', errorDescription:'User denied access'}],
+    ['facebook', {error:'access_denied', errorReason:'user_denied'}],
+  ]) {
+    const s = setup(), begin = await s.start(provider), state = new URL(begin.authorizationUrl).searchParams.get('state');
+    const result = await s.flow.callback({state, ...fields});
+    assert.equal(new URL(result.redirectUrl).searchParams.get('error'), 'login-cancelled');
+    await assert.rejects(exchange(s, begin.session), /login-cancelled/);
+    assert.equal(s.profileCalls, 0); assert.equal(s.creates.length, 0); assert.equal(s.minted.length, 0);
+    await assert.rejects(s.flow.callback({state, code:'replayed-code'}), /session-used/);
+  }
+});
+test('provider failures and ambiguous denial are never misclassified as cancellation', async () => {
+  for (const [provider, fields] of [
+    ['kakao', {error:'invalid_request'}],
+    ['kakao', {error:'server_error'}],
+    ['kakao', {error:'access_denied<script>'}],
+    ['kakao', {error:'access_denied'}],
+    ['kakao', {error:'access_denied', errorDescription:'Not allowed under age 14'}],
+    ['kakao', {error:'access_denied', errorDescription:['User denied access']}],
+    ['kakao', {error:['access_denied'], errorDescription:'User denied access'}],
+    ['kakao', {error:'access_denied', errorDescription:'User denied access' + 'x'.repeat(300)}],
+    ['kakao', {error:'access_denied', errorReason:'user_denied'}],
+    ['kakao', {error:'', errorDescription:'User denied access'}],
+    ['naver', {error:'access_denied'}],
+    ['naver', {error:'access_denied', errorDescription:'user not logged in.'}],
+    ['naver', {error:'access_denied', errorDescription:'need user consent.'}],
+    ['naver', {error:'access_denied', errorDescription:'unsupported browser environment.'}],
+    ['naver', {error:'access_denied', errorDescription:'User denied access'}],
+    ['facebook', {error:'access_denied'}],
+    ['facebook', {error:'server_error', errorReason:'user_denied'}],
+    ['facebook', {error:'access_denied', errorReason:['user_denied']}],
+    ['facebook', {error:'access_denied', errorReason:'user_denied' + 'x'.repeat(100)}],
+  ]) {
+    const s = setup(), begin = await s.start(provider), state = new URL(begin.authorizationUrl).searchParams.get('state');
+    const result = await s.flow.callback({state, code:'must-not-exchange', ...fields});
+    const url = new URL(result.redirectUrl);
+    assert.equal(url.searchParams.get('error'), 'provider-error', JSON.stringify({provider, ...fields}));
+    assert.deepEqual([...url.searchParams.keys()], ['session', 'error']);
+    await assert.rejects(exchange(s, begin.session), /provider-error/);
+    assert.equal(s.profileCalls, 0); assert.equal(s.creates.length, 0); assert.equal(s.minted.length, 0);
+    const stored = (await s.db.doc(`socialAuthSessions/${socialSessionHash(begin.session)}`).get()).data();
+    assert.equal(stored.error, 'provider-error');
+    assert.equal(stored.errorDescription, undefined); assert.equal(stored.errorReason, undefined);
+  }
 });
 test('wrong PKCE or wrong app cannot consume successful callback', async () => {
   const s = setup(), r = await s.ready();
@@ -286,6 +326,24 @@ test('HTTP callback requires state but not AppCheck, redirect and JSON are no-st
   await handler(request({}, {method:'GET',query:{state,code:'valid'}}),res);
   assert.equal(res.statusCode,302); assert.ok(res.url.startsWith(SOCIAL_RETURN_URI));
   assert.equal(res.headers['Cache-Control'],'no-store'); assert.equal(res.headers['Referrer-Policy'],'no-referrer');
+});
+test('HTTP callback distinguishes explicit cancellation without exposing provider details', async () => {
+  for (const [provider, fields, expected] of [
+    ['kakao', {error:'access_denied', error_description:'User denied access'}, 'login-cancelled'],
+    ['kakao', {error:'access_denied', error_description:'Not allowed under age 14'}, 'provider-error'],
+    ['kakao', {error:'server_error', error_description:'client_secret=DO_NOT_LEAK'}, 'provider-error'],
+    ['facebook', {error:'access_denied', error_reason:'user_denied'}, 'login-cancelled'],
+  ]) {
+    const s=setup(), begin=await s.start(provider), state=new URL(begin.authorizationUrl).searchParams.get('state');
+    const handler=createSocialAuthHandler({flow:s.flow,expectedAppId:appId,verifyAppCheck:async()=>{throw new Error('must not be called');}}),res=response();
+    await handler(request({}, {method:'GET', query:{state, ...fields}}),res);
+    assert.equal(res.statusCode,302);
+    assert.equal(new URL(res.url).searchParams.get('error'),expected);
+    assert.ok(!res.url.includes('DO_NOT_LEAK'));
+    assert.ok(!JSON.stringify([...s.db.rows]).includes('DO_NOT_LEAK'));
+    assert.equal(res.headers['Cache-Control'],'no-store');
+    assert.equal(s.profileCalls,0);
+  }
 });
 test('HTTP handler sanitizes unexpected errors rather than leak provider credentials', async () => {
   const res=response(),handler=createSocialAuthHandler({flow:{start:async()=>{throw new Error('client_secret=DO_NOT_LEAK');}},

@@ -95,8 +95,20 @@ class _AccountScreenState extends State<AccountScreen> {
     try {
       await action();
     } catch (error) {
-      if (mounted)
-        setState(() => _message = SocialAuthService.messageFor(error));
+      if (mounted) {
+        final message = SocialAuthService.messageFor(error);
+        setState(() => _message = message);
+        // The inline message may be above the current scroll position. Keep
+        // failures visible even when a provider button is tapped lower down.
+        final messenger = ScaffoldMessenger.of(context);
+        messenger.hideCurrentSnackBar();
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(message),
+            duration: const Duration(seconds: 10),
+          ),
+        );
+      }
     } finally {
       if (mounted) {
         await _readAccount();

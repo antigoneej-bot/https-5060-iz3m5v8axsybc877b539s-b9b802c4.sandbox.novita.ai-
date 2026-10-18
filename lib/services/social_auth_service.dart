@@ -20,15 +20,37 @@ class SocialAuthException implements Exception {
   final String code;
 
   String get message => switch (code) {
+    'firebase-not-ready' =>
+      '앱의 계정 연결을 시작하지 못했어요. 앱을 다시 실행해 주세요. 계속되면 오류 코드 AUTH-01을 알려 주세요.',
+    'server-url-missing' =>
+      '이 앱에 로그인 서버 주소가 설정되지 않았어요. 수정된 앱으로 업데이트해 주세요. (AUTH-02)',
+    'provider-disabled' =>
+      '선택한 로그인 서비스의 서버 설정이 아직 완료되지 않았어요. 오류 코드 AUTH-03을 알려 주세요.',
     'not-configured' ||
-    'provider-disabled' ||
     'client-configuration' => '이 로그인 방식은 아직 연결 준비 중이에요. 다른 방법을 선택해 주세요.',
     'unsupported-platform' => '간편로그인은 현재 안드로이드 앱에서 이용할 수 있어요.',
     'already-signed-in' => '현재 계정을 먼저 로그아웃한 뒤 다른 계정으로 로그인해 주세요.',
     'account-changed' => '로그인 계정이 바뀌었어요. 현재 계정을 확인해 주세요.',
     'session-expired' || 'session-used' => '로그인 시간이 지났어요. 다시 시작해 주세요.',
     'invalid-callback' || 'invalid-proof' => '로그인 확인에 실패했어요. 앱에서 다시 시작해 주세요.',
-    'app-check-required' => '이 앱의 인증을 확인하지 못했어요. 최신 테스트 앱인지 확인해 주세요.',
+    'app-check-required' =>
+      '설치된 앱의 인증을 확인하지 못해 로그인을 계속할 수 없어요. 오류 코드 AUTH-04를 알려 주세요.',
+    'app-check-timeout' =>
+      '앱 인증 확인이 지연되고 있어요. 연결을 확인하고 다시 시도해 주세요. (AUTH-05)',
+    'auth-server-unreachable' =>
+      '로그인 서버에 연결하지 못했어요. 인터넷 연결을 확인하고 다시 시도해 주세요. (AUTH-06)',
+    'auth-server-not-found' =>
+      '로그인 서버를 찾지 못했어요. 오류 코드 AUTH-07을 알려 주세요.',
+    'auth-server-rejected' =>
+      '로그인 서버가 앱의 요청을 받아들이지 못했어요. 오류 코드 AUTH-08을 알려 주세요.',
+    'auth-server-response-invalid' =>
+      '로그인 서버의 응답을 확인하지 못했어요. 오류 코드 AUTH-09를 알려 주세요.',
+    'auth-server-timeout' =>
+      '로그인 서버의 응답이 늦어지고 있어요. 잠시 후 다시 시도해 주세요. (AUTH-10)',
+    'provider-error' =>
+      '선택한 서비스에서 로그인 인증을 완료하지 못했어요. 다시 시도해 주세요. (AUTH-11)',
+    'browser-open-failed' =>
+      '로그인 창을 열거나 앱으로 돌아오는 중 오류가 발생했어요. 오류 코드 AUTH-12를 알려 주세요.',
     'identity-not-verified' => '계정 인증을 확인하지 못했어요. 로그아웃 후 다시 로그인해 주세요.',
     'provider-credential-invalid' =>
       '선택한 로그인 계정의 인증이 만료되었어요. 간편로그인을 다시 시작해 주세요.',
@@ -165,7 +187,9 @@ class SocialAuthService {
       throw const SocialAuthException('provider-disabled');
     }
     return _authenticate(() async {
-      if (!browserConfigured) throw const SocialAuthException('not-configured');
+      if (!browserConfigured) {
+        throw const SocialAuthException('server-url-missing');
+      }
       final random = Random.secure();
       final verifier = base64UrlEncode(
         List<int>.generate(32, (_) => random.nextInt(256)),
@@ -189,10 +213,20 @@ class SocialAuthService {
           uri == null) {
         throw const SocialAuthException('invalid-callback');
       }
-      final callback = await FlutterWebAuth2.authenticate(
-        url: uri.toString(),
-        callbackUrlScheme: SocialAuthCallbackPolicy.callbackScheme,
-      );
+      final String callback;
+      try {
+        callback = await FlutterWebAuth2.authenticate(
+          url: uri.toString(),
+          callbackUrlScheme: SocialAuthCallbackPolicy.callbackScheme,
+        );
+      } on PlatformException catch (error) {
+        if ({'canceled', 'cancelled'}.contains(error.code.toLowerCase())) {
+          rethrow;
+        }
+        throw const SocialAuthException('browser-open-failed');
+      } on MissingPluginException {
+        throw const SocialAuthException('browser-open-failed');
+      }
       final callbackError = SocialAuthCallbackPolicy.errorFor(
         callback,
         expectedSession: session as String,
@@ -256,7 +290,7 @@ class SocialAuthService {
     Future<void> Function() action, {
     bool allowSignedIn = false,
   }) async {
-    if (!firebaseReady) throw const SocialAuthException('not-configured');
+    if (!firebaseReady) throw const SocialAuthException('firebase-not-ready');
     if (!supportsQuickLogin) {
       throw const SocialAuthException('unsupported-platform');
     }
@@ -301,33 +335,62 @@ class SocialAuthService {
   }
 
   static Future<Map<String, dynamic>> _call(Map<String, dynamic> body) async {
-    if (!browserConfigured) throw const SocialAuthException('not-configured');
-    final appCheck = await FirebaseAppCheck.instance.getToken();
+    if (!browserConfigured) {
+      throw const SocialAuthException('server-url-missing');
+    }
+    String? appCheck;
+    try {
+      appCheck = await FirebaseAppCheck.instance
+          .getToken()
+          .timeout(const Duration(seconds: 15));
+    } on TimeoutException {
+      throw const SocialAuthException('app-check-timeout');
+    } catch (_) {
+      // Preserve attestation: a failed check must never fall back to an
+      // unauthenticated request. Do not expose token/provider exception text.
+      throw const SocialAuthException('app-check-required');
+    }
     if (appCheck == null || appCheck.isEmpty) {
       throw const SocialAuthException('app-check-required');
     }
-    final response = await http
-        .post(
-          Uri.parse(endpoint),
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Firebase-AppCheck': appCheck,
-          },
-          body: jsonEncode(body),
-        )
-        .timeout(const Duration(seconds: 40));
+    final http.Response response;
+    try {
+      response = await http
+          .post(
+            Uri.parse(endpoint),
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Firebase-AppCheck': appCheck,
+            },
+            body: jsonEncode(body),
+          )
+          .timeout(const Duration(seconds: 40));
+    } on TimeoutException {
+      throw const SocialAuthException('auth-server-timeout');
+    } on http.ClientException {
+      throw const SocialAuthException('auth-server-unreachable');
+    }
+    if (response.statusCode == 404) {
+      throw const SocialAuthException('auth-server-not-found');
+    }
     dynamic parsed;
     try {
       parsed = jsonDecode(response.body);
     } catch (_) {
-      throw const SocialAuthException('temporarily-unavailable');
+      if (response.statusCode == 401 || response.statusCode == 403) {
+        throw const SocialAuthException('auth-server-rejected');
+      }
+      throw const SocialAuthException('auth-server-response-invalid');
     }
     if (parsed is! Map) {
-      throw const SocialAuthException('temporarily-unavailable');
+      throw const SocialAuthException('auth-server-response-invalid');
     }
     if (response.statusCode != 200) {
       throw SocialAuthException(
-        parsed['error']?.toString() ?? 'temporarily-unavailable',
+        parsed['error']?.toString() ??
+            ((response.statusCode == 401 || response.statusCode == 403)
+                ? 'auth-server-rejected'
+                : 'temporarily-unavailable'),
       );
     }
     return Map<String, dynamic>.from(parsed);

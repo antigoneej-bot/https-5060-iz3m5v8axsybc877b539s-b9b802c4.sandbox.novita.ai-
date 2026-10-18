@@ -77,6 +77,11 @@ flutter {
 dependencies {
     implementation("com.android.installreferrer:installreferrer:2.2")
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+    // Needed to read FirebaseApp.getInstance().persistenceKey from native code
+    // (garden/app_check_debug channel). Version is already resolved
+    // transitively via the firebase_core Flutter plugin; pinning here avoids
+    // relying on that transitive classpath for a direct Kotlin import.
+    implementation("com.google.firebase:firebase-common:21.0.0")
 }
 
 

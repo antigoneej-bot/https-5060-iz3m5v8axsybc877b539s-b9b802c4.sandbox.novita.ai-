@@ -53,6 +53,18 @@ function returnUrl(session, error) {
   if (error) url.searchParams.set('error', error);
   return url.toString();
 }
+function callbackError(provider, error, description, reason) {
+  // access_denied also covers age restrictions (Kakao) and failed automatic
+  // login (Naver). Only documented, explicit consent cancellation is silent.
+  // Raw provider errors/descriptions must never be persisted or returned.
+  const safeDescription = typeof description === 'string' && description.length <= 256 ? description : undefined;
+  const safeReason = typeof reason === 'string' && reason.length <= 64 ? reason : undefined;
+  const cancelled = error === 'access_denied' && (
+    (provider === 'kakao' && safeDescription === 'User denied access') ||
+    (provider === 'facebook' && safeReason === 'user_denied')
+  );
+  return cancelled ? 'login-cancelled' : 'provider-error';
+}
 
 // Provider responses never leave this server. Email is deliberately neither read
 // nor used for linking: provider + validated immutable subject is the identity.
@@ -140,7 +152,7 @@ export function createSocialAuthFlow({db, auth, getConfig, now = Date.now, token
     return {session, authorizationUrl:url.toString(), expiresAt:new Date(expiresAt).toISOString()};
   }
 
-  async function callback({state, code, error}) {
+  async function callback({state, code, error, errorDescription, errorReason}) {
     if (!isOpaque(state)) fail('invalid-state');
     const stateRef = db.doc(`socialAuthStates/${hash(state)}`);
     // Claim the state BEFORE any provider request. Replays never exchange twice.
@@ -162,9 +174,10 @@ export function createSocialAuthFlow({db, auth, getConfig, now = Date.now, token
         tx.set(ref, {...value, ...update});
       });
     }
-    if (error) {
-      await finish({status:'failed', error:'login-cancelled'});
-      return {redirectUrl:returnUrl(session, 'login-cancelled')};
+    if (error !== undefined) {
+      const safeError = callbackError(value.provider, error, errorDescription, errorReason);
+      await finish({status:'failed', error:safeError});
+      return {redirectUrl:returnUrl(session, safeError)};
     }
     if (typeof code !== 'string' || code.length < 1 || code.length > 4096) {
       await finish({status:'failed', error:'provider-error'});
@@ -312,7 +325,8 @@ export function createSocialAuthHandler({flow, verifyAppCheck, expectedAppId}) {
     if (!https) {res.status(400).json({error:'https-required'}); return;}
     try {
       if (req.method === 'GET') {
-        const result = await flow.callback({state:req.query?.state, code:req.query?.code, error:req.query?.error});
+        const result = await flow.callback({state:req.query?.state, code:req.query?.code, error:req.query?.error,
+          errorDescription:req.query?.error_description, errorReason:req.query?.error_reason});
         res.redirect(302, result.redirectUrl); return;
       }
       if (req.method !== 'POST') {res.status(405).json({error:'method-not-allowed'}); return;}
