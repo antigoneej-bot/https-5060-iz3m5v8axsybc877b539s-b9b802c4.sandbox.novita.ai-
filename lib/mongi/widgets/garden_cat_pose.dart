@@ -1,3 +1,4 @@
+import '../../widgets/companion_coat_art.dart';
 import 'package:flutter/material.dart';
 
 /// Source-image measurements. All poses share the bottom of the parent as
@@ -15,8 +16,11 @@ class GardenCatPose extends StatelessWidget {
     this.reaction,
   });
 
-  static double footFraction({bool walking = false, int frame = 0,
-      String? reaction}) {
+  static double footFraction({
+    bool walking = false,
+    int frame = 0,
+    String? reaction,
+  }) {
     if (reaction != null) {
       return switch (reaction) {
         'heart' || 'star' => 495 / 500,
@@ -25,25 +29,36 @@ class GardenCatPose extends StatelessWidget {
         _ => 1213 / 1254,
       };
     }
-    return walking ? 1.0
-        : 1213 / 1254;
+    return walking ? 1.0 : 1213 / 1254;
   }
 
   @override
-  Widget build(BuildContext context) => LayoutBuilder(builder: (context, box) {
-    // The walking painter already aligns whole-frame paws with this baseline.
-    if (walking) return SizedBox.expand(child: child);
-    final h = box.maxHeight;
-    final w = box.maxWidth;
-    return Stack(clipBehavior: Clip.none, children: [
-      Positioned(
-        left: (box.maxWidth - w) / 2,
-        top: box.maxHeight - h * footFraction(
-          walking: walking, frame: frame, reaction: reaction),
-        width: w,
-        height: h,
-        child: child,
-      ),
-    ]);
-  });
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, box) {
+      // The walking painter already aligns whole-frame paws with this baseline.
+      final chosen = selectedCompanionCoat(context) != null;
+      if (walking && !chosen) return SizedBox.expand(child: child);
+      final h = box.maxHeight;
+      final w = box.maxWidth;
+      return Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Positioned(
+            left: (box.maxWidth - w) / 2,
+            top:
+                box.maxHeight -
+                h *
+                    footFraction(
+                      walking: chosen ? false : walking,
+                      frame: frame,
+                      reaction: chosen ? null : reaction,
+                    ),
+            width: w,
+            height: h,
+            child: child,
+          ),
+        ],
+      );
+    },
+  );
 }

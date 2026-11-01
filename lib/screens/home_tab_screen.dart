@@ -1,3 +1,8 @@
+import 'keepsake_forest_screen.dart';
+import 'coloring_healing_screen.dart';
+import 'memory_cards_screen.dart';
+import 'all_features_screen.dart';
+import 'mind_review_screen.dart';
 import '../widgets/daily_care_card.dart';
 import 'emotion_statistics_screen.dart';
 import 'self_care_screen.dart';
@@ -10,13 +15,12 @@ import '../providers/app_state_provider.dart';
 import '../providers/cat_care_provider.dart';
 import '../providers/buried_emotion_provider.dart';
 import '../data/shadow_cats_data.dart';
-import '../models/letter_entry.dart';
 import '../services/reflection_service.dart';
 import '../utils/cat_palette.dart';
 import '../theme.dart';
 import '../widgets/growth_header.dart';
 import '../widgets/garden_path_card.dart';
-import '../widgets/mochi_cat.dart';
+import '../widgets/companion_presence.dart';
 import '../widgets/feature_scaffold.dart';
 import '../mongi/widgets/garden_home_preview.dart';
 import 'pet_care_screen.dart';
@@ -27,13 +31,9 @@ import 'bubble_garden_screen.dart';
 import 'sprout_reflection_screen.dart';
 import 'cat_bond_screen.dart';
 import 'heart_letters_screen.dart';
-import 'heart_letter_history_screen.dart';
-import '../services/special_letter_service.dart';
-import '../models/special_letter_entry.dart';
 import '../widgets/category_list_screen.dart';
 import 'premium_screen.dart';
 import 'my_garden_screen.dart';
-import '../services/notification_service.dart';
 import '../models/notice.dart';
 import '../services/notice_service.dart';
 import 'notice_list_screen.dart';
@@ -56,21 +56,26 @@ class HomeTabScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final app = context.watch<AppStateProvider>();
-    // 안 읽은 답장이 없어도, 가장 최근에 도착한 답장은 "다시 보기" 카드로
-    // 계속 남겨둡니다(한 번 읽고 나면 다시 찾아보기 어려웠던 문제 개선).
-    final unseenReply = app.letterWithUnseenReadyReply ?? app.latestReadyReply;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        Card(color: const Color(0xFFFFEDCF), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)), child: ListTile(contentPadding: const EdgeInsets.all(18), leading: const Icon(Icons.spa_outlined, color: Color(0xFFAD863B)), title: const Text('기억의 나무'), subtitle: const Text('소중한 날짜와 이야기를 씨앗에 담아 키워요'), trailing: const Icon(Icons.chevron_right), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const KeepsakeForestScreen())))),
         DailyCareCard(
           onWrite: onGoToCatSelect,
           onRest: onGoToMeditation,
+          onReview: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => MindReviewScreen(onOpenRecords: onGoToRecords),
+            ),
+          ),
           onGarden: () => pushFullScreen(
             context,
             '나의 정원',
             MyGardenScreen(onGoMeetCat: onGoToCatSelect),
           ),
         ),
+        const FeatureDirectoryEntry(),
+        const SizedBox(height: 12),
         const SizedBox(height: 16),
         if (app.gardenRewardPending)
           ListTile(
@@ -83,24 +88,25 @@ class HomeTabScreen extends StatelessWidget {
               child: Text(app.gardenRewardRetrying ? '확인 중…' : '다시 연결'),
             ),
           ),
-        if (unseenReply != null) ...[
-          _CatReplyBanner(entry: unseenReply, onTap: onGoToRecords),
-          const SizedBox(height: 16),
-        ],
-        const _HeartReplyEntry(),
         // 작은 정원 미리보기 + 진입 버튼 - 입체 연출이 있는 '살아있는 정원'
         // 전체 씬은 정원 화면(나의 정원)에서만 보여주고, 홈에는 가볍게
         // 탭해서 들어가는 입구만 둔다.
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4),
-          child: GestureDetector(
-            onTap: () => pushFullScreen(
-              context,
-              '나의 정원',
-              MyGardenScreen(onGoMeetCat: onGoToCatSelect),
-            ),
-            child: const GardenHomePreview(),
+        ExpansionTile(
+          key: const PageStorageKey('home-garden-preview'),
+          title: Text(
+            '정원 미리보기',
+            style: titleFont(fontSize: 17, color: AppColors.moon),
           ),
+          children: [
+            GestureDetector(
+              onTap: () => pushFullScreen(
+                context,
+                '나의 정원',
+                MyGardenScreen(onGoMeetCat: onGoToCatSelect),
+              ),
+              child: const GardenHomePreview(),
+            ),
+          ],
         ),
         const SizedBox(height: 16),
         ExpansionTile(
@@ -144,7 +150,7 @@ class HomeTabScreen extends StatelessWidget {
         ExpansionTile(
           key: const PageStorageKey('home-more'),
           title: Text(
-            '마음 돌보기 · 편지 · 더 보기',
+            '다른 활동 둘러보기',
             style: titleFont(fontSize: 17, color: AppColors.moon),
           ),
           children: [
@@ -153,7 +159,7 @@ class HomeTabScreen extends StatelessWidget {
             GardenPathCard(
               emoji: '🌿',
               title: '마음 돌보기',
-              subtitle: '명상·움직임, 몸 돌봄, 오늘의 고양이 카드을 모아뒀어요',
+              subtitle: '명상·휴식·색칠 힐링과 추억 카드를 만나요',
               accent: AppColors.blobMintAccent,
               background: AppColors.blobMint,
               alignX: 0.28,
@@ -166,9 +172,11 @@ class HomeTabScreen extends StatelessWidget {
                     headerEmoji: '🌿',
                     headerSubtitle: '몸과 마음을 함께 돌보는 시간이에요.\n필요한 곳을 골라 들어가보세요',
                     items: [
+                      CategoryItem(emoji: '🎨', title: '색칠 힐링', subtitle: '나만의 색으로 쉬어가는 고양이 정원', accent: AppColors.blobRoseAccent, background: AppColors.blobRose, onTap: (ctx) => Navigator.of(ctx).push(MaterialPageRoute(builder: (_) => const ColoringHealingScreen()))),
+                      CategoryItem(emoji: '🃏', title: '추억 카드 수집·교환', subtitle: '특별한 카드를 모으고 이웃에게 자랑해요', accent: AppColors.blobLavenderAccent, background: AppColors.blobLavender, onTap: (ctx) => Navigator.of(ctx).push(MaterialPageRoute(builder: (_) => const MemoryCardsScreen()))),
                       CategoryItem(
                         emoji: '🧘',
-                        title: '명상 · 움직임 둘러보기',
+                        title: '명상·힐링 한곳에',
                         subtitle: '호흡, 알아차림, 움직임, 표현하기 가이드를 살펴보세요',
                         accent: AppColors.blobLavenderAccent,
                         background: AppColors.blobLavender,
@@ -232,7 +240,7 @@ class HomeTabScreen extends StatelessWidget {
                       CategoryItem(
                         emoji: '💌',
                         title: '마음편지',
-                        subtitle: '감사·용서·미안함·사랑, 짧게 적으면 내일 답장이 와요',
+                        subtitle: '전하지 못한 말과 지금의 마음을 내 속도로 남겨요',
                         accent: AppColors.blobButterAccent,
                         background: AppColors.blobButter,
                         onTap: (ctx) => pushFullScreen(
@@ -391,46 +399,11 @@ class HomeTabScreen extends StatelessWidget {
             const _SproutBannerArea(),
             const _ReflectionBannerArea(),
             const _HomeNoticeCard(),
-            const _ReplyNotificationSettingsButton(),
           ],
         ),
         const SizedBox(height: 16),
         _GardenHintCaption(),
       ],
-    );
-  }
-}
-
-/// 홈 화면 최상단, '36 그림자 고양이 여정'을 앱의 핵심 후크로 내세우는
-/// 히어로 섹션. 오늘 만날 고양이 CTA와 도감(수집 진행률) 진입점을 함께
-/// 보여주어, 다른 모든 기능이 이 여정을 중심으로 이어지도록 합니다.
-/// Heart-letter read state is stored independently of AppStateProvider.
-class _HeartReplyEntry extends StatelessWidget {
-  const _HeartReplyEntry();
-
-  @override
-  Widget build(BuildContext context) {
-    final listenable = SpecialLetterService.listenable;
-    if (listenable == null) return const SizedBox.shrink();
-    return ValueListenableBuilder(
-      valueListenable: listenable,
-      builder: (context, _, __) {
-        final entry = SpecialLetterService.unseenReadyReply;
-        if (entry == null) return const SizedBox.shrink();
-        return Column(
-          children: [
-            _HeartLetterReplyBanner(
-              entry: entry,
-              onTap: () => Navigator.of(context).push<void>(
-                MaterialPageRoute<void>(
-                  builder: (_) => HeartLetterHistoryScreen(type: entry.type),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-          ],
-        );
-      },
     );
   }
 }
@@ -625,269 +598,6 @@ class _PathSignpost extends StatelessWidget {
   }
 }
 
-/// 답장 도착 알림을 켜고 끌 수 있는 작은 설정 버튼. 홈 화면 상단, 답장
-/// 배너 바로 위에 은은하게 자리해 눈에 거슬리지 않으면서도 원할 때 바로
-/// 접근할 수 있게 합니다.
-class _ReplyNotificationSettingsButton extends StatefulWidget {
-  const _ReplyNotificationSettingsButton();
-
-  @override
-  State<_ReplyNotificationSettingsButton> createState() =>
-      _ReplyNotificationSettingsButtonState();
-}
-
-class _ReplyNotificationSettingsButtonState
-    extends State<_ReplyNotificationSettingsButton> {
-  Future<void> _openDialog() async {
-    final enabled = await NotificationService().replyNotificationsEnabled();
-    if (!mounted) return;
-    bool current = enabled;
-    await showDialog<void>(
-      context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (dialogContext, setDialogState) => AlertDialog(
-          title: const Text('답장 도착 알림'),
-          content: Text(
-            current
-                ? '고양이와 마음편지의 답장이 도착하면 알림으로 알려드려요.'
-                : '답장이 도착해도 알림을 보내지 않아요. 앱에 들어와서 직접 확인해주세요.',
-            style: bodyFont(
-              fontSize: 13,
-              color: AppColors.inkSoft,
-              height: 1.5,
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('닫기'),
-            ),
-            TextButton(
-              onPressed: () async {
-                final next = !current;
-                final ok = await NotificationService()
-                    .setReplyNotificationsEnabled(next);
-                if (ok) {
-                  setDialogState(() => current = next);
-                }
-              },
-              child: Text(current ? '알림 끄기' : '알림 켜기'),
-            ),
-          ],
-        ),
-      ),
-    );
-    if (mounted) setState(() {});
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Align(
-        alignment: Alignment.centerRight,
-        child: TextButton.icon(
-          onPressed: _openDialog,
-          icon: const Icon(
-            Icons.notifications_none_rounded,
-            size: 16,
-            color: AppColors.inkSoft,
-          ),
-          label: Text(
-            '답장 도착 알림 설정',
-            style: bodyFont(fontSize: 11.5, color: AppColors.inkSoft),
-          ),
-          style: TextButton.styleFrom(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            minimumSize: Size.zero,
-            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// 저녁에 쓴 편지에 대해 다음날 아침 고양이의 답장이 도착했음을 알려주는
-/// 배너. 아직 열어보지 않은 답장이 있을 때만 홈 화면 최상단 근처에
-/// 나타나며, 탭하면 기록 탭으로 이동해 바로 열어볼 수 있습니다.
-class _CatReplyBanner extends StatelessWidget {
-  final LetterEntry entry;
-  final VoidCallback onTap;
-  const _CatReplyBanner({required this.entry, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final cat = shadowCatById(entry.catId);
-    return Material(
-      color: Colors.transparent,
-      borderRadius: BorderRadius.circular(28),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(28),
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(28),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                AppColors.blobButter.withValues(alpha: 0.92),
-                AppColors.blobButter.withValues(alpha: 0.62),
-              ],
-            ),
-            border: Border.all(
-              color: AppColors.blobButterAccent.withValues(alpha: 0.32),
-              width: 1.2,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.blobButterAccent.withValues(alpha: 0.18),
-                blurRadius: 18,
-                offset: const Offset(0, 8),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.6),
-                  shape: BoxShape.circle,
-                ),
-                child: const Text('💌', style: TextStyle(fontSize: 20)),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      entry.replySeen
-                          ? '${cat.nameKr}의 답장 다시 보기'
-                          : '${cat.nameKr}에게서 답장이 도착했어요',
-                      style: pathLabelFont(
-                        fontSize: 14.5,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.ink,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      entry.replySeen
-                          ? '받은 답장은 기록에 계속 보관돼요'
-                          : '어제 보낸 편지에 대한 답장을 열어보세요',
-                      style: bodyFont(fontSize: 11.5, color: AppColors.inkSoft),
-                    ),
-                  ],
-                ),
-              ),
-              Icon(
-                Icons.chevron_right_rounded,
-                color: AppColors.blobButterAccent,
-                size: 20,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// 마음편지(감사·용서·미안함·사랑)에 대한 답장이 도착했음을 알려주는
-/// 배너. [_CatReplyBanner]와 동일한 톤으로, 아직 열어보지 않은 답장이
-/// 있을 때만 나타납니다.
-class _HeartLetterReplyBanner extends StatelessWidget {
-  final SpecialLetterEntry entry;
-  final VoidCallback onTap;
-  const _HeartLetterReplyBanner({required this.entry, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      borderRadius: BorderRadius.circular(28),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(28),
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(28),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                AppColors.blobRose.withValues(alpha: 0.92),
-                AppColors.blobRose.withValues(alpha: 0.62),
-              ],
-            ),
-            border: Border.all(
-              color: AppColors.blobRoseAccent.withValues(alpha: 0.32),
-              width: 1.2,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.blobRoseAccent.withValues(alpha: 0.18),
-                blurRadius: 18,
-                offset: const Offset(0, 8),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.6),
-                  shape: BoxShape.circle,
-                ),
-                child: Text(
-                  entry.type.emoji,
-                  style: const TextStyle(fontSize: 20),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '${entry.type.label} 답장이 도착했어요',
-                      style: pathLabelFont(
-                        fontSize: 14.5,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.ink,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '어제 보낸 편지에 대한 답장을 열어보세요',
-                      style: bodyFont(fontSize: 11.5, color: AppColors.inkSoft),
-                    ),
-                  ],
-                ),
-              ),
-              Icon(
-                Icons.chevron_right_rounded,
-                color: AppColors.blobRoseAccent,
-                size: 20,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 /// 며칠 전 땅에 묻어둔 감정이 새싹으로 다시 떠올랐을 때 조용히 보여주는
 /// 배너. "미해결 문제"가 아니라 "언제든 들여다볼 수 있는 마음이 있어요"
 /// 정도의 가벼운 존재감만 전달합니다 - 누르지 않아도 아무 문제가 없습니다.
@@ -1005,11 +715,15 @@ class _StreakBlob extends StatelessWidget {
               TweenAnimationBuilder<double>(
                 tween: Tween(begin: 0, end: 1),
                 duration: const Duration(milliseconds: 800),
-                curve: Curves.elasticOut,
+                curve: Curves.easeOut,
                 builder: (context, value, child) {
                   return Transform.scale(
                     scale: value,
-                    child: const MochiCat(size: 48, static: true),
+                    child: const SizedBox(
+                      width: 48,
+                      height: 48,
+                      child: CompanionPresence(enabled: false),
+                    ),
                   );
                 },
               ),

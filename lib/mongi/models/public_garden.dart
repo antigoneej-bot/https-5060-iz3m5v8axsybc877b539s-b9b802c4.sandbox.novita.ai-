@@ -1,5 +1,6 @@
 import 'garden_layout.dart';
 import 'garden_gifts.dart';
+import '../../models/companion_coat.dart';
 
 /// "둘러보기"에서 다른 사용자가 공개한 정원 하나를 나타내는 읽기전용 모델.
 ///
@@ -9,6 +10,10 @@ import 'garden_gifts.dart';
 /// 또한 이 모델에는 "응원받은 횟수", "방문자 수" 같은 인기도 지표가 전혀
 /// 없다 - 방문자가 다른 정원을 순위로 비교하게 만들지 않기 위함이다.
 class PublicGarden {
+  final bool isFavorite;
+  final String? neighborStatus;
+  final CompanionCoat? publicCoat;
+  final int publicCatStage;
   final GardenLayout? layout;
   final int memoryTreeStage;
   final bool hasCheerFlowers;
@@ -29,6 +34,10 @@ class PublicGarden {
   final int treeStageIndex;
 
   const PublicGarden({
+    this.isFavorite = false,
+    this.neighborStatus,
+    this.publicCoat,
+    this.publicCatStage = 0,
     this.layout,
     this.memoryTreeStage = 0,
     this.hasCheerFlowers = false,
@@ -47,6 +56,17 @@ class PublicGarden {
     final rawDecorationIds = json['equippedDecorationIds'];
     final stage = json['memoryTreeStage'];
     return PublicGarden(
+      isFavorite: json['isFavorite'] == true,
+      neighborStatus: json['neighborStatus'] is String
+          ? json['neighborStatus'] as String
+          : null,
+      publicCoat: json['publicCat'] is Map
+          ? CompanionCoat.parse(json['publicCat']['coat'])
+          : null,
+      publicCatStage:
+          json['publicCat'] is Map && json['publicCat']['stage'] is int
+          ? (json['publicCat']['stage'] as int).clamp(0, 3)
+          : 0,
       receiveGifts: json['receiveGifts'] is bool
           ? json['receiveGifts'] as bool
           : null,

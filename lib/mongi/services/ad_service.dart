@@ -1,43 +1,57 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import '../../services/access_policy.dart';
+import '../../services/cloud_service.dart';
 import '../../services/subscription_service.dart';
+import 'ad_config.dart';
+import 'banner_ads_client.dart';
 import 'consent_service.dart';
 
-/// Free users: banner on Mongi entry. Premium/trial: no ads.
-/// Full-screen and rewarded ads remain disabled.
-class AdService {
+/// Home banner only. No private content or emotion/identity targeting fields.
+class AdService implements BannerAdsClient {
   AdService._();
   static final instance = AdService._();
-  static const interstitialEveryNStages = 3;
-  static const _unit = String.fromEnvironment('ADMOB_ANDROID_BANNER_ID');
-  static const _testUnit = 'ca-app-pub-3940256099942544/6300978111';
+  static const interstitialEveryNStages =
+      3; // Legacy breathing-widget reference.
+  static const config = GardenAdConfig(
+    appId: String.fromEnvironment('ADMOB_ANDROID_APP_ID'),
+    bannerId: String.fromEnvironment('ADMOB_ANDROID_BANNER_ID'),
+    testAds: bool.fromEnvironment('ADMOB_TEST_ADS'),
+  );
   Future<void>? _initializing;
   bool _ready = false;
+
+  @override
   bool get configured =>
       !kIsWeb &&
       defaultTargetPlatform == TargetPlatform.android &&
-      (!kReleaseMode ||
-          (_unit.startsWith('ca-app-pub-') &&
-              _unit.contains('/') &&
-              !_unit.contains('3940256099942544')));
+      config.enabled;
   bool get isReady => _ready;
 
+  @override
   Future<bool> allowed() async {
     try {
-      return configured &&
-          AccessPolicy.adsAllowed(await SubscriptionService().isPremium());
+      if (!configured || ConsentService.instance.privacyOptionsOpen)
+        return false;
+      if (await SubscriptionService().isPremium()) return false;
+      // Missing/stale account cache is NOT proof of a free subscription.
+      if (CloudService.enabled) {
+        return AccessPolicy.adsAllowed(
+          await CloudService.cachedAdFreeEntitlement(),
+        );
+      }
+      return !kReleaseMode;
     } catch (_) {
-      return false; // Unknown entitlement must not show ads to a subscriber.
+      return false;
     }
   }
 
-  Future<void> init() async {
-    if (!await allowed()) return;
-    if (_ready) return;
+  Future<void> init({required bool Function() placementActive}) async {
+    if (!await allowed() || _ready) return;
     final pending = _initializing;
     if (pending != null) return pending;
-    final future = _initialize();
+    final future = _initialize(placementActive);
     _initializing = future;
     try {
       await future;
@@ -46,12 +60,20 @@ class AdService {
     }
   }
 
-  Future<void> _initialize() async {
+  Future<void> _initialize(bool Function() placementActive) async {
     try {
-      await ConsentService.instance.requestConsentAndLoad(onDone: () {});
-      if (!await allowed() ||
+      await ConsentService.instance.requestConsentAndLoad(
+        onDone: () {},
+        canShowForm: placementActive,
+      );
+      if (!placementActive() ||
+          !await allowed() ||
           !await ConsentInformation.instance.canRequestAds())
         return;
+      await MobileAds.instance.updateRequestConfiguration(
+        RequestConfiguration(maxAdContentRating: MaxAdContentRating.pg),
+      );
+      await MobileAds.instance.setAppMuted(true);
       await MobileAds.instance.initialize();
       _ready = true;
     } catch (_) {
@@ -59,24 +81,37 @@ class AdService {
     }
   }
 
-  Future<BannerAd?> createBannerAd({
+  @override
+  Future<GardenBannerAd?> createBannerAd({
+    required int width,
     required void Function() onLoaded,
     required void Function() onFailed,
+    required bool Function() placementActive,
   }) async {
-    await init();
-    if (!_ready || !await allowed()) return null;
+    await init(placementActive: placementActive);
+    if (!_ready || !placementActive() || !await allowed() || width < 200)
+      return null;
     try {
       if (!await ConsentInformation.instance.canRequestAds()) return null;
-      if (!await allowed()) return null;
-      return BannerAd(
-        adUnitId: kReleaseMode ? _unit : _testUnit,
-        size: AdSize.banner,
-        request: const AdRequest(),
+      final size =
+          await AdSize.getCurrentOrientationAnchoredAdaptiveBannerAdSize(width);
+      if (size == null ||
+          size.width > width ||
+          !placementActive() ||
+          !await allowed())
+        return null;
+      final banner = BannerAd(
+        adUnitId: kReleaseMode
+            ? config.requestUnit
+            : GardenAdConfig.testBannerId,
+        size: size,
+        request: const AdRequest(nonPersonalizedAds: true),
         listener: BannerAdListener(
           onAdLoaded: (_) => onLoaded(),
           onAdFailedToLoad: (_, error) => onFailed(),
         ),
       );
+      return _GoogleBanner(banner);
     } catch (_) {
       return null;
     }
@@ -90,4 +125,19 @@ class AdService {
   void dispose() {
     _ready = false;
   }
+}
+
+class _GoogleBanner implements GardenBannerAd {
+  final BannerAd ad;
+  _GoogleBanner(this.ad);
+  @override
+  int get width => ad.size.width;
+  @override
+  int get height => ad.size.height;
+  @override
+  Widget buildView() => AdWidget(ad: ad);
+  @override
+  Future<void> load() => ad.load();
+  @override
+  Future<void> dispose() => ad.dispose();
 }

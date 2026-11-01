@@ -117,6 +117,8 @@ class _Garden extends GardenProvider {
     String? nickname,
     GardenVisibility? visibility,
     bool? discoveryOptIn,
+    bool? randomVisitOptIn,
+    Map<String, dynamic>? publicCat,
     bool? receiveGifts,
   }) async {
     saves++;
@@ -228,6 +230,11 @@ void main() {
       await tester.tap(find.text('이웃 신청'));
       await tester.pumpAndSettle();
       expect(service.requests, 1);
+      await tester.scrollUntilVisible(
+        find.text('수락을 기다리는 이웃'),
+        160,
+        scrollable: find.byType(Scrollable).first,
+      );
       expect(find.text('수락을 기다리는 이웃'), findsOneWidget);
       expect(tester.takeException(), isNull);
     },

@@ -1,29 +1,36 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/notice.dart';
-import '../services/cloud_service.dart';
-import '../services/subscription_service.dart';
+import '../models/garden_event_booking.dart';
+import '../services/garden_event_service.dart';
+import '../services/garden_news_admin_service.dart';
 import '../theme.dart';
+import '../widgets/garden_booking_calendar.dart';
+import 'account_screen.dart';
 import 'garden_news_reservations_screen.dart';
 
-/// 정원소식(구 "공지") 상세 화면.
-///
-/// [설계 원칙] 이 화면은 운영자가 직접 올린 문구만 그대로 보여준다 -
-/// 참여 인원수를 부풀리거나 "마감 임박" 같은 가짜 긴급함을 자동으로 만들어
-/// 붙이지 않는다. [Notice.isReservable]인 소식은 앱 안에서 선착순으로
-/// 신청/취소할 수 있고, 그 외에는 과거처럼 외부 신청폼
-/// ([Notice.applyUrl])으로만 연결한다.
 class NoticeDetailScreen extends StatefulWidget {
   final Notice notice;
-  const NoticeDetailScreen({super.key, required this.notice});
-
+  final GardenEventService? eventService;
+  const NoticeDetailScreen({
+    super.key,
+    required this.notice,
+    this.eventService,
+  });
   @override
   State<NoticeDetailScreen> createState() => _NoticeDetailScreenState();
 }
 
 class _NoticeDetailScreenState extends State<NoticeDetailScreen> {
+  late final GardenNewsAdminService _admin;
   late Notice _notice;
-  bool? _reserved; // null = 아직 모름(로딩 중)
+  late final GardenEventService _events;
+  GardenEventBooking? _reservation;
+  String? _selectedSessionId;
+  String? _owner;
+  int _refreshGeneration = 0;
+  bool _loaded = false;
   bool _busy = false;
   String? _error;
 
@@ -31,49 +38,173 @@ class _NoticeDetailScreenState extends State<NoticeDetailScreen> {
   void initState() {
     super.initState();
     _notice = widget.notice;
-    if (_notice.isReservable) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _loadReserved());
-    }
+    _events = widget.eventService ?? GardenEventService();
+    _admin = GardenNewsAdminService.firebase()..addListener(_adminChanged);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _refresh());
   }
 
-  Future<void> _loadReserved() async {
-    if (!CloudService.enabled) return;
+  void _adminChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    _admin.removeListener(_adminChanged);
+    _admin.dispose();
+    super.dispose();
+  }
+
+  Future<void> _refresh() async {
+    if (!mounted || _busy) return;
+    final owner = _events.currentOwner;
+    final generation = ++_refreshGeneration;
+    setState(() {
+      _error = null;
+      _loaded = false;
+    });
     try {
-      final ids = await CloudService.myGardenNewsReservations();
-      if (mounted) setState(() => _reserved = ids.contains(_notice.id));
-    } catch (_) {
-      // 조용히 실패 - 버튼은 "신청하기" 기본 상태로 둔다.
-      if (mounted) setState(() => _reserved = false);
+      await _admin.refresh();
+      final notice = await _events.refresh(_notice.id);
+      // Older edits may have removed capacity while a booking still exists.
+      final reservation = await _events.reservation(notice.id);
+      if (!mounted ||
+          generation != _refreshGeneration ||
+          _events.currentOwner != owner) {
+        return;
+      }
+      setState(() {
+        _notice = notice;
+        _reservation = reservation;
+        _owner = owner;
+        _loaded = true;
+        _selectedSessionId = reservation?.sessionId ?? _selectedSessionId;
+        if (_selectedSessionId != null &&
+            !notice.sessions.any((s) => s.id == _selectedSessionId)) {
+          _selectedSessionId = null;
+        }
+      });
+    } catch (e) {
+      if (mounted &&
+          generation == _refreshGeneration &&
+          _events.currentOwner == owner) {
+        setState(() => _error = e.toString());
+      }
     }
   }
 
   Future<void> _reserve() async {
+    if (_busy) return;
+    if (_events.currentOwner == null &&
+        (!await AccountScreen.ensureSignedIn(context) || !mounted)) {
+      return;
+    }
+    final owner = _events.currentOwner;
+    final details = await showDialog<Map<String, String>>(
+      context: context,
+      builder: (_) => _BookingDetailsDialog(summary: _bookingSummary()),
+    );
+    if (details == null || !mounted || _events.currentOwner != owner) {
+      return;
+    }
     setState(() {
       _busy = true;
       _error = null;
     });
     try {
-      await CloudService.reserveGardenNews(_notice.id);
-      if (mounted) {
+      final confirmation = await _events.reserve(
+        _notice.id,
+        sessionId: _selectedSessionId,
+        displayName: details['displayName'],
+        note: details['note'],
+      );
+      if (mounted && _events.currentOwner == owner) {
         setState(() {
-          _reserved = true;
-          _notice = Notice(
-            id: _notice.id,
-            title: _notice.title,
-            body: _notice.body,
-            emoji: _notice.emoji,
-            type: _notice.type,
-            date: _notice.date,
-            status: _notice.status,
-            period: _notice.period,
-            location: _notice.location,
-            cost: _notice.cost,
-            applyUrl: _notice.applyUrl,
-            capacity: _notice.capacity,
-            reservedCount: _notice.reservedCount + 1,
-          );
+          if (confirmation.news != null) _notice = confirmation.news!;
+          _reservation = confirmation.reservation;
+          _selectedSessionId = confirmation.reservation.sessionId;
+          _owner = owner;
+          _loaded = true;
         });
       }
+    } catch (e) {
+      if (mounted && _events.currentOwner == owner) {
+        setState(() => _error = e.toString());
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _cancel() async {
+    if (_busy || _owner != _events.currentOwner) return;
+    final owner = _owner;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('이 모임 신청을 취소할까요?'),
+        content: const Text('취소한 자리는 다른 사람이 신청할 수 있어요.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('유지하기'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('신청 취소'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted || owner != _events.currentOwner) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final notice = await _events.cancel(_notice.id);
+      if (mounted && _events.currentOwner == owner) {
+        setState(() {
+          if (notice != null) _notice = notice;
+          _reservation = null;
+          _owner = owner;
+          _loaded = true;
+        });
+      }
+    } catch (e) {
+      if (mounted && _events.currentOwner == owner) {
+        setState(() => _error = e.toString());
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _open(String? value) async {
+    final uri = Uri.tryParse(value ?? '');
+    if (uri == null ||
+        uri.scheme != 'https' ||
+        uri.host.isEmpty ||
+        uri.userInfo.isNotEmpty) {
+      if (mounted) setState(() => _error = '운영자가 모임 접속 링크를 준비 중이에요.');
+      return;
+    }
+    try {
+      if (!await launchUrl(uri, mode: LaunchMode.externalApplication) &&
+          mounted) {
+        setState(() => _error = '페이지를 열지 못했어요. 잠시 후 다시 시도해 주세요.');
+      }
+    } catch (_) {
+      if (mounted) setState(() => _error = '페이지를 열지 못했어요.');
+    }
+  }
+
+  Future<void> _join() async {
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      await _open(await _events.meetingUrl(_notice.id));
     } catch (e) {
       if (mounted) setState(() => _error = e.toString());
     } finally {
@@ -81,417 +212,293 @@ class _NoticeDetailScreenState extends State<NoticeDetailScreen> {
     }
   }
 
-  Future<void> _cancelReservation() async {
-    setState(() {
-      _busy = true;
-      _error = null;
-    });
-    try {
-      await CloudService.cancelGardenNewsReservation(_notice.id);
-      if (mounted) {
-        setState(() {
-          _reserved = false;
-          _notice = Notice(
-            id: _notice.id,
-            title: _notice.title,
-            body: _notice.body,
-            emoji: _notice.emoji,
-            type: _notice.type,
-            date: _notice.date,
-            status: _notice.status,
-            period: _notice.period,
-            location: _notice.location,
-            cost: _notice.cost,
-            applyUrl: _notice.applyUrl,
-            capacity: _notice.capacity,
-            reservedCount: _notice.reservedCount > 0
-                ? _notice.reservedCount - 1
-                : 0,
-          );
-        });
+  String _date(DateTime date) =>
+      DateFormat('yyyy.MM.dd (E) HH:mm', 'ko_KR').format(date.toLocal());
+
+  String _bookingSummary() {
+    for (final slot in _notice.sessions) {
+      if (slot.id == _selectedSessionId) {
+        return '${_notice.title}\n${_date(slot.startsAt)} ~ ${_date(slot.endsAt)}';
       }
-    } catch (e) {
-      if (mounted) setState(() => _error = e.toString());
-    } finally {
-      if (mounted) setState(() => _busy = false);
     }
-  }
-
-  Color _accent() {
-    switch (_notice.type) {
-      case NoticeType.update:
-        return AppColors.blobMintAccent;
-      case NoticeType.event:
-        return AppColors.blobPeachAccent;
-      case NoticeType.info:
-        return AppColors.blobLavenderAccent;
-    }
-  }
-
-  Color _statusColor(NoticeStatus status) {
-    switch (status) {
-      case NoticeStatus.recruiting:
-        return AppColors.blobMintAccent;
-      case NoticeStatus.ongoing:
-        return AppColors.blobPeachAccent;
-      case NoticeStatus.closed:
-        return AppColors.inkSoft;
-    }
-  }
-
-  Future<void> _openApplyLink(BuildContext context) async {
-    final url = _notice.applyUrl;
-    if (url == null) return;
-    final uri = Uri.tryParse(url);
-    if (uri == null) return;
-    final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
-    if (!ok && context.mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('신청 페이지를 열지 못했어요.')));
-    }
+    return _notice.title;
   }
 
   @override
   Widget build(BuildContext context) {
-    final accent = _accent();
     final notice = _notice;
-    final canApply =
-        notice.applyUrl != null &&
-        !notice.isReservable &&
-        notice.status != NoticeStatus.closed;
-    final isAdmin = SubscriptionService.isAdminUser && CloudService.enabled;
+    final known = _loaded && _owner == _events.currentOwner;
+    final booked = known && _reservation != null;
+    GardenEventSession? selected;
+    for (final slot in notice.sessions) {
+      if (slot.id == _selectedSessionId) selected = slot;
+    }
+    final canBook =
+        known &&
+        !booked &&
+        !_busy &&
+        _events.backendEnabled &&
+        notice.isReservable &&
+        notice.status != NoticeStatus.closed &&
+        (notice.sessions.isEmpty
+            ? !notice.isReservationFull
+            : selected?.canBookAt(DateTime.now()) == true);
     return Scaffold(
       backgroundColor: AppColors.bg0,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        foregroundColor: AppColors.ink,
-        title: Text(
-          '소식',
-          style: pathLabelFont(fontSize: 16, color: AppColors.ink),
-        ),
+        title: const Text('정원소식'),
+        backgroundColor: AppColors.bg0,
+        actions: [
+          IconButton(
+            onPressed: _busy ? null : _refresh,
+            tooltip: '새로고침',
+            icon: const Icon(Icons.refresh),
+          ),
+        ],
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Text(notice.emoji, style: const TextStyle(fontSize: 28)),
-                  const SizedBox(width: 10),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: accent.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    child: Text(
-                      notice.type.label,
-                      style: bodyFont(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: accent,
-                      ),
-                    ),
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+          children: [
+            Wrap(
+              spacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Text(notice.emoji, style: const TextStyle(fontSize: 28)),
+                Chip(label: Text(notice.type.label)),
+                if (notice.status != null)
+                  Chip(label: Text(notice.status!.label)),
+                if (notice.eventMode != null)
+                  Chip(
+                    label: Text(notice.eventMode == 'online' ? '온라인' : '오프라인'),
                   ),
-                  if (notice.status != null) ...[
-                    const SizedBox(width: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: _statusColor(
-                          notice.status!,
-                        ).withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: Text(
-                        notice.status!.label,
-                        style: bodyFont(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: _statusColor(notice.status!),
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              notice.title,
+              style: titleFont(fontSize: 22, color: AppColors.ink),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              notice.date,
+              style: bodyFont(fontSize: 12, color: AppColors.inkSoft),
+            ),
+            const SizedBox(height: 16),
+            if (notice.period != null)
+              _info(Icons.calendar_today, '기간', notice.period!),
+            if (notice.location != null)
+              _info(Icons.place_outlined, '장소', notice.location!),
+            if (notice.cost != null)
+              _info(Icons.payments_outlined, '비용', notice.cost!),
+            const SizedBox(height: 16),
+            Text(
+              notice.body,
+              style: bodyFont(fontSize: 14, color: AppColors.ink, height: 1.7),
+            ),
+            if (_error != null) ...[
               const SizedBox(height: 16),
-              Text(
-                notice.title,
-                style: titleFont(fontSize: 21, color: AppColors.ink),
+              Text(_error!, style: const TextStyle(color: Colors.redAccent)),
+              TextButton(
+                onPressed: _busy ? null : _refresh,
+                child: const Text('연결 다시 확인'),
               ),
-              const SizedBox(height: 8),
+            ],
+            if (notice.isReservable || booked) ...[
+              const SizedBox(height: 24),
               Text(
-                notice.date,
-                style: bodyFont(fontSize: 12, color: AppColors.inkSoft),
+                '참여 신청',
+                style: titleFont(fontSize: 18, color: AppColors.ink),
               ),
-              const SizedBox(height: 20),
-              if (notice.period != null ||
-                  notice.location != null ||
-                  notice.cost != null)
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.7),
-                    borderRadius: BorderRadius.circular(18),
+              if (notice.sessions.isNotEmpty) ...[
+                if (!booked)
+                  GardenBookingCalendar(
+                    sessions: notice.sessions,
+                    selectedId: _selectedSessionId,
+                    enabled:
+                        known && !_busy && notice.status != NoticeStatus.closed,
+                    onChanged: (id) => setState(() => _selectedSessionId = id),
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (notice.period != null)
-                        _InfoRow(
-                          icon: Icons.calendar_today_rounded,
-                          label: '기간',
-                          value: notice.period!,
-                        ),
-                      if (notice.location != null)
-                        _InfoRow(
-                          icon: Icons.place_rounded,
-                          label: '장소',
-                          value: notice.location!,
-                        ),
-                      if (notice.cost != null)
-                        _InfoRow(
-                          icon: Icons.payments_rounded,
-                          label: '비용',
-                          value: notice.cost!,
-                        ),
-                    ],
-                  ),
-                ),
-              const SizedBox(height: 20),
-              Text(
-                notice.body,
-                style: bodyFont(
-                  fontSize: 13.5,
-                  color: AppColors.inkSoft,
-                  height: 1.7,
-                ),
-              ),
-              if (notice.isReservable) ...[
-                const SizedBox(height: 24),
-                _buildReservationCard(context, accent),
-              ],
-              if (canApply) ...[
-                const SizedBox(height: 28),
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: ElevatedButton(
-                    onPressed: () => _openApplyLink(context),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: accent,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(999),
-                      ),
+                if (selected != null) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: AppColors.blobMint,
+                      borderRadius: BorderRadius.circular(14),
                     ),
                     child: Text(
-                      '신청하기',
-                      style: pathLabelFont(
-                        fontSize: 14.5,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white,
+                      _bookingSummary(),
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  if (!booked)
+                    Text(
+                      '신청 마감 ${_date(selected.bookingClosesAt)}',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.inkSoft,
                       ),
                     ),
+                ],
+              ] else ...[
+                if (notice.capacity != null)
+                  Text('신청 ${notice.reservedCount} / ${notice.capacity}명')
+                else
+                  const Text('새 신청은 받지 않아요. 기존 신청을 확인하거나 취소할 수 있어요.'),
+              ],
+              const SizedBox(height: 12),
+              if (!known && _error == null)
+                const Center(child: CircularProgressIndicator()),
+              if (booked) ...[
+                const Text(
+                  '신청이 완료됐어요.',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                if (selected?.state == 'canceled')
+                  const Text(
+                    '운영자가 이 일정을 취소했어요.',
+                    style: TextStyle(color: Colors.redAccent),
+                  ),
+                if (notice.eventMode == 'online' &&
+                    selected?.state != 'canceled')
+                  FilledButton.icon(
+                    onPressed: _busy ? null : _join,
+                    icon: const Icon(Icons.open_in_new),
+                    label: const Text('모임 접속 링크 열기'),
+                  ),
+                OutlinedButton(
+                  onPressed: _busy ? null : _cancel,
+                  child: const Text('신청 취소하기'),
+                ),
+              ] else if (known)
+                FilledButton(
+                  onPressed: canBook ? _reserve : null,
+                  child: Text(
+                    _busy
+                        ? '확인 중…'
+                        : notice.sessions.isNotEmpty && selected == null
+                        ? '날짜와 시간을 선택해 주세요'
+                        : canBook
+                        ? '선택한 모임 신청하기'
+                        : '현재 신청할 수 없어요',
                   ),
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  '외부 신청 페이지로 이동해요',
-                  textAlign: TextAlign.center,
-                  style: bodyFont(fontSize: 11, color: AppColors.inkSoft),
+              const SizedBox(height: 8),
+              const Text(
+                '편지와 감정 기록은 운영자에게 전달되지 않아요. 신청할 때 직접 적은 이름·요청 사항과 계정에서 확인된 이메일만 전달돼요. 비용이 있는 모임은 운영자의 결제 안내를 확인해 주세요.',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: AppColors.inkSoft,
+                  height: 1.5,
                 ),
-              ],
-              if (isAdmin && notice.isReservable) ...[
-                const SizedBox(height: 16),
-                TextButton.icon(
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) =>
-                          GardenNewsReservationsScreen(news: notice),
-                    ),
-                  ),
-                  icon: const Icon(Icons.list_alt_rounded, size: 18),
-                  label: const Text('(관리자) 신청자 목록 보기'),
-                ),
-              ],
+              ),
             ],
-          ),
+            if (notice.applyUrl != null &&
+                !notice.isReservable &&
+                notice.status != NoticeStatus.closed) ...[
+              const SizedBox(height: 20),
+              FilledButton(
+                onPressed: () => _open(notice.applyUrl),
+                child: const Text('외부 신청 페이지 열기'),
+              ),
+            ],
+            if (_admin.canManage &&
+                (notice.isReservable ||
+                    notice.hasReservations ||
+                    notice.deleting)) ...[
+              const SizedBox(height: 16),
+              TextButton.icon(
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => GardenNewsReservationsScreen(news: notice),
+                  ),
+                ),
+                icon: const Icon(Icons.list_alt),
+                label: const Text('(관리자) 날짜별 신청자 보기'),
+              ),
+            ],
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildReservationCard(BuildContext context, Color accent) {
-    final notice = _notice;
-    final full = notice.isReservationFull;
-    final closed = notice.status == NoticeStatus.closed;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: accent.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.groups_rounded, size: 18, color: accent),
-              const SizedBox(width: 8),
-              Text(
-                '신청 ${notice.reservedCount} / ${notice.capacity}명',
-                style: bodyFont(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.ink,
-                ),
-              ),
-            ],
-          ),
-          if (_error != null) ...[
-            const SizedBox(height: 10),
-            Text(
-              _error!,
-              style: bodyFont(fontSize: 11.5, color: Colors.redAccent),
-            ),
-          ],
-          const SizedBox(height: 14),
-          if (_reserved == null)
-            const Center(
-              child: Padding(
-                padding: EdgeInsets.symmetric(vertical: 8),
-                child: SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-              ),
-            )
-          else if (_reserved == true)
-            SizedBox(
-              width: double.infinity,
-              height: 46,
-              child: OutlinedButton(
-                onPressed: _busy ? null : _cancelReservation,
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.inkSoft,
-                  side: BorderSide(color: AppColors.inkSoft.withValues(alpha: 0.4)),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                ),
-                child: _busy
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Text('신청 취소하기'),
-              ),
-            )
-          else
-            SizedBox(
-              width: double.infinity,
-              height: 46,
-              child: ElevatedButton(
-                onPressed: (_busy || full || closed) ? null : _reserve,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: accent,
-                  disabledBackgroundColor: AppColors.inkSoft.withValues(
-                    alpha: 0.3,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                ),
-                child: _busy
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : Text(
-                        closed
-                            ? '신청이 마감됐어요'
-                            : full
-                            ? '신청 인원이 모두 찼어요'
-                            : '신청하기',
-                        style: pathLabelFont(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white,
-                        ),
-                      ),
-              ),
-            ),
-          if (!CloudService.enabled) ...[
-            const SizedBox(height: 8),
-            Text(
-              '서버 연결이 준비되지 않아 지금은 신청할 수 없어요.',
-              textAlign: TextAlign.center,
-              style: bodyFont(fontSize: 11, color: Colors.redAccent),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
+  Widget _info(IconData icon, String label, String value) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 5),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 18),
+        const SizedBox(width: 8),
+        Text('$label  '),
+        Expanded(child: Text(value)),
+      ],
+    ),
+  );
 }
 
-class _InfoRow extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String value;
-  const _InfoRow({
-    required this.icon,
-    required this.label,
-    required this.value,
-  });
+class _BookingDetailsDialog extends StatefulWidget {
+  final String summary;
+  const _BookingDetailsDialog({required this.summary});
+  @override
+  State<_BookingDetailsDialog> createState() => _BookingDetailsDialogState();
+}
+
+class _BookingDetailsDialogState extends State<_BookingDetailsDialog> {
+  final _name = TextEditingController();
+  final _note = TextEditingController();
+  @override
+  void dispose() {
+    _name.dispose();
+    _note.dispose();
+    super.dispose();
+  }
 
   @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+  Widget build(BuildContext context) => AlertDialog(
+    title: const Text('예약 확인'),
+    content: SingleChildScrollView(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Icon(icon, size: 16, color: AppColors.inkSoft),
-          const SizedBox(width: 8),
-          SizedBox(
-            width: 36,
-            child: Text(
-              label,
-              style: bodyFont(fontSize: 12, color: AppColors.inkSoft),
-            ),
+          Text(
+            widget.summary,
+            style: const TextStyle(fontWeight: FontWeight.bold),
           ),
-          Expanded(
-            child: Text(
-              value,
-              style: bodyFont(
-                fontSize: 12.5,
-                fontWeight: FontWeight.w600,
-                color: AppColors.ink,
-              ),
-            ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _name,
+            maxLength: 40,
+            decoration: const InputDecoration(labelText: '모임에서 사용할 이름 (선택)'),
+          ),
+          TextField(
+            controller: _note,
+            maxLength: 200,
+            maxLines: 3,
+            decoration: const InputDecoration(labelText: '운영자에게 요청할 내용 (선택)'),
+          ),
+          const Text(
+            '입력한 내용과 인증된 이메일이 있는 경우 이메일이 운영자에게 전달돼요. 개인적인 편지나 건강 정보는 적지 않아도 돼요.',
+            style: TextStyle(fontSize: 12),
           ),
         ],
       ),
-    );
-  }
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text('닫기'),
+      ),
+      FilledButton(
+        onPressed: () => Navigator.pop(context, {
+          'displayName': _name.text.trim(),
+          'note': _note.text.trim(),
+        }),
+        child: const Text('신청 확인'),
+      ),
+    ],
+  );
 }

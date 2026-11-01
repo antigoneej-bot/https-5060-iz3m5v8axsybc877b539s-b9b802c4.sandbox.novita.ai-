@@ -1,4 +1,12 @@
+import 'widgets/community_consent.dart';
+import 'utils/welcome_policy.dart';
+import 'widgets/premium_test_access.dart';
+import 'widgets/background_music_gate.dart';
+import 'services/garden_push_service.dart';
+import 'services/garden_ad_routes.dart';
+import 'services/meditation_completion_service.dart';
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 
 import 'mongi/providers/garden_provider.dart';
 import 'mongi/integration/postcard_attribution.dart';
@@ -54,7 +62,7 @@ Future<void> main() async {
       options: DefaultFirebaseOptions.currentPlatform,
     );
   } catch (e) {
-    debugPrint('Firebase initialization failed: $e');
+    if (kDebugMode) debugPrint('Firebase initialization failed: $e');
   }
   var storageReady = false;
   var resuming = true;
@@ -63,11 +71,14 @@ Future<void> main() async {
     await StorageService.init();
     storageReady = true;
     await BackupService.resumePending();
+    await MeditationCompletionService.instance.retry();
     resuming = false;
     await _launchGarden();
   } catch (e, st) {
-    debugPrint('main() failed: $e');
-    debugPrint('$st');
+    if (kDebugMode) {
+      debugPrint('main() failed: $e');
+      debugPrint('$st');
+    }
     runApp(StartupRecoveryApp(retry: main, canDefer: storageReady && resuming));
   }
 }
@@ -76,13 +87,11 @@ Future<void> _launchGarden() async {
   if (Firebase.apps.isNotEmpty &&
       (CloudService.enabled || SocialAuthService.browserConfigured)) {
     try {
-      // ⚠️ QA 전용 분기: Play 스토어(비공개 테스트 트랙 포함)를 거치지
-      // 않고 직접 설치(사이드로딩)한 테스트 APK는 Play Integrity의
-      // "Play에서 설치됨" 검증을 통과할 수 없어 App Check 토큰 발급이
-      // 항상 실패한다. FeatureFlags.useAppCheckDebugProvider가 켜진
-      // 빌드(`--dart-define=APP_CHECK_DEBUG_PROVIDER=true`)에서만 디버그
-      // 프로바이더로 전환하고, 일반 빌드는 기존대로 Play Integrity를
-      // 사용한다. 정식 Play 스토어 출시 빌드에는 이 define을 넣지 않는다.
+      // Play 내부 테스트와 정식 배포는 Play Integrity로 자동 인증한다.
+      // Firebase의 서명 인증서/판정 요구사항을 실제 배포 경로와 맞춘다.
+      // 직접 설치 APK의 지원 여부도 해당 요구사항에 따라 달라진다.
+      // 기기별 토큰 등록이 필요한 debug provider는 개발자 QA에만 사용한다.
+      // Play 배포 빌드는 APP_CHECK_DEBUG_PROVIDER=false를 명시한다.
       await FirebaseAppCheck.instance.activate(
         androidProvider: FeatureFlags.useAppCheckDebugProvider
             ? AndroidProvider.debug
@@ -111,6 +120,7 @@ Future<void> _launchGarden() async {
   // purchases are being checked. Access remains governed by verified state.
   unawaited(SubscriptionService().init());
   AutoBackupService.instance.start();
+  unawaited(GardenPushService.instance.start().catchError((Object _) {}));
   PostcardAttribution.check();
 }
 
@@ -188,6 +198,7 @@ class MysticCatApp extends StatelessWidget {
   const MysticCatApp({super.key});
   @override
   Widget build(BuildContext context) {
+    CloudService.requestCommunityConsent = requestCommunityConsent;
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => GardenProvider()),
@@ -199,11 +210,16 @@ class MysticCatApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => BuriedEmotionProvider()),
       ],
       child: MaterialApp(
+        navigatorKey: communityNavigatorKey,
+        navigatorObservers: [gardenAdRoutes],
         localizationsDelegates: mongi.AppLocalizations.localizationsDelegates,
         supportedLocales: const [Locale('ko')],
         locale: const Locale('ko'),
-        builder: (_, child) =>
-            AccountAccessBridge(child: AppLockGate(child: child!)),
+        builder: (_, child) => AccountAccessBridge(
+          child: AppLockGate(
+            child: BackgroundMusicGate(child: PremiumTestFrame(child: child!)),
+          ),
+        ),
         title: '마음냥 정원',
         debugShowCheckedModeBanner: false,
         theme: appTheme,
@@ -231,6 +247,8 @@ class _AppRootState extends State<_AppRoot> {
   // 곧바로 홈으로 진입합니다.
   bool _introChecked = false;
   bool _needsWelcomeIntro = false;
+  bool _testIntroShown = false;
+  static const _testOnboarding = bool.fromEnvironment('TEST_SHOW_ONBOARDING');
 
   @override
   void initState() {
@@ -265,7 +283,11 @@ class _AppRootState extends State<_AppRoot> {
       await buriedEmotion.load();
       if (mounted)
         setState(() {
-          _needsWelcomeIntro = !signedUp;
+          _needsWelcomeIntro = shouldShowWelcome(
+            completed: signedUp,
+            testReplay: _testOnboarding,
+            shownThisSession: _testIntroShown,
+          );
           _introChecked = true;
           _dataLoaded = true;
         });
@@ -280,7 +302,10 @@ class _AppRootState extends State<_AppRoot> {
     // 웰컴 투어를 마치면 홈이 아니라, 바로 "고양이선택" 탭으로 이어져
     // 곧바로 첫 감정 고양이를 만나고 첫 편지/명상 여정을 시작할 수 있게 합니다.
     context.read<AppStateProvider>().requestHomeTab(1);
-    setState(() => _needsWelcomeIntro = false);
+    setState(() {
+      _needsWelcomeIntro = false;
+      _testIntroShown = true;
+    });
   }
 
   @override
@@ -317,14 +342,7 @@ class _AppRootState extends State<_AppRoot> {
               key: const ValueKey('welcomeIntro'),
               onFinished: _onWelcomeIntroFinished,
             )
-          : GestureDetector(
-              key: const ValueKey('home'),
-              behavior: HitTestBehavior.translucent,
-              onTap: () {
-                SoundService().tryStartBgm();
-              },
-              child: const HomeScreen(),
-            ),
+          : const HomeScreen(key: ValueKey('home')),
     );
   }
 }

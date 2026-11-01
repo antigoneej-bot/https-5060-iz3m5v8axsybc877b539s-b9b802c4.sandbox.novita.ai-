@@ -188,7 +188,7 @@ export function createSocialAuthFlow({db, auth, getConfig, now = Date.now, token
       const profile = await fetchProfile({provider:value.provider, code, state, config});
       const identityKey = socialIdentityKey(value.provider, profile.subject);
       await finish({status:'ready', identityKey});
-      return {redirectUrl:returnUrl(session)};
+      return {redirectUrl:returnUrl(session) + (value.provider === 'facebook' ? '#' : '') /* mindnyang-facebook-success-return-v2 */};
     } catch {
       // Never return provider tokens, codes, email, or raw provider errors.
       try {await finish({status:'failed', error:'provider-error'});} catch { /* expired state remains unusable */ }

@@ -5,6 +5,12 @@ import 'package:flutter_app/widgets/emotion_cat_video.dart';
 
 class FakeVideos extends VideoPlayerPlatform {
   int created = 0;
+  bool? mixWithOthers;
+  @override
+  Future<void> setMixWithOthers(bool value) async {
+    mixWithOthers = value;
+  }
+
   final playing = <int>{};
   @override
   Future<void> init() async {}
@@ -79,6 +85,7 @@ void main() {
     await tester.tap(find.byTooltip('움직임 보기').first);
     await tester.pumpAndSettle();
     expect(fake.playing, {1});
+    expect(fake.mixWithOthers, isTrue);
     await tester.tap(find.byTooltip('움직임 보기').first);
     await tester.pumpAndSettle();
     expect(fake.playing, {2});
@@ -132,6 +139,7 @@ void main() {
     await tester.tap(find.byTooltip('움직임 보기'));
     await tester.pumpAndSettle();
     expect(fake.playing, {1});
+    expect(fake.mixWithOthers, isTrue);
     await tester.tap(find.byTooltip('움직임 멈추기'));
     await tester.pumpAndSettle();
     scroll.jumpTo(20);
@@ -143,6 +151,7 @@ void main() {
     await tester.tap(find.byTooltip('움직임 보기'));
     await tester.pumpAndSettle();
     expect(fake.playing, {1});
+    expect(fake.mixWithOthers, isTrue);
     await tester.drag(
       find.byType(SingleChildScrollView),
       const Offset(0, -600),
@@ -156,6 +165,7 @@ void main() {
     await tester.tap(find.byTooltip('움직임 보기'));
     await tester.pumpAndSettle();
     expect(fake.playing, {1});
+    expect(fake.mixWithOthers, isTrue);
     await tester.pumpWidget(const SizedBox());
     await tester.pumpAndSettle();
   });

@@ -4,10 +4,14 @@ import 'dart:convert';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/hive_encryption.dart';
+import '../models/garden_layout.dart';
 
 /// Durable write-ahead journal. Replay writes final values, never increments.
 class SessionTransaction {
-  static String newId() => List.generate(24, (_) => Random.secure().nextInt(256).toRadixString(16).padLeft(2, '0')).join();
+  static String newId() => List.generate(
+    24,
+    (_) => Random.secure().nextInt(256).toRadixString(16).padLeft(2, '0'),
+  ).join();
   static const boxName = 'mongi_progress_local_user';
   static const pendingKey = '__mongi_pending_commit_v1';
   static const receiptsKey = '__mongi_session_receipts_v1';
@@ -17,6 +21,8 @@ class SessionTransaction {
   // Fault injection at real persistence boundaries, unused in production.
   static Future<void> Function(String)? fault;
   static DraftBox? get draft => Zone.current[zoneKey] as DraftBox?;
+  static bool get hasPending =>
+      _box?.isOpen == true && _box!.containsKey(pendingKey);
 
   static Future<void> initialize() async {
     _box = await HiveEncryption.openBox(boxName);
@@ -43,8 +49,21 @@ class SessionTransaction {
     }
     await box.flush();
     await fault?.call('hive_flushed');
+    if (commit['layout'] != null) {
+      final json = Map<String, dynamic>.from(commit['layout'] as Map);
+      GardenLayout.fromJson(json);
+      final layoutBox = await HiveEncryption.openBox(
+        'garden_layout_local_user',
+      );
+      await layoutBox.put('layout', json);
+      await layoutBox.flush();
+      await fault?.call('layout_written');
+    }
     final prefs = await SharedPreferences.getInstance();
-    if (!await prefs.setString('local_user_mongi_garden_v1', commit['garden'] as String)) {
+    if (!await prefs.setString(
+      'local_user_mongi_garden_v1',
+      commit['garden'] as String,
+    )) {
       throw StateError('정원 저장을 완료하지 못했어요. 다시 시도해 주세요.');
     }
     await fault?.call('garden_written');
@@ -53,11 +72,18 @@ class SessionTransaction {
     await fault?.call('commit_finished');
   }
 
-  static Future<void> commit(DraftBox draft, Map<String, dynamic> garden) async {
+  static Future<void> commit(
+    DraftBox draft,
+    Map<String, dynamic> garden, {
+    Map<String, dynamic>? layout,
+  }) async {
+    if (layout != null) GardenLayout.fromJson(layout);
     await fault?.call('before_journal');
     await _box!.put(pendingKey, {
-      'writes': draft.writes, 'deletes': draft.deletes.toList(),
+      'writes': draft.writes,
+      'deletes': draft.deletes.toList(),
       'garden': jsonEncode(garden),
+      if (layout != null) 'layout': layout,
     });
     await _box!.flush();
     await fault?.call('journal_flushed');
@@ -70,15 +96,24 @@ class DraftBox {
   final Map<String, dynamic> writes = {};
   final Set<String> deletes = {};
   DraftBox(Box box) : values = jsonDecode(jsonEncode(box.toMap())) as Map;
-  dynamic get(dynamic key, {dynamic defaultValue}) => values[key] ?? defaultValue;
+  dynamic get(dynamic key, {dynamic defaultValue}) =>
+      values[key] ?? defaultValue;
   Future<void> put(dynamic key, dynamic value) async {
-    values[key] = value; writes[key as String] = value; deletes.remove(key);
+    values[key] = value;
+    writes[key as String] = value;
+    deletes.remove(key);
   }
+
   Future<void> putAll(Map values) async {
-    for (final entry in values.entries) { await put(entry.key, entry.value); }
+    for (final entry in values.entries) {
+      await put(entry.key, entry.value);
+    }
   }
+
   Future<void> delete(dynamic key) async {
-    values.remove(key); writes.remove(key); deletes.add(key as String);
+    values.remove(key);
+    writes.remove(key);
+    deletes.add(key as String);
   }
 }
 
@@ -87,14 +122,20 @@ class DraftBox {
 class RecoveringBox {
   final Box box;
   RecoveringBox(this.box);
-  dynamic get(dynamic key, {dynamic defaultValue}) => box.get(key, defaultValue: defaultValue);
+  dynamic get(dynamic key, {dynamic defaultValue}) =>
+      box.get(key, defaultValue: defaultValue);
   Future<void> put(dynamic key, dynamic value) async {
-    await SessionTransaction.recover(); await box.put(key, value);
+    await SessionTransaction.recover();
+    await box.put(key, value);
   }
+
   Future<void> putAll(Map values) async {
-    await SessionTransaction.recover(); await box.putAll(values);
+    await SessionTransaction.recover();
+    await box.putAll(values);
   }
+
   Future<void> delete(dynamic key) async {
-    await SessionTransaction.recover(); await box.delete(key);
+    await SessionTransaction.recover();
+    await box.delete(key);
   }
 }

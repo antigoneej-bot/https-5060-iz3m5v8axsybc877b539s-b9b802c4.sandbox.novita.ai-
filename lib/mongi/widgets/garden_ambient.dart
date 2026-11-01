@@ -1,6 +1,10 @@
+import '../../widgets/companion_coat_art.dart';
+import '../../widgets/companion_loaf_art.dart';
+import '../../models/companion_motion.dart';
 import 'dart:math' as math;
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import '../../widgets/companion_cat_mesh.dart';
 
 /// Decorative motion never changes saved positions or intercepts garden taps.
 class GardenSway extends StatelessWidget {
@@ -476,37 +480,82 @@ class GardenCatArt extends StatelessWidget {
   final Animation<double> animation;
   final bool blinking;
   final bool resting;
+  final bool loafMotion;
+  final bool naturalMotion;
+  final double headTilt, eyeClosure, breath;
+  final double motionSeconds;
+  final bool smiling, tailMotion;
   const GardenCatArt({
     super.key,
     required this.animation,
     this.blinking = true,
     this.resting = false,
+    this.loafMotion = true,
+    this.naturalMotion = false,
+    this.motionSeconds = 0,
+    this.smiling = false,
+    this.tailMotion = true,
+    this.headTilt = 0,
+    this.eyeClosure = 0,
+    this.breath = 1,
   });
   @override
-  Widget build(BuildContext context) => AnimatedBuilder(
-    animation: animation,
-    builder: (context, _) => Stack(
-      fit: StackFit.expand,
-      children: [
-        Image.asset(
-          'assets/living_garden/cat_idle_front.webp',
-          excludeFromSemantics: true,
-        ),
-        Opacity(
-          opacity: resting
-              ? 1
-              : (blinking ? gardenBlinkOpacity(animation.value * 24) : 0),
-          child: ClipPath(
-            clipper: _CatEyes(),
-            child: Image.asset(
-              'assets/living_garden/cat_idle_front_blink.webp',
-              excludeFromSemantics: true,
-            ),
+  Widget build(BuildContext context) {
+    final coat = selectedCompanionCoat(context);
+    if (resting) return CompanionLoafArt(coatIndex: coat?.index ?? 0, motionEnabled: loafMotion);
+    if (coat != null) {
+      return AnimatedBuilder(
+        animation: animation,
+        builder: (context, _) => CompanionCoatArt(
+          coat: coat,
+          motion: CompanionMotionPose.idle(
+            naturalMotion ? motionSeconds : animation.value * 24,
+            eyeClosure: naturalMotion
+                ? eyeClosure
+                : gardenBlinkOpacity(animation.value * 24),
+            smile: smiling,
+            resting: resting,
+            animate:
+                tailMotion &&
+                !MediaQuery.disableAnimationsOf(context) &&
+                TickerMode.of(context),
           ),
         ),
-      ],
-    ),
-  );
+      );
+    }
+    return naturalMotion
+        ? CompanionCatMesh(
+            headTilt: headTilt,
+            eyeClosure: eyeClosure,
+            breath: breath,
+          )
+        : AnimatedBuilder(
+            animation: animation,
+            builder: (context, _) => Stack(
+              fit: StackFit.expand,
+              children: [
+                Image.asset(
+                  'assets/living_garden/cat_idle_front.webp',
+                  excludeFromSemantics: true,
+                ),
+                Opacity(
+                  opacity: resting
+                      ? 1
+                      : (blinking
+                            ? gardenBlinkOpacity(animation.value * 24)
+                            : 0),
+                  child: ClipPath(
+                    clipper: _CatEyes(),
+                    child: Image.asset(
+                      'assets/living_garden/cat_idle_front_blink.webp',
+                      excludeFromSemantics: true,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+  }
 }
 
 class _CatEyes extends CustomClipper<Path> {

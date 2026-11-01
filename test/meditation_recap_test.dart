@@ -1,3 +1,4 @@
+import 'support/encrypted_meditation_storage.dart';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -15,6 +16,7 @@ Map<String, dynamic> answer(
 }) => {'session': session, 'guide': guide, 'feeling': feeling, 'at': day};
 
 void main() {
+  useEncryptedMeditationStorage();
   TestWidgetsFlutterBinding.ensureInitialized();
   final now = DateTime(2026, 10, 16, 15);
   setUp(() {
@@ -91,6 +93,7 @@ void main() {
     'empty recap gives a directly usable free guide without inventing improvement',
     (tester) async {
       final store = MeditationLibraryStore();
+      await tester.runAsync(store.load);
       String? opened;
       await tester.pumpWidget(
         MaterialApp(
@@ -105,6 +108,7 @@ void main() {
           ),
         ),
       );
+      await tester.runAsync(() => Future<void>.delayed(Duration.zero));
       await tester.pumpAndSettle();
       expect(find.textContaining('이번 주에는 명상 후 남긴 응답이 없어요'), findsOneWidget);
       expect(find.text('편안해짐 0회'), findsNothing);
@@ -125,6 +129,7 @@ void main() {
       ]),
     });
     final store = MeditationLibraryStore();
+    await tester.runAsync(store.load);
     String? opened;
     await tester.pumpWidget(
       MaterialApp(
@@ -139,6 +144,7 @@ void main() {
         ),
       ),
     );
+    await tester.runAsync(() => Future<void>.delayed(Duration.zero));
     await tester.pumpAndSettle();
     expect(find.text('2일 동안 남긴 2개의 응답'), findsOneWidget);
     expect(find.text('편안해짐 1회'), findsOneWidget);
@@ -164,6 +170,7 @@ void main() {
         ]),
       });
       final store = MeditationLibraryStore();
+      await tester.runAsync(store.load);
       String? opened;
       await tester.pumpWidget(
         MaterialApp(
@@ -179,15 +186,18 @@ void main() {
           ),
         ),
       );
+      await tester.runAsync(() => Future<void>.delayed(Duration.zero));
       await tester.pumpAndSettle();
       expect(find.text('그 명상 다시 열기'), findsNothing);
       await tester.ensureVisible(find.text('주변 잠깐 살펴보기'));
       await tester.tap(find.text('주변 잠깐 살펴보기'));
+      await tester.runAsync(() => Future<void>.delayed(Duration.zero));
       await tester.pumpAndSettle();
       expect(find.text('지금은 잠깐 쉬어도 괜찮아요'), findsOneWidget);
       expect(opened, isNull);
       expect(tester.takeException(), isNull);
       await tester.tap(find.text('내 속도로 쉴게요'));
+      await tester.runAsync(() => Future<void>.delayed(Duration.zero));
       await tester.pumpAndSettle();
       await tester.pumpWidget(const SizedBox.shrink());
       store.dispose();

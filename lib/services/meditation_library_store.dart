@@ -1,3 +1,5 @@
+import 'local_record_transaction.dart';
+import 'meditation_checkin_store.dart';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -9,18 +11,15 @@ class MeditationLibraryStore extends ChangeNotifier {
   final recent = <String>[];
   final checkIns = <Map<String, dynamic>>[];
   Future<void>? _ready;
-  Future<void> _tail = Future.value();
+  final _queue = LocalRecordQueue();
   Future<void> load() => _ready ??= _load().catchError((Object error) {
     _ready = null;
     throw error;
   });
 
-  /// Forces a fresh read from SharedPreferences, discarding any in-memory
-  /// cache. Used after a backup restore writes `meditation.favorites` /
-  /// `meditation.recent` / `meditation.checkins` directly, so this store's
-  /// cached collections cannot go stale or duplicate entries.
+  /// Refresh preferences and encrypted check-ins after a backup restore.
   Future<void> reload() async {
-    await _tail;
+    await _queue.settled;
     await (await SharedPreferences.getInstance()).reload();
     _ready = null;
     favorites.clear();
@@ -31,6 +30,9 @@ class MeditationLibraryStore extends ChangeNotifier {
 
   Future<void> _load() async {
     final p = await SharedPreferences.getInstance();
+    favorites.clear();
+    recent.clear();
+    checkIns.clear();
     favorites.addAll(
       (p.getStringList('meditation.favorites') ?? []).where(
         meditationMedia.containsKey,
@@ -41,9 +43,9 @@ class MeditationLibraryStore extends ChangeNotifier {
           .where(meditationMedia.containsKey)
           .take(10),
     );
+    final savedCheckIns = await MeditationCheckInStore.read();
     try {
-      final raw =
-          jsonDecode(p.getString('meditation.checkins') ?? '[]') as List;
+      final raw = jsonDecode(savedCheckIns ?? '[]') as List;
       checkIns.addAll(
         raw.whereType<Map>().map((v) => Map<String, dynamic>.from(v)).take(90),
       );
@@ -54,13 +56,11 @@ class MeditationLibraryStore extends ChangeNotifier {
   }
 
   Future<void> _run(Future<void> Function(SharedPreferences) action) {
-    final result = _tail.then((_) async {
+    return _queue.run(() async {
       await load();
       await action(await SharedPreferences.getInstance());
       notifyListeners();
     });
-    _tail = result.catchError((Object _) {});
-    return result;
   }
 
   Future<void> toggleFavorite(String key) => _run((p) async {
@@ -88,17 +88,24 @@ class MeditationLibraryStore extends ChangeNotifier {
             !meditationMedia.containsKey(key))
           return;
         if (checkIns.any((v) => v['session'] == session)) return;
-        final next = <Map<String, dynamic>>[
-          {
-            'session': session,
-            'guide': key,
-            'feeling': feeling,
-            'at': DateTime.now().toIso8601String(),
-          },
-          ...checkIns,
-        ].take(90).toList();
-        if (!await p.setString('meditation.checkins', jsonEncode(next)))
-          throw StateError('checkin-save');
+        final saved = await MeditationCheckInStore.update((raw) {
+          final current = raw == null
+              ? <Map<String, dynamic>>[]
+              : MeditationCheckInStore.rows(raw);
+          if (current.any((row) => row['session'] == session)) return raw;
+          return jsonEncode(
+            [
+              {
+                'session': session,
+                'guide': key,
+                'feeling': feeling,
+                'at': DateTime.now().toIso8601String(),
+              },
+              ...current,
+            ].take(90).toList(),
+          );
+        });
+        final next = MeditationCheckInStore.rows(saved!);
         checkIns
           ..clear()
           ..addAll(next);

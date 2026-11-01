@@ -1,0 +1,8 @@
+Baseline: ffa5fbe (v62)
+Original tracked asset entries: 302
+Asset diff:
+M	assets/cat_walk.html
+M	assets/cat_walk/assets/rewards.js
+A	assets/living_garden/companion_loaf.png
+
+All other tracked asset bytes remain unchanged according to git. This is not a visual/device verification.

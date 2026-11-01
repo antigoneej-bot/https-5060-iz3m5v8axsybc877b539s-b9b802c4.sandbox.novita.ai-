@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import '../models/notice.dart';
 import '../services/cloud_service.dart';
+import '../services/garden_news_admin_service.dart';
+import '../services/garden_event_service.dart';
 import '../services/notice_service.dart';
-import '../services/subscription_service.dart';
 import '../theme.dart';
 import '../widgets/garden_path_card.dart';
 import 'garden_news_editor_screen.dart';
 import 'notice_detail_screen.dart';
+import 'my_garden_reservations_screen.dart';
+import 'account_screen.dart';
 
 /// 정원소식(구 "공지사항") 목록 화면.
 ///
@@ -25,6 +28,7 @@ class NoticeListScreen extends StatefulWidget {
 }
 
 class _NoticeListScreenState extends State<NoticeListScreen> {
+  late final GardenNewsAdminService _admin;
   List<Notice> _notices = NoticeService.cachedNotices();
   bool _loading = true;
   String? _error;
@@ -32,7 +36,19 @@ class _NoticeListScreenState extends State<NoticeListScreen> {
   @override
   void initState() {
     super.initState();
+    _admin = GardenNewsAdminService.firebase()..addListener(_adminChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) => _load());
+  }
+
+  void _adminChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    _admin.removeListener(_adminChanged);
+    _admin.dispose();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -42,6 +58,8 @@ class _NoticeListScreenState extends State<NoticeListScreen> {
       _error = null;
     });
     try {
+      await _admin.refresh();
+      if (!mounted) return;
       final notices = await NoticeService.fetchNotices(reportErrors: true);
       await NoticeService.markAllAsRead();
       if (mounted) setState(() => _notices = notices);
@@ -58,20 +76,49 @@ class _NoticeListScreenState extends State<NoticeListScreen> {
   }
 
   Future<void> _openEditor({Notice? existing}) async {
-    final saved = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(
-        builder: (_) => GardenNewsEditorScreen(existing: existing),
-      ),
-    );
-    if (saved == true) _load();
+    if (!_admin.canManage) return;
+    final owner = CloudService.currentUser?.uid;
+    try {
+      // Public preview caches deliberately omit the private online link. Always
+      // fetch the operator's latest record before editing, so a stale preview
+      // cannot silently clear that link or undo a resumed deletion.
+      final editable = existing == null
+          ? null
+          : await GardenEventService().refresh(existing.id);
+      if (!mounted ||
+          !_admin.canManage ||
+          owner != CloudService.currentUser?.uid) {
+        return;
+      }
+      if (editable?.deleting == true) {
+        await _load();
+        return;
+      }
+      final saved = await Navigator.of(context).push<bool>(
+        MaterialPageRoute(
+          builder: (_) => GardenNewsEditorScreen(existing: editable),
+        ),
+      );
+      if (saved == true) _load();
+    } catch (error) {
+      if (mounted && owner == CloudService.currentUser?.uid) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.toString())));
+      }
+    }
   }
 
   Future<void> _delete(Notice notice) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('이 소식을 삭제할까요?'),
-        content: Text(notice.title),
+        title: Text(notice.deleting ? '소식 삭제를 마무리할까요?' : '이 소식을 삭제할까요?'),
+        content: Text(
+          notice.deleting
+              ? '${notice.title}\n신청 내역 정리를 이어서 진행해요. 다른 이용자에게는 이미 숨겨져 있어요.'
+              : notice.title,
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
@@ -93,6 +140,7 @@ class _NoticeListScreenState extends State<NoticeListScreen> {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text(e.toString())));
+        _load();
       }
     }
   }
@@ -132,7 +180,7 @@ class _NoticeListScreenState extends State<NoticeListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isAdmin = SubscriptionService.isAdminUser && CloudService.enabled;
+    final isAdmin = _admin.canManage;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -163,6 +211,21 @@ class _NoticeListScreenState extends State<NoticeListScreen> {
             ),
           ],
         ),
+        TextButton.icon(
+          onPressed: () async {
+            if (!await AccountScreen.ensureSignedIn(context) ||
+                !context.mounted) {
+              return;
+            }
+            await Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const MyGardenReservationsScreen(),
+              ),
+            );
+          },
+          icon: const Icon(Icons.event_available_outlined),
+          label: const Text('내 신청 내역'),
+        ),
         const SizedBox(height: 4),
         if (_error != null)
           Padding(
@@ -170,10 +233,15 @@ class _NoticeListScreenState extends State<NoticeListScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(_error!, style: bodyFont(fontSize: 13, color: AppColors.inkSoft)),
+                Text(
+                  _error!,
+                  style: bodyFont(fontSize: 13, color: AppColors.inkSoft),
+                ),
                 if (_notices.isNotEmpty)
-                  Text('이전에 불러온 소식을 보여드리고 있어요.',
-                    style: bodyFont(fontSize: 12, color: AppColors.inkSoft)),
+                  Text(
+                    '이전에 불러온 소식을 보여드리고 있어요.',
+                    style: bodyFont(fontSize: 12, color: AppColors.inkSoft),
+                  ),
                 TextButton.icon(
                   onPressed: _loading ? null : _load,
                   icon: const Icon(Icons.refresh_rounded, size: 18),
@@ -198,7 +266,9 @@ class _NoticeListScreenState extends State<NoticeListScreen> {
             ),
           )
         else
-          for (final notice in _notices) ...[
+          for (final notice in _notices.where(
+            (notice) => isAdmin || !notice.deleting,
+          )) ...[
             GestureDetector(
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute(
@@ -214,7 +284,10 @@ class _NoticeListScreenState extends State<NoticeListScreen> {
                   children: [
                     Row(
                       children: [
-                        Text(notice.emoji, style: const TextStyle(fontSize: 20)),
+                        Text(
+                          notice.emoji,
+                          style: const TextStyle(fontSize: 20),
+                        ),
                         const SizedBox(width: 10),
                         Container(
                           padding: const EdgeInsets.symmetric(
@@ -259,14 +332,15 @@ class _NoticeListScreenState extends State<NoticeListScreen> {
                         ],
                         const Spacer(),
                         if (isAdmin) ...[
-                          InkWell(
-                            onTap: () => _openEditor(existing: notice),
-                            child: const Icon(
-                              Icons.edit_rounded,
-                              size: 16,
-                              color: AppColors.inkSoft,
+                          if (!notice.deleting)
+                            InkWell(
+                              onTap: () => _openEditor(existing: notice),
+                              child: const Icon(
+                                Icons.edit_rounded,
+                                size: 16,
+                                color: AppColors.inkSoft,
+                              ),
                             ),
-                          ),
                           const SizedBox(width: 10),
                           InkWell(
                             onTap: () => _delete(notice),
@@ -307,12 +381,25 @@ class _NoticeListScreenState extends State<NoticeListScreen> {
                         height: 1.6,
                       ),
                     ),
-                    if (notice.isReservable || notice.applyUrl != null) ...[
+                    if (isAdmin && notice.deleting) ...[
+                      const SizedBox(height: 10),
+                      const Text('삭제 정리를 마치지 못했어요. 다른 이용자에게는 숨겨져 있어요.'),
+                      OutlinedButton.icon(
+                        onPressed: () => _delete(notice),
+                        icon: const Icon(Icons.delete_outline),
+                        label: const Text('삭제 마무리하기'),
+                      ),
+                    ],
+                    if (notice.isReservable ||
+                        notice.hasReservations ||
+                        notice.applyUrl != null) ...[
                       const SizedBox(height: 10),
                       Row(
                         children: [
                           Text(
-                            notice.isReservable ? '예약 보기' : '자세히 보기',
+                            notice.isReservable || notice.hasReservations
+                                ? '예약 보기'
+                                : '자세히 보기',
                             style: bodyFont(
                               fontSize: 11.5,
                               fontWeight: FontWeight.w700,

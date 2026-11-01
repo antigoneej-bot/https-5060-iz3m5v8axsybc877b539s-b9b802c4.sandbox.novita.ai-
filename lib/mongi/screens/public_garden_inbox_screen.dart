@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../services/social_auth_service.dart';
+import '../../services/care_journal_store.dart';
 import '../../services/garden_village_service.dart';
 import '../../services/garden_return_store.dart';
 import '../../theme.dart' show AppColors;
@@ -48,7 +49,10 @@ class _PublicGardenInboxScreenState extends State<PublicGardenInboxScreen>
   String? _error, _pageError, _owner, _nextCursor;
   int _request = 0;
   List<ReceivedCheer> _cheers = const [];
-  final Set<String> _claiming = {}, _planting = {};
+  final Set<String> _claiming = {},
+      _planting = {},
+      _savingCare = {},
+      _savedCare = {};
   StreamSubscription<String?>? _auth;
 
   String? get _currentOwner => widget.currentAccount != null
@@ -75,6 +79,8 @@ class _PublicGardenInboxScreenState extends State<PublicGardenInboxScreen>
         _pageError = null;
         _claiming.clear();
         _planting.clear();
+        _savingCare.clear();
+        _savedCare.clear();
       });
       _load();
     });
@@ -261,6 +267,61 @@ class _PublicGardenInboxScreenState extends State<PublicGardenInboxScreen>
       if (mounted && request == _request) _message(error.toString());
     } finally {
       if (mounted) setState(() => _claiming.remove(cheer.id));
+    }
+  }
+
+  Future<void> _keepForCare(
+    ReceivedCheer cheer,
+    String message,
+    String author,
+  ) async {
+    final request = _request;
+    final owner = _currentOwner;
+    if (owner == null ||
+        _savingCare.contains(cheer.id) ||
+        !_isCurrent(request, owner))
+      return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('이 응원을 간직할까요?'),
+        content: const Text(
+          '나를 돌보는 방법에서 다시 볼 수 있도록 이 기기에 저장해요. 로그아웃해도 내 돌봄 기록에는 남고, 언제든 직접 지울 수 있어요.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('취소'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('간직하기'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !_isCurrent(request, owner)) return;
+    setState(() => _savingCare.add(cheer.id));
+    try {
+      await CareJournalStore.instance.saveReceivedEncouragement(
+        sourceId: '$owner:${cheer.id}',
+        text: message,
+        author: author,
+        stillCurrent: () => _isCurrent(request, owner),
+      );
+      if (!mounted || !_isCurrent(request, owner)) return;
+      setState(() => _savedCare.add(cheer.id));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('나를 돌보는 방법에 응원을 간직했어요.')));
+    } catch (_) {
+      if (mounted && _isCurrent(request, owner))
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('응원을 저장하지 못했어요. 다시 시도해 주세요.')),
+        );
+    } finally {
+      if (_isCurrent(request, owner))
+        setState(() => _savingCare.remove(cheer.id));
     }
   }
 
@@ -468,6 +529,25 @@ class _PublicGardenInboxScreenState extends State<PublicGardenInboxScreen>
                             _claiming.contains(cheer.id) ? '확인 중…' : '마음 확인하기',
                           ),
                         ),
+                      TextButton.icon(
+                        onPressed:
+                            _savingCare.contains(cheer.id) ||
+                                _savedCare.contains(cheer.id)
+                            ? null
+                            : () => _keepForCare(
+                                cheer,
+                                publicCheerOptionText(l10n, cheer.messageIndex),
+                                sender,
+                              ),
+                        icon: const Icon(Icons.bookmark_border, size: 18),
+                        label: Text(
+                          _savedCare.contains(cheer.id)
+                              ? '돌봄 모음에 간직했어요'
+                              : _savingCare.contains(cheer.id)
+                              ? '간직하는 중…'
+                              : '돌봄 모음에 간직하기',
+                        ),
+                      ),
                       if (cheer.senderGardenId != null)
                         TextButton.icon(
                           onPressed: () => Navigator.of(context).push(

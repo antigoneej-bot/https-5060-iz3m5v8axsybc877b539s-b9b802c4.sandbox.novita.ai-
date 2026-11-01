@@ -1,0 +1,37 @@
+2026-10-31 Firebase 연결 확인 후 내부 테스트 설정 보존
+
+현재 운영 gardenApi 설정(비밀값 아님):
+PREMIUM_TEST_ACCESS=true
+RELEASE_ENV 미설정
+이 상태를 이번 수정·배포에서 유지한다. 다른 함수의 환경변수도 변경하지 않는다.
+실제 구독 상태(status/verify)는 Google 검증 결과를 사용하며 가짜 구매 상태를 저장하지 않는다.
+테스트 플래그는 기능 접근만 허용한다.
+
+정식 출시 때 별도 작업으로 바꿀 항목:
+1. gardenApi의 PREMIUM_TEST_ACCESS=false, RELEASE_ENV=production.
+2. 정식 앱 빌드의 UNLOCK_ALL_PREMIUM=false,
+   TEST_SHOW_ONBOARDING=false, RELEASE_ENV=production.
+3. 기존 비밀값·Secret 버전 참조·IAM·서비스 계정·실제 상품 ID를 유지한다.
+4. 실제 내부 Play 구독·취소·환불·복원·만료 검증 후 정식 전환한다.
+이번 작업은 이 전환을 실행하지 않는다.
+
+동의와 기존 기록:
+로그인은 기존 Firebase Auth/socialAuth를 그대로 사용한다.
+개인 기록의 기기 저장, 개인 백업/목록/복원/구독 상태는 커뮤니티 동의에 종속되지 않는다.
+공개·공유 쓰기는 현재 버전의 명시적 계정별 동의를 요구한다.
+구버전 앱에 동의 화면이 없으면 해당 커뮤니티 쓰기는 업데이트 후 동의해야 한다.
+구버전이라는 이유로 동의를 자동 생성하거나 우회하지 않는다.
+
+인덱스:
+receivedCheers.senderId, blockedNeighbors.targetId, flowerBlooms.recipientId의
+계정 정리 쿼리는 collectionGroup(...).where(...,'==',uid)다.
+필요한 COLLECTION_GROUP ASCENDING 인덱스는 기존 운영에 이미 있다.
+현재 쿼리에서 사용하지 않는 기존 COLLECTION ARRAY_CONTAINS 인덱스도 선언에 보존한다.
+인덱스 삭제·재생성·TTL 변경은 하지 않는다.
+
+Storage:
+운영 설정의 mycatapp-99bc8.firebasestorage.app 버킷 조회는 404.
+새 버킷 생성, 다른 버킷 대체, 공개 접근 허용, 규칙/IAM 변경은 하지 않는다.
+개인 백업 복구와 계정 삭제는 별개다. 목록 조회는 Storage 점검 실패에도 유지한다.
+계정 삭제는 설정된 버킷 확인이 실패하면 기존 기록을 지우기 전에 503으로 중단한다.
+정상 버킷·위치·기존 파일 위치가 확인될 때까지 실제 Storage 복구/권한 검증은 차단 상태다.

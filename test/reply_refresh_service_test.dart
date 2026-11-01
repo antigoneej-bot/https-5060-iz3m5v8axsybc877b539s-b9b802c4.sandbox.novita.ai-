@@ -5,13 +5,11 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter_app/data/replies/acceptance_reply_content.dart';
 import 'package:flutter_app/data/shadow_cats_data.dart';
 import 'package:flutter_app/models/cat_care_state.dart';
 import 'package:flutter_app/models/letter_entry.dart';
 import 'package:flutter_app/models/reply_style.dart';
 import 'package:flutter_app/models/special_letter_entry.dart';
-import 'package:flutter_app/services/access_policy.dart';
 import 'package:flutter_app/services/hive_encryption.dart';
 import 'package:flutter_app/services/personal_reply_service.dart';
 import 'package:flutter_app/services/reply_text_builder.dart';
@@ -61,65 +59,67 @@ void main() {
       );
 
   test(
-    'old answer remains unchanged until explicit once-per-version refresh',
+    'archived answer remains unchanged even if an old caller requests refresh',
     () async {
       final box = await HiveEncryption.openBox('personal_replies_local_user');
       await box.put('letter:old', jsonEncode({'reply': oldReply}));
       await box.put(quota, 1);
       await PersonalReplyService.setFeedback('letter:old', 'off_topic');
       expect(await reply('letter:old'), oldReply);
-      expect(await PersonalReplyService.needsRefresh('letter:old'), isTrue);
+      expect(await PersonalReplyService.needsRefresh('letter:old'), isFalse);
       final results = await Future.wait([
         reply('letter:old', refresh: true),
         reply('letter:old', refresh: true),
       ]);
-      expect(results.first, isNot(oldReply));
+      expect(results.first, oldReply);
       expect(results.last, results.first);
       expect(await reply('letter:old'), results.first);
       expect(await reply('letter:old', refresh: true), results.first);
       expect(await PersonalReplyService.needsRefresh('letter:old'), isFalse);
-      expect(await PersonalReplyService.feedback('letter:old'), isNull);
+      expect(await PersonalReplyService.feedback('letter:old'), 'off_topic');
       expect(box.get(quota), 1);
       expect(
         jsonDecode(box.get('letter:old') as String)['engineVersion'],
-        PersonalReplyService.currentEngineVersion,
+        isNull,
       );
     },
   );
 
   test(
-    'refresh flag without a saved answer cannot bypass the free quota',
+    'refresh flag without a saved answer cannot generate an answer',
     () async {
       final box = await HiveEncryption.openBox('personal_replies_local_user');
       await box.put(quota, 1);
       await expectLater(
         reply('letter:new', refresh: true),
-        throwsA(isA<SubscriptionRequired>()),
+        throwsA(isA<ReplyGenerationRetired>()),
       );
       await expectLater(
         reply('letter:damaged', refresh: true, legacy: '…'),
-        throwsA(isA<SubscriptionRequired>()),
+        throwsA(isA<ReplyGenerationRetired>()),
       );
       expect(box.containsKey('letter:new'), isFalse);
       expect(box.get(quota), 1);
     },
   );
 
-  test('refreshing a saved answer leaves today free reply available', () async {
-    final box = await HiveEncryption.openBox('personal_replies_local_user');
-    await box.put('letter:old', jsonEncode({'reply': oldReply}));
-    await reply('letter:old', refresh: true);
-    expect(box.get(quota, defaultValue: 0), 0);
-    await reply('letter:new');
-    expect(box.get(quota), 1);
-    await expectLater(
-      reply('letter:another'),
-      throwsA(isA<SubscriptionRequired>()),
-    );
-  });
+  test(
+    'archive access leaves quotas unchanged and new generation remains retired',
+    () async {
+      final box = await HiveEncryption.openBox('personal_replies_local_user');
+      await box.put('letter:old', jsonEncode({'reply': oldReply}));
+      await reply('letter:old', refresh: true);
+      expect(box.get(quota, defaultValue: 0), 0);
+      await expectLater(
+        reply('letter:new'),
+        throwsA(isA<ReplyGenerationRetired>()),
+      );
+      expect(box.get(quota, defaultValue: 0), 0);
+    },
+  );
 
   test(
-    'canonical refreshed cat answer wins over preserved outer legacy cache',
+    'canonical saved cat answer wins over preserved outer legacy cache',
     () async {
       final cache = await HiveEncryption.openBox('reply_cache_local_user');
       final box = await HiveEncryption.openBox('personal_replies_local_user');
@@ -142,8 +142,10 @@ void main() {
       await cache.put(entry.id, oldReply);
       await box.put(quota, 1);
       expect(await open(), oldReply);
+      const canonical = '다른 시점에 저장한 정식 답장 원문입니다.';
+      await box.put('letter:${entry.id}', jsonEncode({'reply': canonical}));
       final refreshed = await open(refresh: true);
-      expect(refreshed, isNot(oldReply));
+      expect(refreshed, canonical);
       expect(cache.get(entry.id), oldReply);
       expect(await open(), refreshed);
       expect(box.get(quota), 1);
@@ -152,7 +154,7 @@ void main() {
   );
 
   test(
-    'heart refresh persists and stale entry cannot restore old text',
+    'heart archive never rewrites its stored original when refresh is requested',
     () async {
       final entry = SpecialLetterEntry(
         id: 'heart-old',
@@ -172,7 +174,7 @@ void main() {
         entry,
         refreshExisting: true,
       );
-      expect(refreshed, isNot(oldReply));
+      expect(refreshed, oldReply);
       expect(await SpecialLetterService.ensureReply(entry), refreshed);
       final saved = SpecialLetterService.getAllEntries().single;
       expect(saved.letterText, entry.letterText);
@@ -203,27 +205,21 @@ void main() {
   );
 
   test(
-    'off-topic ratings from previous engine cannot block authored new replies',
+    'previous feedback does not enable generation or change old answers',
     () async {
       final box = await HiveEncryption.openBox('personal_replies_local_user');
       for (var i = 0; i < 2; i++) {
         final id = 'letter:old-$i';
-        await box.put(
-          id,
-          jsonEncode({
-            'version': 1,
-            'id': id,
-            'reply': oldReply,
-            'topic': 'general',
-            'style': 'listen',
-            'situation': 'lonely',
-          }),
-        );
+        await box.put(id, jsonEncode({'reply': oldReply, 'engineVersion': 1}));
         await PersonalReplyService.setFeedback(id, 'off_topic');
       }
-      final result = await reply('letter:new');
-      final texts = acceptanceReplyContent['04']!.replies.map((r) => r.text);
-      expect(texts.any((text) => result.contains(text)), isTrue);
+      await expectLater(
+        reply('letter:new'),
+        throwsA(isA<ReplyGenerationRetired>()),
+      );
+      expect(box.length, 2);
+      expect(await reply('letter:old-0'), oldReply);
+      expect(await PersonalReplyService.feedback('letter:old-0'), 'off_topic');
     },
   );
 }

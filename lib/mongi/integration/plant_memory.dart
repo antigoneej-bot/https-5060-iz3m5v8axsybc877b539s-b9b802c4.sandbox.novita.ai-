@@ -26,12 +26,23 @@ class PlantMemoryEntry {
   final String id;
   final String on;
   final String note;
+  final String? sourceLetterId;
+  final DateTime? sourceWrittenAt;
   const PlantMemoryEntry({
     required this.id,
     required this.on,
     required this.note,
+    this.sourceLetterId,
+    this.sourceWrittenAt,
   });
-  Map<String, dynamic> toJson() => {'id': id, 'on': on, 'note': note};
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'on': on,
+    'note': note,
+    if (sourceLetterId != null) 'sourceLetterId': sourceLetterId,
+    if (sourceWrittenAt != null)
+      'sourceWrittenAt': sourceWrittenAt!.toIso8601String(),
+  };
   factory PlantMemoryEntry.fromJson(Map<dynamic, dynamic> data) {
     final id = data['id'], note = data['note'];
     parsePlantMemoryDay(data['on']);
@@ -42,7 +53,29 @@ class PlantMemoryEntry {
         note.characters.length > 300) {
       throw const FormatException('식물의 추억 기록이 올바르지 않아요.');
     }
-    return PlantMemoryEntry(id: id, on: data['on'] as String, note: note);
+    // The calendar day was chosen on the original device. Reopening a backup
+    // in another time zone must not reject or shift that remembered day.
+    final sourceId = data['sourceLetterId'];
+    final writtenAt = data['sourceWrittenAt'] is String
+        ? DateTime.tryParse(data['sourceWrittenAt'] as String)
+        : null;
+    if ((sourceId == null) != (data['sourceWrittenAt'] == null) ||
+        (sourceId != null &&
+            (sourceId is! String ||
+                sourceId.trim().isEmpty ||
+                sourceId.length > 160 ||
+                writtenAt == null ||
+                writtenAt.year < 1900 ||
+                writtenAt.year > 2200))) {
+      throw const FormatException('연결된 편지의 날짜와 번호를 확인해 주세요.');
+    }
+    return PlantMemoryEntry(
+      id: id,
+      on: data['on'] as String,
+      note: note,
+      sourceLetterId: sourceId as String?,
+      sourceWrittenAt: writtenAt,
+    );
   }
 }
 

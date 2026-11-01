@@ -5,13 +5,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:flutter_app/services/hive_encryption.dart';
 import 'package:flutter_app/services/personal_reply_service.dart';
-import 'package:flutter_app/services/reply_situation.dart';
 import 'package:flutter_app/models/reply_style.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   test(
-    'saved feedback affects the next reply without rewriting old replies',
+    'historical feedback is preserved without generating or rewriting any reply',
     () async {
       final dir = await Directory.systemTemp.createTemp('reply-feedback-');
       Hive.init(dir.path);
@@ -24,28 +23,23 @@ void main() {
           );
       PersonalReplyService.clock = () => DateTime(2026, 9, 16);
       addTearDown(() => PersonalReplyService.clock = DateTime.now);
-      final first = await PersonalReplyService.create(
-        id: 'first',
-        letterText: '나는 오늘 외로워.',
-        style: ReplyStyle.listen,
-        catName: '몽이',
-      );
+      final box = await HiveEncryption.openBox('personal_replies_local_user');
+      const first = '그때 저장한 답장 원문이에요.';
+      final original = jsonEncode({'reply': first, 'engineVersion': 0});
+      await box.put('first', original);
       await PersonalReplyService.setFeedback('first', 'off_topic');
       PersonalReplyService.clock = () => DateTime(2026, 9, 17);
-      await PersonalReplyService.create(
-        id: 'second',
-        letterText: '나는 오늘 외로워.',
-        style: ReplyStyle.listen,
-        catName: '몽이',
-      );
-      final box = await HiveEncryption.openBox('personal_replies_local_user');
-      final second = jsonDecode(box.get('second') as String) as Map;
-      expect(
-        (second['parts'] as List).any(
-          ReplySituation.detect('나는 오늘 외로워.')!.listening.contains,
+      await expectLater(
+        PersonalReplyService.create(
+          id: 'second',
+          letterText: '나는 오늘 외로워.',
+          style: ReplyStyle.listen,
+          catName: '몽이',
         ),
-        false,
+        throwsA(isA<ReplyGenerationRetired>()),
       );
+      expect(box.containsKey('second'), isFalse);
+      expect(box.get('first'), original);
       await PersonalReplyService.setFeedback('first', 'matched');
       expect(
         await PersonalReplyService.create(

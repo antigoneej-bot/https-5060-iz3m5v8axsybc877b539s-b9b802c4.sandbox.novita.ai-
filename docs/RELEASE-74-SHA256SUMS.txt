@@ -1,0 +1,3 @@
+6debefbbea58bb19ceb02556b9fa7d6dbe1f0d7d12365faf3ffb2e95ca0c5228  Mindnyang-1.0.71-74-Companion-Garden-Test.apk
+deef7cb301e424c828596d6ce0a2af6fe974cd1495acba2dbe64c7297fe7efe4  Mindnyang-1.0.71-74-Internal-Test.aab
+6bcac8af046789ac3446fa90245f85a98035fd67ee62dd03efeb2c2cb26128f2  Mindnyang-1.0.71-74-Full-Source.zip

@@ -12,7 +12,20 @@
           "package_name": "com.mysticcat.journal"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "874265239553-ic68pmebd014dvqic5799cic1nta64o0.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.mysticcat.journal",
+            "certificate_hash": "da9855beec2a635a841f826118706d47129b7c78"
+          }
+        },
+        {
+          "client_id": "874265239553-0jn5t16n1e77pj53mjsho1s8lm97tf9q.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyACQyOCdLnfqe9q1VDuOKZvhlMIHjqjhks"
@@ -20,7 +33,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "874265239553-0jn5t16n1e77pj53mjsho1s8lm97tf9q.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

@@ -44,3 +44,10 @@ test('trial with renewal cancelled remains accessible until expiry',()=>{
 test('past known subscription is reported expired',()=>{
  assert.equal(entitlement(active('SUBSCRIPTION_STATE_EXPIRED','2026-09-12T00:00:00Z'),now).state,'expired');
 });
+
+test('license test receipts remain distinguishable from real payment evidence',()=>{
+ const testPurchase={...active(),testPurchase:{}};
+ assert.equal(entitlement(testPurchase,now).isTestPurchase,true);
+ assert.equal(entitlement(active(),now).isTestPurchase,false);
+ assert.equal(entitlement(testPurchase,now).active,true);
+});

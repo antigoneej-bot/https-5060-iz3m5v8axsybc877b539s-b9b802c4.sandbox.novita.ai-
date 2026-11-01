@@ -2,157 +2,146 @@ import 'package:flutter/material.dart';
 import '../theme.dart';
 import '../services/sound_service.dart';
 
-class SoundToggleButton extends StatefulWidget {
-  const SoundToggleButton({super.key});
-
-  @override
-  State<SoundToggleButton> createState() => _SoundToggleButtonState();
-}
-
-class _SoundToggleButtonState extends State<SoundToggleButton> {
-  bool _open = false;
-  final sound = SoundService();
+class SoundToggleButton extends StatelessWidget {
+  final SoundService? sound;
+  const SoundToggleButton({super.key, this.sound});
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        Material(
-          color: AppColors.bg2,
-          shape: const CircleBorder(),
-          child: InkWell(
-            customBorder: const CircleBorder(),
-            onTap: () => setState(() => _open = !_open),
-            child: SizedBox(
-              width: 34,
-              height: 34,
-              child: Icon(
-                sound.bgmEnabled || sound.sfxEnabled
-                    ? Icons.volume_up
-                    : Icons.volume_off,
-                size: 16,
-                color: AppColors.moon,
+    final audio = sound ?? SoundService();
+    return AnimatedBuilder(
+      animation: audio,
+      builder: (context, _) => IconButton.filledTonal(
+        tooltip: '소리 설정',
+        style: IconButton.styleFrom(
+          backgroundColor: AppColors.bg2,
+          foregroundColor: AppColors.moon,
+        ),
+        icon: Icon(
+          audio.bgmEnabled && audio.bgmVolume > 0
+              ? Icons.volume_up
+              : Icons.volume_off,
+        ),
+        onPressed: () => showModalBottomSheet<void>(
+          context: context,
+          isScrollControlled: true,
+          useSafeArea: true,
+          showDragHandle: true,
+          backgroundColor: AppColors.bg1,
+          builder: (_) => SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('소리 설정', style: titleFont(fontSize: 21)),
+                  const SizedBox(height: 12),
+                  SoundSettingsControls(sound: audio),
+                ],
               ),
             ),
           ),
         ),
-        if (_open)
-          Positioned(
-            top: 40,
-            right: 0,
-            child: _SoundPanelContent(onChanged: () => setState(() {})),
-          ),
-      ],
+      ),
     );
   }
 }
 
-class _SoundPanelContent extends StatefulWidget {
-  final VoidCallback onChanged;
-  const _SoundPanelContent({required this.onChanged});
+/// Shared by the home sound sheet and My settings. The sheet uses a real
+/// overlay: controls painted outside the old 34px Stack could not be tapped.
+class SoundSettingsControls extends StatefulWidget {
+  final SoundService sound;
+  const SoundSettingsControls({super.key, required this.sound});
 
   @override
-  State<_SoundPanelContent> createState() => _SoundPanelContentState();
+  State<SoundSettingsControls> createState() => _SoundSettingsControlsState();
 }
 
-class _SoundPanelContentState extends State<_SoundPanelContent> {
-  final sound = SoundService();
+class _SoundSettingsControlsState extends State<SoundSettingsControls> {
+  bool _retrying = false;
+  String? _message;
+
+  Future<void> _change(Future<void> Function() action) async {
+    try {
+      await action();
+      if (mounted) setState(() => _message = null);
+    } catch (_) {
+      if (mounted) setState(() => _message = '소리 설정을 저장하지 못했어요. 다시 시도해 주세요.');
+    }
+  }
+
+  Future<void> _retry() async {
+    if (_retrying) return;
+    setState(() {
+      _retrying = true;
+      _message = null;
+    });
+    try {
+      final started = await widget.sound.retryBgm();
+      if (mounted)
+        setState(
+          () => _message = started
+              ? '재생을 다시 요청했어요. 소리가 없으면 휴대전화 미디어 음량과 블루투스 연결을 확인해 주세요.'
+              : widget.sound.narrationPlaying
+              ? '명상 재생을 멈춘 뒤 다시 눌러 주세요.'
+              : '현재 음악을 시작할 수 없어요. 배경 음악과 음량을 확인해 주세요.',
+        );
+    } finally {
+      if (mounted) setState(() => _retrying = false);
+    }
+  }
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 200,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      decoration: BoxDecoration(
-        color: AppColors.bg1,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.4),
-            blurRadius: 30,
-            offset: const Offset(0, 18),
-          ),
-        ],
-        border: Border.all(color: AppColors.line),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+  Widget build(BuildContext context) => AnimatedBuilder(
+    animation: widget.sound,
+    builder: (context, _) {
+      final sound = widget.sound;
+      final percent = (sound.bgmVolume * 100).round();
+      return Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          _row('효과음', sound.sfxEnabled, (v) async {
-            await sound.setSfxEnabled(v);
-            setState(() {});
-            widget.onChanged();
-          }),
+          SwitchListTile.adaptive(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('배경 음악'),
+            value: sound.bgmEnabled,
+            onChanged: (value) => _change(() => sound.setBgmEnabled(value)),
+          ),
+          SwitchListTile.adaptive(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('효과음'),
+            value: sound.sfxEnabled,
+            onChanged: (value) => _change(() => sound.setSfxEnabled(value)),
+          ),
           const SizedBox(height: 4),
-          _row('배경 음악', sound.bgmEnabled, (v) async {
-            await sound.setBgmEnabled(v);
-            setState(() {});
-            widget.onChanged();
-          }),
-          const SizedBox(height: 8),
-          Text('음악 볼륨', style: bodyFont(fontSize: 12.5, color: AppColors.moon)),
-          const SizedBox(height: 4),
-          SliderTheme(
-            data: SliderTheme.of(context).copyWith(
-              trackHeight: 3,
-              activeTrackColor: AppColors.gold,
-              inactiveTrackColor: const Color(0xFFE9DEC6),
-              thumbColor: AppColors.gold,
-              overlayShape: SliderComponentShape.noOverlay,
-            ),
-            child: Slider(
-              value: sound.bgmVolume,
-              onChanged: (v) async {
-                await sound.setBgmVolume(v);
-                setState(() {});
-              },
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Text('음악 볼륨 · $percent%'),
+          ),
+          Slider(
+            value: sound.bgmVolume,
+            label: '$percent%',
+            semanticFormatterCallback: (value) =>
+                '음악 볼륨 ${(value * 100).round()}퍼센트',
+            onChanged: (value) => _change(() => sound.setBgmVolume(value)),
+          ),
+          if (!sound.bgmEnabled)
+            const Text('배경 음악이 꺼져 있어요.')
+          else if (sound.bgmVolume == 0)
+            const Text('음악 볼륨이 0이에요. 위에서 음량을 올려 주세요.'),
+          if (sound.bgmError != null) Text(sound.bgmError!),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: _retrying || !sound.bgmEnabled || sound.bgmVolume == 0
+                  ? null
+                  : _retry,
+              icon: const Icon(Icons.refresh),
+              label: Text(_retrying ? '음악 불러오는 중…' : '음악 다시 재생'),
             ),
           ),
+          if (_message != null) Text(_message!, style: bodyFont(fontSize: 13)),
         ],
-      ),
-    );
-  }
-
-  Widget _row(String label, bool value, ValueChanged<bool> onChanged) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: bodyFont(fontSize: 12.5, color: AppColors.moon)),
-          GestureDetector(
-            onTap: () => onChanged(!value),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              width: 34,
-              height: 19,
-              padding: const EdgeInsets.all(2),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(999),
-                gradient: value
-                    ? const LinearGradient(
-                        colors: [AppColors.goldSoft, AppColors.gold],
-                      )
-                    : null,
-                color: value ? null : const Color(0xFFE9DEC6),
-              ),
-              child: AnimatedAlign(
-                duration: const Duration(milliseconds: 200),
-                alignment: value ? Alignment.centerRight : Alignment.centerLeft,
-                child: Container(
-                  width: 15,
-                  height: 15,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: value ? Colors.white : const Color(0xFFFFFBF2),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+      );
+    },
+  );
 }

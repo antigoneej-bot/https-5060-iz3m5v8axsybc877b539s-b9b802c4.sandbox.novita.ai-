@@ -10,6 +10,21 @@ import 'package:flutter_app/services/backup_service.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  test('garden goals progress in order and retain previously opened land', () {
+    final start = GardenLayout();
+    expect(start.nextZone, 0);
+    expect(start.remainingGrowth(2), 1);
+    final flowers = start.grow(3);
+    expect(flowers.nextZone, 2);
+    expect(flowers.remainingGrowth(3), 5);
+    final complete = flowers.grow(8);
+    expect(complete.nextZone, isNull);
+    expect(complete.remainingGrowth(0), 0);
+    final restored = GardenLayout.fromJson(complete.toJson()).grow(0);
+    expect(restored.spaces, 3);
+    expect(restored.nextZone, isNull);
+    expect(() => GardenLayout.goalForZone(9), throwsArgumentError);
+  });
   test('spaces unlock at 3 and 8 plantings and never shrink', () {
     expect(GardenLayout().grow(2).spaces, 1);
     expect(GardenLayout().grow(3).spaces, 2);

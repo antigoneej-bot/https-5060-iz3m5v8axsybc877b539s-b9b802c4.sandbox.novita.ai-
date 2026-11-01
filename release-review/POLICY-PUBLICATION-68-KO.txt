@@ -1,0 +1,41 @@
+마음냥 정원 공개 정책 연결 · 2026-10-31
+기준: b6ac16a 보존, 별도 publish-privacy-68 브랜치.
+
+완료
+- 개인정보처리방침과 계정 삭제 요청 안내 웹페이지 제작·공개 배포.
+- 공개 대상: 누구나. 브라우저에서 별도 로그인 요구 없이 두 페이지 내용 확인.
+- https://mindnyang-privacy.antigone-ej.chatgpt.site/privacy
+- https://mindnyang-privacy.antigone-ej.chatgpt.site/delete-account
+- .html 경로도 위 주소로 정상 연결됨.
+- 앱 PrivacyConfig 및 production 빌드 기본 URL 연결.
+- 기존 디자인·기능·기록 저장 구조·서명 설정·구독 혜택 변경 없음.
+- 계정 삭제 후 소셜 로그인 연결 UID/세대와 계정 해시 삭제 상태가 남는 실제 구조를 추가 고지.
+
+검증
+- flutter test --no-pub test/privacy_entrypoint_test.dart: 3 통과.
+- python3 tool/test_release_config.py: 3 통과. 명시적 빈 URL·HTTP URL·테스트 광고 차단 유지.
+- git diff --check 통과. 정적 페이지 내부 파일 링크 검증 통과.
+- 공개 배포 succeeded, 브라우저 정책→삭제 안내 이동 확인.
+- Python HTTP 클라이언트 요청은 호스팅 측 403/1010을 받았으나 일반 브라우저 페이지 열기는 성공.
+- 이 변경에서 전체 797개 테스트/서버 215개를 재실행하지 않았음. 이전 결과는 이전 검증 로그에 보존.
+
+구분해야 하는 남은 사항
+- 기존 서명과 내부 테스트는 사용자가 이미 진행하고 있음. 없다고 판정하지 않음.
+- 이 작업에서는 원본 Play 업로드 키, 운영 결제 내역 및 실기기 테스트 결과를 직접 검증하지 않았음.
+- Play Console 개인정보처리방침 및 Data Safety 계정 삭제 URL 입력은 아직 변경하지 않았음.
+- 웹페이지와 소스 연결만으로 설치된 기존 앱이 갱신되지는 않음. 다음 앱 배포에 포함해야 함.
+- 정책은 테스트 운영 안내: 법적 운영 주체/책임자, 공급업체별 실제 국외 이전 설정, 로그·삭제 표식 보유기간, 이메일 삭제 처리기한 확인이 남음.
+- 이메일은 작성 화면을 열 뿐 자동 전송/삭제하지 않음. 문의함의 실제 수신 및 운영 응답은 이번에 시험하지 않음.
+- 코드상의 삭제 방지 표식/소셜 연결 정보 만료 정책을 임의 변경하지 않았음. 정식 운영 보유 범위와 근거 확정 필요.
+- Google 정책은 공개 정책과 외부 삭제 요청 경로를 요구하지만, URL 존재가 내용의 완전 준수를 증명하지는 않음.
+
+참고: https://support.google.com/googleplay/android-developer/answer/10144311
+https://support.google.com/googleplay/android-developer/answer/13327111
+https://firebase.google.com/support/privacy
+
+Android 확인용 APK
+- assembleDebug 최종 성공. 임시 자산 동기화 파일로 인한 첫 패키징 실패 후 생성된 빌드 자산만 정리하여 재실행 성공.
+- APK 안 두 HTTPS URL 포함 확인, 중복 ZIP 항목 및 rsync 임시 파일 없음.
+- 크기: 274079193 bytes; 이전 274088109 bytes 대비 -8916 bytes.
+- 기존과 같은 com.mysticcat.journal.preview / 디버그 서명 / ARM64 확인용. Play 배포용·실결제 검증용이 아님.
+- 실기기 실행과 메일 앱 열기는 미검증.

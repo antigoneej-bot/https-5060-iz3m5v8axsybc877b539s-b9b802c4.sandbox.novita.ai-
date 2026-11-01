@@ -1,0 +1,14 @@
+{
+  "mode": "built-in image_gen",
+  "reference": "마음냥 정원 모바일 UI 시안.png (layout and mood only; existing cats retained)",
+  "assets": [
+    {
+      "file": "home-room.png",
+      "prompt": "Use case: illustration-story. Production mobile app background asset, NOT a UI mockup. Create a square watercolor and soft gouache illustration matching the warm minimal cream-and-sage style of the user's four-page Mindnyang Garden reference. A peaceful bright living room: warm ivory plaster wall occupying upper 65 percent with abundant clean negative space, soft natural diagonal sunbeams entering from the upper left, a single leafy potted plant on the far lower left, pale honey wood floor across bottom quarter, a small soft round ivory rug centered near the bottom. The rug must be EMPTY: an existing animated cat will be composited by app code. Calm, cute, elegant, tactile paper texture, subtle realistic soft light, uncluttered. The top half must remain nearly plain cream for real native UI headings. No cats, people, text, letters, icons, UI, borders, phone, watermark. Full bleed square background illustration only."
+    },
+    {
+      "file": "selfcare-tea.png",
+      "prompt": "Use case: illustration-story. Production mobile app banner illustration, NOT a UI mockup. Warm minimal soft watercolor/gouache with realistic soft sunshine, tactile ivory paper and pale cream/sage palette, matching a cozy Korean cat wellbeing app reference. A small white ceramic teacup with tiny tan speckles and warm tea, delicate steam rising, on a pale wooden tray with soft woven ivory linen cushion behind it; a small green leaf plant at far right. Compose objects ONLY in rightmost 45 percent; leftmost 55 percent is very quiet nearly plain warm ivory for native app text. A wide landscape crop with subtle soft-edge fade from illustrated right to ivory left. No cat or person, no text, no lettering, no UI controls, no phone, no frames, no watermark. Artwork only, wide banner composition."
+    }
+  ]
+}

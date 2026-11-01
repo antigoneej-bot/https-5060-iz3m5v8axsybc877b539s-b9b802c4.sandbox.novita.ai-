@@ -1,3 +1,4 @@
+import 'support/encrypted_meditation_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -8,6 +9,7 @@ import 'package:flutter_app/widgets/meditation_check_in.dart';
 import 'package:flutter_app/services/meditation_completion_service.dart';
 
 void main() {
+  useEncryptedMeditationStorage();
   TestWidgetsFlutterBinding.ensureInitialized();
   setUp(() {
     SharedPreferences.setMockInitialValues({});

@@ -1,4 +1,7 @@
+import 'local_record_transaction.dart';
+import 'garden_bell.dart';
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/foundation.dart';
@@ -6,12 +9,15 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest_all.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
-import '../data/shadow_cats_data.dart';
-import '../utils/feature_flags.dart';
 import 'storage_service.dart';
-import 'special_letter_service.dart';
-import '../models/special_letter_entry.dart';
-import 'reply_notification_plan.dart';
+import '../data/shadow_cats_data.dart';
+import '../models/companion_journey.dart';
+import '../models/companion_reminder.dart';
+import '../utils/companion_name.dart';
+import 'cat_care_service.dart';
+import 'companion_journey_store.dart';
+
+part 'companion_notifications.dart';
 
 /// 로컬 알림 리마인더 서비스.
 /// 서버/네트워크 없이 기기 안에서만 예약 · 반복되며, 사용자가 마이 탭에서
@@ -54,16 +60,10 @@ class NotificationService with WidgetsBindingObserver {
 
   bool _initialized = false;
   bool _observingLifecycle = false;
-  Future<void> _conditionalChanges = Future<void>.value();
+  final _conditionalChanges = LocalRecordQueue();
 
-  Future<T> _serializeConditional<T>(Future<T> Function() action) {
-    final next = _conditionalChanges.then((_) => action());
-    _conditionalChanges = next.then<void>(
-      (_) {},
-      onError: (Object _, StackTrace __) {},
-    );
-    return next;
-  }
+  Future<T> _serializeConditional<T>(Future<T> Function() action) =>
+      _conditionalChanges.run(action);
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
@@ -82,6 +82,7 @@ class NotificationService with WidgetsBindingObserver {
     }
     await _refreshCrisisReminder();
     await _refreshStreakReminder();
+    await _refreshCompanionSafely();
   });
 
   @visibleForTesting
@@ -100,6 +101,7 @@ class NotificationService with WidgetsBindingObserver {
   /// 일어나지 않을 수 있습니다. 이 알림을 구독해두면 그 순간 즉시 반응할
   /// 수 있습니다.
   final deepLinkChanges = _DeepLinkNotifier();
+  final companionReminderChanges = _DeepLinkNotifier();
 
   static const List<String> _morningMessages = [
     '오늘 아침, 마음은 어떤가요? 🌤️',
@@ -137,6 +139,17 @@ class NotificationService with WidgetsBindingObserver {
     if (kIsWeb) {
       // 웹 플랫폼은 로컬 알림 예약을 지원하지 않으므로, 웹 프리뷰에서는
       // 초기화만 완료 처리하고 실제 알림 기능은 비활성 상태로 둡니다.
+      await _plugin
+          .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin
+          >()
+          ?.createNotificationChannel(
+            const AndroidNotificationChannel(
+              'garden_updates',
+              '이웃·예약 소식',
+              importance: Importance.defaultImportance,
+            ),
+          );
       _initialized = true;
       return;
     }
@@ -164,13 +177,42 @@ class NotificationService with WidgetsBindingObserver {
       // 잡아둡니다.
       final launchDetails = await _plugin.getNotificationAppLaunchDetails();
       if (launchDetails?.didNotificationLaunchApp ?? false) {
-        pendingDeepLink = launchDetails?.notificationResponse?.payload;
+        final payload = launchDetails?.notificationResponse?.payload;
+        pendingDeepLink = {'catReply', 'heartLetterReply'}.contains(payload)
+            ? null
+            : payload;
       }
       // 레거시(v1) 단일 알림이 남아있다면 정리합니다.
       await _plugin.cancel(_legacyDailyReminderId);
+      // Cancel only retired reply channels; daily/visit reminders stay intact.
+      await _plugin.cancel(_catReplyId);
+      await _plugin.cancel(_heartLetterReplyId);
     } catch (e) {
       if (kDebugMode) debugPrint('NotificationService init 실패: $e');
+      return;
     }
+    final android = _plugin
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >();
+    await android?.createNotificationChannel(
+      const AndroidNotificationChannel(
+        GardenBell.soundChannel,
+        '정원 소식 · 유리종',
+        importance: Importance.defaultImportance,
+        sound: RawResourceAndroidNotificationSound('garden_bell'),
+        enableVibration: false,
+      ),
+    );
+    await android?.createNotificationChannel(
+      const AndroidNotificationChannel(
+        GardenBell.silentChannel,
+        '정원 소식 · 조용히',
+        importance: Importance.defaultImportance,
+        playSound: false,
+        enableVibration: false,
+      ),
+    );
     _initialized = true;
     if (!_observingLifecycle) {
       WidgetsBinding.instance.addObserver(this);
@@ -194,7 +236,67 @@ class NotificationService with WidgetsBindingObserver {
     }
   }
 
+  void openGardenUpdate(String kind) {
+    if (!{'social', 'booking'}.contains(kind)) return;
+    pendingDeepLink = 'gardenPush:$kind';
+    deepLinkChanges.fire();
+  }
+
+  Future<void> showGardenUpdate(String kind) async {
+    if (!{'social', 'booking', 'notice'}.contains(kind) || kIsWeb) return;
+    await init();
+    if (!_initialized) return;
+    final sound =
+        await GardenBell.enabled() && GardenBell.takeSound(DateTime.now());
+    await _plugin.show(
+      kind == 'social'
+          ? 2001
+          : kind == 'booking'
+          ? 2002
+          : 2003,
+      '마음냥 정원',
+      kind == 'social'
+          ? '정원에 새로운 응원이나 선물이 도착했어요.'
+          : kind == 'booking'
+          ? '예약한 모임의 변경 소식을 확인해 주세요.'
+          : '새로운 정원소식이 도착했어요.',
+      NotificationDetails(
+        android: AndroidNotificationDetails(
+          sound ? GardenBell.soundChannel : GardenBell.silentChannel,
+          sound ? '정원 소식 · 유리종' : '정원 소식 · 조용히',
+          importance: Importance.defaultImportance,
+          priority: Priority.defaultPriority,
+          playSound: sound,
+          sound: sound
+              ? const RawResourceAndroidNotificationSound('garden_bell')
+              : null,
+          enableVibration: false,
+        ),
+      ),
+      payload: kind == 'notice' ? 'gardenNotice' : 'gardenPush:$kind',
+    );
+  }
+
+  Future<NotificationDetails> _reminderBellDetails() async {
+    final sound = await GardenBell.enabled();
+    return NotificationDetails(
+      android: AndroidNotificationDetails(
+        sound ? GardenBell.soundChannel : GardenBell.silentChannel,
+        sound ? '정원 소식 · 유리종' : '정원 소식 · 조용히',
+        importance: Importance.defaultImportance,
+        priority: Priority.defaultPriority,
+        playSound: sound,
+        sound: sound
+            ? const RawResourceAndroidNotificationSound('garden_bell')
+            : null,
+        enableVibration: false,
+      ),
+      iOS: DarwinNotificationDetails(presentSound: sound),
+    );
+  }
+
   void _onNotificationTap(NotificationResponse response) {
+    if ({'catReply', 'heartLetterReply'}.contains(response.payload)) return;
     pendingDeepLink = response.payload;
     deepLinkChanges.fire();
   }
@@ -210,59 +312,88 @@ class NotificationService with WidgetsBindingObserver {
   Future<bool> isMorningEnabled() => StorageService.getMorningEnabled();
   Future<(int, int)> getMorningTime() => StorageService.getMorningTime();
 
-  Future<bool> enableMorning({int hour = 9, int minute = 0}) async {
-    await init();
-    final granted = await _requestPermission();
-    if (!granted) {
-      await StorageService.setMorningEnabled(false);
-      return false;
-    }
-    await StorageService.setMorningEnabled(true);
-    await StorageService.setMorningTime(hour, minute);
-    if (!kIsWeb) await _scheduleMorning(hour, minute);
-    return true;
-  }
+  Future<bool> enableMorning({int hour = 9, int minute = 0}) =>
+      _changeDaily(morning: true, enabled: true, time: (hour, minute));
+  Future<bool> disableMorning() => _changeDaily(morning: true, enabled: false);
+  Future<bool> updateMorningTime(int hour, int minute) =>
+      _changeDaily(morning: true, time: (hour, minute));
 
-  Future<void> disableMorning() async {
-    await StorageService.setMorningEnabled(false);
-    if (kIsWeb) return;
-    await _plugin.cancel(_morningId);
-  }
-
-  Future<void> updateMorningTime(int hour, int minute) async {
-    await StorageService.setMorningTime(hour, minute);
-    final enabled = await StorageService.getMorningEnabled();
-    if (enabled && !kIsWeb) await _scheduleMorning(hour, minute);
-  }
-
-  // ───────────────────────── 저녁 알림 ─────────────────────────
   Future<bool> isEveningEnabled() => StorageService.getEveningEnabled();
   Future<(int, int)> getEveningTime() => StorageService.getEveningTime();
+  Future<bool> enableEvening({int hour = 20, int minute = 0}) =>
+      _changeDaily(morning: false, enabled: true, time: (hour, minute));
+  Future<bool> disableEvening() => _changeDaily(morning: false, enabled: false);
+  Future<bool> updateEveningTime(int hour, int minute) =>
+      _changeDaily(morning: false, time: (hour, minute));
 
-  Future<bool> enableEvening({int hour = 20, int minute = 0}) async {
-    await init();
-    final granted = await _requestPermission();
-    if (!granted) {
-      await StorageService.setEveningEnabled(false);
+  Future<bool> _changeDaily({
+    required bool morning,
+    bool? enabled,
+    (int, int)? time,
+  }) => _serializeConditional(() async {
+    final readEnabled = morning
+        ? StorageService.getMorningEnabled
+        : StorageService.getEveningEnabled;
+    final saveEnabled = morning
+        ? StorageService.setMorningEnabled
+        : StorageService.setEveningEnabled;
+    final readTime = morning
+        ? StorageService.getMorningTime
+        : StorageService.getEveningTime;
+    final saveTime = morning
+        ? StorageService.setMorningTime
+        : StorageService.setEveningTime;
+    final schedule = morning ? _scheduleMorning : _scheduleEvening;
+    final id = morning ? _morningId : _eveningId;
+    final oldEnabled = await readEnabled();
+    final oldTime = await readTime();
+    final nextEnabled = enabled ?? oldEnabled;
+    final nextTime = time ?? oldTime;
+    var nativeChanged = false;
+    try {
+      if (nextTime.$1 < 0 ||
+          nextTime.$1 > 23 ||
+          nextTime.$2 < 0 ||
+          nextTime.$2 > 59)
+        return false;
+      await init();
+      if (!kIsWeb && !_initialized) return false;
+      if (nextEnabled) {
+        if (kIsWeb || !await _requestPermission()) return false;
+        await schedule(nextTime.$1, nextTime.$2);
+        nativeChanged = true;
+      } else if (!kIsWeb) {
+        await _plugin.cancel(id);
+        nativeChanged = true;
+      }
+      await saveTime(nextTime.$1, nextTime.$2);
+      await saveEnabled(nextEnabled);
+      return true;
+    } catch (_) {
+      // Keep the old schedule and settings if a later disk write failed.
+      if (nativeChanged && !kIsWeb) {
+        try {
+          if (oldEnabled) {
+            await schedule(oldTime.$1, oldTime.$2);
+          } else {
+            await _plugin.cancel(id);
+          }
+        } catch (_) {
+          try {
+            await saveEnabled(false);
+          } catch (_) {}
+          await (await SharedPreferences.getInstance()).reload();
+          return false;
+        }
+      }
+      try {
+        await saveTime(oldTime.$1, oldTime.$2);
+        await saveEnabled(oldEnabled);
+      } catch (_) {}
+      await (await SharedPreferences.getInstance()).reload();
       return false;
     }
-    await StorageService.setEveningEnabled(true);
-    await StorageService.setEveningTime(hour, minute);
-    if (!kIsWeb) await _scheduleEvening(hour, minute);
-    return true;
-  }
-
-  Future<void> disableEvening() async {
-    await StorageService.setEveningEnabled(false);
-    if (kIsWeb) return;
-    await _plugin.cancel(_eveningId);
-  }
-
-  Future<void> updateEveningTime(int hour, int minute) async {
-    await StorageService.setEveningTime(hour, minute);
-    final enabled = await StorageService.getEveningEnabled();
-    if (enabled && !kIsWeb) await _scheduleEvening(hour, minute);
-  }
+  });
 
   // ───────────────────────── 방문 / 스트릭 알림 on/off ─────────────────────────
   Future<bool> isCrisisEnabled() => StorageService.getCrisisEnabled();
@@ -334,14 +465,23 @@ class NotificationService with WidgetsBindingObserver {
 
     if (await StorageService.getMorningEnabled()) {
       final (h, m) = await StorageService.getMorningTime();
-      await _scheduleMorning(h, m);
+      try {
+        await _scheduleMorning(h, m);
+      } catch (_) {
+        await StorageService.setMorningEnabled(false);
+      }
     }
     if (await StorageService.getEveningEnabled()) {
       final (h, m) = await StorageService.getEveningTime();
-      await _scheduleEvening(h, m);
+      try {
+        await _scheduleEvening(h, m);
+      } catch (_) {
+        await StorageService.setEveningEnabled(false);
+      }
     }
     await refreshForForegroundVisit();
     await restoreReplyNotification();
+    await refreshCompanionReminders();
   }
 
   /// 오늘의 미션(편지 쓰기 등)을 완수했을 때 호출합니다. 오늘 예약된
@@ -416,16 +556,7 @@ class NotificationService with WidgetsBindingObserver {
         '마음냥 정원 🌤️',
         body,
         scheduled,
-        const NotificationDetails(
-          android: AndroidNotificationDetails(
-            'morning_reminder',
-            '아침 감정 체크 알림',
-            channelDescription: '매일 아침 오늘의 감정 고양이를 만나보도록 알려드립니다.',
-            importance: Importance.defaultImportance,
-            priority: Priority.defaultPriority,
-          ),
-          iOS: DarwinNotificationDetails(),
-        ),
+        await _reminderBellDetails(),
         androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
         uiLocalNotificationDateInterpretation:
             UILocalNotificationDateInterpretation.absoluteTime,
@@ -434,6 +565,7 @@ class NotificationService with WidgetsBindingObserver {
       );
     } catch (e) {
       if (kDebugMode) debugPrint('NotificationService 아침 알림 예약 실패: $e');
+      rethrow;
     }
   }
 
@@ -451,16 +583,7 @@ class NotificationService with WidgetsBindingObserver {
         '마음냥 정원 🌙',
         body,
         scheduled,
-        const NotificationDetails(
-          android: AndroidNotificationDetails(
-            'evening_reminder',
-            '저녁 하루 닫기 알림',
-            channelDescription: '매일 저녁 하루를 조용히 닫아보도록 알려드립니다.',
-            importance: Importance.defaultImportance,
-            priority: Priority.defaultPriority,
-          ),
-          iOS: DarwinNotificationDetails(),
-        ),
+        await _reminderBellDetails(),
         androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
         uiLocalNotificationDateInterpretation:
             UILocalNotificationDateInterpretation.absoluteTime,
@@ -469,6 +592,7 @@ class NotificationService with WidgetsBindingObserver {
       );
     } catch (e) {
       if (kDebugMode) debugPrint('NotificationService 저녁 알림 예약 실패: $e');
+      rethrow;
     }
   }
 
@@ -503,16 +627,7 @@ class NotificationService with WidgetsBindingObserver {
         '마음냥 정원 🐈‍⬛',
         body,
         scheduled,
-        const NotificationDetails(
-          android: AndroidNotificationDetails(
-            'crisis_reminder',
-            '정원 방문 알림',
-            channelDescription: '며칠간 방문이 없을 때 한 번 알려드립니다.',
-            importance: Importance.defaultImportance,
-            priority: Priority.defaultPriority,
-          ),
-          iOS: DarwinNotificationDetails(),
-        ),
+        await _reminderBellDetails(),
         androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
         uiLocalNotificationDateInterpretation:
             UILocalNotificationDateInterpretation.absoluteTime,
@@ -565,16 +680,7 @@ class NotificationService with WidgetsBindingObserver {
         '마음냥 정원 🔥',
         body,
         todayTarget,
-        const NotificationDetails(
-          android: AndroidNotificationDetails(
-            'streak_reminder',
-            '스트릭 임박 알림',
-            channelDescription: '오늘 아직 미션을 완수하지 않았을 때만 알려드립니다.',
-            importance: Importance.defaultImportance,
-            priority: Priority.defaultPriority,
-          ),
-          iOS: DarwinNotificationDetails(),
-        ),
+        await _reminderBellDetails(),
         androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
         uiLocalNotificationDateInterpretation:
             UILocalNotificationDateInterpretation.absoluteTime,
@@ -587,180 +693,31 @@ class NotificationService with WidgetsBindingObserver {
     }
   }
 
-  // ───────────────────────── 답장 도착 알림 on/off ─────────────────────────
-  /// 그림자 고양이/마음편지 답장 도착 알림이 켜져 있는지 여부. 사용자가
-  /// 마이 탭에서 명시적으로 설정한 값이 있으면 그 값을 따르고, 아직
-  /// 설정한 적이 없다면 온보딩에서 알림에 동의했는지(notification_opt_in)를
-  /// 기본값으로 사용합니다.
-  Future<bool> replyNotificationsEnabled() async {
-    final prefs = await SharedPreferences.getInstance();
-    final explicit = prefs.getBool('cat_reply_notifications');
-    if (explicit != null) return explicit;
-    return prefs.getBool('notification_opt_in') ?? false;
-  }
+  // Compatibility methods for older settings callers. Automated replies are
+  // retired and must never be rescheduled by restore, onboarding or foreground.
+  Future<bool> replyNotificationsEnabled() async => false;
 
-  /// 답장 도착 알림을 켜거나 끕니다. 켤 때는 알림 권한을 요청하고, 거부되면
-  /// 설정도 켜지지 않은 채 false를 반환합니다. 끌 때는 이미 예약된 답장
-  /// 알림을 모두 취소합니다.
   Future<bool> setReplyNotificationsEnabled(bool enabled) async {
-    await init();
-    if (kIsWeb) return false;
-    if (enabled) {
-      final granted = await _requestPermission();
-      if (!granted) return false;
-    }
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('cat_reply_notifications', enabled);
-    if (enabled) {
-      await restoreReplyNotification();
-    } else {
-      await _plugin.cancel(_catReplyId);
-      await _plugin.cancel(_heartLetterReplyId);
-    }
-    return true;
+    await restoreReplyNotification();
+    return !enabled;
   }
 
-  /// 앱 시작/설정 변경 시, 아직 도착하지 않은 미확인 답장을 다시 예약합니다.
-  /// 그림자 고양이와 마음편지는 각각 가장 가까운 알림을 하나씩 유지합니다.
   Future<void> restoreReplyNotification() async {
-    if (kIsWeb || !await replyNotificationsEnabled()) return;
+    if (kIsWeb) return;
     await init();
-    try {
-      final next = nextScheduledReply(
-        StorageService.getAllLetters(),
-        now: DateTime.now(),
-        isSeen: (entry) => entry.replySeen,
-        availableAt: (entry) => entry.replyAvailableAt,
-      );
-      if (next == null) {
-        await _plugin.cancel(_catReplyId);
-      } else {
-        await scheduleCatReplyNotification(
-          catName: shadowCatById(next.catId).nameKr,
-          scheduledAt: next.replyAvailableAt,
-        );
-      }
-    } catch (e) {
-      if (kDebugMode) debugPrint('NotificationService 답장 알림 복원 실패: $e');
-    }
-    // A separate channel/ID preserves both kinds of replies after re-enabling.
-    try {
-      final next = nextScheduledReply(
-        SpecialLetterService.getAllEntries(),
-        now: DateTime.now(),
-        isSeen: (entry) => entry.replySeen,
-        availableAt: (entry) => entry.replyAvailableAt,
-      );
-      if (next == null) {
-        await _plugin.cancel(_heartLetterReplyId);
-      } else {
-        await scheduleHeartLetterReplyNotification(
-          typeLabel: next.type.label,
-          scheduledAt: next.replyAvailableAt,
-        );
-      }
-    } catch (e) {
-      if (kDebugMode) debugPrint('마음편지 알림 복원 실패: $e');
-    }
+    await _plugin.cancel(_catReplyId);
+    await _plugin.cancel(_heartLetterReplyId);
   }
 
-  /// 오늘 편지를 쓰면, 다음날 아침 그 고양이에게서 답장이 도착했다는
-  /// 알림을 예약합니다. [scheduledAt]은 [LetterEntry.replyAvailableAt]
-  /// (다음날 오전 6시)을 그대로 전달받습니다. 같은 날 편지를 여러 번 써도
-  /// 알림은 하나만 남도록, 예약 전에 이전 답장 알림을 취소합니다.
-  ///
-  /// ⚠️ [FeatureFlags.debugInstantReply]가 true인 동안에는 실제
-  /// [scheduledAt] 대신 지금부터 몇 초 뒤로 당겨서 예약합니다(테스트 전용,
-  /// 알림 배너/사운드를 실기기에서 빠르게 확인하기 위함).
   Future<void> scheduleCatReplyNotification({
     required String catName,
     required DateTime scheduledAt,
-  }) async {
-    if (kIsWeb || !await replyNotificationsEnabled()) return;
-    await init();
-    try {
-      final effectiveAt = FeatureFlags.debugInstantReply
-          ? DateTime.now().add(
-              const Duration(
-                seconds: FeatureFlags.debugInstantReplyNotificationDelaySeconds,
-              ),
-            )
-          : scheduledAt;
-      if (effectiveAt.isBefore(DateTime.now())) return;
-      await _plugin.cancel(_catReplyId);
-      final scheduled = tz.TZDateTime.from(effectiveAt, tz.local);
-      await _plugin.zonedSchedule(
-        _catReplyId,
-        '마음냥 정원 💌',
-        '$catName에게서 답장이 도착했어요',
-        scheduled,
-        const NotificationDetails(
-          android: AndroidNotificationDetails(
-            'cat_reply',
-            '고양이 답장 알림',
-            channelDescription: '어제 쓴 편지에 대한 고양이의 답장이 도착했음을 알려드립니다.',
-            importance: Importance.defaultImportance,
-            priority: Priority.defaultPriority,
-          ),
-          iOS: DarwinNotificationDetails(),
-        ),
-        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-        uiLocalNotificationDateInterpretation:
-            UILocalNotificationDateInterpretation.absoluteTime,
-        payload: 'catReply',
-      );
-    } catch (e) {
-      if (kDebugMode) debugPrint('NotificationService 답장 알림 예약 실패: $e');
-    }
-  }
+  }) async {}
 
-  /// 마음편지(감사·용서·미안함·사랑)를 쓰면, 다음날 아침 답장이 도착했다는
-  /// 알림을 예약합니다. 그림자 고양이 답장 알림과는 별개의 ID를 사용해
-  /// 같은 날 두 종류의 답장이 겹쳐도 서로 취소되지 않습니다.
-  ///
-  /// ⚠️ [FeatureFlags.debugInstantReply]가 true인 동안에는 실제
-  /// [scheduledAt] 대신 지금부터 몇 초 뒤로 당겨서 예약합니다(테스트 전용).
   Future<void> scheduleHeartLetterReplyNotification({
     required String typeLabel,
     required DateTime scheduledAt,
-  }) async {
-    if (kIsWeb || !await replyNotificationsEnabled()) return;
-    await init();
-    try {
-      final effectiveAt = FeatureFlags.debugInstantReply
-          ? DateTime.now().add(
-              const Duration(
-                seconds: FeatureFlags.debugInstantReplyNotificationDelaySeconds,
-              ),
-            )
-          : scheduledAt;
-      if (effectiveAt.isBefore(DateTime.now())) return;
-      await _plugin.cancel(_heartLetterReplyId);
-      final scheduled = tz.TZDateTime.from(effectiveAt, tz.local);
-      await _plugin.zonedSchedule(
-        _heartLetterReplyId,
-        '마음냥 정원 💌',
-        '$typeLabel의 답장이 도착했어요',
-        scheduled,
-        const NotificationDetails(
-          android: AndroidNotificationDetails(
-            'heart_letter_reply',
-            '마음편지 답장 알림',
-            channelDescription: '어제 쓴 마음편지에 대한 답장이 도착했음을 알려드립니다.',
-            importance: Importance.defaultImportance,
-            priority: Priority.defaultPriority,
-          ),
-          iOS: DarwinNotificationDetails(),
-        ),
-        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-        uiLocalNotificationDateInterpretation:
-            UILocalNotificationDateInterpretation.absoluteTime,
-        payload: 'heartLetterReply',
-      );
-    } catch (e) {
-      if (kDebugMode) debugPrint('NotificationService 마음편지 답장 알림 예약 실패: $e');
-    }
-  }
+  }) async {}
 
   tz.TZDateTime _nextInstanceOf(int hour, int minute) {
     final now = tz.TZDateTime.now(tz.local);

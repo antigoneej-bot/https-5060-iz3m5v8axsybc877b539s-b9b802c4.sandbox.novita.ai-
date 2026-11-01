@@ -1,4 +1,32 @@
-import 'dart:ui';
+import '../mongi/screens/garden_discovery_screen.dart';
+import '../mongi/screens/emotion_calendar_screen.dart';
+import '../services/cat_care_service.dart';
+import 'garden_memory_book_screen.dart';
+import 'data_safety_screen.dart';
+import 'pet_care_screen.dart';
+import 'premium_screen.dart';
+import '../mongi/providers/garden_provider.dart';
+import '../widgets/pastel_garden_shell.dart';
+import '../models/companion_coat.dart';
+import '../providers/cat_care_provider.dart';
+import '../mongi/widgets/garden_home_preview.dart';
+import '../mongi/screens/garden_world_screen.dart';
+import '../mongi/screens/garden_village_screen.dart';
+import 'account_screen.dart';
+import 'companion_coat_screen.dart';
+import 'emotion_statistics_screen.dart';
+import 'keepsake_forest_screen.dart';
+import 'coloring_healing_screen.dart';
+import 'memory_cards_screen.dart';
+import 'self_care_screen.dart';
+import 'orchard_screen.dart';
+import 'all_features_screen.dart';
+import 'app_tutorial_screen.dart';
+import 'mind_care_hub.dart';
+import '../mongi/screens/public_garden_inbox_screen.dart';
+import 'garden_updates_screen.dart';
+import '../services/cloud_service.dart';
+import '../mongi/widgets/banner_ad_slot.dart';
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -11,18 +39,17 @@ import '../providers/app_state_provider.dart';
 import '../services/notification_service.dart';
 import '../theme.dart';
 import '../widgets/stars_background.dart';
-import '../widgets/sound_panel.dart';
 import '../widgets/feature_scaffold.dart';
-import '../services/notice_service.dart';
-import 'home_tab_screen.dart';
 import 'cat_flow_tab_screen.dart';
-import 'meditation_library_screen.dart';
 import 'history_screen.dart';
 import 'my_screen.dart';
 import 'day_close_screen.dart';
 import 'notice_list_screen.dart';
+import '../models/companion_reminder.dart';
+import '../models/companion_journey.dart';
+import '../widgets/companion_care_panel.dart';
 
-/// 앱의 최상위 셸 - 하단 5개 탭(홈페이지 / 고양이선택 / 명상 / 기록 / 마이)을 관리
+/// 좌우 공간 탐색과 기존 기능 진입을 연결하는 앱 셸.
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -31,10 +58,15 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
-  int _navIndex = 0;
-  Timer? _replyRefresh;
+  bool _careSaving = false;
+  bool _careRefreshing = false;
+  int _activeStoryPage = 0;
+  int? _pendingMood;
+  static const _moodGroups = ['기쁘고 기대돼요', '편안해요', null, '슬프고 외로워요', '지치고 막막해요'];
+  bool _selecting = false;
   bool _closed = false;
   bool _exiting = false;
+  bool _companionSheetOpen = false;
   Future<void> _exitGarden() async {
     if (_exiting) return;
     setState(() => _exiting = true);
@@ -62,19 +94,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    // 앱이 이미 실행 중(warm)일 때 알림을 탭해도 즉시 따라가도록, 그리고
-    // 홍면을 열어둔 채 자정을 넘어 답장이 도착하는 경우에도 배너가 자동으로
-    // 갱신되도록, 주기적으로 화면을 갱신합니다.
     NotificationService().deepLinkChanges.addListener(_handleDeepLink);
-    _replyRefresh = Timer.periodic(const Duration(seconds: 30), (_) {
-      if (mounted) setState(() {});
-    });
     WidgetsBinding.instance.addPostFrameCallback((_) => _handleDeepLink());
   }
 
   @override
   void dispose() {
-    _replyRefresh?.cancel();
     NotificationService().deepLinkChanges.removeListener(_handleDeepLink);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
@@ -87,6 +112,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     // 다시 호출되지 않기 때문).
     if (state == AppLifecycleState.resumed) {
       _handleDeepLink();
+      if (_activeStoryPage == 2) unawaited(_refreshCare());
     }
   }
 
@@ -94,7 +120,35 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   void _handleDeepLink() {
     final target = NotificationService().consumePendingDeepLink();
     if (target == null || !mounted) return;
+    final invitation = CompanionInvitation.parse(target);
+    if (invitation != null) {
+      if (_companionSheetOpen) return;
+      if (_closed) setState(() => _closed = false);
+      _companionSheetOpen = true;
+      unawaited(
+        showCompanionCare(
+          context,
+          invitation: invitation.day == companionDay(DateTime.now())
+              ? invitation.action
+              : null,
+        ).whenComplete(() => _companionSheetOpen = false),
+      );
+      return;
+    }
+    if (target.startsWith('gardenPush:')) {
+      if (CloudService.currentUser == null) return;
+      final booking = target == 'gardenPush:booking';
+      pushFullScreen(
+        context,
+        booking ? '내 예약' : '받은 응원·선물',
+        booking ? const GardenUpdatesScreen() : const PublicGardenInboxScreen(),
+      );
+      return;
+    }
     switch (target) {
+      case 'gardenNotice':
+        pushFullScreen(context, '공지사항', const NoticeListScreen());
+        break;
       case 'evening':
         // 저녁 알림 → 하루 닫기 화면으로 바로 이동
         pushFullScreen(context, '하루 닫기', const DayCloseScreen());
@@ -103,17 +157,220 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       case 'crisis':
       case 'streak':
         // 아침 / 위기 / 스트릭 알림 → 오늘의 감정 고양이 만나기 탭으로 이동
-        setState(() => _navIndex = 1);
+        _goTo(1);
         break;
       case 'catReply':
       case 'heartLetterReply':
-        // 답장 도착 알림 → 기록 탭으로 이동해 바로 열어볼 수 있게 함
-        setState(() => _navIndex = 3);
+        // 이전 버전 알림은 보관된 기록으로 연결합니다.
+        _goTo(3);
         break;
     }
   }
 
-  void _goTo(int i) => setState(() => _navIndex = i);
+  // Legacy notifications and feature links retain their original destinations.
+  void _goTo(int i) {
+    switch (i) {
+      case 1:
+        final group = _pendingMood == null ? null : _moodGroups[_pendingMood!];
+        _pendingMood = null;
+        pushFullScreen(
+          context,
+          '마음 기록하기',
+          CatFlowTabScreen(initialGroup: group),
+        );
+        break;
+      case 2:
+        pushFullScreen(context, '명상 · 힐링', const MindCareHub());
+        break;
+      case 3:
+        pushFullScreen(context, '편지 기록', const HistoryScreen());
+        break;
+      case 4:
+        pushFullScreen(context, '마이 · 설정', const MyScreen());
+        break;
+    }
+  }
+
+  Future<void> _selectCoat(CompanionCoat coat) async {
+    if (_selecting) return;
+    setState(() => _selecting = true);
+    try {
+      await context.read<CatCareProvider>().selectCoat(coat);
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${coat.label}와 정원과 마음돌보기에 함께해요.')),
+        );
+    } catch (_) {
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('선택을 저장하지 못했어요. 다시 눌러 주세요.')),
+        );
+    } finally {
+      if (mounted) setState(() => _selecting = false);
+    }
+  }
+
+  Future<void> _open(Widget screen) async {
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute<void>(builder: (_) => screen));
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _doCare(PastelAction action) async {
+    if (_careSaving || _careRefreshing) return;
+    final care = context.read<CatCareProvider>();
+    final owner = CatCareService.localOwner;
+    setState(() => _careSaving = true);
+    try {
+      await care.load();
+      if (!mounted || owner != CatCareService.localOwner) return;
+      switch (action) {
+        case PastelAction.feed:
+          await care.feed();
+          break;
+        case PastelAction.water:
+          await care.water();
+          break;
+        case PastelAction.bath:
+          await care.bath();
+          break;
+        case PastelAction.clean:
+          await care.clean();
+          break;
+        default:
+          return;
+      }
+      if (!mounted || owner != CatCareService.localOwner) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('돌봄을 기록했어요.')));
+    } catch (_) {
+      if (mounted && owner == CatCareService.localOwner)
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('돌봄을 저장하지 못했어요. 다시 시도해 주세요.')),
+        );
+    } finally {
+      if (mounted) setState(() => _careSaving = false);
+    }
+  }
+
+  Future<void> _refreshCare() async {
+    if (_careSaving || _careRefreshing || !mounted) return;
+    setState(() => _careRefreshing = true);
+    try {
+      await context.read<CatCareProvider>().load();
+    } catch (_) {
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('돌봄 상태를 불러오지 못했어요. 다시 눌러 주세요.')),
+        );
+    } finally {
+      if (mounted) setState(() => _careRefreshing = false);
+    }
+  }
+
+  void _action(PastelAction action) {
+    switch (action) {
+      case PastelAction.companion:
+        if (_companionSheetOpen) return;
+        _companionSheetOpen = true;
+        unawaited(
+          showCompanionCare(
+            context,
+          ).whenComplete(() => _companionSheetOpen = false),
+        );
+        break;
+      case PastelAction.login:
+        _open(const AccountScreen());
+        break;
+      case PastelAction.write:
+        _goTo(1);
+        break;
+      case PastelAction.comic:
+        _open(const EmotionStatisticsScreen());
+        break;
+      case PastelAction.memories:
+        _open(const KeepsakeForestScreen());
+        break;
+      case PastelAction.garden:
+        _open(const GardenWorldScreen.owned());
+        break;
+      case PastelAction.landscape:
+        _open(const GardenWorldScreen.owned(initialLandscape: true));
+        break;
+      case PastelAction.coats:
+        showCompanionCoats(context);
+        break;
+      case PastelAction.orchard:
+        _open(const OrchardScreen());
+        break;
+      case PastelAction.meditation:
+        _goTo(2);
+        break;
+      case PastelAction.coloring:
+        _open(const ColoringHealingScreen());
+        break;
+      case PastelAction.care:
+        _open(const SelfCareScreen());
+        break;
+      case PastelAction.neighbors:
+        _open(const GardenVillageScreen());
+        break;
+      case PastelAction.inbox:
+        _open(const PublicGardenInboxScreen());
+        break;
+      case PastelAction.cards:
+        _open(const MemoryCardsScreen());
+        break;
+      case PastelAction.records:
+        _goTo(3);
+        break;
+      case PastelAction.settings:
+      case PastelAction.sound:
+        _goTo(4);
+        break;
+      case PastelAction.tutorial:
+        pushFullScreen(context, '사용법', const AppTutorialScreen());
+        break;
+      case PastelAction.all:
+        openAllFeatures(context);
+        break;
+      case PastelAction.notices:
+        pushFullScreen(context, '공지사항', const NoticeListScreen());
+        break;
+      case PastelAction.petCare:
+        pushFullScreen(context, '고양이 돌보기', const PetCareScreen());
+        break;
+      case PastelAction.premium:
+        _open(const PremiumScreen());
+        break;
+      case PastelAction.discover:
+        _open(const GardenDiscoveryScreen());
+        break;
+      case PastelAction.favorites:
+        _open(const GardenDiscoveryScreen(favorites: true));
+        break;
+      case PastelAction.calendar:
+        _open(const EmotionCalendarScreen());
+        break;
+      case PastelAction.memoryBook:
+        _open(const GardenMemoryBookScreen());
+        break;
+      case PastelAction.dataSafety:
+        _open(const DataSafetyScreen());
+        break;
+      case PastelAction.feed:
+      case PastelAction.water:
+      case PastelAction.bath:
+      case PastelAction.clean:
+        unawaited(_doCare(action));
+        break;
+      case PastelAction.exit:
+        _exitGarden();
+        break;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -138,6 +395,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 TextButton(
                   onPressed: () {
                     SoundService().gardenSuspended = false;
+                    unawaited(SoundService().tryStartBgm());
                     setState(() => _closed = false);
                   },
                   child: const Text('정원 다시 열기'),
@@ -155,278 +413,57 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         app.clearRequestedTab();
-        setState(() => _navIndex = target);
+        _goTo(target);
       });
     }
 
-    // 첫 화면(홈 탭)에서만 배경 고양이를 더 작고 차분하게 보이도록 합니다.
-    // 고양이선택/명상/기록/마이 탭과 다른 화면들의 고양이 크기·움직임은
-    // 그대로 유지됩니다.
-    final isHomeTab = _navIndex == 0;
-    return Scaffold(
-      extendBody: true,
-      body: GardenScaffoldBackground(
-        ambientCatScale: isHomeTab ? 0.62 : 1.0,
-        calmAmbientCats: isHomeTab,
-        child: SafeArea(
-          bottom: false,
-          child: Stack(
+    final care = context.watch<CatCareProvider>();
+    return Stack(
+      children: [
+        PastelGardenShell(
+          actualGarden: const GardenWorldScreen.owned(embedded: true),
+          motionEnabled: context.watch<GardenProvider>().gardenMotionEnabled,
+          onAction: _action,
+          onMoodSelected: (index) => _pendingMood = index,
+          onPageSelected: (index) {
+            _activeStoryPage = index;
+            if (index == 2) unawaited(_refreshCare());
+          },
+          careBusy: _careSaving || _careRefreshing,
+          completedCare: {
+            if (care.state.fedToday) PastelAction.feed,
+            if (care.state.wateredToday) PastelAction.water,
+            if (care.state.bathedToday) PastelAction.bath,
+            if (care.state.cleanedToday) PastelAction.clean,
+          },
+          onCoat: _selectCoat,
+          coat: care.journey.coat,
+          companionName: care.companionName,
+          companionStage: care.journey.keepBaby ? 0 : care.journey.stage,
+          companionBondStage: care.journey.stage,
+          companionAutomaticBehavior:
+              care.journeyReady && care.journey.automaticBehavior,
+          companionLoading: care.isLoading && !care.journeyReady,
+          companionError: care.journeyReady ? null : care.journeyError,
+          onRetryCompanion: () => unawaited(_refreshCare()),
+          signedIn: CloudService.currentUser != null,
+          selecting: _selecting,
+          footer: Column(
             children: [
-              Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 520),
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(24, 56, 24, 118),
-                    child: _buildTabBody(),
-                  ),
-                ),
-              ),
-              const Positioned(top: 2, right: 24, child: SoundToggleButton()),
-              const Positioned(top: 2, right: 72, child: _NoticeBellButton()),
-              Positioned(
-                top: 2,
-                left: 16,
-                child: TextButton.icon(
-                  onPressed: _exiting ? null : _exitGarden,
-                  icon: const Icon(Icons.power_settings_new, size: 18),
-                  label: const Text('종료'),
-                ),
-              ),
               if (app.showFirstMeetingBanner)
-                Positioned(
-                  top: 16,
-                  left: 0,
-                  right: 0,
-                  child: Center(child: _FirstMeetingBanner()),
+                const Padding(
+                  padding: EdgeInsets.only(top: 8),
+                  child: IgnorePointer(child: _FirstMeetingBanner()),
                 ),
-              // 정원 배경 위에 '떠 있는' 반투명 하단 내비게이션
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 520),
-                    child: _BottomNavBar(index: _navIndex, onChanged: _goTo),
-                  ),
-                ),
-              ),
+              const BannerAdSlot(),
             ],
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTabBody() {
-    switch (_navIndex) {
-      case 0:
-        return HomeTabScreen(
-          onGoToCatSelect: () => _goTo(1),
-          onGoToMeditation: () => _goTo(2),
-          onGoToRecords: () => _goTo(3),
-        );
-      case 1:
-        return const CatFlowTabScreen();
-      case 2:
-        return const MeditationLibraryScreen();
-      case 3:
-        return const HistoryScreen();
-      case 4:
-        return const MyScreen();
-      default:
-        return const SizedBox.shrink();
-    }
-  }
-}
-
-/// 하단 탐색 - 딱딱한 흰 사각 박스 대신, 정원 바닥에 살짝 '떠 있는' 반투명
-/// 유리질감의 알약형 내비게이션 바입니다. 화면 가장자리에 붙지 않고
-/// 사방에 여백을 두어 부유하는 느낌을 살렸습니다.
-class _BottomNavBar extends StatelessWidget {
-  final int index;
-  final ValueChanged<int> onChanged;
-  const _BottomNavBar({required this.index, required this.onChanged});
-
-  static const _items = [
-    (icon: Icons.home_rounded, label: '홈페이지', imageAsset: null),
-    (icon: Icons.pets_rounded, label: '고양이선택', imageAsset: null),
-    (
-      icon: null,
-      label: '명상',
-      imageAsset: 'assets/nav_icons/cat_meditating.png',
-    ),
-    (icon: Icons.device_thermostat_rounded, label: '기록', imageAsset: null),
-    (icon: null, label: '마이', imageAsset: 'assets/nav_icons/cat_profile.png'),
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: Colors.transparent,
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
-      child: SafeArea(
-        top: false,
-        minimum: EdgeInsets.zero,
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(32),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-            child: Container(
-              height: 66,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(32),
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    AppColors.blobMint.withValues(alpha: 0.75),
-                    AppColors.blobLavender.withValues(alpha: 0.62),
-                  ],
-                ),
-                border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.55),
-                  width: 1.2,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.blobMintAccent.withValues(alpha: 0.2),
-                    blurRadius: 22,
-                    offset: const Offset(0, 8),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: List.generate(_items.length, (i) {
-                  final item = _items[i];
-                  final active = index == i;
-                  return Expanded(
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(32),
-                      onTap: () => onChanged(i),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          _NavIcon(
-                            icon: item.icon,
-                            imageAsset: item.imageAsset,
-                            active: active,
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            item.label,
-                            style: bodyFont(
-                              fontSize: 10.5,
-                              color: active
-                                  ? AppColors.titlePastelGreen
-                                  : AppColors.inkSoft,
-                              fontWeight: active
-                                  ? FontWeight.w700
-                                  : FontWeight.w400,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                }),
-              ),
-            ),
+          gardenPreview: GestureDetector(
+            onTap: () => _action(PastelAction.garden),
+            child: const GardenHomePreview(showLabel: false),
           ),
         ),
-      ),
-    );
-  }
-}
-
-/// 공지사항 진입 버튼 - 사운드 토글과 같은 톤의 반투명 원형 버튼이며,
-/// 읽지 않은 공지가 있으면 작은 배지를 함께 보여줍니다.
-class _NoticeBellButton extends StatefulWidget {
-  const _NoticeBellButton();
-
-  @override
-  State<_NoticeBellButton> createState() => _NoticeBellButtonState();
-}
-
-class _NoticeBellButtonState extends State<_NoticeBellButton> {
-  int _unread = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    _refresh();
-  }
-
-  Future<void> _refresh() async {
-    final count = await NoticeService.unreadCount();
-    if (!mounted) return;
-    setState(() => _unread = count);
-  }
-
-  Future<void> _open() async {
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) =>
-            const FeatureScaffold(title: '정원소식', child: NoticeListScreen()),
-      ),
-    );
-    _refresh();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      shape: const CircleBorder(),
-      child: InkWell(
-        customBorder: const CircleBorder(),
-        onTap: _open,
-        child: Container(
-          width: 42,
-          height: 42,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: Colors.white.withValues(alpha: 0.55),
-            border: Border.all(
-              color: AppColors.blobMintAccent.withValues(alpha: 0.35),
-            ),
-          ),
-          child: Stack(
-            clipBehavior: Clip.none,
-            alignment: Alignment.center,
-            children: [
-              Icon(
-                Icons.notifications_none_rounded,
-                color: AppColors.ink,
-                size: 21,
-              ),
-              if (_unread > 0)
-                Positioned(
-                  top: -2,
-                  right: -2,
-                  child: Container(
-                    width: 15,
-                    height: 15,
-                    alignment: Alignment.center,
-                    decoration: const BoxDecoration(
-                      color: AppColors.blobRoseAccent,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Text(
-                      _unread > 9 ? '9+' : '$_unread',
-                      style: const TextStyle(
-                        fontSize: 8.5,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ),
-      ),
+      ],
     );
   }
 }
@@ -495,47 +532,6 @@ class _FirstMeetingBannerState extends State<_FirstMeetingBanner> {
           ),
         ),
       ),
-    );
-  }
-}
-
-/// 하단 탭 아이콘 - 기본 Material 아이콘 또는 커스텀 고양이 이미지를 표시
-class _NavIcon extends StatelessWidget {
-  final IconData? icon;
-  final String? imageAsset;
-  final bool active;
-  const _NavIcon({
-    required this.icon,
-    required this.imageAsset,
-    required this.active,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    if (imageAsset != null) {
-      return AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        width: 26,
-        height: 26,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          border: Border.all(
-            color: active ? AppColors.titlePastelGreen : Colors.transparent,
-            width: 1.5,
-          ),
-        ),
-        child: ClipOval(
-          child: Opacity(
-            opacity: active ? 1.0 : 0.55,
-            child: Image.asset(imageAsset!, fit: BoxFit.cover),
-          ),
-        ),
-      );
-    }
-    return Icon(
-      icon,
-      size: 22,
-      color: active ? AppColors.titlePastelGreen : AppColors.inkSoft,
     );
   }
 }

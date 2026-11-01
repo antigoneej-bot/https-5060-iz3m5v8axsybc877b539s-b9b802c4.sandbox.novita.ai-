@@ -1,8 +1,9 @@
+import '../widgets/letter_care_closing_card.dart';
+import '../widgets/calm_letter_receipt.dart';
 import '../widgets/reply_support_actions.dart';
 import '../mongi/widgets/garden_record_card.dart';
 import '../mongi/screens/garden_world_screen.dart';
 import '../models/reply_style.dart';
-import '../widgets/reply_style_picker.dart';
 import '../services/draft_service.dart';
 import 'dart:async';
 
@@ -218,7 +219,8 @@ class _LetterStage extends StatefulWidget {
 }
 
 class _LetterStageState extends State<_LetterStage> {
-  ReplyStyle _replyStyle = ReplyStyle.listen;
+  final ReplyStyle _replyStyle = ReplyStyle.listen;
+  String? _writingPrompt;
   bool _sending = false;
 
   Future<void> _onSend(BuildContext context) async {
@@ -246,21 +248,23 @@ class _LetterStageState extends State<_LetterStage> {
         try {
           await (widget.controller as DraftTextController).discard();
         } catch (_) {
-          if (mounted)
+          if (context.mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text('편지는 저장됐어요. 초안을 정리하지 못했지만 다시 보낼 필요는 없어요.'),
               ),
             );
+          }
         }
       }
     } catch (_) {
-      if (mounted)
+      if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('저장 완료를 확인하지 못했어요. 내용은 유지돼요. 다시 눌러 저장을 확인해 주세요.'),
           ),
         );
+      }
     } finally {
       if (mounted) setState(() => _sending = false);
     }
@@ -307,8 +311,36 @@ class _LetterStageState extends State<_LetterStage> {
             ],
           ),
           const SizedBox(height: 16),
+          ExpansionTile(
+            tilePadding: EdgeInsets.zero,
+            title: const Text('말문이 막힐 때, 편지의 시작 고르기'),
+            subtitle: const Text('상대에게 보내지 않는 나만의 편지예요'),
+            children: [
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  for (final prompt in const [
+                    '누군가에게 하지 못한 말이 있나요?',
+                    '지난날의 나에게 어떤 말을 남기고 싶나요?',
+                    '아직 설명하기 어려운 마음을 그대로 적어볼까요?',
+                  ])
+                    ChoiceChip(
+                      label: Text(prompt),
+                      selected: _writingPrompt == prompt,
+                      onSelected: _sending
+                          ? null
+                          : (selected) => setState(() {
+                              _writingPrompt = selected ? prompt : null;
+                            }),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 12),
+            ],
+          ),
           JournalBox(
-            question: '${widget.cat.nameKr}에게, 하고 싶은 말이 있나요?',
+            question: _writingPrompt ?? '${widget.cat.nameKr}에게, 하고 싶은 말이 있나요?',
             hint: '오늘 있었던 일이나 지금 마음을 한 줄만 남겨도 괜찮아요.',
             controller: widget.controller,
           ),
@@ -322,17 +354,11 @@ class _LetterStageState extends State<_LetterStage> {
                 ? null
                 : () => Navigator.of(context).push(
                     MaterialPageRoute<void>(
-                      builder: (_) => const GardenWorldScreen(),
+                      builder: (_) => const GardenWorldScreen.owned(),
                     ),
                   ),
             icon: const Icon(Icons.park_outlined),
             label: const Text('오늘은 기록 없이 정원에서 쉴래요'),
-          ),
-          const SizedBox(height: 14),
-          ReplyStylePicker(
-            value: _replyStyle,
-            enabled: !_sending,
-            onChanged: (value) => setState(() => _replyStyle = value),
           ),
           const SizedBox(height: 14),
           MoodPicker(
@@ -363,7 +389,7 @@ class _LetterStageState extends State<_LetterStage> {
                       ),
                     )
                   : Text(
-                      '편지 보내기',
+                      '편지 남기기',
                       style: pathLabelFont(fontSize: 16, color: Colors.white),
                     ),
             ),
@@ -375,7 +401,7 @@ class _LetterStageState extends State<_LetterStage> {
 }
 
 /// 편지를 보낸 뒤 이어지는, 완전히 선택사항인 명상 단계.
-/// 편지는 이미 저장되었고 답장도 예약되었으므로, 여기서는 아무것도
+/// 편지는 이미 저장되었으므로, 여기서는 아무것도
 /// 하지 않고 건너뛰어도 전혀 문제가 없습니다. 실천하면 마음 온도가
 /// 추가로 +1도 더 오릅니다.
 class _MeditationStage extends StatefulWidget {
@@ -421,10 +447,11 @@ class _MeditationStageState extends State<_MeditationStage> {
         }());
       }
     } catch (_) {
-      if (mounted)
+      if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('돌봄 보상을 저장하지 못했어요. 다시 완료해 주세요.')),
         );
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -445,79 +472,81 @@ class _MeditationStageState extends State<_MeditationStage> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           ReplySupportActions(letterText: widget.letterText),
-          const Text('💌', style: TextStyle(fontSize: 30)),
-          const SizedBox(height: 6),
-          Center(
-            child: Text(
-              '편지가 무사히 전달됐어요',
-              style: pathLabelFont(
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
-                color: AppColors.blobPeachAccent,
+          const CalmLetterReceipt(),
+          const SizedBox(height: 16),
+          FilledButton(
+            onPressed: _busy
+                ? null
+                : () {
+                    final app = context.read<AppStateProvider>();
+                    app.restartFlow();
+                    app.requestHomeTab(0);
+                  },
+            child: const Text('오늘은 여기까지'),
+          ),
+          OutlinedButton.icon(
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const GardenWorldScreen.owned(),
               ),
             ),
-          ),
-          const SizedBox(height: 4),
-          Center(
-            child: Text(
-              '편지는 저장됐어요 · 아래 명상은 선택사항이에요',
-              style: bodyFont(fontSize: 12, color: AppColors.inkSoft),
-              textAlign: TextAlign.center,
-            ),
+            icon: const Icon(Icons.park_outlined),
+            label: const Text('정원에서 잠깐 쉬기'),
           ),
           const SizedBox(height: 12),
           const GardenRecordCard(),
-          const SizedBox(height: 18),
-          Center(
-            child: AnimatedCatArt(imageAsset: widget.cat.imageAsset, size: 88),
+          const SizedBox(height: 12),
+          Builder(
+            builder: (context) {
+              final app = context.watch<AppStateProvider>();
+              final entries = app.history.where(
+                (e) => e.id == app.currentLetterId,
+              );
+              return entries.isEmpty
+                  ? const SizedBox.shrink()
+                  : LetterCareClosingCard(letter: entries.first);
+            },
           ),
-          const SizedBox(height: 8),
-          Center(
-            child: Text(
-              '괜찮다면, ${widget.cat.nameKr}과 함께 잠시 마음을 다스려볼까요?',
-              textAlign: TextAlign.center,
-              style: pathLabelFont(
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
-                color: AppColors.ink,
-              ),
-            ),
-          ),
-          if (categoryKey != null) ...[
-            const SizedBox(height: 16),
-            _MoodMeditationCard(
-              moodEmoji: widget.moodEmoji!,
-              categoryKey: categoryKey,
-            ),
-          ],
-          const SizedBox(height: 16),
-          MeditationPicker(
-            guideKeys: widget.cat.meditationKeys,
-            onSelected: (key) => setState(() => _selectedKey = key),
-          ),
-          const SizedBox(height: 20),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: (_busy || _selectedKey == null)
-                  ? null
-                  : () => _onDone(context),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.blobButterAccent,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(999),
+          const SizedBox(height: 12),
+          ExpansionTile(
+            tilePadding: EdgeInsets.zero,
+            title: const Text('원한다면, 명상으로 이어가기'),
+            children: [
+              if (categoryKey != null) ...[
+                const SizedBox(height: 16),
+                _MoodMeditationCard(
+                  moodEmoji: widget.moodEmoji!,
+                  categoryKey: categoryKey,
                 ),
-                elevation: 0,
+              ],
+              const SizedBox(height: 16),
+              MeditationPicker(
+                guideKeys: widget.cat.meditationKeys,
+                onSelected: (key) => setState(() => _selectedKey = key),
               ),
-              child: Text(
-                _selectedKey == null
-                    ? '실천할 명상을 골라주세요'
-                    : '실천했어요, 마음 온도 1도 더 올리기',
-                style: pathLabelFont(fontSize: 15, color: Colors.white),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: (_busy || _selectedKey == null)
+                      ? null
+                      : () => _onDone(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.blobButterAccent,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    elevation: 0,
+                  ),
+                  child: Text(
+                    _selectedKey == null ? '실천할 명상을 골라주세요' : '명상을 마쳤어요',
+                    style: pathLabelFont(fontSize: 15, color: Colors.white),
+                  ),
+                ),
               ),
-            ),
+            ],
           ),
           const SizedBox(height: 10),
           Center(

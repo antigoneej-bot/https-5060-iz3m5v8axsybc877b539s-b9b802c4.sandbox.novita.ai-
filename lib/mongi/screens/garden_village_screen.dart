@@ -1,3 +1,5 @@
+import 'cat_visit_inbox_screen.dart';
+import 'garden_discovery_screen.dart';
 import 'dart:async';
 
 import 'package:firebase_auth/firebase_auth.dart';
@@ -6,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../services/garden_village_service.dart';
+import '../../services/shared_tree_service.dart';
 import '../../services/social_auth_service.dart';
 import '../../theme.dart' show AppColors;
 import '../../widgets/account_entry_card.dart';
@@ -14,6 +17,7 @@ import 'garden_visit_screen.dart';
 import 'public_garden_browse_screen.dart';
 import 'public_garden_inbox_screen.dart';
 import 'public_garden_settings_screen.dart';
+import 'shared_trees_screen.dart';
 
 /// A small directory of real neighbors, rather than a second, simulated garden.
 class GardenVillageScreen extends StatefulWidget {
@@ -24,8 +28,10 @@ class GardenVillageScreen extends StatefulWidget {
     this.currentAccount,
     this.accountChanges,
     this.initialTab = 0,
+    this.sharedTreeService,
   });
   final GardenVillageService? service;
+  final SharedTreeService? sharedTreeService;
   final Future<bool> Function()? accountReady;
   final String? Function()? currentAccount;
   final Stream<String?>? accountChanges;
@@ -38,6 +44,8 @@ class GardenVillageScreen extends StatefulWidget {
 class _GardenVillageScreenState extends State<GardenVillageScreen>
     with WidgetsBindingObserver {
   late GardenVillageService _service;
+  late SharedTreeService _sharedTrees;
+  bool _hasTreeActivity = false;
   StreamSubscription<String?>? _accountSubscription;
   GardenVillageProfile? _profile;
   GardenNeighborLists? _neighbors;
@@ -53,6 +61,7 @@ class _GardenVillageScreenState extends State<GardenVillageScreen>
   void initState() {
     super.initState();
     _service = widget.service ?? GardenVillageService();
+    _sharedTrees = widget.sharedTreeService ?? SharedTreeService();
     _tab = widget.initialTab.clamp(0, 2);
     _owner = _currentOwner;
     WidgetsBinding.instance.addObserver(this);
@@ -66,9 +75,11 @@ class _GardenVillageScreenState extends State<GardenVillageScreen>
       _owner = owner;
       _request++;
       _service = widget.service ?? GardenVillageService();
+      _sharedTrees = widget.sharedTreeService ?? SharedTreeService();
       setState(() {
         _profile = null;
         _neighbors = null;
+        _hasTreeActivity = false;
         _error = null;
         _busy = false;
         _tab = 0;
@@ -103,6 +114,7 @@ class _GardenVillageScreenState extends State<GardenVillageScreen>
       _error = null;
       _profile = null;
       _neighbors = null;
+      _hasTreeActivity = false;
     });
     try {
       final ready =
@@ -119,6 +131,7 @@ class _GardenVillageScreenState extends State<GardenVillageScreen>
       if (owner != _owner) {
         _owner = owner;
         _service = widget.service ?? GardenVillageService();
+        _sharedTrees = widget.sharedTreeService ?? SharedTreeService();
       }
       final profile = await _service.getProfile();
       final neighbors = await _service.listNeighbors();
@@ -129,12 +142,25 @@ class _GardenVillageScreenState extends State<GardenVillageScreen>
         _needsAccount = false;
         _loading = false;
       });
+      // This optional badge cannot block the existing directory on an older server.
+      unawaited(_loadTreeBadge(request, owner));
     } catch (error) {
       if (!mounted || request != _request || owner != _currentOwner) return;
       setState(() {
         _error = error.toString();
         _loading = false;
       });
+    }
+  }
+
+  Future<void> _loadTreeBadge(int request, String? owner) async {
+    try {
+      final unread = await _sharedTrees.hasUnreadActivity();
+      if (mounted && request == _request && owner == _currentOwner) {
+        setState(() => _hasTreeActivity = unread);
+      }
+    } catch (_) {
+      // No invented activity or error wall when only the optional summary fails.
     }
   }
 
@@ -331,6 +357,7 @@ class _GardenVillageScreenState extends State<GardenVillageScreen>
           AccountEntryCard(
             onChanged: () async {
               _service = widget.service ?? GardenVillageService();
+              _sharedTrees = widget.sharedTreeService ?? SharedTreeService();
               await _load();
             },
           ),
@@ -364,6 +391,35 @@ class _GardenVillageScreenState extends State<GardenVillageScreen>
           style: TextStyle(color: AppColors.inkSoft, height: 1.5),
         ),
         const SizedBox(height: 16),
+        FilledButton.icon(
+          key: const Key('village-random-browse'),
+          onPressed: () => Navigator.push<void>(
+            context,
+            MaterialPageRoute(
+              builder: (_) => GardenDiscoveryScreen(
+                service: _service,
+                accountReady: widget.accountReady,
+              ),
+            ),
+          ),
+          icon: const Icon(Icons.explore_outlined),
+          label: const Text('이웃 정원 둘러보기'),
+        ),
+        OutlinedButton.icon(
+          onPressed: () => Navigator.push<void>(
+            context,
+            MaterialPageRoute(
+              builder: (_) => GardenDiscoveryScreen(
+                service: _service,
+                accountReady: widget.accountReady,
+                favorites: true,
+              ),
+            ),
+          ),
+          icon: const Icon(Icons.star_border),
+          label: const Text('즐겨찾는 정원'),
+        ),
+        const SizedBox(height: 8),
         Card(
           child: Padding(
             padding: const EdgeInsets.all(16),
@@ -410,13 +466,33 @@ class _GardenVillageScreenState extends State<GardenVillageScreen>
                     ),
                   ],
                 ),
-                FilledButton.icon(
+                OutlinedButton.icon(
                   onPressed: _busy ? null : _invite,
                   icon: const Icon(Icons.person_add_alt_1),
                   label: const Text('친구 코드로 찾기'),
                 ),
               ],
             ),
+          ),
+        ),
+        Card(
+          child: ListTile(
+            leading: const Icon(Icons.park_outlined, color: AppColors.catSage),
+            title: const Text('함께 가꾸는 나무'),
+            subtitle: const Text('이웃과 기념일을 남겨요 · 받은 초대는 무료 참여'),
+            trailing: Badge(
+              isLabelVisible: _hasTreeActivity,
+              label: const Text('새 소식'),
+              child: const Icon(Icons.chevron_right),
+            ),
+            onTap: () async {
+              await Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => SharedTreesScreen(service: _sharedTrees),
+                ),
+              );
+              if (mounted) await _load();
+            },
           ),
         ),
         if (profile.visibility == GardenVisibility.private) ...[
@@ -478,6 +554,19 @@ class _GardenVillageScreenState extends State<GardenVillageScreen>
             ),
           ),
         ],
+        Card(
+          child: ListTile(
+            leading: const Icon(Icons.pets),
+            title: const Text('고양이 초대와 방문'),
+            subtitle: const Text('우리 고양이와 이웃 정원에 놀러 가요'),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute<void>(
+                builder: (_) => CatVisitInboxScreen(service: _service),
+              ),
+            ),
+          ),
+        ),
         _heading('내 이웃'),
         if (people.neighbors.isEmpty)
           const Padding(

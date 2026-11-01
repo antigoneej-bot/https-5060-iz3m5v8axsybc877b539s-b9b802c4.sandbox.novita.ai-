@@ -1,3 +1,4 @@
+import 'package:flutter_app/services/meditation_checkin_store.dart';
 import 'dart:convert';
 import 'dart:io';
 
@@ -78,6 +79,9 @@ void main() {
       );
       final prefs = await SharedPreferences.getInstance();
       await prefs.clear();
+      await (await Hive.openBox(
+        '${MeditationCheckInStore.boxName}__enc',
+      )).clear();
       await BackupService.restore(data);
       final restored = MeditationLibraryStore();
       final restoredCourse = MeditationCourseStore();
@@ -290,7 +294,7 @@ void main() {
           ]),
         }),
       );
-      final rows = jsonDecode(prefs.getString('meditation.checkins')!) as List;
+      final rows = jsonDecode((await MeditationCheckInStore.read())!) as List;
       expect(rows.length, 90);
       expect(rows.first['session'], 'local-0');
       expect(rows[88]['session'], 'local-88');
@@ -315,7 +319,7 @@ void main() {
         }),
       );
       expect(prefs.get('meditation.courses'), isTrue);
-      expect(prefs.getString('meditation.checkins'), 'broken local history');
+      expect(await MeditationCheckInStore.read(), 'broken local history');
     },
   );
 }

@@ -1,4 +1,4 @@
-import 'dart:async';
+import '../widgets/companion_care_panel.dart';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -7,7 +7,6 @@ import '../theme.dart';
 import '../data/shadow_cats_data.dart';
 import '../models/shadow_cat.dart';
 import '../models/cat_care_state.dart';
-import '../data/cat_flavor_text.dart';
 import '../models/cat_accessory.dart';
 import '../utils/korean_particle.dart';
 import '../models/cat_achievement.dart';
@@ -16,9 +15,7 @@ import '../widgets/care_celebration_overlay.dart';
 import '../widgets/feature_scaffold.dart';
 import '../widgets/garden_path_card.dart';
 import '../widgets/mochi_cat.dart';
-import '../widgets/weather_reactive_cat.dart';
 import '../providers/app_state_provider.dart';
-import '../services/sound_service.dart';
 import 'cat_achievements_screen.dart';
 import 'cat_shop_screen.dart';
 
@@ -601,7 +598,6 @@ class _CompanionCard extends StatelessWidget {
   final CatCareState state;
   final String name;
   final List<CatAccessory> equippedAccessories;
-
   const _CompanionCard({
     required this.cat,
     required this.state,
@@ -609,435 +605,34 @@ class _CompanionCard extends StatelessWidget {
     this.equippedAccessories = const [],
   });
 
-  /// 화면 표시에 사용할 성장 단계. 항상 아기 고양이 단계입니다.
-  CatGrowthStage get _effectiveStage => CatGrowthStage.baby;
-
-  /// 다음 단계까지 남은 출석일수. 더 이상 성장하지 않으므로 항상 null입니다.
-  int? get _effectiveDaysLeft => null;
-
-  /// 화면 표시용 성장 단계 라벨.
-  String get _effectiveStageLabel => '아기 고양이';
-
-  Color get _tempColor {
-    switch (state.moodState) {
-      case CatMoodState.warm:
-        return AppColors.blobPeachAccent;
-      case CatMoodState.calm:
-        return AppColors.blobButterAccent;
-      case CatMoodState.tired:
-        return const Color(0xFF7C93B8);
-      case CatMoodState.recovering:
-        return AppColors.blobMintAccent;
-    }
-  }
-
-  /// 특정 성장 단계에 해당하는 이미지 경로를 반환합니다 (레벨업 오버레이용).
-  static String imageAssetFor(CatGrowthStage stage, ShadowCat cat) {
-    switch (stage) {
-      case CatGrowthStage.baby:
-        return 'assets/growth/baby_cat.png';
-      case CatGrowthStage.teen:
-        return 'assets/growth/teen_cat.png';
-      case CatGrowthStage.young:
-        return 'assets/growth/young_cat.png';
-      case CatGrowthStage.adult:
-        return cat.imageAsset;
-    }
-  }
-
-  /// 성장 단계에 따라 보여줄 이미지 - 아기/소년/청년 단계에서는 공용 성장 아트를,
-  /// 다 자란 단계에서는 사용자가 실제로 키우고 있는 그림자 고양이 모습을 보여줍니다.
-  String get _stageImageAsset {
-    switch (_effectiveStage) {
-      case CatGrowthStage.baby:
-        return 'assets/growth/baby_cat.png';
-      case CatGrowthStage.teen:
-        return 'assets/growth/teen_cat.png';
-      case CatGrowthStage.young:
-        return 'assets/growth/young_cat.png';
-      case CatGrowthStage.adult:
-        return cat.imageAsset;
-    }
-  }
-
   @override
-  Widget build(BuildContext context) {
-    final stage = _effectiveStage;
-    final daysLeft = _effectiveDaysLeft;
-    final displayName = stage == CatGrowthStage.adult ? cat.nameKr : name;
-    return GlassBlob(
-      accent: AppColors.blobPeachAccent,
-      background: AppColors.blobPeach,
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        children: [
-          _PattableCatStage(
-            stage: stage,
-            imageAsset: _stageImageAsset,
-            moodEmoji: state.moodEmoji,
-            equippedAccessories: equippedAccessories,
-          ),
-          if (stage == CatGrowthStage.baby) ...[
-            const SizedBox(height: 8),
-            Text(
-              '🐾 아기고양이를 쓰다듬어 주세요. 골골송을 불러요',
-              textAlign: TextAlign.center,
-              style: bodyFont(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: AppColors.blobPeachAccent,
-              ),
-            ),
-          ],
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.55),
-              borderRadius: BorderRadius.circular(999),
-              border: Border.all(
-                color: AppColors.blobPeachAccent.withValues(alpha: 0.3),
-              ),
-            ),
-            child: Text(
-              stage == CatGrowthStage.adult
-                  ? '🌟 $_effectiveStageLabel'
-                  : _effectiveStageLabel,
-              style: bodyFont(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: AppColors.blobPeachAccent,
-              ),
-            ),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            displayName,
-            style: titleFont(fontSize: 19, color: AppColors.ink),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            '$displayName${topicParticle(displayName)} 오늘 ${state.moodLabel}',
-            style: bodyFont(fontSize: 12.5, color: AppColors.inkSoft),
-          ),
-          if (daysLeft != null) ...[
-            const SizedBox(height: 4),
-            Text(
-              '$displayName${topicParticle(displayName)} $daysLeft일 더 정성껏 돌보면 다음 단계로 자라나요',
-              style: bodyFont(fontSize: 11, color: AppColors.blobPeachAccent),
-            ),
-          ],
-          const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.5),
-              borderRadius: BorderRadius.circular(18),
-            ),
-            child: Row(
-              children: [
-                Text(state.moodEmoji, style: const TextStyle(fontSize: 20)),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '돌봄 온기',
-                        style: bodyFont(fontSize: 11, color: AppColors.moon),
-                      ),
-                      Text(
-                        state.moodLabel,
-                        style: pathLabelFont(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: _tempColor,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Text(
-                  '${state.temperature}°',
-                  style: numberFont(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: _tempColor,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 10),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(999),
-            child: LinearProgressIndicator(
-              value: (state.temperature / 100).clamp(0.0, 1.0),
-              minHeight: 8,
-              backgroundColor: Colors.white.withValues(alpha: 0.5),
-              valueColor: AlwaysStoppedAnimation(_tempColor),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            '"${catFlavorText(state.moodState)}"',
-            textAlign: TextAlign.center,
-            style: bodyFont(
-              fontSize: 11.5,
-              color: AppColors.inkSoft,
-              height: 1.5,
-            ).copyWith(fontStyle: FontStyle.italic),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// 고양이 그림을 탭하면 하트가 퍼지고 말풍선으로 대사가 뜨는 인터랙션 영역.
-/// 착용 중인 아이템에 따라 대사가 달라집니다 (예: 헤드셋 착용 시 "음악 듣는 중이에요~🎧").
-class _PattableCatStage extends StatefulWidget {
-  final CatGrowthStage stage;
-  final String imageAsset;
-  final String moodEmoji;
-  final List<CatAccessory> equippedAccessories;
-  const _PattableCatStage({
-    required this.stage,
-    required this.imageAsset,
-    required this.moodEmoji,
-    required this.equippedAccessories,
-  });
-
-  @override
-  State<_PattableCatStage> createState() => _PattableCatStageState();
-}
-
-class _PattableCatStageState extends State<_PattableCatStage>
-    with TickerProviderStateMixin {
-  final List<_HeartBurstData> _hearts = [];
-  String? _bubbleText;
-  Timer? _bubbleTimer;
-  Timer? _comboResetTimer;
-  int _tapSeed = 0;
-
-  /// 연속으로 탭한 횟수(3초 이상 쉬면 초기화). 3번째 연속 탭부터
-  /// 냐옹 소리 대신(또는 함께) 골골송이 나와요.
-  int _comboCount = 0;
-
-  @override
-  void dispose() {
-    _bubbleTimer?.cancel();
-    _comboResetTimer?.cancel();
-    for (final h in _hearts) {
-      h.controller.dispose();
-    }
-    super.dispose();
-  }
-
-  Future<void> _onTap() async {
-    final rng = Random(_tapSeed++);
-    final controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 900),
-    );
-    final heart = _HeartBurstData(
-      controller: controller,
-      dx: (rng.nextDouble() - 0.5) * 70,
-      emoji: rng.nextBool() ? '💗' : (rng.nextBool() ? '💕' : '✨'),
-    );
-    setState(() => _hearts.add(heart));
-    controller.forward().whenComplete(() {
-      if (!mounted) return;
-      setState(() => _hearts.remove(heart));
-      controller.dispose();
-    });
-
-    // 연속 탭 횟수 갱신 - 3초 안에 다시 탭하지 않으면 콤보가 끊겨요.
-    _comboResetTimer?.cancel();
-    _comboCount++;
-    _comboResetTimer = Timer(const Duration(seconds: 3), () {
-      _comboCount = 0;
-    });
-
-    final provider = context.read<CatCareProvider>();
-    final line = await provider.patCat();
-    if (!mounted) return;
-
-    // 냐옹(1번째) 이후 2번 더(3번째 연속 탭부터) 골골송이 나와요.
-    String finalLine = line;
-    if (_comboCount >= 3) {
-      await SoundService().playPurr();
-      finalLine = '골골골골... 너무 행복해요 😽💤';
-      _comboCount = 0;
-      _comboResetTimer?.cancel();
-    }
-
-    _bubbleTimer?.cancel();
-    setState(() => _bubbleText = finalLine);
-    _bubbleTimer = Timer(const Duration(milliseconds: 2000), () {
-      if (!mounted) return;
-      setState(() => _bubbleText = null);
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: _onTap,
-      child: Stack(
-        alignment: Alignment.bottomRight,
-        clipBehavior: Clip.none,
-        children: [
-          GardenWeatherCatMood(
-            activity: context
-                .watch<AppStateProvider>()
-                .gardenWeather
-                .catActivity,
-            child: MochiCat(
-              size: 140,
-              emotion: CatEmotion.forDaysAway(
-                context.watch<AppStateProvider>().effectiveDaysAway,
-              ),
-            ),
-          ),
-          Positioned(
-            right: -4,
-            bottom: 4,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.75),
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: AppColors.blobPeachAccent.withValues(alpha: 0.3),
-                ),
-              ),
-              child: Text(
-                widget.moodEmoji,
-                style: const TextStyle(fontSize: 18),
-              ),
-            ),
-          ),
-          ...widget.equippedAccessories.map(
-            (accessory) => _WornBadge(accessory: accessory),
-          ),
-          ..._hearts.map(
-            (heart) => AnimatedBuilder(
-              animation: heart.controller,
-              builder: (context, _) {
-                final t = heart.controller.value;
-                return Positioned(
-                  left: 70 + heart.dx,
-                  top: 60 - (t * 70),
-                  child: Opacity(
-                    opacity: (1 - t).clamp(0.0, 1.0),
-                    child: Text(
-                      heart.emoji,
-                      style: TextStyle(fontSize: 18 + (t * 6)),
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-          if (_bubbleText != null)
-            Positioned(
-              top: -18,
-              left: -10,
-              right: -10,
-              child: AnimatedOpacity(
-                opacity: _bubbleText != null ? 1 : 0,
-                duration: const Duration(milliseconds: 200),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 9,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.95),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: AppColors.blobPeachAccent.withValues(alpha: 0.35),
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.08),
-                        blurRadius: 8,
-                        offset: const Offset(0, 3),
-                      ),
-                    ],
-                  ),
-                  child: Text(
-                    _bubbleText!,
-                    textAlign: TextAlign.center,
-                    style: bodyFont(
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.ink,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _HeartBurstData {
-  final AnimationController controller;
-  final double dx;
-  final String emoji;
-  _HeartBurstData({
-    required this.controller,
-    required this.dx,
-    required this.emoji,
-  });
-}
-
-/// 착용 중인 아이템 하나를 부위에 맞는 위치에 작은 배지로 보여줍니다.
-/// 부위가 다르면 여러 개가 겹치지 않고 각자 자리에 표시돼요.
-class _WornBadge extends StatelessWidget {
-  final CatAccessory accessory;
-  const _WornBadge({required this.accessory});
-
-  Offset get _offset {
-    switch (accessory.slot) {
-      case CatWearSlot.head:
-        return const Offset(-2, -10);
-      case CatWearSlot.neck:
-        return const Offset(38, 6);
-      case CatWearSlot.body:
-        return const Offset(-40, 30);
-      case CatWearSlot.feet:
-        return const Offset(30, 96);
-      case CatWearSlot.decor:
-      case null:
-        return const Offset(2, -6);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final o = _offset;
-    return Positioned(
-      left: 70 + o.dx,
-      top: 70 + o.dy,
-      child: Container(
-        padding: const EdgeInsets.all(5),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.85),
-          shape: BoxShape.circle,
-          border: Border.all(
-            color: AppColors.blobPeachAccent.withValues(alpha: 0.35),
-          ),
+  Widget build(BuildContext context) => GlassBlob(
+    accent: AppColors.blobPeachAccent,
+    background: AppColors.blobPeach,
+    padding: const EdgeInsets.all(16),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const CompanionCarePanel(),
+        const Divider(),
+        Text(
+          '돌봄 온기 ${state.temperature}° · 활동으로 모은 온기예요',
+          textAlign: TextAlign.center,
         ),
-        child: Text(accessory.emoji, style: const TextStyle(fontSize: 16)),
-      ),
-    );
-  }
+        if (equippedAccessories.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              for (final item in equippedAccessories)
+                Chip(label: Text('${item.emoji} ${item.label}')),
+            ],
+          ),
+        ],
+      ],
+    ),
+  );
 }
 
 /// 구매한 가구(캣타워/캣베드/스크래처 등)를 보여주는 "우리 집" 영역.

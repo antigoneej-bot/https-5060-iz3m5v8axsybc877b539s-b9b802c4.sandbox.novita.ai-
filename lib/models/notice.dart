@@ -55,6 +55,16 @@ class Notice {
   /// 직접 적은 숫자가 아니라 신청 내역을 그대로 센 값이다.
   final int reservedCount;
 
+  /// Structured, server-authoritative booking sessions. Legacy notices may have none.
+  final List<GardenEventSession> sessions;
+  final String? eventMode;
+
+  /// Only returned to operators; booked members retrieve access separately.
+  final String? meetingUrl;
+
+  /// Operator-only resumable cleanup state; never a bookable event.
+  final bool deleting;
+
   const Notice({
     required this.id,
     required this.title,
@@ -69,14 +79,20 @@ class Notice {
     this.applyUrl,
     this.capacity,
     this.reservedCount = 0,
+    this.sessions = const [],
+    this.eventMode,
+    this.meetingUrl,
+    this.deleting = false,
   });
 
   /// 앱 안에서 선착순 예약을 받는 소식인지 여부.
-  bool get isReservable => capacity != null;
+  bool get isReservable =>
+      !deleting && (capacity != null || sessions.isNotEmpty);
+
+  bool get hasReservations => reservedCount > 0;
 
   /// 정원이 다 찼는지 여부(예약 가능한 소식에만 의미가 있다).
-  bool get isReservationFull =>
-      capacity != null && reservedCount >= capacity!;
+  bool get isReservationFull => capacity != null && reservedCount >= capacity!;
 
   /// 서버 응답(JSON)으로부터 [Notice]를 만든다. 날짜 문자열은 ISO8601
   /// 타임스탬프 중 앞 10글자(YYYY-MM-DD)만 사람이 읽기 좋게 잘라 쓴다.
@@ -105,6 +121,17 @@ class Notice {
       applyUrl: json['applyUrl']?.toString(),
       capacity: (json['capacity'] as num?)?.toInt(),
       reservedCount: (json['reservedCount'] as num?)?.toInt() ?? 0,
+      sessions: (json['sessions'] is List ? json['sessions'] as List : const [])
+          .whereType<Map>()
+          .map(
+            (raw) =>
+                GardenEventSession.tryFromJson(Map<String, dynamic>.from(raw)),
+          )
+          .whereType<GardenEventSession>()
+          .toList(growable: false),
+      eventMode: json['eventMode']?.toString(),
+      meetingUrl: json['meetingUrl']?.toString(),
+      deleting: json['deleting'] == true,
     );
   }
 
@@ -120,6 +147,9 @@ class Notice {
     if (cost != null) 'cost': cost,
     if (applyUrl != null) 'applyUrl': applyUrl,
     if (capacity != null) 'capacity': capacity,
+    'sessions': sessions.map((slot) => slot.toInput()).toList(),
+    'eventMode': eventMode,
+    if (meetingUrl != null) 'meetingUrl': meetingUrl,
   };
 }
 
@@ -181,4 +211,87 @@ extension NoticeStatusLabel on NoticeStatus {
         return '마감';
     }
   }
+}
+
+class GardenEventSession {
+  final String id;
+  final String? label;
+  final DateTime startsAt;
+  final DateTime endsAt;
+  final DateTime? bookingOpensAt;
+  final DateTime bookingClosesAt;
+  final int capacity;
+  final int reservedCount;
+  final String state;
+  const GardenEventSession({
+    required this.id,
+    this.label,
+    required this.startsAt,
+    required this.endsAt,
+    this.bookingOpensAt,
+    required this.bookingClosesAt,
+    required this.capacity,
+    this.reservedCount = 0,
+    this.state = 'open',
+  });
+
+  bool canBookAt(DateTime now) =>
+      state == 'open' &&
+      reservedCount < capacity &&
+      now.isBefore(startsAt) &&
+      now.isBefore(bookingClosesAt) &&
+      (bookingOpensAt == null || !now.isBefore(bookingOpensAt!));
+
+  String availabilityAt(DateTime now) {
+    if (state == 'canceled') return '취소된 일정';
+    if (state == 'closed' ||
+        !now.isBefore(bookingClosesAt) ||
+        !now.isBefore(startsAt)) {
+      return '신청 마감';
+    }
+    if (bookingOpensAt != null && now.isBefore(bookingOpensAt!)) {
+      return '신청 시작 전';
+    }
+    if (reservedCount >= capacity) return '정원 마감';
+    return '신청 가능';
+  }
+
+  static GardenEventSession? tryFromJson(Map<String, dynamic> json) {
+    final start = DateTime.tryParse(json['startsAt']?.toString() ?? '');
+    final end = DateTime.tryParse(json['endsAt']?.toString() ?? '');
+    final close = DateTime.tryParse(json['bookingClosesAt']?.toString() ?? '');
+    final id = json['id']?.toString() ?? '';
+    final capacity = json['capacity'];
+    if (id.isEmpty ||
+        start == null ||
+        end == null ||
+        close == null ||
+        capacity is! num) {
+      return null;
+    }
+    return GardenEventSession(
+      id: id,
+      label: json['label']?.toString(),
+      startsAt: start,
+      endsAt: end,
+      bookingClosesAt: close,
+      bookingOpensAt: DateTime.tryParse(
+        json['bookingOpensAt']?.toString() ?? '',
+      ),
+      capacity: capacity.toInt(),
+      reservedCount: (json['reservedCount'] as num?)?.toInt() ?? 0,
+      state: json['state']?.toString() ?? 'open',
+    );
+  }
+
+  Map<String, dynamic> toInput() => {
+    'id': id,
+    'label': label,
+    'startsAt': startsAt.toUtc().toIso8601String(),
+    'endsAt': endsAt.toUtc().toIso8601String(),
+    'bookingOpensAt': bookingOpensAt?.toUtc().toIso8601String(),
+    'bookingClosesAt': bookingClosesAt.toUtc().toIso8601String(),
+    'capacity': capacity,
+    'state': state,
+  };
 }

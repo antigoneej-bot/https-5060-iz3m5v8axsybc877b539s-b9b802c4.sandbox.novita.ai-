@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 /// 스테이지 클리어 후 "마음을 심기로" 선택했을 때, 구체적으로 어떤 마음의
-/// 씨앗을 심을지 고르는 항목. 씨앗은 처음 심을 때 사용하며, 이후 하루 한 번 물주기 기록에 따라
+/// 씨앗을 심을지 고르는 항목. 씨앗은 처음 심을 때 사용하며, 이후 물·거름·햇볕 돌봄 기록에 따라
 /// 몽이의 작은 정원에서 눈으로 보이는 성장 단계가 달라진다.
 ///
 /// 확장성: 새로운 씨앗 종류(예: '감사', '희망')를 추가하고 싶다면 이 파일의
@@ -32,7 +32,7 @@ class SeedType {
     this.sceneAnchor = Alignment.center,
   });
 
-  /// 심기 1회와 하루 한 번 물주기로 쌓인 성장 기록 [count]의 단계.
+  /// 심기 1회와 돌봄으로 쌓인 성장 기록 [count]의 단계.
   /// 0,1-2,3-5,6-9,10+ 총 5단계 - growthStages가 5개 미만이면 자동으로 clamp된다.
   int tierForCount(int count) {
     int tier;
@@ -58,25 +58,52 @@ class SeedType {
     return 0;
   }
 
-  String growthLabel(int count) => count <= 0 ? '아직 심기 전'
+  String growthLabel(int count) => count <= 0
+      ? '아직 심기 전'
       : ['아직 심기 전', '새싹', '자라는 중', '무성해졌어요', '다 자랐어요'][tierForCount(count)];
 
   String emojiForCount(int count) => growthStages[tierForCount(count)];
+
+  // The remaining three atlas columns are flowers, even when an old emoji
+  // represents them as a tree. Only actual tree artwork grows above the cat.
+  bool get isTree => const ['pine', 'cherry', 'maple'].contains(id);
+
+  /// World-space size before perspective. Roots stay at the same ground point;
+  /// a mature tree is about twice the companion's height at the same depth.
+  double worldArtSize(double growth) {
+    final progress = ((growth - 1) / 9).clamp(0.0, 1.0);
+    return isTree ? 112 + 188 * progress : 86 + 34 * progress;
+  }
 
   static SeedType byId(String id) {
     return all.firstWhere((s) => s.id == id, orElse: () => all.first);
   }
 
   static const List<SeedType> all = [
-    SeedType(id: 'pine', label: '소나무', description: '사계절 푸른 나무',
-      color: Color(0xFF408454), growthStages: ['🕳️', '🌱', '🌿', '🌲', '🌲✨'],
-      sceneAnchor: Alignment(-0.7, -0.4)),
-    SeedType(id: 'cherry', label: '벚꽃나무', description: '꽃이 피는 나무',
-      color: Color(0xFFDB89A6), growthStages: ['🕳️', '🌱', '🌿', '🌸', '🌸✨'],
-      sceneAnchor: Alignment(0.0, -0.35)),
-    SeedType(id: 'maple', label: '단풍나무', description: '붉게 물드는 나무',
-      color: Color(0xFFC66B46), growthStages: ['🕳️', '🌱', '🌿', '🍁', '🍁✨'],
-      sceneAnchor: Alignment(0.7, -0.4)),
+    SeedType(
+      id: 'pine',
+      label: '소나무',
+      description: '사계절 푸른 나무',
+      color: Color(0xFF408454),
+      growthStages: ['🕳️', '🌱', '🌿', '🌲', '🌲✨'],
+      sceneAnchor: Alignment(-0.7, -0.4),
+    ),
+    SeedType(
+      id: 'cherry',
+      label: '벚꽃나무',
+      description: '꽃이 피는 나무',
+      color: Color(0xFFDB89A6),
+      growthStages: ['🕳️', '🌱', '🌿', '🌸', '🌸✨'],
+      sceneAnchor: Alignment(0.0, -0.35),
+    ),
+    SeedType(
+      id: 'maple',
+      label: '단풍나무',
+      description: '붉게 물드는 나무',
+      color: Color(0xFFC66B46),
+      growthStages: ['🕳️', '🌱', '🌿', '🍁', '🍁✨'],
+      sceneAnchor: Alignment(0.7, -0.4),
+    ),
     SeedType(
       id: 'forgiveness',
       label: '용서',

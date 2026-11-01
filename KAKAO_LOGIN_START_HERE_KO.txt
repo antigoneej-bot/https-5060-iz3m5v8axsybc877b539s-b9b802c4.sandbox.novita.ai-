@@ -1,0 +1,89 @@
+마음냥 정원 — 카카오 로그인 수정 반영 전체 소스
+작성일: 2026-10-18
+
+이 ZIP에는 카카오 로그인 점검·수정 코드가 이미 합쳐져 있습니다.
+로그인 수정 코드와 화면 회귀 테스트 보완이 이미 포함되어 있습니다.
+기준 소스 버전은 1.0.15+18입니다.
+
+1. 반영한 내용
+- Firebase 앱 인증, 서버 연결, 로그인 창 실행 실패를 서로 다른 오류 코드로 안내합니다.
+- 로그인 실패 안내를 화면 내 문구와 알림으로 표시합니다.
+- 서버가 카카오의 인증 오류를 사용자의 취소로 잘못 처리하던 부분을 수정했습니다.
+- 로그인 서버 주소를 포함하고 기존 키로 서명하는 APK 빌드 진입점을 추가했습니다.
+- App Check, 로그인 상태 검증, PKCE 검증은 그대로 유지합니다.
+
+2. 기존 프로젝트에 적용
+- 기존 /home/user/flutter_app을 먼저 백업한 뒤 이 소스의 변경 파일을 반영합니다.
+- 기존 프로젝트 폴더를 삭제하거나 새 빈 프로젝트로 교체하지 않습니다.
+- android/key.properties, android/release-key.jks, 실제 서버 .env 및 서버 비밀값을 보존합니다.
+- 기존 Firebase 설정, 서명키, 패키지명은 임의로 새로 만들지 않습니다.
+- 이 ZIP의 기준 소스 이후에 추가 작업했다면 변경 파일을 비교해 병합합니다.
+- 원본에 없던 실제 서명키와 서버 비밀값은 이 ZIP에도 들어 있지 않습니다.
+
+변경 파일:
+lib/services/social_auth_service.dart
+lib/screens/account_screen.dart
+backend/social-auth-core.js
+backend/test/social_auth.test.js
+tool/verify_release_candidate.sh
+tool/build_login_apk.sh (신규)
+test/account_entry_test.dart
+KAKAO_LOGIN_START_HERE_KO.txt (이 안내문)
+
+3. 서버 확인과 배포
+- Firebase 프로젝트: mycatapp-99bc8
+- Android 패키지: com.mysticcat.journal
+- Firebase Android 앱 ID: 1:874265239553:android:c55a29d01bb558fc63a000
+- SOCIAL_AUTH_CALLBACK_URL과 카카오 개발자센터의 로그인 Redirect URI가 실제 socialAuth 주소와 일치하는지 확인합니다.
+- KAKAO_CLIENT_ID에는 REST API 키를, KAKAO_CLIENT_SECRET에는 실제 발급한 값을 서버에서 설정합니다. APK 소스에 비밀값을 넣지 않습니다.
+- 현재 socialAuth 함수는 카카오·네이버·페이스북의 Secret을 함께 참조하므로 배포 시 필요한 Secret 등록 상태도 확인합니다.
+- GARDEN_ANDROID_APP_ID와 Firebase App Check의 대상 앱 및 실제 APK 서명 SHA-256을 대조합니다.
+- 직접 설치 APK와 Play 배포 방식에 맞는 App Check 설정을 확인합니다. 인증을 끄거나 가짜 토큰으로 우회하지 않습니다.
+- 기존 설정과 비밀값을 유지하고, 프로젝트 루트에서 실행합니다.
+
+firebase deploy --only functions:socialAuth --project mycatapp-99bc8
+
+4. APK 빌드
+Flutter와 Android SDK, 기존 서명키가 있는 환경에서 프로젝트 루트 기준으로 실행합니다.
+
+bash tool/build_login_apk.sh
+
+이 스크립트는 아래 공개 주소를 기본으로 사용합니다. 동일 환경변수가 이미 설정돼 있으면 그 값을 우선하므로 기존 값도 확인합니다.
+GARDEN_BACKEND_URL=https://asia-northeast3-mycatapp-99bc8.cloudfunctions.net/gardenApi
+SOCIAL_AUTH_URL=https://asia-northeast3-mycatapp-99bc8.cloudfunctions.net/socialAuth
+
+스크립트는 pub get, analyze, test를 실행하며 실패하면 APK 생성 단계로 진행하지 않습니다.
+검증이 실패하면 실패 항목을 확인해 수정합니다. 검증을 건너뛰었다면 통과했다고 보고하지 않습니다.
+생성 파일: build/app/outputs/flutter-apk/app-release.apk
+휴대폰에서 기존 앱을 삭제하지 말고 같은 서명키의 APK로 업데이트합니다.
+Play Console 제출 시에는 실제 등록된 최대 versionCode보다 높게 버전을 정해야 합니다.
+
+5. 설치 후 확인
+마이 → 간편 로그인 → 카카오로 계속하기를 누릅니다.
+카카오 인증 화면이 열리는지, 동의 후 마음냥으로 돌아와 로그인 상태가 유지되는지 확인합니다.
+실패하면 화면에 표시된 오류 코드를 기록합니다.
+AUTH-01: Firebase 초기화
+AUTH-02: APK의 로그인 서버 주소
+AUTH-03: 서버의 로그인 서비스 설정
+AUTH-04: Firebase App Check 인증
+AUTH-05: 앱 인증 응답 지연
+AUTH-06: 서버 연결
+AUTH-07: 서버 주소 또는 함수 배포
+AUTH-08: 서버 요청 거부
+AUTH-09: 서버 응답 형식
+AUTH-10: 서버 응답 지연
+AUTH-11: 로그인 제공자 인증 오류
+AUTH-12: 로그인 창 실행 또는 앱 복귀
+
+6. 실제 검증 범위
+- 서버 로그인 테스트 37개 통과, 실패 0개.
+- 서버 JavaScript 구문 검사와 관련 빌드 스크립트 4개 구문 검사 통과.
+- 원본 1,128개 파일을 비교해 지정한 수정 외의 코드·이미지·영상 보존 확인.
+- Flutter 3.35.7 / Dart 3.9.2, JDK 17, Android SDK·NDK 설치와 Android toolchain 인식을 확인했습니다.
+- flutter analyze: 오류 0개, 경고 9개, info 241개.
+- 전체 flutter test: 385개 통과, 실패·건너뜀 0개.
+- 서명 없는 release APK 빌드 성공: 317,781,970바이트(약 318MB). 패키지 com.mysticcat.journal, 버전 1.0.15(18), ARM64/ARMv7/x86_64 포함.
+- APK 정렬 검사 통과. 서명 검사는 서명 없음으로 실패하는 것을 확인했습니다. 이 APK를 설치·업데이트용으로 사용하지 않습니다.
+- 기존 서명키가 없어 현재 설치본을 업데이트할 수 있는 서명 APK는 아직 만들지 않았습니다.
+- 실제 서버의 비밀값·App Check 설정과 휴대폰 로그인 성공은 아직 확인하지 못했습니다.
+- 현재 화면의 일반 오류만으로 App Check 실패를 확정할 수 없습니다. 이 수정은 실패 단계를 구분하고 확인된 코드·빌드 문제를 정리한 것입니다.

@@ -1,0 +1,26 @@
+{
+  "version": "1.0.55+58",
+  "flutter_tests_passed": 785,
+  "static_analysis_errors": 0,
+  "static_analysis_warnings": 4,
+  "bundletool": "passed",
+  "signature": "verified; matches v57",
+  "certificate_sha256": "bebaa59bc1c879a0a685ba3bd699a58010bc5e5f52ba24b5f63f0f6ccad7819b",
+  "aab_size_bytes": 220464264,
+  "aab_sha256": "f0e71a146fc1d5160b1c6ebfc77398be7b70f4120aabc15df07ecbc8e9670458",
+  "premium_test_access": true,
+  "test_show_onboarding": true,
+  "play_upload": "not performed",
+  "server_changes": "none; redeployment not required",
+  "physical_device_test": "not performed",
+  "checks": [
+    "Five healing entry points",
+    "Quiet emotion selection and navigation preserves records",
+    "Existing garden breathing and quiet routes",
+    "Pastel page actions and small phone layouts"
+  ],
+  "limitations": [
+    "Scripture content deferred",
+    "No physical-device testing or Play upload"
+  ]
+}

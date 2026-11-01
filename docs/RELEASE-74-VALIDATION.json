@@ -1,0 +1,44 @@
+{
+  "version": "1.0.71+74",
+  "package": "com.mysticcat.journal",
+  "validatedLocalSourceCommit": "b6dddf9fd28f26f38c9ae111500aa8ec2491db5f",
+  "flutter": "3.35.4",
+  "dart": "3.9.2",
+  "fullFlutterTests": {
+    "passed": 866,
+    "failed": 0
+  },
+  "focusedTests": {
+    "passed": 68,
+    "failed": 0
+  },
+  "analysis": {
+    "errors": 0,
+    "warnings": 4,
+    "infos": 473
+  },
+  "sourceFiles": 1545,
+  "sourceBytesMatchValidatedZip": true,
+  "physicalDevice": "UNVERIFIED: USB verification cancelled by user",
+  "ios": "UNVERIFIED",
+  "internalPremiumAccess": true,
+  "serverDeployed": false,
+  "storeUploaded": false,
+  "artifacts": [
+    {
+      "file": "Mindnyang-1.0.71-74-Companion-Garden-Test.apk",
+      "bytes": 267127884,
+      "sha256": "6debefbbea58bb19ceb02556b9fa7d6dbe1f0d7d12365faf3ffb2e95ca0c5228"
+    },
+    {
+      "file": "Mindnyang-1.0.71-74-Internal-Test.aab",
+      "bytes": 248033467,
+      "sha256": "deef7cb301e424c828596d6ce0a2af6fe974cd1495acba2dbe64c7297fe7efe4"
+    },
+    {
+      "file": "Mindnyang-1.0.71-74-Full-Source.zip",
+      "bytes": 219214705,
+      "sha256": "6bcac8af046789ac3446fa90245f85a98035fd67ee62dd03efeb2c2cb26128f2"
+    }
+  ]
+}

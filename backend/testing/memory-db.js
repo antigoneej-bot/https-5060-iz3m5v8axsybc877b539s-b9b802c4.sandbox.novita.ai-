@@ -44,7 +44,7 @@ export function memoryDb(initial = {}) {
       async get() {
         let entries = [...rows].filter(([key, value]) => (group ? key.split('/').at(-2) === path : key.startsWith(path + '/') && !key.slice(path.length + 1).includes('/')) && filters.every(f => {
             const v = f.key.split('.').reduce((object, key) => object?.[key], value);
-            return f.op === '==' ? v === f.value : f.op === '>' ? v > f.value : v >= f.value;
+            return f.op === '==' ? v === f.value : f.op === '>' ? v > f.value : f.op === '<' ? v < f.value : f.op === '<=' ? v <= f.value : v >= f.value;
           }));
         // Firestore excludes documents missing any explicitly ordered field.
         entries = entries.filter(entry => order.every(item => field(entry, item.key) !== undefined));

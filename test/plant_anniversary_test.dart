@@ -228,10 +228,17 @@ void main() {
       ),
       '다듬은 추억',
     );
-    await tester.tap(find.text('변경'));
+    // Cancelling inside the editor still discards the draft. Pressing Save now
+    // persists immediately; that path is covered by plant_memory_management.
+    await tester.tap(
+      find.descendant(
+        of: find.byType(AlertDialog).last,
+        matching: find.text('취소'),
+      ),
+    );
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 350));
-    expect(find.text('다듬은 추억'), findsOneWidget);
+    expect(find.text('다듬은 추억'), findsNothing);
     expect(
       PlantMemoryStore.instance.value['pine']!.toJson(),
       original.toJson(),

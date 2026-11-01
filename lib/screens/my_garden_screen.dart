@@ -42,15 +42,8 @@ class MyGardenScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final app = context.watch<AppStateProvider>();
-    final metIds = app.metCatIds;
-    final cats = shadowCats
-        .where((cat) => !cat.isPremium || metIds.contains(cat.id))
-        .toList();
-    final metCount = cats.where((c) => metIds.contains(c.id)).length;
-
     if (showMongiPanel) {
-      return GardenWorldScreen(
+      return GardenWorldScreen.owned(
         onOpenCollection: () => showGardenToolSheet(
           context,
           title: '기록·활동',
@@ -66,6 +59,13 @@ class MyGardenScreen extends StatelessWidget {
         ),
       );
     }
+    final app = context.watch<AppStateProvider>();
+    final metIds = app.metCatIds;
+    final cats = shadowCats
+        .where((cat) => !cat.isPremium || metIds.contains(cat.id))
+        .toList();
+    final metCount = cats.where((c) => metIds.contains(c.id)).length;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -85,7 +85,8 @@ class MyGardenScreen extends StatelessWidget {
         const SizedBox(height: 20),
         ExpansionTile(
           key: const PageStorageKey('garden-cats'),
-          title: Text('함께한 고양이 도감'),
+          title: const Text('함께한 고양이 도감'),
+          expandedCrossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             GlassBlob(
               accent: AppColors.blobMintAccent,
@@ -94,18 +95,17 @@ class MyGardenScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
+                  Wrap(
+                    spacing: 16,
+                    runSpacing: 8,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
-                      const Text('🌷', style: TextStyle(fontSize: 20)),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          '함께한 고양이',
-                          style: pathLabelFont(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.ink,
-                          ),
+                      Text(
+                        '함께한 고양이',
+                        style: pathLabelFont(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.ink,
                         ),
                       ),
                       Text(
@@ -145,24 +145,40 @@ class MyGardenScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 20),
-            GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: cats.length,
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3,
-                crossAxisSpacing: 10,
-                mainAxisSpacing: 18,
-                childAspectRatio: 0.76,
-              ),
-              itemBuilder: (context, i) {
-                final cat = cats[i];
-                final met = metIds.contains(cat.id);
-                return _GardenCatTile(
-                  cat: cat,
-                  met: met,
-                  meetingCount: met ? app.meetingCountFor(cat.id) : 0,
-                  onTap: () => _showCatSheet(context, cat, met),
+            // ExpansionTile stores a bool under its PageStorageKey. A nested
+            // unkeyed GridView reads that same value as a double scroll offset,
+            // throwing during expansion (a gray ErrorWidget in release).
+            // The tool sheet already owns scrolling. Use natural-height tiles
+            // rather than a second shrink-wrapped viewport with fixed cell height.
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final scale = MediaQuery.textScalerOf(context).scale(14) / 14;
+                final columns = constraints.maxWidth < 330 || scale > 1.4
+                    ? 2
+                    : 3;
+                final width =
+                    (constraints.maxWidth - 10 * (columns - 1)) / columns;
+                return Wrap(
+                  spacing: 10,
+                  runSpacing: 18,
+                  children: [
+                    for (final cat in cats)
+                      SizedBox(
+                        width: width,
+                        child: _GardenCatTile(
+                          cat: cat,
+                          met: metIds.contains(cat.id),
+                          meetingCount: metIds.contains(cat.id)
+                              ? app.meetingCountFor(cat.id)
+                              : 0,
+                          onTap: () => _showCatSheet(
+                            context,
+                            cat,
+                            metIds.contains(cat.id),
+                          ),
+                        ),
+                      ),
+                  ],
                 );
               },
             ),
@@ -248,6 +264,9 @@ class _GardenCatTile extends StatelessWidget {
                       fit: BoxFit.cover,
                       cacheWidth: 130,
                       cacheHeight: 130,
+                      errorBuilder: (_, __, ___) => const Center(
+                        child: Icon(Icons.pets, semanticLabel: '고양이 이미지'),
+                      ),
                     )
                   : Opacity(
                       opacity: 0.45,
@@ -263,6 +282,9 @@ class _GardenCatTile extends StatelessWidget {
                           fit: BoxFit.cover,
                           cacheWidth: 130,
                           cacheHeight: 130,
+                          errorBuilder: (_, __, ___) => const Center(
+                            child: Icon(Icons.pets, semanticLabel: '고양이 이미지'),
+                          ),
                         ),
                       ),
                     ),

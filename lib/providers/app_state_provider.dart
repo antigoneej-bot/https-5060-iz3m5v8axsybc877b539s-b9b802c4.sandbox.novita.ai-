@@ -26,7 +26,7 @@ import '../services/cat_care_service.dart';
 ///         마음 온도가 +1도 오릅니다.
 /// meditation: 편지를 보낸 뒤, 원한다면(완전히 선택사항) 추천 명상/움직임을
 ///         실천해서 추가로 +1도를 더 올릴 수 있는 단계. 건너뛰어도 편지와
-///         답장 예약은 이미 확정되어 있어 전혀 영향이 없습니다.
+///         편지 저장은 이미 확정되어 있어 전혀 영향이 없습니다.
 /// done: 완료 화면 (레벨업 여부 안내)
 enum FlowStage { selecting, story, letter, meditation, done }
 
@@ -275,7 +275,7 @@ class AppStateProvider extends ChangeNotifier {
   ///
   /// 저장이 끝나면 [FlowStage.meditation]으로 넘어가 "명상은 선택사항"임을
   /// 안내합니다. 이 단계에서 사용자가 명상을 하지 않고 건너뛰어도, 이미
-  /// 저장된 편지와 예약된 답장에는 전혀 영향이 없습니다("통으로 묶지 않음").
+  /// 저장된 편지에는 전혀 영향이 없습니다("통으로 묶지 않음").
   ///
   /// [moodEmoji]는 오늘의 기분을 나타내는 이모티콘(날씨처럼 고르는 선택형
   /// UI)입니다. 글쓰기가 힘들거나 귀찮을 때는 [letterText]를 비워두고
@@ -347,10 +347,6 @@ class AppStateProvider extends ChangeNotifier {
       } catch (_) {}
       try {
         await NotificationService().notifyMissionCompletedToday();
-        await NotificationService().scheduleCatReplyNotification(
-          catName: catName,
-          scheduledAt: entry.replyAvailableAt,
-        );
       } catch (_) {}
       try {
         await SoundService().playChime();
@@ -400,7 +396,7 @@ class AppStateProvider extends ChangeNotifier {
 
   /// 명상 단계를 건너뜁니다. "명상은 선택이지 의무가 아니다"라는 원칙에
   /// 따라, 온도 보너스나 저장 로직 없이 그대로 완료 화면으로 넘어갑니다.
-  /// 이미 저장된 편지와 예약된 답장에는 전혀 영향이 없습니다.
+  /// 이미 저장된 편지에는 전혀 영향이 없습니다.
   void skipMeditation() {
     flowStage = FlowStage.done;
     notifyListeners();
@@ -491,21 +487,10 @@ class AppStateProvider extends ChangeNotifier {
   /// 답장이 이미 도착했지만(다음날 아침이 지남) 아직 열어보지 않은 편지가
   /// 있다면 반환합니다(가장 최근 편지 기준). 홈 화면 "답장이 도착했어요"
   /// 배너 노출 조건으로 사용됩니다.
-  LetterEntry? get letterWithUnseenReadyReply {
-    for (final e in history) {
-      if (e.isReplyReady && !e.replySeen) return e;
-    }
-    return null;
-  }
+  LetterEntry? get letterWithUnseenReadyReply => null;
 
-  /// 답장이 도착한 편지 중 가장 최근 것을 반환합니다(이미 읽었어도 포함).
-  /// 안 읽은 답장이 없을 때, 홈 화면에 "답장 다시 보기" 카드를 계속
-  /// 남겨두기 위한 용도입니다.
-  LetterEntry? get latestReadyReply {
-    final ready = history.where((entry) => entry.isReplyReady).toList()
-      ..sort((a, b) => b.date.compareTo(a.date));
-    return ready.isEmpty ? null : ready.first;
-  }
+  /// Automated replies are retired. Existing answers remain in history only.
+  LetterEntry? get latestReadyReply => null;
 
   /// 지금까지 편지를 써서 만난 그림자 고양이들의 id 집합.
   /// '42 그림자 고양이 여정'의 수집 진행 상황(도감)을 계산하는 기준입니다.

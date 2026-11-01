@@ -12,7 +12,12 @@ String? _nextCursor(Map<String, dynamic> json) {
 class PublicGardenPage {
   final List<PublicGarden> gardens;
   final String? nextCursor;
-  const PublicGardenPage({this.gardens = const [], this.nextCursor});
+  final List<String> unavailableIds;
+  const PublicGardenPage({
+    this.gardens = const [],
+    this.nextCursor,
+    this.unavailableIds = const [],
+  });
 
   factory PublicGardenPage.fromJson(Map<String, dynamic> json) {
     final raw = json['gardens'];
@@ -27,6 +32,12 @@ class PublicGardenPage {
         ),
       ),
       nextCursor: _nextCursor(json),
+      unavailableIds: json['unavailableIds'] is List
+          ? (json['unavailableIds'] as List)
+                .whereType<String>()
+                .where((id) => RegExp(r'^[A-Za-z0-9_-]{1,128}$').hasMatch(id))
+                .toList()
+          : const [],
     );
   }
 }
@@ -37,6 +48,8 @@ class GardenVillageProfile {
   final String inviteCode;
   final GardenVisibility visibility;
   final bool discoveryOptIn;
+  final bool randomVisitOptIn;
+  final bool supportsRandomVisits;
   final bool receiveGifts;
   final String? nickname;
 
@@ -44,6 +57,8 @@ class GardenVillageProfile {
     required this.inviteCode,
     required this.visibility,
     required this.discoveryOptIn,
+    this.randomVisitOptIn = false,
+    this.supportsRandomVisits = false,
     required this.receiveGifts,
     this.nickname,
   });
@@ -56,6 +71,10 @@ class GardenVillageProfile {
         code.isEmpty ||
         matches.isEmpty ||
         json['discoveryOptIn'] is! bool ||
+        (json['randomVisitOptIn'] != null &&
+            json['randomVisitOptIn'] is! bool) ||
+        (json['randomVisitsSupported'] != null &&
+            json['randomVisitsSupported'] is! bool) ||
         json['receiveGifts'] is! bool ||
         (json['nickname'] != null && json['nickname'] is! String)) {
       throw const FormatException('냥이 마을 설정을 확인하지 못했어요.');
@@ -64,6 +83,8 @@ class GardenVillageProfile {
       inviteCode: code,
       visibility: matches.single,
       discoveryOptIn: json['discoveryOptIn'] as bool,
+      randomVisitOptIn: json['randomVisitOptIn'] == true,
+      supportsRandomVisits: json['randomVisitsSupported'] == true,
       receiveGifts: json['receiveGifts'] as bool,
       nickname: json['nickname'] as String?,
     );

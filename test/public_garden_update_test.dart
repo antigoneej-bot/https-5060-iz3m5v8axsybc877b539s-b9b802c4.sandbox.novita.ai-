@@ -57,6 +57,8 @@ class _Garden extends GardenProvider {
     String? nickname,
     GardenVisibility? visibility,
     bool? discoveryOptIn,
+    bool? randomVisitOptIn,
+    Map<String, dynamic>? publicCat,
     bool? receiveGifts,
   }) async {
     settingsWrites++;

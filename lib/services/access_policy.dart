@@ -24,24 +24,45 @@ class SubscriptionRequired implements Exception {
 class StorePhase {
   final String period, currency;
   final int micros, cycles;
-  const StorePhase(this.period, this.currency, this.micros, this.cycles);
+  final StoreRecurrence recurrence;
+  const StorePhase(
+    this.period,
+    this.currency,
+    this.micros,
+    this.cycles, {
+    required this.recurrence,
+  });
 }
+
+enum StoreRecurrence { infinite, finite, none }
 
 class SubscriptionOfferPolicy {
   static bool hasTrial(List<StorePhase> phases) =>
-      phases.length == 2 &&
+      phases.length > 1 &&
       phases.first.micros == 0 &&
-      phases.first.period == 'P15D' &&
-      phases.first.cycles == 1;
+      phases.first.recurrence == StoreRecurrence.finite &&
+      phases.first.cycles > 0;
   static bool accepts(List<StorePhase> phases, {required bool yearly}) {
-    if (phases.isEmpty || (phases.length > 1 && !hasTrial(phases)))
-      return false;
+    if (phases.isEmpty) return false;
     final recurring = phases.last;
-    if (recurring.period != (yearly ? 'P1Y' : 'P1M') ||
+    if (!(yearly ? {'P1Y', 'P12M'} : {'P1M'}).contains(recurring.period) ||
         recurring.micros <= 0 ||
-        recurring.cycles != 0)
+        recurring.cycles != 0 ||
+        recurring.recurrence != StoreRecurrence.infinite ||
+        recurring.currency.isEmpty) {
       return false;
-    return recurring.currency != 'KRW' ||
-        recurring.micros == (yearly ? 29000 : 4900) * 1000000;
+    }
+    // Play owns the price and eligible offers. A price change or a different
+    // trial length must not silently remove an otherwise valid annual plan.
+    return phases
+        .take(phases.length - 1)
+        .every(
+          (phase) =>
+              phase.recurrence == StoreRecurrence.finite &&
+              phase.cycles > 0 &&
+              phase.micros >= 0 &&
+              phase.currency == recurring.currency &&
+              RegExp(r'^P[1-9][0-9]*[DWMY]$').hasMatch(phase.period),
+        );
   }
 }

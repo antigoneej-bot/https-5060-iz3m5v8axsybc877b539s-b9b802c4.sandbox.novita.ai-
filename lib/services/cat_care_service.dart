@@ -1,3 +1,4 @@
+import '../mongi/integration/mongi_garden_store.dart';
 import 'dart:async';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/cat_care_state.dart';
@@ -19,6 +20,7 @@ import 'subscription_service.dart';
 /// - growthDays(누적 출석일수) 30일마다 성장 단계가 하나씩 올라갑니다.
 class CatCareService {
   static String _uid = 'guest';
+  static String get localOwner => _uid;
   static const int maxTemperature = 100;
   static const int minTemperature = 0;
   static const int startTemperature = 0;
@@ -48,6 +50,9 @@ class CatCareService {
       }
       return await op();
     } finally {
+      // Release an idle queue's caller zone; keep the tail when another
+      // operation is already waiting so concurrent writes remain serialized.
+      if (identical(_tempOpTail, gate.future)) _tempOpTail = null;
       gate.complete();
     }
   }
@@ -342,8 +347,7 @@ class CatCareService {
             ? _parseDateOnly(attendanceRaw)
             : null;
         final attendanceCountedToday =
-            attendanceDay != null &&
-            _dateOnlyString(attendanceDay) == todayStr;
+            attendanceDay != null && _dateOnlyString(attendanceDay) == todayStr;
         if (!attendanceCountedToday) {
           growthDays += 1;
           final (newTemp, newPoints) = _gainTemperature(
@@ -448,8 +452,14 @@ class CatCareService {
 
       // 여덜 가지를 모두 완료한 "이번" 순간에만 보너스 온도 상승(+1도, 중복 방지)
       final justCompletedAll =
-          fed || watered || bathed || cleaned ||
-          breathing || walking || journaling || gratitude;
+          fed ||
+          watered ||
+          bathed ||
+          cleaned ||
+          breathing ||
+          walking ||
+          journaling ||
+          gratitude;
       final bonusGivenKey =
           '${_uid}_care_bonus_given_${_dateOnlyString(DateTime.now())}';
       final bonusAlreadyGiven = prefs.getBool(bonusGivenKey) ?? false;
@@ -586,7 +596,7 @@ class CatCareService {
   }
 
   /// 소모품별로 지금 보관함에 몇 개씩 남아있는지 반환합니다.
-  static Future<Map<String, int>> getConsumableInventory() async {
+  static Future<Map<String, int>> getConsumableInventory({bool includeWalk = true}) async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getStringList(_consumableInventoryKey) ?? [];
     final map = <String, int>{};
@@ -595,6 +605,12 @@ class CatCareService {
       if (parts.length == 2) {
         final n = int.tryParse(parts[1]);
         if (n != null && n > 0) map[parts[0]] = n;
+      }
+    }
+    if (includeWalk) {
+      await MongiGardenStore.instance.reload();
+      for (final entry in MongiGardenStore.instance.value.walkStock.entries) {
+        map[entry.key] = (map[entry.key] ?? 0) + entry.value;
       }
     }
     return map;
@@ -624,7 +640,7 @@ class CatCareService {
         return (false, points);
       }
       final newPoints = points - accessory.pointCost;
-      final inv = await getConsumableInventory();
+      final inv = await getConsumableInventory(includeWalk: false);
       inv[accessory.id] = (inv[accessory.id] ?? 0) + 1;
       await prefs.setInt(_pointsKey, newPoints);
       await _saveConsumableInventory(prefs, inv);
@@ -668,16 +684,22 @@ class CatCareService {
     CatAccessory accessory, {
     required bool isPremium,
   }) async {
+    final owner = _uid;
     final prefs = await SharedPreferences.getInstance();
-    final inv = await getConsumableInventory();
+    final inv = await getConsumableInventory(includeWalk: false);
     final count = inv[accessory.id] ?? 0;
     final temperature = prefs.getInt(_tempKey) ?? startTemperature;
     final points = prefs.getInt(_pointsKey) ?? 0;
-    if (count <= 0) {
+    if (owner != _uid) throw StateError('계정이 바뀌었어요.');
+    final fromWalk = count <= 0 && await MongiGardenStore.instance.consumeWalkFood(
+      accessory.id, isCurrentOwner: () => owner == _uid);
+    if (count <= 0 && !fromWalk) {
       return (false, temperature, points);
     }
-    inv[accessory.id] = count - 1;
-    await _saveConsumableInventory(prefs, inv);
+    if (!fromWalk) {
+      inv[accessory.id] = count - 1;
+      await _saveConsumableInventory(prefs, inv);
+    }
 
     final (newTemp, newPoints) = _gainTemperature(
       current: temperature,

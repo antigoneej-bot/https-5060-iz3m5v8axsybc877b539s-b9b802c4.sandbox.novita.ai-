@@ -167,7 +167,10 @@ class _MeditationVideoPlayerState extends State<MeditationVideoPlayer>
         _expanded = true;
         _initializing = true;
       });
-      final controller = VideoPlayerController.asset(widget.assetPath);
+      final controller = VideoPlayerController.asset(
+        widget.assetPath,
+        videoPlayerOptions: VideoPlayerOptions(mixWithOthers: false),
+      );
       try {
         await controller.initialize();
         await controller.setLooping(false);

@@ -5,11 +5,13 @@ import '../mongi/integration/mongi_garden_store.dart';
 /// Optional entry points with persisted common-reward status.
 class DailyCareCard extends StatefulWidget {
   final VoidCallback onWrite, onRest, onGarden;
+  final VoidCallback? onReview;
   const DailyCareCard({
     super.key,
     required this.onWrite,
     required this.onRest,
     required this.onGarden,
+    this.onReview,
   });
   @override
   State<DailyCareCard> createState() => _DailyCareCardState();
@@ -63,8 +65,25 @@ class _DailyCareCardState extends State<DailyCareCard>
           _loaded &&
           data.careDays.contains(MongiGardenData.dayKey(DateTime.now()));
       final choices = [
-        (icon: Icons.edit_note_rounded, label: '편지 쓰기', tap: widget.onWrite),
-        (icon: Icons.spa_outlined, label: '조용히 쉬기', tap: widget.onRest),
+        (
+          icon: Icons.edit_note_rounded,
+          label: '마음 남기기',
+          detail: '고양이에게 오늘의 마음을 적어요',
+          tap: widget.onWrite,
+        ),
+        (
+          icon: Icons.local_florist_outlined,
+          label: '정원 가꾸기',
+          detail: '나무를 돌보고 이웃의 마음을 만나요',
+          tap: widget.onGarden,
+        ),
+        if (widget.onReview != null)
+          (
+            icon: Icons.auto_stories_outlined,
+            label: '지난 마음 보기',
+            detail: '편지와 돌봄, 정원 기록집을 돌아봐요',
+            tap: widget.onReview!,
+          ),
       ];
       return Container(
         padding: const EdgeInsets.all(18),
@@ -96,10 +115,10 @@ class _DailyCareCardState extends State<DailyCareCard>
             LayoutBuilder(
               builder: (context, box) {
                 final columns =
-                    box.maxWidth < 240 ||
-                        MediaQuery.textScalerOf(context).scale(13) > 26
-                    ? 1
-                    : 2;
+                    box.maxWidth >= 760 &&
+                        MediaQuery.textScalerOf(context).scale(13) <= 19.5
+                    ? 3
+                    : 1;
                 final width = (box.maxWidth - (columns - 1) * 8) / columns;
                 return Wrap(
                   spacing: 8,
@@ -130,18 +149,38 @@ class _DailyCareCardState extends State<DailyCareCard>
                                   AppColors.catSage.withValues(alpha: 0.2),
                                 ),
                               ),
-                          child: Column(
+                          child: Row(
                             children: [
-                              Icon(choice.icon, size: 23),
-                              const SizedBox(height: 7),
-                              Text(
-                                choice.label,
-                                textAlign: TextAlign.center,
-                                style: pathLabelFont(
-                                  fontSize: 12,
-                                  color: AppColors.moon,
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                ),
+                                child: Icon(choice.icon, size: 23),
+                              ),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      choice.label,
+                                      style: pathLabelFont(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppColors.moon,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 3),
+                                    Text(
+                                      choice.detail,
+                                      style: bodyFont(
+                                        fontSize: 12,
+                                        color: AppColors.inkSoft,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
+                              const SizedBox(width: 8),
                             ],
                           ),
                         ),
@@ -156,10 +195,10 @@ class _DailyCareCardState extends State<DailyCareCard>
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 TextButton.icon(
-                  onPressed: widget.onGarden,
-                  icon: const Icon(Icons.local_florist_outlined, size: 17),
+                  onPressed: widget.onRest,
+                  icon: const Icon(Icons.spa_outlined, size: 17),
                   label: Text(
-                    '내 정원으로 가기',
+                    '지금은 조용히 쉬기',
                     style: pathLabelFont(
                       fontSize: 13,
                       color: AppColors.titlePastelGreen,

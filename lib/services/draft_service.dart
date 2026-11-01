@@ -9,8 +9,8 @@ class DraftService {
   static Future<Box> box() => _opening ??= _open();
   static Future<Box> _open() async {
     try {
-      return await Hive.openBox('drafts_local_user__enc',
-          encryptionCipher: await HiveEncryption.cipher());
+      return await HiveEncryption.openPreservingFile('drafts_local_user__enc',
+          cipher: await HiveEncryption.cipher());
     } catch (_) { _opening = null; rethrow; }
   }
 }

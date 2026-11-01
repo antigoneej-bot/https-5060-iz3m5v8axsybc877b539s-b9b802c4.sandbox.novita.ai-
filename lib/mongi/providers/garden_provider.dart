@@ -417,6 +417,12 @@ class GardenProvider extends ChangeNotifier {
       _publication.snapshot != null &&
       _publication.published != null;
 
+  Map<String, dynamic>? get publishedCatAppearance =>
+      _publication.owner == _publicOwner &&
+          _publication.snapshot?['publicCat'] is Map
+      ? Map<String, dynamic>.from(_publication.snapshot!['publicCat'] as Map)
+      : null;
+
   /// Unknown on a failed/legacy response or after an account switch. Never
   /// describe an old account's cached appearance as this person's publication.
   bool? get hasUnpublishedGardenChanges {
@@ -563,11 +569,15 @@ class GardenProvider extends ChangeNotifier {
     String? nickname,
     GardenVisibility? visibility,
     bool? discoveryOptIn,
+    bool? randomVisitOptIn,
+    Map<String, dynamic>? publicCat,
     bool? receiveGifts,
   }) => _publishGarden(
     nickname: nickname,
     visibility: visibility,
     discoveryOptIn: discoveryOptIn,
+    randomVisitOptIn: randomVisitOptIn,
+    publicCat: publicCat,
     receiveGifts: receiveGifts,
   );
 
@@ -588,6 +598,8 @@ class GardenProvider extends ChangeNotifier {
     String? nickname,
     GardenVisibility? visibility,
     bool? discoveryOptIn,
+    bool? randomVisitOptIn,
+    Map<String, dynamic>? publicCat,
     bool? receiveGifts,
     bool appearanceOnly = false,
   }) async {
@@ -616,6 +628,8 @@ class GardenProvider extends ChangeNotifier {
         memoryTreeStage: appearance['memoryTreeStage'] as int,
         hasCheerFlowers: appearance['hasCheerFlowers'] as bool,
         appearanceOnly: appearanceOnly,
+        publicCat: publicCat ?? publishedCatAppearance,
+        randomVisitOptIn: randomVisitOptIn,
         nickname: nickname,
         visibility: visibility,
         discoveryOptIn:

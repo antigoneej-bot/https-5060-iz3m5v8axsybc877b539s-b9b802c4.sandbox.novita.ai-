@@ -47,7 +47,7 @@ class GardenRecordCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 const Text(
-                  '하루에 한 번 성장해요. 편지는 기억의 나무에서 나만 다시 볼 수 있어요.',
+                  '하루에 한 번 기록을 남겨요. 편지는 기록 화면에서 나만 다시 볼 수 있어요.',
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 12),
                 ),
@@ -62,7 +62,7 @@ class GardenRecordCard extends StatelessWidget {
                   onPressed: () => Navigator.of(context).push(
                     MaterialPageRoute<void>(
                       builder: (_) =>
-                          const GardenWorldScreen(showRecordNote: true),
+                          const GardenWorldScreen.owned(showRecordNote: true),
                     ),
                   ),
                   icon: const Icon(Icons.park_outlined),

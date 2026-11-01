@@ -1,3 +1,4 @@
+import '../../screens/keepsake_forest_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../theme.dart' show AppColors;
@@ -5,10 +6,12 @@ import '../providers/garden_provider.dart';
 import '../widgets/garden_growth_share_sheet.dart';
 import '../screens/diary_screen.dart';
 import '../screens/emotion_calendar_screen.dart';
-import '../screens/emotion_collection_screen.dart';
+import '../../screens/memory_cards_screen.dart';
 import '../screens/growth_milestone_screen.dart';
 import '../screens/mind_report_screen.dart';
 import '../screens/garden_care_entry_screen.dart';
+import '../../screens/care_journal_screen.dart';
+import '../../screens/garden_memory_book_screen.dart';
 
 /// 정원 통합(마음냥 정원 + 몽이네 정원) 이후, 기존 "몽이네 정원" 화면
 /// 상단에 흩어져 있던 6가지 기록·활동 바로가기(마음 리포트/감정 도감/
@@ -113,6 +116,27 @@ class _GardenActivitySheet extends StatelessWidget {
               ),
             ),
             const Divider(height: 1),
+            _tile(context, emoji: '🌱', title: '기억의 나무', subtitle: '사랑·용서·평화의 씨앗에 날짜와 이야기를 심어요', onTap: () => Navigator.of(navigationContext).push(MaterialPageRoute(builder: (_) => const KeepsakeForestScreen()))),
+            _tile(
+              context,
+              emoji: '📚',
+              title: '정원 기록집',
+              subtitle: '정원 모습과 내가 고른 문장을 월별로 간직해요',
+              onTap: () => Navigator.of(navigationContext).push(
+                MaterialPageRoute(
+                  builder: (_) => const GardenMemoryBookScreen(),
+                ),
+              ),
+            ),
+            _tile(
+              context,
+              emoji: '🍃',
+              title: '나를 돌보는 방법',
+              subtitle: '나에게 도움이 됐던 행동과 간직한 말을 다시 꺼내요',
+              onTap: () => Navigator.of(navigationContext).push(
+                MaterialPageRoute(builder: (_) => const CareJournalScreen()),
+              ),
+            ),
             _tile(
               context,
               emoji: '🌿',
@@ -136,11 +160,11 @@ class _GardenActivitySheet extends StatelessWidget {
             _tile(
               context,
               emoji: '📖',
-              title: '감정 도감',
-              subtitle: '지금까지 마주한 감정들을 모아보는 도감',
+              title: '추억 카드',
+              subtitle: '특별한 고양이 카드를 수집·교환하고 자랑해요',
               onTap: () => Navigator.of(navigationContext).push(
                 MaterialPageRoute(
-                  builder: (_) => const EmotionCollectionScreen(),
+                  builder: (_) => const MemoryCardsScreen(),
                 ),
               ),
             ),

@@ -1,0 +1,35 @@
+{
+  "version": "1.0.49+52",
+  "application_id": "com.mysticcat.journal",
+  "build_type": "TEST ONLY - UNLOCK_ALL_PREMIUM=true",
+  "flutter_tests": 771,
+  "new_flutter_tests": 10,
+  "test_failures": 0,
+  "static_analysis": {
+    "errors": 0,
+    "warnings": 4,
+    "info": 372
+  },
+  "features": [
+    "removed automatic diary-count memory tree from personal and visited garden scenes",
+    "independent memory forest: six seed themes and three metallic finishes",
+    "date and text records; seed starts at zero regardless of anniversary",
+    "Korean-day care with stages at 3,7,14,30; no withering",
+    "encrypted private storage, validated backup/restore, revision-safe editing and deletion",
+    "test-open premium planting/growth; existing memories remain readable/editable after expiry"
+  ],
+  "bundletool_validate": "passed",
+  "jarsigner_verify": "passed",
+  "signing_certificate_sha256": "bebaa59bc1c879a0a685ba3bd699a58010bc5e5f52ba24b5f63f0f6ccad7819b",
+  "aab_size_bytes": 215894724,
+  "aab_sha256": "77ed6cad6c324ac3d87385b8590e911d21ed2b90f10f095a9ea77d01d196409c",
+  "server_change": "none; no server deployment needed for v52 memory trees",
+  "play_console_upload": "not performed",
+  "physical_device_test": "not performed",
+  "preview_data": "synthetic fixture on actual Flutter widgets; mature preview is not initial state",
+  "existing_pending_work": [
+    "light essence consolidation",
+    "attendance/achievement rewards",
+    "other release pet/tree subscription gates"
+  ]
+}

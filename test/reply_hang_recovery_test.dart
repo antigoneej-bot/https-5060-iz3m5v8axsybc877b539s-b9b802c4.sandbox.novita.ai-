@@ -47,70 +47,64 @@ void main() {
     await dir.delete(recursive: true);
   });
 
-  test(
-    '보안 저장소 read가 영원히 응답하지 않아도 첫 요청은 스스로 타임아웃되고, '
-    '이후 요청은 큐에 영구히 막히지 않고 정상 완료된다',
-    () async {
-      // secure storage 의 read 요청을 절대 응답하지 않는 Completer 로
-      // 묶어, 실제 버그에서 관찰된 "영원히 pending" 상태를 재현합니다.
-      final neverResolves = Completer<String?>();
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(
-            const MethodChannel('plugins.it_nomads.com/flutter_secure_storage'),
-            (call) async {
-              if (call.method == 'read') return neverResolves.future;
-              return null;
-            },
-          );
+  test('보안 저장소 read가 영원히 응답하지 않아도 첫 요청은 스스로 타임아웃되고, '
+      '이후 요청은 큐에 영구히 막히지 않고 정상 완료된다', () async {
+    // secure storage 의 read 요청을 절대 응답하지 않는 Completer 로
+    // 묶어, 실제 버그에서 관찰된 "영원히 pending" 상태를 재현합니다.
+    final neverResolves = Completer<String?>();
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+          const MethodChannel('plugins.it_nomads.com/flutter_secure_storage'),
+          (call) async {
+            if (call.method == 'read') return neverResolves.future;
+            return null;
+          },
+        );
 
-      // 1) 첫 번째 요청: secure storage read 가 멈춰있으므로 내부적으로
-      //    멈추지만, create() 전체에 걸린 방어 타임아웃(25초) 덕분에
-      //    무한정 걸리지 않고 스스로 실패로 끝나야 합니다.
-      // R11: HISTORY 단계(_history() 내부 secure storage read)에서 멈춘
-      //    타임아웃은 이제 ReplyFailure('HISTORY', 'TimeoutException')로
-      //    래핑되어, 사용자가 어느 단계에서 실패했는지 확인 번호로 구분할
-      //    수 있습니다. 원본 TimeoutException은 ReplyFailure.step 내부의
-      //    개별 타임아웃(8초)에서 먼저 발생하므로 더 이상 바깥으로
-      //    그대로 전파되지 않습니다.
-      final first = PersonalReplyService.create(
-        id: 'hang-1',
-        letterText: '오늘 너무 화가 났어.',
-        style: ReplyStyle.listen,
-        catName: '몽이',
-      );
+    // 1) 첫 번째 요청: secure storage read 가 멈춰있으므로 내부적으로
+    //    멈추지만, create() 전체에 걸린 방어 타임아웃(25초) 덕분에
+    //    무한정 걸리지 않고 스스로 실패로 끝나야 합니다.
+    // R11: HISTORY 단계(_history() 내부 secure storage read)에서 멈춘
+    //    타임아웃은 이제 ReplyFailure('HISTORY', 'TimeoutException')로
+    //    래핑되어, 사용자가 어느 단계에서 실패했는지 확인 번호로 구분할
+    //    수 있습니다. 원본 TimeoutException은 ReplyFailure.step 내부의
+    //    개별 타임아웃(8초)에서 먼저 발생하므로 더 이상 바깥으로
+    //    그대로 전파되지 않습니다.
+    final first = PersonalReplyService.create(
+      id: 'hang-1',
+      letterText: '오늘 너무 화가 났어.',
+      style: ReplyStyle.listen,
+      catName: '몽이',
+    );
 
-      await expectLater(
-        first,
-        throwsA(
-          isA<ReplyFailure>()
-              .having((e) => e.stage, 'stage', 'HISTORY')
-              .having((e) => e.kind, 'kind', 'TimeoutException'),
-        ),
-      );
+    await expectLater(
+      first,
+      throwsA(
+        isA<ReplyFailure>()
+            .having((e) => e.stage, 'stage', 'HISTORY')
+            .having((e) => e.kind, 'kind', 'TimeoutException'),
+      ),
+    );
 
-      // 2) 첫 번째 요청이 여전히 내부적으로 secure storage 를 기다리며
-      //    떠 있는 상태(neverResolves 는 아직 미완결)에서, 보안 저장소가
-      //    정상 응답하도록 mock 을 교체한 뒤 완전히 별개의 두 번째 편지에
-      //    대해 create() 를 호출합니다. 고쳐지기 전 버그였다면 이 두
-      //    번째 호출도 (poison된) _tail 큐에 걸려 영원히 끝나지 않았을
-      //    것입니다. 고친 뒤에는 25초 안에 정상적으로 완료되어야 합니다.
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(
-            const MethodChannel('plugins.it_nomads.com/flutter_secure_storage'),
-            (call) async => call.method == 'read'
-                ? null // 첫 실행이라 키가 없다고 응답 -> 새 키 생성 경로
-                : null,
-          );
+    // 2) 첫 번째 요청이 여전히 내부적으로 secure storage 를 기다리며
+    //    떠 있는 상태(neverResolves 는 아직 미완결)에서, 보안 저장소가
+    //    정상 응답하도록 mock 을 교체한 뒤 완전히 별개의 두 번째 편지에
+    //    대해 create() 를 호출합니다. 고쳐지기 전 버그였다면 이 두
+    //    번째 호출도 (poison된) _tail 큐에 걸려 영원히 끝나지 않았을
+    //    것입니다. 고친 뒤에는 25초 안에 정상적으로 완료되어야 합니다.
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+          const MethodChannel('plugins.it_nomads.com/flutter_secure_storage'),
+          (call) async => call.method == 'read'
+              ? null // 첫 실행이라 키가 없다고 응답 -> 새 키 생성 경로
+              : null,
+        );
 
-      final second = await PersonalReplyService.create(
-        id: 'hang-2',
-        letterText: '오늘은 조금 나아졌어.',
-        style: ReplyStyle.listen,
-        catName: '몽이',
-      );
-
-      expect(second, isNotEmpty);
-    },
-    timeout: const Timeout(Duration(seconds: 40)),
-  );
+    final second = await PersonalReplyService.savedReply('hang-2');
+    expect(
+      second,
+      isNull,
+      reason: 'Archive lookup completes without generating a new answer.',
+    );
+  }, timeout: const Timeout(Duration(seconds: 40)));
 }

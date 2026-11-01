@@ -4,7 +4,10 @@ enum CareAction {
   smallStep('작은 일 하나 정하기', '지금 바꿀 수 있는 일 하나와 가능한 때를 정해 보세요.'),
   connect('믿을 만한 사람에게 연락하기', '괜찮다면, 잠깐 이야기할 수 있는지 먼저 물어보세요.'),
   kindness('나에게 다정한 말 남기기', '같은 일을 겪은 친구에게 해주고 싶은 말을 나에게도 적어 보세요.'),
-  savor('간직하고 싶은 순간 적기', '기억하고 싶은 장면이나 감각 하나를 남겨 보세요.');
+  savor('간직하고 싶은 순간 적기', '기억하고 싶은 장면이나 감각 하나를 남겨 보세요.'),
+  walk('가볍게 걷기', '걷고 싶다면, 편한 만큼만 걸어보세요.'),
+  meditation('명상하기', '원하는 명상을 골라 편한 만큼 쉬어보세요.'),
+  custom('내가 정한 돌봄', '지금 나에게 맞는 작은 돌봄을 직접 정해보세요.');
 
   final String label;
   final String guide;
@@ -39,6 +42,9 @@ class SelfCareEntry {
   final CareFeedback? feedback;
   final int? afterComfort;
   final DateTime? reviewedAt;
+  final DateTime? completedAt;
+  final String? sourceLetterId;
+  final String? contextLabel;
 
   const SelfCareEntry({
     required this.id,
@@ -52,6 +58,9 @@ class SelfCareEntry {
     this.feedback,
     this.afterComfort,
     this.reviewedAt,
+    this.completedAt,
+    this.sourceLetterId,
+    this.contextLabel,
   });
 
   SelfCareEntry withFeedback(
@@ -70,6 +79,26 @@ class SelfCareEntry {
     feedback: feedback,
     afterComfort: afterComfort,
     reviewedAt: reviewedAt,
+    completedAt: completedAt ?? reviewedAt,
+    sourceLetterId: sourceLetterId,
+    contextLabel: contextLabel,
+  );
+
+  SelfCareEntry withCompletion(DateTime when) => SelfCareEntry(
+    id: id,
+    createdAt: createdAt,
+    comfort: comfort,
+    catId: catId,
+    promptIndex: promptIndex,
+    reflection: reflection,
+    action: action,
+    plan: plan,
+    feedback: feedback,
+    afterComfort: afterComfort,
+    reviewedAt: reviewedAt,
+    completedAt: completedAt ?? when,
+    sourceLetterId: sourceLetterId,
+    contextLabel: contextLabel,
   );
 
   Map<String, dynamic> toMap() => {
@@ -85,6 +114,9 @@ class SelfCareEntry {
     'feedback': feedback?.name,
     'afterComfort': afterComfort,
     'reviewedAt': reviewedAt?.toIso8601String(),
+    'completedAt': completedAt?.toIso8601String(),
+    'sourceLetterId': sourceLetterId,
+    'contextLabel': contextLabel,
   };
 
   factory SelfCareEntry.fromMap(Map map) {
@@ -135,6 +167,17 @@ class SelfCareEntry {
       if (feedback == null) invalid();
     }
     final reviewed = timestamp(map['reviewedAt']);
+    final completed = timestamp(map['completedAt']);
+    for (final key in ['sourceLetterId', 'contextLabel']) {
+      final value = map[key];
+      if (value != null &&
+          (value is! String ||
+              value.trim().isEmpty ||
+              value.length > (key == 'sourceLetterId' ? 256 : 80)))
+        invalid();
+    }
+    if (completed != null && (action == null || completed.isBefore(date)))
+      invalid();
     if ((map['reviewedAt'] != null && reviewed == null) ||
         (feedback != null && (action == null || reviewed == null)) ||
         (feedback == null &&
@@ -153,6 +196,9 @@ class SelfCareEntry {
       feedback: feedback,
       afterComfort: score(map['afterComfort']),
       reviewedAt: reviewed,
+      completedAt: completed ?? reviewed,
+      sourceLetterId: map['sourceLetterId'] as String?,
+      contextLabel: map['contextLabel'] as String?,
     );
   }
 }

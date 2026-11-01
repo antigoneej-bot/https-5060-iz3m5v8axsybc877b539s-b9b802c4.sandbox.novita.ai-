@@ -1,0 +1,40 @@
+Android 빌드 결과 · 2026-10-31
+
+결과: 테스트 APK 생성 성공. 정식 Play 업데이트용 AAB는 생성하지 않았습니다.
+파일: Mindnyang-1.0.61-64-arm64-preview.apk
+크기: 274,088,109 bytes / 261.39 MiB
+SHA-256: ed01d780978bee29b2ebcd25dca226e1e03b3d8b13d2c70755b483594362a00a
+표시 이름: 마음냥 정원 테스트
+패키지: com.mysticcat.journal.preview
+버전: 1.0.61-test / versionCode 64
+최소 Android: 7.0 (API 24). targetSdk / compileSdk: 36.
+Flutter 엔진 대상: arm64-v8a. ARM64 휴대전화용 테스트 APK입니다.
+종속성의 다른 ABI 파일도 포함되지만, ARMv7/x86 기기용 앱으로 검증하지 않았습니다.
+
+기존 com.mysticcat.journal과 별도로 설치됩니다. 기존 앱 업데이트나 데이터 이전 검증을 대신하지 않습니다.
+디버그 서명입니다. 기존 업로드 키를 변경하거나 새 정식 서명 키를 생성하지 않았습니다.
+프리미엄 테스트 접근과 테스트 온보딩이 켜져 있습니다. 실제 결제와 운영 로그인은 미검증입니다.
+
+실행 검증
+- Android Gradle Plugin 8.10.1 / Gradle 8.12 / JDK 17.0.21 / Flutter 3.35.4.
+- android/gradlew :app:assembleDebug --no-daemon --max-workers=1 실행: 성공, exit 0.
+  target=lib/main.dart, target-platform=android-arm64, Kotlin in-process, Java heap 3G.
+  dart-defines: UNLOCK_ALL_PREMIUM=true, TEST_SHOW_ONBOARDING=true, RELEASE_ENV=verification.
+  기존 gardenApi/socialAuth HTTPS 주소를 사용했습니다. 빌드가 서버 배포를 수행하지는 않습니다.
+- 최종 로그의 Kotlin metadata 파싱 경고: 0건.
+- apksigner verify --print-certs: exit 0.
+- zipalign -c -P 16 4: exit 0.
+- ARM64 ELF LOAD 정렬: Flutter/Vulkan 65536, DataStore 16384 바이트.
+  패키징/ELF 정렬 확인이며 16KB 실제 기기에서 실행했다는 의미는 아닙니다.
+- 실제 Android 기기 설치·실행 및 Play 업로드: 미검증/미실행.
+
+정식 AAB 빌드 차단 확인
+bash tool/build_store_bundle.sh: exit 1.
+출력: Set verified PRIVACY_POLICY_URL before a production build.
+공개 정책/계정 삭제 URL, 기존 서명 설정 및 운영 검증을 완료한 뒤 정식 빌드를 해야 합니다.
+안전장치를 제거하거나 가짜 URL을 넣지 않았습니다.
+
+용량 비교의 한계
+이번 APK는 ARM64 디버그 테스트용입니다. 이전 정식 APK/AAB와 동일한 빌드 조건이 아니므로
+정식 앱 용량의 증가/감소 수치를 산출하지 않았습니다. 소스 ZIP 크기는 설치 용량이 아닙니다.
+기존 전체 소스 후보 ZIP은 183,836,031 bytes였고 새 소스 ZIP은 별도 전달합니다.

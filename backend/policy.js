@@ -54,7 +54,11 @@ export function sanitizeNickname(raw) {
 // 다루는 필드에 포함되지 않는다(스키마 자체에 그런 필드가 없음).
 export function validatePublicSnapshot(value) {
   if (!value || typeof value !== 'object') return false;
-  if (Array.isArray(value) || Object.keys(value).some(k => !['seedCounts','equippedDecorationIds','treeStageIndex','layout','memoryTreeStage','hasCheerFlowers','flowerKinds'].includes(k))) return false;
+  if (Array.isArray(value) || Object.keys(value).some(k => !['seedCounts','equippedDecorationIds','treeStageIndex','layout','memoryTreeStage','hasCheerFlowers','flowerKinds','publicCat'].includes(k))) return false;
+  if (value.publicCat !== undefined && (!value.publicCat || typeof value.publicCat !== 'object' || Array.isArray(value.publicCat) ||
+      Object.keys(value.publicCat).some(k => !['coat','stage'].includes(k)) ||
+      !['ginger','white','tabby','black','tuxedo','calico'].includes(value.publicCat.coat) ||
+      !Number.isInteger(value.publicCat.stage) || value.publicCat.stage < 0 || value.publicCat.stage > 3)) return false;
   const { seedCounts, equippedDecorationIds, treeStageIndex } = value;
   if (!seedCounts || typeof seedCounts !== 'object' || Array.isArray(seedCounts)) return false;
   for (const [id, count] of Object.entries(seedCounts)) {
@@ -146,6 +150,7 @@ export function entitlement(purchase, now = Date.now()) {
   const state = !active ? (items.length ? 'expired' : 'free')
     : canceled ? 'cancelScheduled' : trial ? 'trial' : 'active';
   return {active, state, isTrial: active && trial,
+    isTestPurchase: purchase.testPurchase != null,
     autoRenewEnabled: item?.autoRenewingPlan?.autoRenewEnabled ?? null,
     productId: item?.productId ?? null, expiresAt: item?.expiryTime ?? null,
     checkedAt: new Date(now).toISOString()};

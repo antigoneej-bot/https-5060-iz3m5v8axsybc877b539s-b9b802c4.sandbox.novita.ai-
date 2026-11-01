@@ -1,0 +1,17 @@
+AGP 8.9.1 / Kotlin 2.2.0 build produced an APK but emitted Kotlin metadata warnings.
+Warning occurrences: 1256
+Example:
+WARNING: D8: An error occurred when parsing kotlin metadata. This normally happens when using a newer version of kotlin than the kotlin version released when this version of R8 was created. To find compatible kotlin versions, please see: https://developer.android.com/studio/build/kotlin-d8-r8-versions
+WARNING: D8: Unexpected error during rewriting of Kotlin metadata for class 'kotlin.text.StringsKt__StringsKt$lineSequence$$inlined$Sequence$1':
+com.android.tools.r8.internal.Yu0: Should never be called
+	at com.android.tools.r8.kotlin.a0.a(R8_8.9.32_b544fddaa3c5775749f5287a4ea253aa22d60a2ae31101691f9da7bdcc5515a9:2)
+	at com.android.tools.r8.kotlin.Z.a(R8_8.9.32_b544fddaa3c5775749f5287a4ea253aa22d60a2ae31101691f9da7bdcc5515a9:185)
+	at com.android.tools.r8.kotlin.Z.a(R8_8.9.32_b544fddaa3c5775749f5287a4ea253aa22d60a2ae31101691f9da7bdcc5515a9:184)
+	at com.android.tools.r8.internal.Xq0.a(R8_8.9.32_b544fddaa3c5775749f5287a4ea253aa22d60a2ae31101691f9da7bdcc5515a9:23)
+	at com.android.tools.r8.internal.Xq0.a(R8_8.9.32_b544fddaa3c5775749f5287a4ea253aa22d60a2ae31101691f9da7bdcc5515a9:34)
+	at com.android.tools.r8.internal.Xq0.a(R8_8.9.32_b544fddaa3c5775749f5287a4ea253aa22d60a2ae31101691f9da7bdcc5515a9:17)
+	at com.google.common.util.concurrent.TrustedListenableFutureTask$TrustedFutureInterruptibleTask.runInterruptibly(TrustedListenableFutureTask.java:131)
+	at com.google.common.util.concurrent.InterruptibleTask.run(InterruptibleTask.java:75)
+	at com.google.common.util.concurrent.TrustedListen
+Official compatibility: https://developer.android.com/build/kotlin-support
+AGP 8.10 release compatibility: https://developer.android.com/build/releases/agp-8-10-0-release-notes

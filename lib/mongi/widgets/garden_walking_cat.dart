@@ -1,3 +1,5 @@
+import '../../widgets/companion_coat_art.dart';
+import '../../models/companion_motion.dart';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -9,25 +11,46 @@ class GardenWalkingCat extends StatelessWidget {
   final int frame;
   final GardenCatFacing facing;
   final bool faceLeft;
-  const GardenWalkingCat({super.key, required this.frame,
-    required this.facing, required this.faceLeft});
+  const GardenWalkingCat({
+    super.key,
+    required this.frame,
+    required this.facing,
+    required this.faceLeft,
+  });
   static const asset = 'assets/living_garden/cat_walk_directional.png';
   static Future<ui.Image>? _image;
   static Future<ui.Image> _load() async {
     final bytes = await rootBundle.load(asset);
-    final codec = await ui.instantiateImageCodec(bytes.buffer.asUint8List(
-      bytes.offsetInBytes, bytes.lengthInBytes));
+    final codec = await ui.instantiateImageCodec(
+      bytes.buffer.asUint8List(bytes.offsetInBytes, bytes.lengthInBytes),
+    );
     final image = (await codec.getNextFrame()).image;
     codec.dispose();
     return image;
   }
+
   @override
-  Widget build(BuildContext context) => FutureBuilder<ui.Image>(
-    future: _image ??= _load(),
-    builder: (context, snapshot) => snapshot.hasData
-      ? CustomPaint(painter: GardenWalkPainter(snapshot.data!, frame, facing, faceLeft))
-      : const SizedBox.expand(),
-  );
+  Widget build(BuildContext context) {
+    final coat = selectedCompanionCoat(context);
+    if (coat != null)
+      return CompanionCoatArt(
+        coat: coat,
+        motion: CompanionMotionPose.walk(frame, faceLeft: faceLeft),
+      );
+    return FutureBuilder<ui.Image>(
+      future: _image ??= _load(),
+      builder: (context, snapshot) => snapshot.hasData
+          ? CustomPaint(
+              painter: GardenWalkPainter(
+                snapshot.data!,
+                frame,
+                facing,
+                faceLeft,
+              ),
+            )
+          : const SizedBox.expand(),
+    );
+  }
 }
 
 class GardenWalkPainter extends CustomPainter {
@@ -69,18 +92,30 @@ class GardenWalkPainter extends CustomPainter {
     final source = body.inflate(2);
     final scale = size.height / 235;
     final width = source.width * scale, height = source.height * scale;
-    final target = Rect.fromLTWH((size.width - width) / 2,
-      size.height - height + 2 * scale, width, height);
+    final target = Rect.fromLTWH(
+      (size.width - width) / 2,
+      size.height - height + 2 * scale,
+      width,
+      height,
+    );
     canvas.save();
     if (facing == GardenCatFacing.side && faceLeft) {
       canvas.translate(size.width, 0);
       canvas.scale(-1, 1);
     }
-    canvas.drawImageRect(image, source, target,
-      Paint()..filterQuality = FilterQuality.medium);
+    canvas.drawImageRect(
+      image,
+      source,
+      target,
+      Paint()..filterQuality = FilterQuality.medium,
+    );
     canvas.restore();
   }
+
   @override
   bool shouldRepaint(covariant GardenWalkPainter old) =>
-      image != old.image || frame != old.frame || facing != old.facing || faceLeft != old.faceLeft;
+      image != old.image ||
+      frame != old.frame ||
+      facing != old.facing ||
+      faceLeft != old.faceLeft;
 }

@@ -12,11 +12,14 @@ import '../theme.dart';
 /// - 모바일 터치에서도 누르는 순간 같은 흔들림 피드백을 줍니다.
 class GardenPathCard extends StatefulWidget {
   final String emoji;
+  final IconData? icon;
   final String title;
   final String subtitle;
   final Color accent;
   final Color background;
   final VoidCallback onTap;
+  final double titleSize;
+  final double subtitleSize;
 
   /// -1(왼쪽) ~ 1(오른쪽) 사이 값으로, 오솔길을 따라 카드가 좌우로
   /// 비대칭적으로 놓이도록 합니다.
@@ -32,11 +35,14 @@ class GardenPathCard extends StatefulWidget {
   const GardenPathCard({
     super.key,
     required this.emoji,
+    this.icon,
     required this.title,
     required this.subtitle,
     required this.accent,
     required this.background,
     required this.onTap,
+    this.titleSize = 15.5,
+    this.subtitleSize = 11.5,
     this.alignX = 0,
     this.widthFactor = 0.86,
     this.floatSeed = 0,
@@ -176,10 +182,12 @@ class _GardenPathCardState extends State<GardenPathCard>
                           color: widget.accent.withValues(alpha: 0.35),
                         ),
                       ),
-                      child: Text(
-                        widget.emoji,
-                        style: const TextStyle(fontSize: 21),
-                      ),
+                      child: widget.icon == null
+                          ? Text(
+                              widget.emoji,
+                              style: const TextStyle(fontSize: 21),
+                            )
+                          : Icon(widget.icon, size: 25, color: widget.accent),
                     ),
                     const SizedBox(width: 16),
                     Expanded(
@@ -189,7 +197,7 @@ class _GardenPathCardState extends State<GardenPathCard>
                           Text(
                             widget.title,
                             style: pathLabelFont(
-                              fontSize: 15.5,
+                              fontSize: widget.titleSize,
                               fontWeight: FontWeight.w700,
                               color: AppColors.ink,
                             ),
@@ -198,7 +206,7 @@ class _GardenPathCardState extends State<GardenPathCard>
                           Text(
                             widget.subtitle,
                             style: bodyFont(
-                              fontSize: 11.5,
+                              fontSize: widget.subtitleSize,
                               color: AppColors.inkSoft,
                               height: 1.5,
                             ),

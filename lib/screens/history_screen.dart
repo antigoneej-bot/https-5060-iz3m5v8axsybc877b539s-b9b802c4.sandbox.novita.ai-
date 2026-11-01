@@ -1,20 +1,16 @@
+import '../services/hive_encryption.dart';
+import '../services/storage_service.dart';
+import '../widgets/letter_care_closing_card.dart';
 import '../services/reply_safety.dart';
 import '../widgets/reply_support_actions.dart';
-import 'dart:async';
-import '../services/access_policy.dart';
-import '../widgets/subscription_gate.dart';
-import '../widgets/reply_feedback.dart';
 import 'emotion_statistics_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_state_provider.dart';
-import '../providers/cat_care_provider.dart';
 import '../models/letter_entry.dart';
 import '../data/shadow_cats_data.dart';
-import '../services/reply_text_builder.dart';
 import '../services/personal_reply_service.dart';
-import '../services/reply_failure.dart';
 import '../theme.dart';
 import '../widgets/lively_cat_image.dart';
 import '../widgets/garden_path_card.dart';
@@ -361,10 +357,6 @@ class _HistoryItemState extends State<_HistoryItem>
         cursor: SystemMouseCursors.click,
         child: GestureDetector(
           onTap: () {
-            // 읽음 처리는 답장을 실제로 불러오는 데 성공한 뒤에만 수행합니다
-            // (_CatReplySectionState 참고). 여기서 미리 읽음 처리하면, 답장
-            // 로딩이 실패하거나 멈춰도 배너가 사라져버려 사용자가 다시 찾기
-            // 어려워지는 문제가 있었습니다.
             _showDetail(context, entry, cat.imageAsset, cat.nameKr);
           },
           child: AnimatedScale(
@@ -410,29 +402,6 @@ class _HistoryItemState extends State<_HistoryItem>
                               Text(
                                 entry.moodEmoji!,
                                 style: const TextStyle(fontSize: 15),
-                              ),
-                            ],
-                            if (entry.isReplyReady && !entry.replySeen) ...[
-                              const SizedBox(width: 6),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 7,
-                                  vertical: 2,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: AppColors.blobRoseAccent.withValues(
-                                    alpha: 0.85,
-                                  ),
-                                  borderRadius: BorderRadius.circular(999),
-                                ),
-                                child: Text(
-                                  '💌 답장 도착',
-                                  style: bodyFont(
-                                    fontSize: 9.5,
-                                    fontWeight: FontWeight.w700,
-                                    color: Colors.white,
-                                  ),
-                                ),
                               ),
                             ],
                           ],
@@ -606,6 +575,8 @@ class _HistoryItemState extends State<_HistoryItem>
                     ),
                   ),
                   const SizedBox(height: 14),
+                  LetterCareClosingCard(letter: entry),
+                  const SizedBox(height: 12),
                   _CatReplySection(entry: entry, catName: name),
                   const SizedBox(height: 16),
                   Align(
@@ -618,12 +589,13 @@ class _HistoryItemState extends State<_HistoryItem>
                               .deleteHistoryEntry(entry.id);
                           if (ctx.mounted) Navigator.pop(ctx);
                         } catch (_) {
-                          if (ctx.mounted)
+                          if (ctx.mounted) {
                             ScaffoldMessenger.of(ctx).showSnackBar(
                               const SnackBar(
                                 content: Text('삭제를 완료하지 못했어요. 다시 시도해 주세요.'),
                               ),
                             );
+                          }
                         }
                       },
                       child: Text(
@@ -642,329 +614,79 @@ class _HistoryItemState extends State<_HistoryItem>
   }
 }
 
-/// 편지 상세 안, 그 고양이의 답장을 보여주는 섹션.
-/// - 아직 다음날 아침이 되지 않았다면: "아직 도착 전" 안내만 조용히 표시
-/// - 다음날 아침이 지났다면: 고양이의 답장 전문을 편지지 톤으로 보여줌
-///
-/// 답장 텍스트는 [buildReplyText]를 통해 조회하는데(신규 8모듈 조합 엔진은
-/// 반복방지 기록을 Hive에 남기기 위해 비동기로 동작), StatefulWidget으로
-/// 로딩 상태를 관리합니다.
-///
-/// 주의: 과거에는 FutureBuilder를 사용했으나, 일부 웹(dart2js) 빌드
-/// 환경에서 Future 자체는 정상적으로 완료되어 IndexedDB에 값까지 저장되는데도
-/// 위젯이 그 완료 신호를 받지 못해 로딩 스피너에 무한정 머무는 현상이
-/// 관찰되었습니다. FutureBuilder의 내부 구독 메커니즘에 기대는 대신, 여기서는
-/// Future에 직접 콜백(.then/onError)을 붙이고 완료 즉시 setState를 호출하는
-/// 방식으로 이 문제를 원천 차단합니다. 추가로, 답장 생성 파이프라인
-/// 자체(구독 확인·백그라운드 조합 연산)에도 각각 타임아웃을 걸어두었으므로
-/// (personal_reply_service.dart 참고), 여기서는 만약을 대비한 마지막
-/// 안전장치로 30초 타임아웃을 한 번 더 둡니다.
+/// Existing answers are an optional archive, never newly generated on open.
 class _CatReplySection extends StatefulWidget {
   final LetterEntry entry;
   final String catName;
   const _CatReplySection({required this.entry, required this.catName});
-
   @override
   State<_CatReplySection> createState() => _CatReplySectionState();
 }
 
 class _CatReplySectionState extends State<_CatReplySection> {
-  bool _loading = false;
-  String? _reply;
-  Object? _error;
-  Timer? _arrivalTimer;
-  bool _markedSeen = false;
-  bool _canRefresh = false;
-  bool _refreshed = false;
-  int _request = 0;
-
+  late Future<String?> _archive;
   @override
   void initState() {
     super.initState();
-    _prepareWhenReady();
+    _archive = _read();
   }
 
   @override
   void didUpdateWidget(covariant _CatReplySection oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.entry.id != widget.entry.id) {
-      _request++;
-      _markedSeen = false;
-      _loading = false;
-      _reply = null;
-      _error = null;
-      _canRefresh = false;
-      _refreshed = false;
-      _prepareWhenReady();
+    if (oldWidget.entry.id != widget.entry.id ||
+        oldWidget.entry.letterText != widget.entry.letterText) {
+      _archive = _read();
     }
   }
 
-  @override
-  void dispose() {
-    _arrivalTimer?.cancel();
-    super.dispose();
-  }
-
-  /// 답장이 이미 도착했다면 바로 로딩을 시작하고, 아직 도착 전(다음날 오전
-  /// 6시 이전)이라면 도착 시각에 맞춰 타이머를 걸어둡니다. 상세 다이얼로그를
-  /// 열어둔 채로 자정을 넘기는 경우에도, 화면을 닫았다 여는 수고 없이
-  /// 자동으로 로딩이 시작되도록 하기 위함입니다.
-  void _prepareWhenReady() {
-    _arrivalTimer?.cancel();
-    if (widget.entry.isReplyReady) {
-      if (ReplySafety.assess(widget.entry.letterText) !=
-          ReplySupportNeed.none) {
-        final id = widget.entry.id;
-        WidgetsBinding.instance.addPostFrameCallback((_) async {
-          if (!mounted ||
-              widget.entry.id != id ||
-              _markedSeen ||
-              !(ModalRoute.of(context)?.isCurrent ?? true)) {
-            return;
-          }
-          _markedSeen = true;
-          try {
-            await context.read<AppStateProvider>().markReplySeen(id);
-          } catch (_) {
-            if (mounted && widget.entry.id == id) _markedSeen = false;
-          }
-        });
-        return;
-      }
-      _startLoading();
-    } else {
-      final wait =
-          widget.entry.replyAvailableAt.difference(DateTime.now()) +
-          const Duration(milliseconds: 100);
-      _arrivalTimer = Timer(wait, () {
-        if (mounted) setState(_prepareWhenReady);
-      });
+  Future<String?> _read() async {
+    if (ReplySafety.assess(widget.entry.letterText) != ReplySupportNeed.none) {
+      return null;
     }
-  }
-
-  bool _isCurrent(int request, String id) =>
-      mounted && _request == request && widget.entry.id == id;
-
-  void _startLoading({bool refreshExisting = false}) {
-    if (_loading) return;
-    _loading = true;
-    _error = null;
+    final source = StorageService.letterBox;
     final entry = widget.entry;
-    final request = ++_request;
-    final cat = shadowCatById(entry.catId);
-    final app = context.read<AppStateProvider>();
-    final catCare = context.read<CatCareProvider>();
-    buildReplyText(
-          entry: entry,
-          cat: cat,
-          history: app.history,
-          growthStage: catCare.effectiveGrowthStage,
-          visitStreak: app.streak,
-          refreshExisting: refreshExisting,
-        )
-        .timeout(Duration(seconds: refreshExisting ? 50 : 30))
-        .then(
-          (value) async {
-            if (!_isCurrent(request, entry.id)) return;
-            setState(() {
-              _loading = false;
-              _reply = value;
-              if (refreshExisting) {
-                _refreshed = true;
-                _canRefresh = false;
-              }
-            });
-            // Only a successfully loaded answer is marked seen. A completion
-            // from a different letter must not update the current dialog.
-            if (!_markedSeen && value.isNotEmpty) {
-              _markedSeen = true;
-              WidgetsBinding.instance.addPostFrameCallback((_) async {
-                if (!_isCurrent(request, entry.id)) return;
-                try {
-                  await context.read<AppStateProvider>().markReplySeen(
-                    entry.id,
-                  );
-                } catch (_) {
-                  if (_isCurrent(request, entry.id)) _markedSeen = false;
-                }
-              });
-            }
-            if (!refreshExisting) {
-              try {
-                final outdated = await PersonalReplyService.needsRefresh(
-                  'letter:${entry.id}',
-                );
-                if (_isCurrent(request, entry.id)) {
-                  setState(() => _canRefresh = outdated);
-                }
-              } catch (_) {
-                // Failure to read version metadata never hides the answer.
-              }
-            }
-          },
-          onError: (Object error, StackTrace stackTrace) {
-            if (!_isCurrent(request, entry.id)) return;
-            setState(() {
-              _loading = false;
-              _error = error;
-            });
-          },
-        );
-  }
-
-  void _retry() {
-    setState(() => _startLoading(refreshExisting: _reply != null));
+    final cache = await HiveEncryption.openBox('reply_cache_local_user');
+    return PersonalReplyService.savedReply(
+      'letter:${entry.id}',
+      legacyReplyReader: () =>
+          cache.get(entry.id) is String ? cache.get(entry.id) as String : null,
+      sourceIsCurrent: () =>
+          source.isOpen &&
+          identical(source, StorageService.letterBox) &&
+          source.containsKey(entry.id),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final entry = widget.entry;
-    final catName = widget.catName;
-
-    if (ReplySafety.assess(entry.letterText) != ReplySupportNeed.none) {
-      return ReplySupportActions(letterText: entry.letterText);
+    if (ReplySafety.assess(widget.entry.letterText) != ReplySupportNeed.none) {
+      return ReplySupportActions(letterText: widget.entry.letterText);
     }
-    if (!entry.isReplyReady) {
-      final remaining = entry.replyAvailableAt.difference(DateTime.now());
-      final hours = remaining.inHours.clamp(0, 999);
-      return Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          color: AppColors.blobLavender.withValues(alpha: 0.5),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(
-            color: AppColors.blobLavenderAccent.withValues(alpha: 0.25),
-          ),
-        ),
-        child: Row(
+    return FutureBuilder<String?>(
+      future: _archive,
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return TextButton(
+            onPressed: () => setState(() => _archive = _read()),
+            child: const Text('이전에 받은 답장 다시 읽기'),
+          );
+        }
+        final text = snapshot.data;
+        if (text == null) return const SizedBox.shrink();
+        return ExpansionTile(
+          tilePadding: EdgeInsets.zero,
+          title: const Text('이전에 받은 답장'),
+          subtitle: const Text('과거에 저장된 내용이에요'),
+          childrenPadding: const EdgeInsets.only(bottom: 12),
           children: [
-            const Text('🌙', style: TextStyle(fontSize: 18)),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                hours > 0
-                    ? '$catName의 답장은 내일 아침에 도착해요 (약 $hours시간 후)'
-                    : '$catName의 답장은 내일 아침에 도착해요',
-                style: bodyFont(fontSize: 12, color: AppColors.inkSoft),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    if (_reply == null && _error is SubscriptionRequired) {
-      return SubscriptionNotice(message: _error.toString(), onReturn: _retry);
-    }
-    if (_reply == null && _error != null) {
-      return Column(
-        children: [
-          const Text('답장을 준비하지 못했어요. 편지는 보관되어 있어요.'),
-          SelectableText(
-            ReplyFailure.description(_error),
-            style: const TextStyle(fontSize: 12, color: Colors.grey),
-          ),
-          TextButton(onPressed: _retry, child: const Text('다시 준비하기')),
-        ],
-      );
-    }
-    final reply = _reply ?? '';
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(18),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            AppColors.blobButter.withValues(alpha: 0.85),
-            AppColors.blobButter.withValues(alpha: 0.55),
-          ],
-        ),
-        border: Border.all(
-          color: AppColors.blobButterAccent.withValues(alpha: 0.3),
-          width: 1.1,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Text('💌', style: TextStyle(fontSize: 16)),
-              const SizedBox(width: 6),
-              Text(
-                '$catName의 답장',
-                style: pathLabelFont(
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.ink,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          if (_reply != null)
-            Text(
-              reply,
+            SelectableText(
+              text,
               style: bodyFont(fontSize: 13, color: AppColors.moon, height: 1.7),
             ),
-          if (_loading) ...[
-            const SizedBox(height: 8),
-            const SizedBox(
-              height: 18,
-              width: 18,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            ),
-            if (_reply != null)
-              const Text(
-                '새 문안으로 답장을 준비하고 있어요. 기존 답장은 그대로 보관 중이에요.',
-                style: TextStyle(fontSize: 12, height: 1.6),
-              ),
           ],
-          if (_error != null) ...[
-            const SizedBox(height: 8),
-            const Text('새 답장을 준비하지 못했어요. 기존 답장은 그대로예요.'),
-            SelectableText(
-              ReplyFailure.description(_error),
-              style: const TextStyle(fontSize: 12, color: Colors.grey),
-            ),
-            TextButton(
-              onPressed: _loading ? null : _retry,
-              child: const Text('새 답장 다시 시도'),
-            ),
-          ],
-          if (_reply != null && _canRefresh && _error == null) ...[
-            const SizedBox(height: 8),
-            const Text(
-              '예전에 저장한 답장이에요. 원할 때 새 문안으로 바꿀 수 있어요. 무료 답장 횟수는 추가로 차감되지 않아요.',
-              style: TextStyle(fontSize: 12, height: 1.6),
-            ),
-            TextButton.icon(
-              onPressed: _loading
-                  ? null
-                  : () => setState(() => _startLoading(refreshExisting: true)),
-              icon: const Icon(Icons.refresh, size: 18),
-              label: const Text('새 문안으로 답장 다시 받기'),
-            ),
-          ],
-          if (_refreshed)
-            const Padding(
-              padding: EdgeInsets.only(top: 8),
-              child: Text(
-                '새 문안의 답장으로 바꿨어요. 원래 편지와 정원 기록은 그대로예요.',
-                style: TextStyle(fontSize: 12, height: 1.6),
-              ),
-            ),
-          if (_reply != null && !_loading)
-            ReplyFeedback(
-              key: ValueKey('letter:${entry.id}:$_refreshed'),
-              replyId: 'letter:${entry.id}',
-            ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

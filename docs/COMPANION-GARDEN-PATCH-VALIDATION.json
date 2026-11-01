@@ -1,0 +1,34 @@
+{
+  "patch": "companion-garden-usability",
+  "baseVersion": "1.0.70+73",
+  "changedFiles": [
+    "lib/mongi/screens/garden_world_screen.dart",
+    "lib/mongi/screens/settings_screen.dart",
+    "lib/mongi/widgets/garden_cultivation_tools.dart",
+    "lib/mongi/widgets/garden_world_view.dart",
+    "lib/widgets/companion_care_panel.dart",
+    "lib/widgets/companion_welcome_home.dart",
+    "lib/widgets/home_companion_touch.dart",
+    "lib/widgets/pastel_garden_shell.dart",
+    "test/garden_world_offline_test.dart",
+    "test/garden_world_view_test.dart",
+    "test/home_companion_welcome_test.dart"
+  ],
+  "preservedDirectories": [
+    "lib/services",
+    "lib/providers",
+    "lib/models",
+    "lib/data",
+    "lib/mongi/integration",
+    "assets",
+    "backend",
+    "android",
+    "ios"
+  ],
+  "dartSyntaxParse": "PASS (tree-sitter; not type analysis)",
+  "structuralCheck": "PASS 662 Dart/Kotlin files",
+  "flutterTests": "NOT RUN: Flutter/Dart SDK unavailable",
+  "apkBuild": "NOT RUN",
+  "physicalDevice": "NOT TESTED",
+  "previous859Tests": "baseline only, not validation of this patch"
+}

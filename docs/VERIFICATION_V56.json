@@ -1,0 +1,32 @@
+{
+  "version": "1.0.53+56",
+  "flutter_tests_passed": 781,
+  "backend_tests_passed": 209,
+  "static_analysis_errors": 0,
+  "static_analysis_warnings": 4,
+  "bundletool": "passed",
+  "signature": "verified; matches v55",
+  "certificate_sha256": "bebaa59bc1c879a0a685ba3bd699a58010bc5e5f52ba24b5f63f0f6ccad7819b",
+  "aab_size_bytes": 220430191,
+  "aab_sha256": "a47dad34a5910bab255ca030b8506248c3c8d82bc23678d2b9b50f3c0caddd5b",
+  "embedded_line_art_and_raw_bell": "verified",
+  "premium_test_access": true,
+  "play_upload": "not performed",
+  "server_deployment": "not performed; deploy patch for existing gardenApi and gardenPush supplied",
+  "physical_device_test": "not performed",
+  "checks": [
+    "48 colors, brush widths, account-specific stroke storage and separate finished artwork",
+    "eraser pixel test leaves white paper",
+    "320/390 phone drawing, undo, redo, save and layout",
+    "notice first-load baseline, duplicate and concurrent fetch suppression, sound preference",
+    "FCM bell/silent/legacy channels and 3-second sound throttle",
+    "server patch idempotency and unknown-source guard"
+  ],
+  "limitations": [
+    "one detailed love-cat page; legacy three designs and rewards preserved separately",
+    "new brush art has no automatic collectible-card reward",
+    "notices ring when a refresh detects new IDs, not all-user real-time announcement broadcast",
+    "background push sound needs both server patches and app settings synchronization",
+    "Android sound behavior still requires physical device mute/DND/permission tests"
+  ]
+}

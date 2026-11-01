@@ -1,3 +1,6 @@
+import 'local_record_transaction.dart';
+import 'package:uuid/uuid.dart';
+import 'meditation_completion_journal.dart';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -31,9 +34,9 @@ class MeditationCourseStore extends ChangeNotifier {
   final progress = <String, int>{};
   final lastDays = <String, String>{};
   Future<void>? _ready;
-  Future<void> _tail = Future.value();
+  final _queue = LocalRecordQueue();
   ({String course, int index, String key})? _armed;
-  final _pending = <({String course, int index, String day})>[];
+  final _unsaved = <Map<String, dynamic>>[];
   int step(MeditationCourse c) => progress[c.id] ?? 0;
   static String day(DateTime now) =>
       '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
@@ -48,7 +51,7 @@ class MeditationCourseStore extends ChangeNotifier {
   /// cache. Used after a backup restore writes `meditation.courses` directly,
   /// so this store's cached [progress]/[lastDays]/[active] cannot go stale.
   Future<void> reload() async {
-    await _tail;
+    await _queue.settled;
     await (await SharedPreferences.getInstance()).reload();
     _ready = null;
     _armed = null;
@@ -78,12 +81,10 @@ class MeditationCourseStore extends ChangeNotifier {
   }
 
   Future<void> _run(Future<void> Function() action) {
-    final next = _tail.then((_) async {
+    return _queue.run(() async {
       await load();
       await action();
     });
-    _tail = next.catchError((Object _) {});
-    return next;
   }
 
   Future<void> _save(
@@ -95,8 +96,10 @@ class MeditationCourseStore extends ChangeNotifier {
     if (!await p.setString(
       'meditation.courses',
       jsonEncode({'active': selected, 'progress': steps, 'days': days}),
-    ))
+    )) {
+      await p.reload();
       throw StateError('course-save');
+    }
     active = selected;
     progress
       ..clear()
@@ -121,29 +124,47 @@ class MeditationCourseStore extends ChangeNotifier {
         _armed = (course: c.id, index: index, key: key);
     }
   });
-  Future<void> complete(String key, {DateTime? now}) {
+
+  /// Capture the armed step before the player records its durable completion.
+  Map<String, dynamic>? preparedCompletion(String key, DateTime now) {
     final session = _armed;
-    if (session == null || session.key != key) return Future.value();
-    _armed = null;
-    _pending.add((
-      course: session.course,
-      index: session.index,
-      day: day(now ?? DateTime.now()),
-    ));
-    return retry();
+    if (session == null || session.key != key) return null;
+    return {'course': session.course, 'index': session.index, 'day': day(now)};
   }
 
-  Future<void> retry() => _run(() async {
-    for (final event in _pending.toList()) {
-      if ((progress[event.course] ?? 0) == event.index &&
-          lastDays[event.course] != event.day) {
-        await _save(
-          active,
-          {...progress, event.course: event.index + 1},
-          {...lastDays, event.course: event.day},
-        );
-      }
-      _pending.remove(event);
+  Future<void> complete(String key, {DateTime? now}) async {
+    final event = preparedCompletion(key, now ?? DateTime.now());
+    if (event == null) return;
+    _armed = null;
+    _unsaved.add({'id': const Uuid().v4(), ...event, 'reward': false});
+    await retry();
+  }
+
+  Future<void> applyCompletion(Map<String, dynamic> event) => _run(() async {
+    final course = event['course'];
+    if (course == null) return;
+    final index = event['index'] as int;
+    final date = event['day'] as String;
+    if (!meditationCourses.any(
+      (c) => c.id == course && index >= 0 && index < c.guides.length,
+    )) {
+      throw const FormatException('invalid-course-completion');
     }
+    if ((progress[course] ?? 0) == index && lastDays[course] != date) {
+      await _save(
+        active,
+        {...progress, course as String: index + 1},
+        {...lastDays, course: date},
+      );
+    }
+    if (_armed?.course == course && _armed?.index == index) _armed = null;
   });
+
+  Future<void> retry() async {
+    for (final event in _unsaved.toList()) {
+      await MeditationCompletionJournal.enqueue(event);
+      _unsaved.remove(event);
+    }
+    await MeditationCompletionJournal.drain(applyCompletion, courseOnly: true);
+  }
 }

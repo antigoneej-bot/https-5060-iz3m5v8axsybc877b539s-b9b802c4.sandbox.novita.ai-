@@ -1,3 +1,4 @@
+import 'meditation_save_status.dart';
 import 'package:flutter/material.dart';
 import '../services/meditation_completion_service.dart';
 import '../services/meditation_library_store.dart';
@@ -37,6 +38,7 @@ class _MeditationCheckInState extends State<MeditationCheckIn> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            const MeditationSaveStatus(),
             Text(
               '잠깐 쉬고 난 지금은 어떤가요?',
               style: bodyFont(

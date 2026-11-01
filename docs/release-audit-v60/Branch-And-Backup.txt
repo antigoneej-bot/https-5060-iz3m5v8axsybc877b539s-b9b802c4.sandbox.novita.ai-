@@ -1,0 +1,4 @@
+branch: audit/release-security-v60
+baseline commit: 734b10113a37f4cfa8f5f8370931d9a301aa45ee
+baseline source ZIP SHA256: 51b4aea81d0e4b2011e1a15c5a2fa936795b7dce0ff954dc4fc3df174a7973e3
+기존 Library 소스 version22의 v59 ZIP을 별도 백업. 데이터 형식 변경 없음.

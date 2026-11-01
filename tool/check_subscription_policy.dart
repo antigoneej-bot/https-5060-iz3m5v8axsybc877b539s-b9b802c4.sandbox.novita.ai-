@@ -44,9 +44,27 @@ void main() {
     AccessPolicy.dayKey(DateTime(2026, 9, 17)) == '2026-09-17',
     'day after reset',
   );
-  const month = StorePhase('P1M', 'KRW', 4900000000, 0);
-  const year = StorePhase('P1Y', 'KRW', 29000000000, 0);
-  const trial = StorePhase('P15D', 'KRW', 0, 1);
+  const month = StorePhase(
+    'P1M',
+    'KRW',
+    4900000000,
+    0,
+    recurrence: StoreRecurrence.infinite,
+  );
+  const year = StorePhase(
+    'P1Y',
+    'KRW',
+    29000000000,
+    0,
+    recurrence: StoreRecurrence.infinite,
+  );
+  const trial = StorePhase(
+    'P15D',
+    'KRW',
+    0,
+    1,
+    recurrence: StoreRecurrence.finite,
+  );
   require(
     SubscriptionOfferPolicy.accepts([month], yearly: false),
     'monthly 4900',
@@ -60,17 +78,23 @@ void main() {
     '15-day eligible offer',
   );
   require(
-    !SubscriptionOfferPolicy.accepts([
-      const StorePhase('P1M', 'KRW', 3900000000, 0),
+    SubscriptionOfferPolicy.accepts([
+      const StorePhase(
+        'P1M',
+        'KRW',
+        3900000000,
+        0,
+        recurrence: StoreRecurrence.infinite,
+      ),
     ], yearly: false),
-    'reject old 3900',
+    'store owns the actual price',
   );
   require(
-    !SubscriptionOfferPolicy.accepts([
-      const StorePhase('P7D', 'KRW', 0, 1),
+    SubscriptionOfferPolicy.accepts([
+      const StorePhase('P7D', 'KRW', 0, 1, recurrence: StoreRecurrence.finite),
       month,
     ], yearly: false),
-    'reject 7-day offer',
+    'eligible 7-day trial',
   );
   require(
     !SubscriptionOfferPolicy.accepts([month], yearly: true),
@@ -78,7 +102,13 @@ void main() {
   );
   require(
     !SubscriptionOfferPolicy.accepts([
-      const StorePhase('P1M', 'KRW', 4900000000, 1),
+      const StorePhase(
+        'P1M',
+        'KRW',
+        4900000000,
+        1,
+        recurrence: StoreRecurrence.none,
+      ),
     ], yearly: false),
     'reject non-recurring offer',
   );

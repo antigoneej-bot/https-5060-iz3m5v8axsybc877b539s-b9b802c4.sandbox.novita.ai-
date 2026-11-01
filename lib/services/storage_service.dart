@@ -1,7 +1,9 @@
-import 'dart:convert';
+import 'meditation_checkin_store.dart';
 import '../mongi/integration/mongi_garden_store.dart';
 import '../mongi/integration/session_transaction.dart';
 import 'personal_reply_service.dart';
+import 'care_journal_store.dart';
+import 'garden_memory_book_store.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/letter_entry.dart';
@@ -9,6 +11,8 @@ import '../models/reflection_letter_entry.dart';
 import '../models/daily_draw_entry.dart';
 import '../models/bubble_memo_entry.dart';
 import 'hive_encryption.dart';
+import 'local_record_transaction.dart';
+import '../mongi/integration/plant_memory_store.dart';
 import 'legacy_record_migration.dart';
 
 /// 계정별로 편지 기록 · 연속 방문일 · 성장 단계를 저장합니다.
@@ -191,114 +195,15 @@ class StorageService {
     }
   }
 
-  /// 구버전(1.0.8+11 이하)은 명상 체크인을 암호화된 Hive 박스
-  /// (`meditation_checkins_local_user`, 레코드: session/guide/feeling/at)에
-  /// 저장했습니다. 이후 버전은 SharedPreferences 키
-  /// `meditation.checkins`(JSON 배열, 동일한 필드)로 단순화되었습니다.
-  /// 두 형식의 필드가 완전히 동일하므로, 과거 Hive 기록을 1회만
-  /// SharedPreferences 쪽으로 안전하게 병합합니다. 대상 키가 비어 있을
-  /// 때만 동작하며, 이미 있는 기록은 건드리지 않습니다.
-  static const String _meditationCheckInMigratedKey =
-      'meditation_checkins_migrated_v1';
-  static const String _legacyMeditationCheckInBoxName =
-      'meditation_checkins_local_user';
-  static const String _meditationCheckInPrefsKey = 'meditation.checkins';
-
+  /// Keeps both historic formats readable without writing plaintext records.
   static Future<void> migrateMeditationCheckInsIfNeeded() async {
-    final prefs = await SharedPreferences.getInstance();
-    if (prefs.getBool(_meditationCheckInMigratedKey) == true) return;
-    try {
-      final legacyExists =
-          await Hive.boxExists(_legacyMeditationCheckInBoxName) ||
-          await Hive.boxExists('${_legacyMeditationCheckInBoxName}__enc');
-      if (!legacyExists) {
-        await prefs.setBool(_meditationCheckInMigratedKey, true);
-        return;
-      }
-
-      final box = await HiveEncryption.openBox(
-        _legacyMeditationCheckInBoxName,
-      );
-      if (box.isEmpty) {
-        await box.close();
-        await prefs.setBool(_meditationCheckInMigratedKey, true);
-        return;
-      }
-
-      // 이미 신규 형식으로 기록이 있다면(현재 기기 값 우선), Hive 쪽은
-      // 건드리지 않고 마이그레이션 완료로만 표시합니다.
-      final existingRaw = prefs.getString(_meditationCheckInPrefsKey);
-      final existing = <Map<String, dynamic>>[];
-      if (existingRaw != null) {
-        try {
-          final decoded = jsonDecode(existingRaw);
-          if (decoded is List) {
-            existing.addAll(
-              decoded
-                  .whereType<Map>()
-                  .map((v) => Map<String, dynamic>.from(v)),
-            );
-          }
-        } catch (_) {
-          /* 손상된 기존 값은 무시하고 아래에서 새로 구성합니다. */
-        }
-      }
-
-      final existingSessions = existing
-          .map((v) => v['session'])
-          .whereType<String>()
-          .toSet();
-
-      final merged = <Map<String, dynamic>>[...existing];
-      for (final key in box.keys) {
-        final value = box.get(key);
-        if (value is! Map) continue;
-        final session = value['session'];
-        final guide = value['guide'];
-        final feeling = value['feeling'];
-        final at = value['at'];
-        if (session is! String ||
-            session.trim().isEmpty ||
-            guide is! String ||
-            feeling is! String ||
-            !const {'better', 'same', 'worse'}.contains(feeling) ||
-            at is! String ||
-            DateTime.tryParse(at) == null) {
-          continue; // 형식이 다른 레코드는 건너뜀 (기존 기록 보존 우선)
-        }
-        if (existingSessions.contains(session)) continue;
-        merged.add({
-          'session': session,
-          'guide': guide,
-          'feeling': feeling,
-          'at': at,
-        });
-        existingSessions.add(session);
-      }
-
-      merged.sort((a, b) {
-        final da = DateTime.tryParse(a['at'] as String? ?? '');
-        final db = DateTime.tryParse(b['at'] as String? ?? '');
-        if (da == null || db == null) return 0;
-        return db.compareTo(da);
-      });
-      final limited = merged.take(90).toList();
-
-      if (!await prefs.setString(
-        _meditationCheckInPrefsKey,
-        jsonEncode(limited),
-      )) {
-        return; // 저장 실패 시 플래그를 남기지 않아 다음 실행에 재시도
-      }
-      await box.close();
-      await prefs.setBool(_meditationCheckInMigratedKey, true);
-    } catch (_) {
-      // 실패 시 플래그를 남기지 않아 다음 앱 실행에서 재시도합니다.
-    }
+    await MeditationCheckInStore.read();
   }
 
   /// 로그인/자동 로그인 성공 시 호출해서 해당 계정 전용 저장 공간으로 전환합니다.
-  static Future<void> setCurrentUser(String userId) async {
+  static Future<void> setCurrentUser(
+    String userId,
+  ) => LocalRecordTransaction.atomic(() async {
     if (_uid == userId && _letterBox != null && _letterBox!.isOpen) return;
     _uid = userId;
     if (_letterBox != null && _letterBox!.isOpen) {
@@ -319,28 +224,29 @@ class StorageService {
     );
     _dailyDrawBox = await HiveEncryption.openBox('daily_draw_entries_$_uid');
     _bubbleMemoBox = await HiveEncryption.openBox('bubble_memo_entries_$_uid');
-  }
+  });
 
   /// 로그아웃 시 호출해서 계정 전용 데이터 접근을 닫습니다.
-  static Future<void> clearCurrentUser() async {
-    if (_letterBox != null && _letterBox!.isOpen) {
-      await _letterBox!.close();
-    }
-    if (_reflectionLetterBox != null && _reflectionLetterBox!.isOpen) {
-      await _reflectionLetterBox!.close();
-    }
-    if (_dailyDrawBox != null && _dailyDrawBox!.isOpen) {
-      await _dailyDrawBox!.close();
-    }
-    if (_bubbleMemoBox != null && _bubbleMemoBox!.isOpen) {
-      await _bubbleMemoBox!.close();
-    }
-    _letterBox = null;
-    _reflectionLetterBox = null;
-    _dailyDrawBox = null;
-    _bubbleMemoBox = null;
-    _uid = _defaultScope;
-  }
+  static Future<void> clearCurrentUser() =>
+      LocalRecordTransaction.atomic(() async {
+        if (_letterBox != null && _letterBox!.isOpen) {
+          await _letterBox!.close();
+        }
+        if (_reflectionLetterBox != null && _reflectionLetterBox!.isOpen) {
+          await _reflectionLetterBox!.close();
+        }
+        if (_dailyDrawBox != null && _dailyDrawBox!.isOpen) {
+          await _dailyDrawBox!.close();
+        }
+        if (_bubbleMemoBox != null && _bubbleMemoBox!.isOpen) {
+          await _bubbleMemoBox!.close();
+        }
+        _letterBox = null;
+        _reflectionLetterBox = null;
+        _dailyDrawBox = null;
+        _bubbleMemoBox = null;
+        _uid = _defaultScope;
+      });
 
   static Box get letterBox {
     if (_letterBox == null || !_letterBox!.isOpen) {
@@ -349,13 +255,15 @@ class StorageService {
     return _letterBox!;
   }
 
-  static Future<void> saveLetter(LetterEntry entry) async {
-    // A retry after an uncertain write uses the same immutable ID.
-    if (!letterBox.containsKey(entry.id)) {
-      await letterBox.put(entry.id, entry.toMap());
-    }
-    await letterBox.flush();
-  }
+  static Future<void> saveLetter(LetterEntry entry) =>
+      LocalRecordTransaction.atomic(() async {
+        LocalRecordTransaction.capture(letterBox);
+        // A retry after an uncertain write uses the same immutable ID.
+        if (!letterBox.containsKey(entry.id)) {
+          await letterBox.put(entry.id, entry.toMap());
+        }
+        await letterBox.flush();
+      });
 
   /// 이미 저장된 편지에 명상 실천 여부(meditationKey)만 덧붙여 갱신합니다.
   /// 편지 저장(=편지 전송)과 명상 실천은 서로 다른 시점에 독립적으로
@@ -364,12 +272,14 @@ class StorageService {
   static Future<void> updateLetterMeditation(
     String id,
     String? meditationKey,
-  ) async {
+  ) => LocalRecordTransaction.atomic(() async {
     final raw = letterBox.get(id);
     if (raw == null) return;
     final entry = LetterEntry.fromMap(Map<dynamic, dynamic>.from(raw as Map));
+    LocalRecordTransaction.capture(letterBox);
     await letterBox.put(id, entry.withMeditationKey(meditationKey).toMap());
-  }
+    await letterBox.flush();
+  });
 
   static List<LetterEntry> getAllLetters() {
     final entries = letterBox.values
@@ -379,43 +289,35 @@ class StorageService {
     return entries;
   }
 
-  static Future<void> deleteLetter(String id) async {
+  static Future<void> deleteLetter(
+    String id,
+  ) => LocalRecordTransaction.atomic(() async {
     await MongiGardenStore.instance.reconcileRecordedDays();
     final sourceBox = letterBox;
-    Box? cache;
-    Object? previousSource;
-    Object? previousCache;
-    var captured = false;
+    LocalRecordTransaction.capture(sourceBox);
     await PersonalReplyService.remove(
       'letter:$id',
       deleteSource: () async {
         if (!sourceBox.isOpen || !identical(sourceBox, letterBox)) {
           throw StateError('사용자가 변경됐어요. 기록을 다시 열어 주세요.');
         }
-        cache = await HiveEncryption.openBox('reply_cache_local_user');
-        previousSource = sourceBox.get(id);
-        previousCache = cache!.get(id);
-        captured = true;
-        await cache!.delete(id);
-        await cache!.flush();
-        await sourceBox.delete(id);
-        await sourceBox.flush();
-      },
-      restoreSource: () async {
-        if (!captured ||
-            !sourceBox.isOpen ||
-            !identical(sourceBox, letterBox)) {
-          return;
-        }
-        if (previousSource != null) await sourceBox.put(id, previousSource);
-        await sourceBox.flush();
-        if (cache?.isOpen == true) {
-          if (previousCache != null) await cache!.put(id, previousCache);
-          await cache!.flush();
-        }
+        await CareJournalStore.instance.removeLetterSource(id, () async {
+          await GardenMemoryBookStore.instance.removeLetterSource(id, () async {
+            await PlantMemoryStore.instance.removeLetterSource(id, () async {
+              final cache = await HiveEncryption.openBox(
+                'reply_cache_local_user',
+              );
+              LocalRecordTransaction.capture(cache);
+              await cache.delete(id);
+              await cache.flush();
+              await sourceBox.delete(id);
+              await sourceBox.flush();
+            });
+          });
+        });
       },
     );
-  }
+  });
 
   /// 가장 최근에 쓴 편지의 고양이 id를 반환합니다(없으면 null).
   /// '마지막으로 만난 고양이' 개인화 알림 문구에 사용됩니다.
@@ -428,12 +330,16 @@ class StorageService {
 
   /// 이 편지의 고양이 답장을 열어봤다고 표시합니다(홈 배너를 다시 띄우지
   /// 않기 위함).
-  static Future<void> markReplySeen(String id) async {
-    final raw = letterBox.get(id);
-    if (raw == null) return;
-    final entry = LetterEntry.fromMap(Map<dynamic, dynamic>.from(raw as Map));
-    await letterBox.put(id, entry.withReplySeen().toMap());
-  }
+  static Future<void> markReplySeen(String id) => LocalRecordTransaction.atomic(
+    () async {
+      final raw = letterBox.get(id);
+      if (raw == null) return;
+      final entry = LetterEntry.fromMap(Map<dynamic, dynamic>.from(raw as Map));
+      LocalRecordTransaction.capture(letterBox);
+      await letterBox.put(id, entry.withReplySeen().toMap());
+      await letterBox.flush();
+    },
+  );
 
   // ---- Streak tracking (연속 방문일) via SharedPreferences (계정별 키) ----
   static String get _lastVisitKey => '${_uid}_last_visit_date';
@@ -768,8 +674,10 @@ class StorageService {
       final hour = prefs.getInt(_reminderHourKey) ?? 20;
       final minute = prefs.getInt(_reminderMinuteKey) ?? 0;
       await prefs.setBool(_eveningEnabledKey, true);
-      await prefs.setInt(_eveningHourKey, hour);
-      await prefs.setInt(_eveningMinuteKey, minute);
+      if (!await prefs.setInt(_eveningHourKey, hour))
+        throw StateError('reminder-time-save');
+      if (!await prefs.setInt(_eveningMinuteKey, minute))
+        throw StateError('reminder-time-save');
     }
     await prefs.setBool(_reminderMigratedKey, true);
   }
@@ -782,7 +690,8 @@ class StorageService {
 
   static Future<void> setMorningEnabled(bool v) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_morningEnabledKey, v);
+    if (!await prefs.setBool(_morningEnabledKey, v))
+      throw StateError('reminder-save');
   }
 
   static Future<(int, int)> getMorningTime() async {
@@ -794,8 +703,10 @@ class StorageService {
 
   static Future<void> setMorningTime(int hour, int minute) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_morningHourKey, hour);
-    await prefs.setInt(_morningMinuteKey, minute);
+    if (!await prefs.setInt(_morningHourKey, hour))
+      throw StateError('reminder-time-save');
+    if (!await prefs.setInt(_morningMinuteKey, minute))
+      throw StateError('reminder-time-save');
   }
 
   // -- 저녁 알림 (기본 오후 8시) --
@@ -806,7 +717,8 @@ class StorageService {
 
   static Future<void> setEveningEnabled(bool v) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_eveningEnabledKey, v);
+    if (!await prefs.setBool(_eveningEnabledKey, v))
+      throw StateError('reminder-save');
   }
 
   static Future<(int, int)> getEveningTime() async {
@@ -818,8 +730,10 @@ class StorageService {
 
   static Future<void> setEveningTime(int hour, int minute) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_eveningHourKey, hour);
-    await prefs.setInt(_eveningMinuteKey, minute);
+    if (!await prefs.setInt(_eveningHourKey, hour))
+      throw StateError('reminder-time-save');
+    if (!await prefs.setInt(_eveningMinuteKey, minute))
+      throw StateError('reminder-time-save');
   }
 
   // -- 방문 알림 (3일 이상 미접속 시 조건부 발송, 신규 사용자는 명시 동의) --

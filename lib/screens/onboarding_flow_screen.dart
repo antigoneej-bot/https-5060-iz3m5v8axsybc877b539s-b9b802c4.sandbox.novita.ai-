@@ -404,7 +404,7 @@ class _SignupPromptStep extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           Text(
-            '한 줄의 마음이 기억의 나무를 키워요.\n기록하지 않는 날에는 정원에서 쉬어도 괜찮아요.',
+            '기억의 씨앗에 소중한 날짜와 마음을 담아요.\n기록하지 않는 날에는 정원에서 쉬어도 괜찮아요.',
             textAlign: TextAlign.center,
             style: bodyFont(
               fontSize: 13.5,

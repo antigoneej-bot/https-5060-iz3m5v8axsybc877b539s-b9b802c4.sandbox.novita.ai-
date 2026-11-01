@@ -30,8 +30,11 @@ class AnalyticsService {
     try {
       await FirebaseAnalytics.instance.setAnalyticsCollectionEnabled(enabled);
       sharingEnabled.value = enabled;
-    } catch (_) { sharingEnabled.value = false; }
+    } catch (_) {
+      sharingEnabled.value = false;
+    }
   }
+
   Future<void> setSharing(bool enabled) async {
     await FirebaseAnalytics.instance.setAnalyticsCollectionEnabled(enabled);
     final prefs = await SharedPreferences.getInstance();
@@ -64,10 +67,13 @@ class AnalyticsService {
       await FirebaseAnalytics.instance.logEvent(
         name: name,
         // Only bounded operational fields; omit emotion/cat IDs and written text.
-        parameters: params == null ? null : <String, Object>{
-          for (final key in ['day', 'plan', 'has_text'])
-            if (params[key] is num || params[key] is String) key: params[key]!,
-        },
+        parameters: params == null
+            ? null
+            : <String, Object>{
+                for (final key in ['day', 'plan', 'has_text'])
+                  if (params[key] is num || params[key] is String)
+                    key: params[key]!,
+              },
       );
     } catch (e) {
       if (kDebugMode) {
@@ -105,6 +111,18 @@ class AnalyticsService {
       AnalyticsEvents.bondCodeRedeemed,
       AnalyticsEvents.weeklyReflectionView,
       AnalyticsEvents.monthlyReflectionView,
+      AnalyticsEvents.letterClosingSaved,
+      AnalyticsEvents.careCollectionViewed,
+      AnalyticsEvents.careActionPlanned,
+      AnalyticsEvents.careActionCompleted,
+      AnalyticsEvents.careActionReviewed,
+      AnalyticsEvents.gardenBookCreated,
+      AnalyticsEvents.gardenBookOpened,
+      AnalyticsEvents.gardenBookShareRequested,
+      AnalyticsEvents.sharedTreeCreated,
+      AnalyticsEvents.sharedTreeJoined,
+      AnalyticsEvents.sharedTreeWatered,
+      AnalyticsEvents.sharedTreeNoteSaved,
     ];
     final result = <String, int>{};
     for (final n in names) {
@@ -161,4 +179,16 @@ class AnalyticsEvents {
   static const String weeklyReflectionView = 'weekly_reflection_view';
   static const String monthlyReflectionView = 'monthly_reflection_view';
   static const String retentionMilestone = 'retention_milestone';
+  static const String letterClosingSaved = 'letter_closing_saved';
+  static const String careCollectionViewed = 'care_collection_viewed';
+  static const String careActionPlanned = 'care_action_planned';
+  static const String careActionCompleted = 'care_action_completed';
+  static const String careActionReviewed = 'care_action_reviewed';
+  static const String gardenBookCreated = 'garden_book_created';
+  static const String gardenBookOpened = 'garden_book_opened';
+  static const String gardenBookShareRequested = 'garden_book_share_requested';
+  static const String sharedTreeCreated = 'shared_tree_created';
+  static const String sharedTreeJoined = 'shared_tree_joined';
+  static const String sharedTreeWatered = 'shared_tree_watered';
+  static const String sharedTreeNoteSaved = 'shared_tree_note_saved';
 }

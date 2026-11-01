@@ -1,4 +1,5 @@
 import 'garden_care_tree.dart';
+import '../../models/companion_journey.dart';
 import 'garden_anniversary_section.dart';
 import '../widgets/garden_tool_sheet.dart';
 import 'garden_moments_card.dart';
@@ -109,7 +110,7 @@ class _UnifiedGardenPanelState extends State<UnifiedGardenPanel> {
                 Text('심을 씨앗 ${data.seedTokens}개 · 빛의 정수 ${data.essence}개'),
                 const SizedBox(height: 12),
 
-                const Text('씨앗은 처음 한 번, 물주기는 식물마다 하루 한 번이에요.'),
+                const Text('씨앗을 심은 뒤 식물을 누르면 물·거름·햇볕으로 돌볼 수 있어요.'),
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
@@ -118,26 +119,29 @@ class _UnifiedGardenPanelState extends State<UnifiedGardenPanel> {
                         (seed) => OutlinedButton(
                           onPressed:
                               _busy ||
-                                  ((data.seeds[seed.id] ?? 0) == 0
-                                      ? data.seedTokens == 0
-                                      : data.wateredToday(
-                                          seed.id,
-                                          DateTime.now(),
-                                        ))
+                                  ((data.seeds[seed.id] ?? 0) == 0 &&
+                                      data.seedTokens == 0)
                               ? null
                               : () => _act(() async {
                                   if ((data.seeds[seed.id] ?? 0) > 0) {
-                                    await store.waterPlant(seed.id);
+                                    await showDialog<void>(
+                                      context: context,
+                                      builder: (_) =>
+                                          PlantMemoryEditor(plant: seed),
+                                    );
                                   } else {
+                                    final companion = context
+                                        .read<CatCareProvider?>();
                                     await store.plant(seed.id);
+                                    if (mounted) {
+                                      await companion?.rememberMoment(
+                                        CompanionMoment.plant,
+                                      );
+                                    }
                                   }
                                 }),
                           child: Text(
-                            '${seed.growthStages.last} ${seed.label} · ${(data.seeds[seed.id] ?? 0) == 0
-                                ? '심기'
-                                : data.wateredToday(seed.id, DateTime.now())
-                                ? '오늘 돌봄 완료'
-                                : '물 주기'}',
+                            '${seed.growthStages.last} ${seed.label} · ${(data.seeds[seed.id] ?? 0) == 0 ? '심기' : '돌보기'}',
                           ),
                         ),
                       )

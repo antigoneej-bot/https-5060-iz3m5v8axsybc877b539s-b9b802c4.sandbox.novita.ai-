@@ -10,7 +10,7 @@ import 'premium_screen.dart';
 /// 시작됐는지"를 다루는 철학적 소개라면, 이 화면은 "실제로 무엇을 할 수 있고
 /// 어떻게 쓰면 되는지"를 다루는 기능 지도(사용 설명서)입니다.
 ///
-/// 하단 5개 탭(홈페이지 / 고양이선택 / 명상 / 기록 / 마이) 순서를 그대로 따라가며,
+/// 좌우 네 공간(홈 / 정원 / 마음돌보기 / 모든 기능)과 세부 기능을 안내하며,
 /// 각 탭 안에 있는 세부 기능을 펼쳐서 볼 수 있는 아코디언 목록으로 구성합니다.
 /// 마지막에는 무료/정원 플러스(구독) 범위를 정리하고, 이 앱의 기반이 되는
 /// 생각(칼 융의 그림자 개념)을 짧게 짚어준 뒤 [AboutAppScreen]으로 더 깊이
@@ -25,51 +25,49 @@ class AppTutorialScreen extends StatelessWidget {
       children: [
         const _TutorialIntroCard(),
         const SizedBox(height: 18),
-        _SectionLabel(emoji: '🗺️', text: '탭 순서대로 살펴보기'),
+        _SectionLabel(emoji: '🗺️', text: '기능별로 살펴보기'),
         const SizedBox(height: 10),
         _TutorialSection(
-          emoji: '🏡',
-          title: '홈페이지',
-          subtitle: '정원의 중심 - 모든 기능으로 이어지는 산책로',
-          accent: AppColors.blobPeachAccent,
-          background: AppColors.blobPeach,
+          emoji: '🐾',
+          title: '새 화면 빠르게 익히기',
+          subtitle: '홈 · 정원 · 마음돌보기 · 모든 기능을 좌우로 넘겨요',
+          accent: AppColors.blobMintAccent,
+          background: AppColors.blobMint,
           startExpanded: true,
           items: const [
             _FeatureBullet(
-              emoji: '🐾',
-              title: '그림자 고양이 여정',
-              desc:
-                  '지금까지 만난 고양이 수(총 37마리 기준)와 진행률을 보여주고, '
-                  '"오늘의 고양이 만나기" 버튼으로 고양이선택 탭으로 바로 이동해요.',
+              emoji: '↔️',
+              title: '좌우로 공간 이동',
+              desc: '큰 카드를 좌우로 넘기거나 아래 메뉴를 눌러 이동해요. 각 공간 안의 내용은 위아래로 볼 수 있어요.',
             ),
             _FeatureBullet(
-              emoji: '🔥',
-              title: '며칠째 함께하는 중 (스트릭)',
-              desc:
-                  '앱을 연속으로 방문한 날짜 수를 보여줘요. 하루라도 건너뛰면 '
-                  '다시 1일부터 세어져요.',
+              emoji: '👤',
+              title: '오른쪽 위 간편로그인',
+              desc: '홈 오른쪽 위에서 계정 화면을 열고 로그인해요. 로그인한 뒤에는 내 계정으로 표시돼요.',
             ),
             _FeatureBullet(
-              emoji: '🌱',
-              title: '성장 현황',
+              emoji: '🐈',
+              title: '함께할 고양이 6종',
               desc:
-                  '내 고양이가 지금 아기 / 청소년 / 청년 / 성묘 중 어느 '
-                  '단계인지 한눈에 보여줘요.',
+                  '마음돌보기의 고양이 선택에서 원하는 고양이를 골라요. 선택한 친구가 정원과 마음돌보기에 함께해요. 선택·성장에서는 성장과 가족을 살펴봐요. 감정을 기록하는 37마리 고양이와는 별개예요. 테스트 기간에는 구독 기능도 열려 있어요.',
             ),
             _FeatureBullet(
-              emoji: '🔗',
-              title: '오늘의 마음 돌봄과 더 보기',
+              emoji: '📖',
+              title: '마음냥 만화책 = 주간·월간 감정 통계',
               desc:
-                  '홈에서 편지 쓰기, 조용히 쉬기, 내 정원을 골라요. '
-                  '다른 기능은 "마음 돌보기 · 편지 · 더 보기"를 펼쳐 찾아볼 수 있어요.',
+                  '내가 남긴 편지와 정원 일기를 주간 또는 월간으로 모아 만화책처럼 보여줘요. 마지막 장에서 자주 기록한 감정과 기록한 날짜를 한눈에 봐요. 상단 주간·월간 버튼으로 기간을 바꾸고 상세 통계도 볼 수 있어요.',
+            ),
+            _FeatureBullet(
+              emoji: '🌳',
+              title: '정원을 가로로 넓게',
+              desc:
+                  '정원 공간에서 가로 전체보기를 누르고 휴대폰을 가로로 돌려요. 가로 화면 끝까지 정원이 펼쳐져요. 손가락으로 옆으로 이동하거나 확대해서 둘러봐요. 가로 화면 왼쪽 위에서 세로로 돌아가거나 정원을 나가요. 뒤로 나오면 방향 제한이 풀려요.',
             ),
             _FeatureBullet(
               emoji: '💌',
-              title: '답장 · 새싹 · 회고 배너',
+              title: '기록과 다른 기능 찾기',
               desc:
-                  '고양이의 답장이 도착했거나, 묻어둔 감정이 새싹으로 떠올랐거나, '
-                  '주간/월간 돌아보기가 준비됐을 때만 상단에 조용히 나타나요. '
-                  '강제 알림이 아니라 눌러야만 열리는 카드예요.',
+                  '마음 기록하기로 오늘의 감정 고양이를 만나요. 지난 편지·감정 통계·수집·설정은 네 번째 모든 기능 화면에서 찾아요.',
             ),
           ],
         ),
@@ -97,8 +95,8 @@ class AppTutorialScreen extends StatelessWidget {
               emoji: '3️⃣',
               title: '편지쓰기',
               desc:
-                  '그 고양이에게 하고 싶은 말을 편지로 남겨요. 다음날 아침 '
-                  '고양이의 답장이 도착해요(기록 탭에서 확인).',
+                  '그 고양이에게 하고 싶은 말을 편지로 남겨요. 저장한 뒤 마음의 변화나 '
+                  '해보고 싶은 돌봄을 선택할 수 있고, 바로 마무리해도 괜찮아요.',
             ),
             _FeatureBullet(
               emoji: '4️⃣',
@@ -155,8 +153,9 @@ class AppTutorialScreen extends StatelessWidget {
           items: const [
             _FeatureBullet(
               emoji: '📈',
-              title: '마음온도기록',
-              desc: '그동안 기록한 마음 온도를 주간/월간 그래프로 볼 수 있어요.',
+              title: '마음냥 만화책',
+              desc:
+                  '편지와 정원 일기를 주간·월간 감정 통계로 모아 만화책처럼 보여줘요. 마지막 장에서 자주 기록한 감정과 날짜를 살펴봐요.',
               badge: _Badge.free,
             ),
             _FeatureBullet(
@@ -178,7 +177,7 @@ class AppTutorialScreen extends StatelessWidget {
               title: '보낸 편지 목록',
               desc:
                   '지금까지 고양이에게 쓴 편지를 모두 모아 보여줘요. 편지를 '
-                  '누르면 상세 내용과 답장을 다시 볼 수 있어요.',
+                  '누르면 내 편지와 이전에 저장된 답장을 다시 볼 수 있어요.',
               badge: _Badge.free,
             ),
           ],
@@ -281,7 +280,7 @@ class AppTutorialScreen extends StatelessWidget {
         _TutorialSection(
           emoji: '🌱',
           title: '그 외의 작은 의식들',
-          subtitle: '홈페이지 산책로 곳곳에 숨어있는 짧은 기능들',
+          subtitle: '네 번째 모든 기능 화면에서 찾아보세요',
           accent: AppColors.blobPeachAccent,
           background: AppColors.blobPeach,
           items: const [
@@ -642,7 +641,7 @@ class _PlusComparisonCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   '37마리 고양이, 기록과 기본 정원, 기본 주간 통계는 무료예요. '
-                  '무료 답장은 하루 1회이고, 명상 콘텐츠는 숲 명상과 빗소리부터 이용할 수 있어요.',
+                  '기본 돌봄 기록과 이웃 응원도 무료예요. 명상은 숲 명상과 빗소리부터 이용할 수 있어요.',
                   style: bodyFont(
                     fontSize: 12,
                     color: AppColors.moon,
@@ -659,8 +658,9 @@ class _PlusComparisonCard extends StatelessWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  '마음냥 구독은 정원 장식과 공개된 이야기, 추가 답장, 전체 공개 명상, '
-                  '상세 주간·월간 통계를 넓혀줘요. 요금과 이용 조건은 구독 화면에서 확인해 주세요.',
+                  '마음냥 구독은 정원 기록집 만들기, 공동 기념 나무 만들기, 정원 장식과 이야기, '
+                  '전체 공개 명상과 상세 돌아보기를 넓혀줘요. 기본 기록집 첫 권은 무료이며, '
+                  '구독 종료 후에도 이미 만든 기록집과 내 기록을 볼 수 있어요.',
                   style: bodyFont(
                     fontSize: 12,
                     color: AppColors.moon,

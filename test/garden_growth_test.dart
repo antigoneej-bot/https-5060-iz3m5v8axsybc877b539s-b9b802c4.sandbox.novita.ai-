@@ -21,7 +21,7 @@ void main() {
     expect(data.seedTokens, 2);
     expect(data.placed, {'bench'});
     expect(data.recordDays, isEmpty);
-    expect(data.toJson()['version'], 2);
+    expect(data.toJson()['version'], 3);
   });
   test('multiple records on one day cannot grant multiple daily seeds', () {
     final date = DateTime(2026, 9, 13);

@@ -4,7 +4,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter_app/services/access_policy.dart';
 import 'package:flutter_app/services/backup_service.dart';
 import 'package:flutter_app/services/hive_encryption.dart';
 import 'package:flutter_app/services/personal_reply_service.dart';
@@ -47,28 +46,38 @@ void main() {
   test('local premium preference alone cannot unlock subscription', () async {
     expect(await SubscriptionService().isPremium(), isFalse);
   });
-  test('concurrent cat and heart replies share one free quota', () async {
-    final results = await Future.wait([
-      reply('letter:one').then<Object>((v) => v, onError: (Object e) => e),
-      reply('heart:two').then<Object>((v) => v, onError: (Object e) => e),
-    ]);
-    expect(results.whereType<String>(), hasLength(1));
-    expect(results.whereType<SubscriptionRequired>(), hasLength(1));
-    final box = await HiveEncryption.openBox('personal_replies_local_user');
-    expect(box.get('quota:2026-09-16'), 1);
-  });
   test(
-    'saved replies remain readable; deletion does not reset quota; next day resets',
+    'concurrent old cat and heart routes cannot generate or spend quota',
     () async {
-      final first = await reply('letter:one');
-      expect(await reply('letter:one'), first);
+      final results = await Future.wait([
+        reply('letter:one').then<Object>((v) => v, onError: (Object e) => e),
+        reply('heart:two').then<Object>((v) => v, onError: (Object e) => e),
+      ]);
+      expect(results.whereType<String>(), isEmpty);
+      expect(results.whereType<ReplyGenerationRetired>(), hasLength(2));
+      final box = await HiveEncryption.openBox('personal_replies_local_user');
+      expect(box.get('quota:2026-09-16'), isNull);
+    },
+  );
+  test(
+    'archive access and deletion do not grant a new reply quota on any day',
+    () async {
+      final box = await HiveEncryption.openBox('personal_replies_local_user');
+      await box.put('letter:one', jsonEncode({'reply': '이전에 받은 온전한 답장'}));
+      await box.put('quota:2026-09-16', 1);
+      expect(await reply('letter:one'), '이전에 받은 온전한 답장');
       await PersonalReplyService.remove('letter:one');
+      expect(box.get('quota:2026-09-16'), 1);
       await expectLater(
         reply('letter:two'),
-        throwsA(isA<SubscriptionRequired>()),
+        throwsA(isA<ReplyGenerationRetired>()),
       );
       PersonalReplyService.clock = () => DateTime(2026, 9, 17);
-      expect(await reply('letter:two'), isNotEmpty);
+      await expectLater(
+        reply('letter:two'),
+        throwsA(isA<ReplyGenerationRetired>()),
+      );
+      expect(box.get('quota:2026-09-17'), isNull);
     },
   );
   test('legacy saved reply remains readable with exhausted quota', () async {

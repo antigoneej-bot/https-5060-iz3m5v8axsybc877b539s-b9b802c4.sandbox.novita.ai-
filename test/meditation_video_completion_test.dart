@@ -1,3 +1,5 @@
+import 'package:hive_flutter/hive_flutter.dart';
+import 'support/encrypted_meditation_storage.dart';
 import 'package:flutter_app/services/meditation_sleep_service.dart';
 import 'package:flutter_app/services/meditation_completion_service.dart';
 import 'dart:async';
@@ -14,6 +16,13 @@ import 'support/fake_audioplayers_platform.dart';
 import 'support/fake_global_audioplayers_platform.dart';
 
 class VideoPlatform extends VideoPlayerPlatform {
+  @override
+  Future<void> setMixWithOthers(bool value) async {
+    mixWithOthers = value;
+  }
+
+  bool? mixWithOthers;
+
   final events = StreamController<VideoEvent>();
   bool playing = false;
   @override
@@ -59,6 +68,7 @@ class VideoPlatform extends VideoPlayerPlatform {
 }
 
 void main() {
+  useEncryptedMeditationStorage();
   testWidgets('fireplace loops without duplicate reward or check-in', (
     tester,
   ) async {
@@ -89,6 +99,7 @@ void main() {
     await tester.tap(find.text('장작 이미지와 소리 재생'));
     await tester.pumpAndSettle();
     expect(platform.playing, true);
+    expect(platform.mixWithOthers, isFalse);
     MeditationSleepService.instance.setRepeat(true);
     expect(MongiGardenStore.instance.value.seedTokens, before);
     platform.events.add(VideoEvent(eventType: VideoEventType.completed));
@@ -105,14 +116,44 @@ void main() {
     }
     expect(MongiGardenStore.instance.value.seedTokens, before + 1);
     expect(platform.playing, true);
+    expect(platform.mixWithOthers, isFalse);
     final completed = MeditationCompletionService.instance.completed.value;
     platform.events.add(VideoEvent(eventType: VideoEventType.completed));
     await tester.pumpAndSettle();
     expect(MongiGardenStore.instance.value.seedTokens, before + 1);
     expect(platform.playing, true);
+    expect(platform.mixWithOthers, isFalse);
     expect(MeditationCompletionService.instance.completed.value, completed);
+    var saved = false;
+    final pending = MeditationCompletionService.instance.retry().then(
+      (_) => saved = true,
+    );
+    for (var i = 0; i < 100 && !saved; i++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 10)),
+      );
+      await tester.pump();
+    }
+    expect(
+      saved,
+      isTrue,
+      reason: 'durable completion and journal acknowledgement must finish',
+    );
+    await pending;
     await tester.pumpWidget(const SizedBox());
     unawaited(platform.events.close());
+    // Hive schedules disk-close continuations in the writer's zone. Finish them
+    // while this widget test's fake clock still exists, not in outer teardown.
+    var closed = false;
+    final closing = Hive.close().then((_) => closed = true);
+    for (var i = 0; i < 100 && !closed; i++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 10)),
+      );
+      await tester.pump();
+    }
+    expect(closed, isTrue);
+    await closing;
     await tester.pumpAndSettle();
   });
 }

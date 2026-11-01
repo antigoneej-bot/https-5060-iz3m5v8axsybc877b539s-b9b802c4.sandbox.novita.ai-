@@ -1,0 +1,29 @@
+{
+  "version": "1.0.52+55",
+  "full_suite_passed": 775,
+  "post_refinement_garden_tests_passed": 7,
+  "static_analysis_errors": 0,
+  "static_analysis_warnings": 4,
+  "bundletool_validate": "passed",
+  "jarsigner_verify": "passed",
+  "same_signing_certificate_sha256": "bebaa59bc1c879a0a685ba3bd699a58010bc5e5f52ba24b5f63f0f6ccad7819b",
+  "test_premium_open": true,
+  "aab_size_bytes": 218470887,
+  "aab_sha256": "024de63dd786c1314ac420317686f3b0a1f724738abd45d943d3191181a8f02a",
+  "play_upload": "not performed",
+  "physical_device_test": "not performed",
+  "server_change": "none",
+  "checks": [
+    "ambient motion, tap passthrough, foreground pause, reduced motion and app motion toggle",
+    "home meditation entry and fourth-page all-features entry at 320/390/844 widths and 1.0/1.6 text scales",
+    "landscape garden canvas exactly covers 844x390 with controls overlaid",
+    "portrait return and orientation release on exit",
+    "immersive entry closes hidden edit mode without changing stored garden data"
+  ],
+  "notes": [
+    "775-test full suite ran before final lock-badge and immersive-edit cleanup; all 7 garden tests passed after these refinements",
+    "landscape uses proportional cover and pan; does not stretch or fit the whole 3:1 world into a smaller rectangle",
+    "OS system bar presentation depends on device; no physical Android test performed",
+    "subscription test access stays enabled; previously pending attendance and release gates are outside this UI change"
+  ]
+}

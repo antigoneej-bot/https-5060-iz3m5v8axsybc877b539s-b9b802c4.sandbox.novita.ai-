@@ -1,3 +1,4 @@
+import 'support/encrypted_meditation_storage.dart';
 import 'package:flutter_app/services/meditation_course_store.dart';
 import 'package:flutter_app/services/meditation_sleep_service.dart';
 import 'package:flutter_app/services/meditation_library_store.dart';
@@ -18,6 +19,7 @@ import 'support/fake_audioplayers_platform.dart';
 import 'support/fake_global_audioplayers_platform.dart';
 
 void main() {
+  useEncryptedMeditationStorage();
   TestWidgetsFlutterBinding.ensureInitialized();
   test(
     'audio controls preserve pause, restart, settings and lifecycle order',

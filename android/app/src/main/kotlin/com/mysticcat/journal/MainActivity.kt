@@ -15,6 +15,23 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
+    private var walkFullscreen = false
+
+    private fun applyWalkFullscreen() {
+        if (android.os.Build.VERSION.SDK_INT >= 30) {
+            window.insetsController?.let { controller ->
+                controller.systemBarsBehavior = android.view.WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                if (walkFullscreen) controller.hide(android.view.WindowInsets.Type.systemBars())
+                else controller.show(android.view.WindowInsets.Type.systemBars())
+            }
+        }
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus && walkFullscreen) window.decorView.post { applyWalkFullscreen() }
+    }
+
     private val requestCode = 7319
     private var pending: MethodChannel.Result? = null
     private var requestedSetting: Boolean? = null
@@ -35,6 +52,14 @@ class MainActivity : FlutterActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "garden/walk_fullscreen")
+            .setMethodCallHandler { call, result ->
+                if (call.method == "set") {
+                    walkFullscreen = call.arguments == true
+                    applyWalkFullscreen()
+                    result.success(null)
+                } else result.notImplemented()
+            }
         val playbackChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "garden/background_audio")
         MeditationPlaybackService.command = { name -> playbackChannel.invokeMethod(name, null) }
         playbackChannel.setMethodCallHandler { call, result ->
@@ -77,29 +102,6 @@ class MainActivity : FlutterActivity() {
                     }
                     else -> result.notImplemented()
                 }
-            }
-        // ⚠️ QA 전용: App Check 디버그 프로바이더가 생성한 기기별 시크릿을
-        // 화면에서 바로 확인할 수 있게 읽어온다. 이 채널은 Play 스토어를
-        // 거치지 않는 사이드로딩 테스트 APK에서만 사용되며, 값 자체는
-        // Firebase App Check의 "디버그 토큰" 허용 목록에만 쓰인다.
-        // (com.google.firebase:firebase-appcheck-debug의 StorageHelper가
-        // 저장하는 위치("com.google.firebase.appcheck.debug.store.<persistenceKey>")와
-        // 키("com.google.firebase.appcheck.debug.DEBUG_SECRET")를 그대로 읽되,
-        // persistenceKey는 추측하지 않고 FirebaseApp에서 직접 조회한다.)
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "garden/app_check_debug")
-            .setMethodCallHandler { call, result ->
-                if (call.method == "readSecret") {
-                    try {
-                        val persistenceKey = com.google.firebase.FirebaseApp.getInstance().persistenceKey
-                        val prefs = getSharedPreferences(
-                            "com.google.firebase.appcheck.debug.store.$persistenceKey",
-                            MODE_PRIVATE,
-                        )
-                        result.success(prefs.getString("com.google.firebase.appcheck.debug.DEBUG_SECRET", null))
-                    } catch (e: Exception) {
-                        result.error("read-failed", e.message, null)
-                    }
-                } else result.notImplemented()
             }
     }
 

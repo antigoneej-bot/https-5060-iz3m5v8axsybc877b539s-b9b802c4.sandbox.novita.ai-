@@ -1,4 +1,5 @@
 import '../models/seed.dart';
+import '../models/plant_care.dart';
 import '../models/garden_decoration.dart';
 
 /// One snapshot keeps stage progression and its reward in the same write.
@@ -6,10 +7,17 @@ class MongiGardenData {
   final int stage;
   final int seedTokens;
   final int essence;
+  final Map<String, int> walkStock;
   final Set<String> claimedGiftReceipts;
   final Map<String, int> seeds;
   final Map<String, String> plantedOn;
   final Map<String, String> wateredOn;
+  final Map<String, String> fertilizedOn;
+  final Map<String, String> sunlightOn;
+
+  /// Three points make one existing growth count. Water retains its old value;
+  /// optional fertilizer/sunlight add one point each without losing fractions.
+  final Map<String, int> careRemainders;
   final Set<String> owned;
   final Set<String> placed;
   final Set<String> recordDays;
@@ -21,20 +29,28 @@ class MongiGardenData {
     this.stage = 1,
     this.seedTokens = 0,
     this.essence = 0,
+    Map<String, int> walkStock = const {},
     Set<String> claimedGiftReceipts = const {},
     Map<String, int> seeds = const {},
     Map<String, String> plantedOn = const {},
     Map<String, String> wateredOn = const {},
+    Map<String, String> fertilizedOn = const {},
+    Map<String, String> sunlightOn = const {},
+    Map<String, int> careRemainders = const {},
     Set<String> owned = const {},
     Set<String> placed = const {},
     Set<String> recordDays = const {},
     Set<String>? careDays,
     Set<String> meditationDays = const {},
     Map<String, int> storyProgress = const {},
-  }) : claimedGiftReceipts = Set.unmodifiable(claimedGiftReceipts),
+  }) : walkStock = Map.unmodifiable(walkStock),
+       claimedGiftReceipts = Set.unmodifiable(claimedGiftReceipts),
        seeds = Map.unmodifiable(seeds),
        plantedOn = Map.unmodifiable(plantedOn),
        wateredOn = Map.unmodifiable(wateredOn),
+       fertilizedOn = Map.unmodifiable(fertilizedOn),
+       sunlightOn = Map.unmodifiable(sunlightOn),
+       careRemainders = Map.unmodifiable(careRemainders),
        owned = Set.unmodifiable(owned),
        placed = Set.unmodifiable(placed),
        recordDays = Set.unmodifiable(recordDays),
@@ -43,14 +59,18 @@ class MongiGardenData {
        storyProgress = Map.unmodifiable(storyProgress);
 
   Map<String, dynamic> toJson() => {
-    'version': 2,
+    'version': 3,
     'stage': stage,
     'seedTokens': seedTokens,
     'essence': essence,
+    'walkStock': walkStock,
     'claimedGiftReceipts': claimedGiftReceipts.toList(),
     'seeds': seeds,
     'plantedOn': plantedOn,
     'wateredOn': wateredOn,
+    'fertilizedOn': fertilizedOn,
+    'sunlightOn': sunlightOn,
+    'careRemainders': careRemainders,
     'owned': owned.toList(),
     'placed': placed.toList(),
     'recordDays': recordDays.toList(),
@@ -68,7 +88,7 @@ class MongiGardenData {
       return value;
     }
 
-    if (![1, 2].contains(json['version']) ||
+    if (![1, 2, 3].contains(json['version']) ||
         json['seeds'] is! Map ||
         json['owned'] is! List ||
         json['placed'] is! List) {
@@ -88,19 +108,40 @@ class MongiGardenData {
       if (raw is! Map) throw const FormatException('잘못된 식물 돌봄 날짜');
       final dates = <String, String>{};
       for (final entry in raw.entries) {
-        if (entry.key is! String || (seeds[entry.key] ?? 0) <= 0 ||
-            entry.value is! String || !validDay(entry.value as String)) {
+        if (entry.key is! String ||
+            (seeds[entry.key] ?? 0) <= 0 ||
+            entry.value is! String ||
+            !validDay(entry.value as String)) {
           throw const FormatException('잘못된 식물 돌봄 날짜');
         }
         dates[entry.key as String] = entry.value as String;
       }
       return dates;
     }
+
     final planted = plantDates('plantedOn'), watered = plantDates('wateredOn');
-    for (final id in watered.keys) {
-      if (planted.containsKey(id) && watered[id]!.compareTo(planted[id]!) < 0) {
-        throw const FormatException('심기 전의 물주기 기록');
+    final fertilized = plantDates('fertilizedOn');
+    final sunlight = plantDates('sunlightOn');
+    for (final dates in [watered, fertilized, sunlight]) {
+      for (final id in dates.keys) {
+        if (planted.containsKey(id) && dates[id]!.compareTo(planted[id]!) < 0) {
+          throw const FormatException('심기 전의 식물 돌봄 기록');
+        }
       }
+    }
+    final remainderRaw = json['careRemainders'] ?? <String, dynamic>{};
+    if (remainderRaw is! Map) throw const FormatException('잘못된 식물 성장 기록');
+    final remainders = <String, int>{};
+    for (final entry in remainderRaw.entries) {
+      if (entry.key is! String ||
+          (seeds[entry.key] ?? 0) <= 0 ||
+          entry.value is! int ||
+          entry.value < 0 ||
+          entry.value > 2 ||
+          (seeds[entry.key]! >= 10 && entry.value != 0)) {
+        throw const FormatException('잘못된 식물 성장 기록');
+      }
+      remainders[entry.key as String] = entry.value as int;
     }
     Set<String> decorations(String key) {
       final result = <String>{};
@@ -115,8 +156,11 @@ class MongiGardenData {
     }
 
     final receipts = json['claimedGiftReceipts'] ?? <dynamic>[];
-    if (receipts is! List || receipts.any((id) =>
-        id is! String || !RegExp(r'^[a-zA-Z0-9_-]{1,128}$').hasMatch(id))) {
+    if (receipts is! List ||
+        receipts.any(
+          (id) =>
+              id is! String || !RegExp(r'^[a-zA-Z0-9_-]{1,128}$').hasMatch(id),
+        )) {
       throw const FormatException('잘못된 선물 수령 기록');
     }
     final daysRaw = json['recordDays'] ?? <dynamic>[];
@@ -153,7 +197,17 @@ class MongiGardenData {
     }
     final owned = decorations('owned'), placed = decorations('placed');
     if (!owned.containsAll(placed)) throw const FormatException('소유하지 않은 장식');
+    final walk = <String, int>{};
+    final rawWalk = json['walkStock'] ?? <String, dynamic>{};
+    if (rawWalk is! Map) throw const FormatException('잘못된 산책 보관함');
+    for (final entry in rawWalk.entries) {
+      if (!['churu_tuna','food_dry'].contains(entry.key) || entry.value is! int || entry.value < 0) {
+        throw const FormatException('잘못된 산책 보관함');
+      }
+      walk[entry.key as String] = entry.value as int;
+    }
     return MongiGardenData(
+      walkStock: walk,
       stage: count('stage', 1),
       seedTokens: count('seedTokens', 0),
       essence: count('essence', 0),
@@ -161,6 +215,9 @@ class MongiGardenData {
       seeds: seeds,
       plantedOn: planted,
       wateredOn: watered,
+      fertilizedOn: fertilized,
+      sunlightOn: sunlight,
+      careRemainders: remainders,
       owned: owned,
       placed: placed,
       recordDays: days,
@@ -174,10 +231,14 @@ class MongiGardenData {
     int? stage,
     int? seedTokens,
     int? essence,
+    Map<String, int>? walkStock,
     Set<String>? claimedGiftReceipts,
     Map<String, int>? seeds,
     Map<String, String>? plantedOn,
     Map<String, String>? wateredOn,
+    Map<String, String>? fertilizedOn,
+    Map<String, String>? sunlightOn,
+    Map<String, int>? careRemainders,
     Set<String>? owned,
     Set<String>? placed,
     Set<String>? recordDays,
@@ -188,10 +249,14 @@ class MongiGardenData {
     stage: stage ?? this.stage,
     seedTokens: seedTokens ?? this.seedTokens,
     essence: essence ?? this.essence,
+    walkStock: walkStock ?? this.walkStock,
     claimedGiftReceipts: claimedGiftReceipts ?? this.claimedGiftReceipts,
     seeds: seeds ?? this.seeds,
     plantedOn: plantedOn ?? this.plantedOn,
     wateredOn: wateredOn ?? this.wateredOn,
+    fertilizedOn: fertilizedOn ?? this.fertilizedOn,
+    sunlightOn: sunlightOn ?? this.sunlightOn,
+    careRemainders: careRemainders ?? this.careRemainders,
     owned: owned ?? this.owned,
     placed: placed ?? this.placed,
     recordDays: recordDays ?? this.recordDays,
@@ -203,7 +268,8 @@ class MongiGardenData {
   /// Currency and its receipt travel together through writes and backups.
   MongiGardenData receiveGift(String receipt, int amount) {
     if (!RegExp(r'^[a-zA-Z0-9_-]{1,128}$').hasMatch(receipt) ||
-        amount < 0 || amount > 5) {
+        amount < 0 ||
+        amount > 5) {
       throw const FormatException('잘못된 선물 수령 기록');
     }
     if (claimedGiftReceipts.contains(receipt)) return this;
@@ -235,12 +301,30 @@ class MongiGardenData {
 
   /// A seed starts one plant; replanting never consumes a second token.
   MongiGardenData plant(String id, {DateTime? now}) {
-    if (seedTokens < 1 || !SeedType.all.any((s) => s.id == id) ||
-        (seeds[id] ?? 0) > 0) return this;
+    if (seedTokens < 1 ||
+        !SeedType.all.any((s) => s.id == id) ||
+        (seeds[id] ?? 0) > 0)
+      return this;
     return copy(
       seedTokens: seedTokens - 1,
       seeds: {...seeds, id: 1},
       plantedOn: {...plantedOn, id: dayKey(now ?? DateTime.now())},
+    );
+  }
+
+  /// Remove only this planting. Currency and lifetime care receipts are not
+  /// refunded or reset; a later planting starts with fresh care dates.
+  MongiGardenData removePlant(String id) {
+    if (!SeedType.all.any((seed) => seed.id == id)) {
+      throw ArgumentError.value(id, 'id');
+    }
+    return copy(
+      seeds: {...seeds}..remove(id),
+      plantedOn: {...plantedOn}..remove(id),
+      wateredOn: {...wateredOn}..remove(id),
+      fertilizedOn: {...fertilizedOn}..remove(id),
+      sunlightOn: {...sunlightOn}..remove(id),
+      careRemainders: {...careRemainders}..remove(id),
     );
   }
 
@@ -256,21 +340,59 @@ class MongiGardenData {
   }
 
   bool wateredToday(String id, DateTime today) =>
-      wateredOn[id] != null && wateredOn[id]!.compareTo(dayKey(today)) >= 0;
+      caredToday(id, PlantCare.water, today);
 
-  /// One saved care action per plant/day. No missed-day penalty, currency fee,
-  /// or passive growth. Old growth counts remain exactly as they were.
-  MongiGardenData waterPlant(String id, DateTime today) {
+  Map<String, String> _careDates(PlantCare care) => switch (care) {
+    PlantCare.water => wateredOn,
+    PlantCare.fertilizer => fertilizedOn,
+    PlantCare.sunlight => sunlightOn,
+  };
+
+  bool caredToday(String id, PlantCare care, DateTime today) {
+    final last = _careDates(care)[id];
+    return last != null && last.compareTo(dayKey(today)) >= 0;
+  }
+
+  double growthFor(String id) {
+    final count = seeds[id] ?? 0;
+    if (count <= 0) return 0;
+    return (count + (careRemainders[id] ?? 0) / 3).clamp(1.0, 10.0);
+  }
+
+  double growthProgress(String id) => ((growthFor(id) - 1) / 9).clamp(0.0, 1.0);
+
+  MongiGardenData waterPlant(String id, DateTime today) =>
+      carePlant(id, PlantCare.water, today);
+
+  /// Each type is available once daily. Water alone still matures a seed in
+  /// nine care days; all three shorten that to six. No missed-day penalty,
+  /// mandatory chores, currency fee, or passive growth. Legacy counts survive.
+  MongiGardenData carePlant(String id, PlantCare care, DateTime today) {
     final count = seeds[id] ?? 0;
     if (!SeedType.all.any((s) => s.id == id) || count <= 0) {
       throw StateError('먼저 씨앗을 심어 주세요.');
     }
     final day = dayKey(today);
-    if (wateredToday(id, today) ||
-        (plantedOn[id] != null && plantedOn[id]!.compareTo(day) > 0)) return this;
+    if (caredToday(id, care, today) ||
+        [
+          plantedOn[id],
+          wateredOn[id],
+          fertilizedOn[id],
+          sunlightOn[id],
+        ].any((last) => last != null && last.compareTo(day) > 0))
+      return this;
+    final points = (careRemainders[id] ?? 0) + care.growthPoints;
+    final grown = count >= 10 ? count : (count + points ~/ 3).clamp(1, 10);
     return copy(
-      seeds: {...seeds, id: count >= 10 ? count : count + 1},
-      wateredOn: {...wateredOn, id: day},
+      seeds: {...seeds, id: grown},
+      careRemainders: {...careRemainders, id: grown >= 10 ? 0 : points % 3},
+      wateredOn: care == PlantCare.water ? {...wateredOn, id: day} : wateredOn,
+      fertilizedOn: care == PlantCare.fertilizer
+          ? {...fertilizedOn, id: day}
+          : fertilizedOn,
+      sunlightOn: care == PlantCare.sunlight
+          ? {...sunlightOn, id: day}
+          : sunlightOn,
     );
   }
 

@@ -15,10 +15,40 @@ class GardenLayout {
   static Offset defaultPosition(String id) {
     final index = itemIds.indexOf(id);
     if (index < 0) throw ArgumentError.value(id);
-    return Offset(.42 + index % 5 * .04, .55 + index ~/ 5 * .105);
+    // Keep the companion's home (x=.5, y=395/800) visible behind mature crowns.
+    if (index == 0) return const Offset(.36, .55);
+    if (index == 1) return const Offset(.64, .55);
+    if (index == 2) return const Offset(.36, .88);
+    final rowIndex = index - 3;
+    final start = rowIndex >= 12 ? .49 : .36;
+    return Offset(start + rowIndex % 6 * .056, .665 + rowIndex ~/ 6 * .11);
   }
 
-  Offset position(String id) => positions[id] ?? defaultPosition(id);
+  static double depthAt(double y) => (.88 + (y - .52) * .55).clamp(.84, 1.10);
+  static double matureWidth(String id, double y) {
+    final base = id.startsWith('seed:')
+        ? SeedType.byId(id.substring(5)).worldArtSize(10)
+        : id == 'decor:bench'
+        ? 220.0
+        : 104.0;
+    return base * depthAt(y);
+  }
+
+  /// Render old edge placements safely without rewriting their saved coordinates.
+  /// Reserve mature width from the first sprout so roots do not drift as it grows.
+  static Offset visiblePosition(String id, Offset p) {
+    final margin = (matureWidth(id, p.dy) / 2 + 16) / 2400;
+    return Offset(p.dx.clamp(margin, 1 - margin), p.dy);
+  }
+
+  Offset position(String id) =>
+      visiblePosition(id, positions[id] ?? defaultPosition(id));
+  static double _groundHalfWidth(String id) =>
+      id.startsWith('seed:') && SeedType.byId(id.substring(5)).isTree
+      ? 130
+      : id == 'decor:bench'
+      ? 80
+      : 42;
   static int spaceFor(double x) => x < 1 / 3 ? 0 : (x > 2 / 3 ? 2 : 1);
   bool isOpen(int zone) =>
       zone == 1 || (zone == 0 && spaces >= 2) || spaces >= 3;
@@ -27,6 +57,27 @@ class GardenLayout {
     positions: positions,
   );
   static int earnedSpaces(int count) => count >= 8 ? 3 : (count >= 3 ? 2 : 1);
+
+  /// Existing growth milestones; opening land never consumes seeds or resets care.
+  static int goalForZone(int zone) => switch (zone) {
+    1 => 0,
+    0 => 3,
+    2 => 8,
+    _ => throw ArgumentError.value(zone, 'zone'),
+  };
+  static String nameForZone(int zone) => switch (zone) {
+    1 => '작은 정원',
+    0 => '꽃밭',
+    2 => '나무 뜰',
+    _ => throw ArgumentError.value(zone, 'zone'),
+  };
+  int? get nextZone => !isOpen(0)
+      ? 0
+      : !isOpen(2)
+      ? 2
+      : null;
+  int remainingGrowth(int count) =>
+      nextZone == null ? 0 : (goalForZone(nextZone!) - count).clamp(0, 8);
   static bool onGround(Offset p) =>
       p.dx.isFinite &&
       p.dy.isFinite &&
@@ -36,12 +87,17 @@ class GardenLayout {
       p.dy <= .91;
   String? placementError(String id, Offset p, Iterable<String> visible) {
     if (!itemIds.contains(id)) return '알 수 없는 아이템이에요.';
-    if (!onGround(p)) return '잔디 안쪽을 골라 주세요.';
+    if (!onGround(p) || visiblePosition(id, p) != p)
+      return '다 자랄 공간이 있도록 잔디 안쪽을 골라 주세요.';
     if (!isOpen(spaceFor(p.dx))) return '아직 열리지 않은 공간이에요.';
     for (final other in visible) {
       if (other == id) continue;
       final delta = p - position(other);
-      if (Offset(delta.dx * 2400, delta.dy * 800).distance < 80) {
+      // Keep ground targets accessible while allowing natural canopy overlap
+      // between different depth rows.
+      if ((delta.dx * 2400).abs() <
+              _groundHalfWidth(id) + _groundHalfWidth(other) + 12 &&
+          (delta.dy * 800).abs() < 52) {
         return '다른 아이템과 조금 떨어뜨려 주세요.';
       }
     }

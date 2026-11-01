@@ -2,7 +2,7 @@ import 'access_policy.dart';
 import 'cloud_service.dart';
 import '../utils/feature_flags.dart';
 import 'package:in_app_purchase_android/billing_client_wrappers.dart'
-    show PricingPhaseWrapper;
+    show PricingPhaseWrapper, RecurrenceMode, ReplacementMode;
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
@@ -49,6 +49,31 @@ class SubscriptionRestoreResult {
 
 class SubscriptionService {
   SubscriptionService._();
+
+  /// Isolated service with real store-stream handling and replaceable server
+  /// boundaries. Production callers always use the singleton factory below.
+  @visibleForTesting
+  SubscriptionService.forTesting({
+    required String? Function() currentUid,
+    required Future<String> Function(String uid) accountId,
+    required Future<Map<String, dynamic>> Function(String token, String uid)
+    verifyReceipt,
+    required Future<String?> Function(String uid) subscriptionProductId,
+    required Future<Map<String, dynamic>> Function(String uid)
+    refreshEntitlement,
+    Duration purchaseTimeout = const Duration(minutes: 5),
+    Future<bool> Function(Uri)? openManagementUrl,
+    Future<List<GooglePlayPurchaseDetails>> Function()? pastPurchases,
+  }) : _currentUidOverride = currentUid,
+       _accountIdOverride = accountId,
+       _verifyReceiptOverride = verifyReceipt,
+       _subscriptionProductIdOverride = subscriptionProductId,
+       _refreshEntitlementOverride = refreshEntitlement,
+       _purchaseTimeout = purchaseTimeout,
+       _openManagementUrlOverride = openManagementUrl,
+       _pastPurchasesOverride = pastPurchases;
+  Future<List<GooglePlayPurchaseDetails>> Function()? _pastPurchasesOverride;
+  Future<bool> Function(Uri)? _openManagementUrlOverride;
   static final SubscriptionService _instance = SubscriptionService._();
   factory SubscriptionService() => _instance;
 
@@ -103,7 +128,41 @@ class SubscriptionService {
   late final InAppPurchase _iap = InAppPurchase.instance;
   StreamSubscription<List<PurchaseDetails>>? _purchaseSub;
   final Map<String, ProductDetails> _products = {};
-  Completer<bool>? _purchaseCompleter;
+  final Map<String, String> _productIssues = {};
+  _SubscriptionPurchaseAttempt? _purchaseAttempt;
+  final Set<String> _observedReceiptTokens = {};
+  String? Function()? _currentUidOverride;
+  Future<String> Function(String uid)? _accountIdOverride;
+  Future<Map<String, dynamic>> Function(String token, String uid)?
+  _verifyReceiptOverride;
+  Future<String?> Function(String uid)? _subscriptionProductIdOverride;
+  Future<Map<String, dynamic>> Function(String uid)?
+  _refreshEntitlementOverride;
+  Duration _purchaseTimeout = const Duration(minutes: 5);
+
+  String? get _currentUid {
+    final readOwner = _currentUidOverride;
+    return readOwner == null ? CloudService.currentUser?.uid : readOwner();
+  }
+
+  bool get _cloudEnabled =>
+      _verifyReceiptOverride != null || CloudService.enabled;
+  Future<String> _accountId(String uid) =>
+      _accountIdOverride?.call(uid) ?? CloudService.accountId(expectedUid: uid);
+  Future<Map<String, dynamic>> _verifyReceipt(String token, String uid) =>
+      _verifyReceiptOverride?.call(token, uid) ??
+      CloudService.verify(token, expectedUid: uid);
+  Future<String?> _subscriptionProductId(String uid) =>
+      _subscriptionProductIdOverride?.call(uid) ??
+      CloudService.cachedSubscriptionProductId(expectedUid: uid);
+  Future<Map<String, dynamic>> _refreshEntitlement(String uid) =>
+      _refreshEntitlementOverride?.call(uid) ??
+      CloudService.refreshEntitlement(expectedUid: uid);
+
+  void _requireOwner(String uid) {
+    if (_currentUid != uid) throw const CloudException('account-changed');
+  }
+
   bool _initialized = false;
   Future<void>? _initialization;
 
@@ -121,8 +180,9 @@ class SubscriptionService {
       await init();
       await _queryProducts();
     } catch (e) {
-      if (kDebugMode)
+      if (kDebugMode) {
         debugPrint('SubscriptionService products unavailable: $e');
+      }
     }
   }
 
@@ -133,8 +193,12 @@ class SubscriptionService {
     if (product is! GooglePlayProductDetails) return const [];
     final index = product.subscriptionIndex;
     final offers = product.productDetails.subscriptionOfferDetails;
-    if (index == null || offers == null || index < 0 || index >= offers.length)
+    if (index == null ||
+        offers == null ||
+        index < 0 ||
+        index >= offers.length) {
       return const [];
+    }
     return offers[index].pricingPhases;
   }
 
@@ -145,6 +209,11 @@ class SubscriptionService {
           p.priceCurrencyCode,
           p.priceAmountMicros,
           p.billingCycleCount,
+          recurrence: switch (p.recurrenceMode) {
+            RecurrenceMode.infiniteRecurring => StoreRecurrence.infinite,
+            RecurrenceMode.finiteRecurring => StoreRecurrence.finite,
+            RecurrenceMode.nonRecurring => StoreRecurrence.none,
+          },
         ),
       )
       .toList();
@@ -165,12 +234,32 @@ class SubscriptionService {
     if (phases.isNotEmpty) {
       return '${plan == SubscriptionPlan.yearly ? '연' : '월'} ${phases.last.formattedPrice}';
     }
-    return '${plan == SubscriptionPlan.yearly ? displayYearlyPrice : displayPrice} · 스토어 확인 중';
+    return '${plan == SubscriptionPlan.yearly ? '연간' : '월간'} 가격 확인 중';
   }
 
-  String offerLabelFor(SubscriptionPlan plan) => hasTrialFor(plan)
-      ? '15일 무료체험 후 ${priceLabelFor(plan)} 자동 결제 · 시작은 직접 선택해요'
-      : '무료체험이 확인되지 않았어요. 결제 전 스토어의 가격과 조건을 확인해 주세요.';
+  String productAvailabilityLabel(SubscriptionPlan plan) =>
+      _productIssues[productIdFor(plan)] ??
+      '${plan == SubscriptionPlan.yearly ? '연간' : '월간'} 상품을 아직 불러오지 못했어요. 다시 확인해 주세요.';
+
+  String offerLabelFor(SubscriptionPlan plan) {
+    final phases = _phases(_products[productIdFor(plan)]);
+    if (phases.isEmpty) return productAvailabilityLabel(plan);
+    final introductory = phases
+        .take(phases.length - 1)
+        .map((phase) {
+          final match = RegExp(
+            r'^P([0-9]+)([DWMY])$',
+          ).firstMatch(phase.billingPeriod)!;
+          final amount = int.parse(match[1]!);
+          final unit = {'D': '일', 'W': '주', 'M': '개월', 'Y': '년'}[match[2]]!;
+          if (phase.priceAmountMicros == 0) {
+            return '${amount * phase.billingCycleCount}$unit 무료체험';
+          }
+          return '$amount$unit마다 ${phase.formattedPrice} · ${phase.billingCycleCount}회';
+        })
+        .join(' → ');
+    return '${introductory.isEmpty ? '' : '$introductory 후 '}${priceLabelFor(plan)} 자동 결제 · 결제 전 Google Play의 최종 조건을 확인해 주세요.';
+  }
 
   /// 앱 시작 시 한 번 호출: 스토어 연결 + 미완료 구매 처리 + 상품 조회.
   Future<void> init() {
@@ -230,12 +319,35 @@ class SubscriptionService {
       debugPrint('SubscriptionService query error: ${resp.error}');
     }
     _products.clear();
+    _productIssues.clear();
+    for (final id in ids) {
+      final name = id == yearlyProductId ? '연간' : '월간';
+      _productIssues[id] = resp.error != null
+          ? 'Google Play에서 $name 상품을 확인하지 못했어요. 잠시 후 다시 확인해 주세요.'
+          : '$name 구독 상품이 이 Play 계정에서 조회되지 않아요. 다른 상품은 별도로 이용할 수 있어요.';
+    }
     for (final p in resp.productDetails) {
-      if (!_matchesPolicy(p)) continue;
+      if (!ids.contains(p.id)) continue;
+      if (!_matchesPolicy(p)) {
+        if (!_products.containsKey(p.id)) {
+          _productIssues[p.id] =
+              '이 상품의 결제 주기를 확인하지 못했어요. 월간·연간 자동 갱신 상품 설정을 확인해 주세요.';
+        }
+        continue;
+      }
       final previous = _products[p.id];
-      // Only offers returned by the store are considered; prefer the eligible
-      // 15-day offer, otherwise use the matching regular recurring plan.
-      if (previous == null || _trial(p)) _products[p.id] = p;
+      // Prefer the lower recurring price; a free trial must not select a more
+      // expensive recurring plan. All displayed terms come from this offer.
+      final price = _phases(p).last.priceAmountMicros;
+      final previousPrice = previous == null
+          ? null
+          : _phases(previous).last.priceAmountMicros;
+      if (previousPrice == null ||
+          price < previousPrice ||
+          (price == previousPrice && _trial(p) && !_trial(previous))) {
+        _products[p.id] = p;
+      }
+      _productIssues.remove(p.id);
     }
     if (kDebugMode) {
       debugPrint(
@@ -247,59 +359,92 @@ class SubscriptionService {
 
   Future<void> _purchaseUpdates = Future.value();
   void _onPurchaseUpdates(List<PurchaseDetails> purchases) {
+    // Capture the attempt and owner when the store emits the event, before
+    // queued verification awaits. An old queued event cannot finish a new buy.
+    final attempt = _purchaseAttempt;
+    final owner = _currentUid;
+    for (final purchase in purchases) {
+      final token = purchase.verificationData.serverVerificationData;
+      if (token.isNotEmpty) _observedReceiptTokens.add(token);
+    }
     _purchaseUpdates = _purchaseUpdates
         .catchError((Object _) {})
-        .then((_) => _processPurchaseUpdates(purchases));
+        .then((_) => _processPurchaseUpdates(purchases, attempt, owner));
   }
 
-  Future<void> _processPurchaseUpdates(List<PurchaseDetails> purchases) async {
+  Future<void> _processPurchaseUpdates(
+    List<PurchaseDetails> purchases,
+    _SubscriptionPurchaseAttempt? attempt,
+    String? owner,
+  ) async {
     for (final purchase in purchases) {
+      final matchesAttempt =
+          attempt != null &&
+          owner == attempt.owner &&
+          attempt.matches(purchase);
       if (purchase.productID != monthlyProductId &&
-          purchase.productID != yearlyProductId)
+          purchase.productID != yearlyProductId) {
+        // Play cancellation/errors may carry no product or transaction data.
+        // They may end only the flow that was present when this event arrived;
+        // they never verify a receipt or grant access.
+        if (purchase.productID.isEmpty &&
+            attempt != null &&
+            owner == attempt.owner &&
+            (purchase.status == PurchaseStatus.canceled ||
+                purchase.status == PurchaseStatus.error)) {
+          _completePurchaseWait(attempt, false);
+        }
         continue;
+      }
       try {
         switch (purchase.status) {
           case PurchaseStatus.pending:
             break;
           case PurchaseStatus.purchased:
           case PurchaseStatus.restored:
-            final ok = CloudService.enabled
-                ? (await CloudService.verify(
-                        purchase.verificationData.serverVerificationData,
-                      ))['active'] ==
-                      true
-                : false;
+            if (!_cloudEnabled || owner == null) {
+              if (matchesAttempt) _completePurchaseWait(attempt, false);
+              break;
+            }
+            _requireOwner(owner);
+            final result = await _verifyReceipt(
+              purchase.verificationData.serverVerificationData,
+              owner,
+            );
+            _requireOwner(owner);
+            final ok = result['active'] == true;
             if (ok) {
-              final plan = purchase.productID == yearlyProductId
-                  ? SubscriptionPlan.yearly
-                  : SubscriptionPlan.monthly;
               await setPremium(true);
-              await setPlan(plan);
+              _requireOwner(owner);
+              // A paid receipt is acknowledged only after the server has
+              // actually granted entitlement. An inactive/failed response is
+              // left available for verified restoration instead of swallowed.
+              if (purchase.pendingCompletePurchase) {
+                await _iap.completePurchase(purchase);
+                _requireOwner(owner);
+              }
             }
-            if (purchase.pendingCompletePurchase) {
-              await _iap.completePurchase(purchase);
-            }
-            _completePurchaseWait(ok);
+            if (matchesAttempt)
+              _completePurchaseWait(
+                attempt,
+                ok &&
+                    (!attempt.requireProductMatch ||
+                        result['productId'] == attempt.productId),
+              );
             break;
           case PurchaseStatus.error:
             if (kDebugMode) {
               debugPrint('SubscriptionService error: ${purchase.error}');
             }
-            if (purchase.pendingCompletePurchase) {
-              await _iap.completePurchase(purchase);
-            }
-            _completePurchaseWait(false);
+            if (matchesAttempt) _completePurchaseWait(attempt, false);
             break;
           case PurchaseStatus.canceled:
-            if (purchase.pendingCompletePurchase) {
-              await _iap.completePurchase(purchase);
-            }
-            _completePurchaseWait(false);
+            if (matchesAttempt) _completePurchaseWait(attempt, false);
             break;
         }
       } catch (_) {
         // Leave incomplete purchases pending for a later verified retry.
-        _completePurchaseWait(false);
+        if (matchesAttempt) _completePurchaseWait(attempt, false);
       }
     }
   }
@@ -309,15 +454,16 @@ class SubscriptionService {
         purchase.productID != yearlyProductId) {
       return false;
     }
-    // Android: 만료·해지된 구독은 복원/구매 스트림에 안 오거나 미지급 상태.
-    // purchased/restored면 활성으로 간주. (서버 검증은 B-1 범위 밖)
+    // These statuses are candidates only; the server decides entitlement.
     return purchase.status == PurchaseStatus.purchased ||
         purchase.status == PurchaseStatus.restored;
   }
 
-  void _completePurchaseWait(bool ok) {
-    final c = _purchaseCompleter;
-    if (c != null && !c.isCompleted) c.complete(ok);
+  void _completePurchaseWait(_SubscriptionPurchaseAttempt? attempt, bool ok) {
+    if (attempt == null || !identical(_purchaseAttempt, attempt)) return;
+    if (!attempt.result.isCompleted) {
+      attempt.result.complete(ok && _currentUid == attempt.owner);
+    }
   }
 
   /// Test-only override so widget/unit tests can simulate an active
@@ -347,17 +493,28 @@ class SubscriptionService {
   }
 
   Future<SubscriptionPlan> currentPlan() async {
-    final prefs = await SharedPreferences.getInstance();
-    final v = prefs.getString(_planKey);
-    return v == 'yearly' ? SubscriptionPlan.yearly : SubscriptionPlan.monthly;
+    // Kept non-null for older callers. UI that describes an existing purchase
+    // should use currentPlanIfKnown instead of treating this default as proof.
+    return await currentPlanIfKnown() ?? SubscriptionPlan.monthly;
+  }
+
+  Future<SubscriptionPlan?> currentPlanIfKnown() async {
+    final uid = _currentUid;
+    if (uid == null) return null;
+    final productId = await _subscriptionProductId(uid);
+    _requireOwner(uid);
+    return switch (productId) {
+      monthlyProductId => SubscriptionPlan.monthly,
+      yearlyProductId => SubscriptionPlan.yearly,
+      _ => null,
+    };
   }
 
   Future<void> setPlan(SubscriptionPlan plan) async {
+    // Compatibility cleanup: plan authority now belongs to the verified
+    // current-account entitlement, never a device-wide preference.
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(
-      _planKey,
-      plan == SubscriptionPlan.yearly ? 'yearly' : 'monthly',
-    );
+    await prefs.remove(_planKey);
   }
 
   Future<DateTime?> premiumSince() async {
@@ -393,9 +550,10 @@ class SubscriptionService {
   /// Play 결제 시트 호출. 성공 시 프리미엄 반영.
   Future<bool> purchasePremium({
     SubscriptionPlan plan = SubscriptionPlan.monthly,
+    bool replaceMonthly = false,
   }) async {
     if (kIsWeb) throw StateError('웹 프리뷰에서는 결제를 지원하지 않아요.');
-    if (!CloudService.enabled) throw StateError('서버 결제 확인 준비 후 구매할 수 있어요.');
+    if (!_cloudEnabled) throw StateError('서버 결제 확인 준비 후 구매할 수 있어요.');
     if (!storeBillingEnabled) {
       if (kDebugMode) {
         debugPrint('SubscriptionService: 스토어 결제 미연동 — purchasePremium 차단');
@@ -403,9 +561,13 @@ class SubscriptionService {
       return false;
     }
 
-    if (_purchaseCompleter != null) return false;
+    if (_purchaseAttempt != null) return false;
+    final owner = _currentUid;
+    if (owner == null) throw const CloudException('authentication-required');
     await init();
-    if (_products.isEmpty) await _queryProducts();
+    _requireOwner(owner);
+    if (!_products.containsKey(productIdFor(plan))) await _queryProducts();
+    _requireOwner(owner);
     final product = _products[productIdFor(plan)];
     if (product == null) {
       if (kDebugMode) {
@@ -417,11 +579,66 @@ class SubscriptionService {
       return false;
     }
 
-    final accountId = CloudService.enabled
-        ? await CloudService.accountId()
-        : null;
-    if (_purchaseCompleter != null) return false;
-    _purchaseCompleter = Completer<bool>();
+    final accountId = await _accountId(owner);
+    _requireOwner(owner);
+    if (_purchaseAttempt != null) return false;
+    // A fresh owner-bound server status prevents a second subscription and
+    // supplies a trusted clock. Phone clock skew must never turn a delivered
+    // Play purchase into a five-minute wait followed by a false failure.
+    final status = await _refreshEntitlement(owner);
+    _requireOwner(owner);
+    if (_purchaseAttempt != null) return false;
+    GooglePlayPurchaseDetails? oldPurchase;
+    if (replaceMonthly) {
+      if (plan != SubscriptionPlan.yearly ||
+          defaultTargetPlatform != TargetPlatform.android ||
+          product is! GooglePlayProductDetails ||
+          status['active'] != true ||
+          status['productId'] != monthlyProductId) {
+        throw const CloudException('subscription-check-unavailable');
+      }
+      final purchases =
+          await (_pastPurchasesOverride?.call() ?? _pastAndroidPurchases());
+      _requireOwner(owner);
+      for (final old in purchases.where(
+        (p) => p.productID == monthlyProductId && _isActiveSubscription(p),
+      )) {
+        final verified = await _verifyReceipt(
+          old.verificationData.serverVerificationData,
+          owner,
+        );
+        _requireOwner(owner);
+        if (verified['active'] == true &&
+            verified['productId'] == monthlyProductId) {
+          if (oldPurchase != null)
+            throw const CloudException('subscription-check-unavailable');
+          oldPurchase = old;
+        }
+      }
+      if (oldPurchase == null)
+        throw const CloudException('subscription-check-unavailable');
+      _observedReceiptTokens.add(
+        oldPurchase.verificationData.serverVerificationData,
+      );
+    } else if (status['active'] == true) {
+      throw const CloudException('subscription-already-active');
+    }
+    final checkedAt = status['checkedAt'];
+    final startedAt = checkedAt is String ? DateTime.tryParse(checkedAt) : null;
+    if ((!replaceMonthly && status['active'] != false) ||
+        startedAt == null ||
+        !startedAt.isUtc) {
+      throw const CloudException('subscription-check-unavailable');
+    }
+    if (_purchaseAttempt != null) return false;
+    final attempt = _SubscriptionPurchaseAttempt(
+      owner: owner,
+      requireProductMatch: replaceMonthly,
+      productId: product.id,
+      startedAt: startedAt,
+      previouslyObservedTokens: Set.of(_observedReceiptTokens),
+    );
+    _purchaseAttempt = attempt;
     late final PurchaseParam purchaseParam;
     if (defaultTargetPlatform == TargetPlatform.android &&
         product is GooglePlayProductDetails) {
@@ -429,6 +646,12 @@ class SubscriptionService {
         productDetails: product,
         offerToken: product.offerToken,
         applicationUserName: accountId,
+        changeSubscriptionParam: oldPurchase == null
+            ? null
+            : ChangeSubscriptionParam(
+                oldPurchaseDetails: oldPurchase,
+                replacementMode: ReplacementMode.chargeFullPrice,
+              ),
       );
     } else {
       purchaseParam = PurchaseParam(
@@ -439,28 +662,65 @@ class SubscriptionService {
 
     try {
       final started = await _iap.buyNonConsumable(purchaseParam: purchaseParam);
+      _requireOwner(owner);
       if (!started) return false;
-      return await _purchaseCompleter!.future.timeout(
-        const Duration(minutes: 5),
+      final ok = await attempt.result.future.timeout(
+        _purchaseTimeout,
         onTimeout: () => false,
       );
+      return ok && _currentUid == owner;
     } finally {
-      _purchaseCompleter = null;
+      if (identical(_purchaseAttempt, attempt)) _purchaseAttempt = null;
     }
   }
 
+  Future<List<GooglePlayPurchaseDetails>> _pastAndroidPurchases() async {
+    final response = await _iap
+        .getPlatformAddition<InAppPurchaseAndroidPlatformAddition>()
+        .queryPastPurchases();
+    if (response.error != null)
+      throw const CloudException('subscription-check-unavailable');
+    return response.pastPurchases;
+  }
+
   /// 실제 해지는 Play 구독 관리 페이지로 안내.
-  /// 로컬 플래그는 앱 재실행/`restorePurchases` 때 스토어 상태로 다시 맞춥니다.
+  /// Opening management is not a cancellation. The screen refreshes verified
+  /// entitlement after return; paid access lasts through the expiration date.
   Future<void> cancelPremium() async {
-    final plan = await currentPlan();
-    final sku = productIdFor(plan);
-    final uri = Uri.parse(
-      'https://play.google.com/store/account/subscriptions'
-      '?sku=$sku&package=com.mysticcat.journal',
-    );
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    final owner = _currentUid;
+    if (owner == null) throw const CloudException('authentication-required');
+    final uri = await subscriptionManagementUri();
+    if (_currentUid != owner) throw const CloudException('account-changed');
+    // canLaunchUrl can be false on Android even when launchUrl works.
+    final urls = <Uri>{
+      uri,
+      Uri.https('play.google.com', '/store/account/subscriptions'),
+    };
+    for (final target in urls) {
+      _requireOwner(owner);
+      var opened = false;
+      try {
+        opened =
+            await (_openManagementUrlOverride?.call(target) ??
+                launchUrl(target, mode: LaunchMode.externalApplication));
+      } catch (_) {
+        // Try the subscriptions list if the product-specific link fails.
+      }
+      _requireOwner(owner);
+      if (opened) return;
     }
+    throw StateError('subscription-management-unavailable');
+  }
+
+  Future<Uri> subscriptionManagementUri() async {
+    final plan = await currentPlanIfKnown();
+    return Uri.https(
+      'play.google.com',
+      '/store/account/subscriptions',
+      plan == null
+          ? null
+          : {'package': 'com.mysticcat.journal', 'sku': productIdFor(plan)},
+    );
   }
 
   /// 스토어에서 과거 구매를 다시 읽어 프리미엄 동기화.
@@ -501,8 +761,8 @@ class SubscriptionService {
         SubscriptionRestoreStatus.unavailable,
       );
     }
-    if (!CloudService.enabled) return _unavailableRestore();
-    final restoringUid = CloudService.currentUser?.uid;
+    if (!_cloudEnabled) return _unavailableRestore();
+    final restoringUid = _currentUid;
     if (restoringUid == null) {
       return const SubscriptionRestoreResult(
         SubscriptionRestoreStatus.signInRequired,
@@ -524,42 +784,41 @@ class SubscriptionService {
       if (response.error != null) {
         return _unavailableRestore();
       }
-      if (CloudService.enabled) {
+      if (_cloudEnabled) {
         for (final purchase in response.pastPurchases.where(
           _isActiveSubscription,
         )) {
-          if (CloudService.currentUser?.uid != restoringUid) {
+          if (_currentUid != restoringUid) {
             return const SubscriptionRestoreResult(
               SubscriptionRestoreStatus.signInRequired,
             );
           }
+          final token = purchase.verificationData.serverVerificationData;
+          if (token.isNotEmpty) _observedReceiptTokens.add(token);
+          var active = false;
           try {
-            await CloudService.verify(
-              purchase.verificationData.serverVerificationData,
-            );
+            final result = await _verifyReceipt(token, restoringUid);
+            _requireOwner(restoringUid);
+            active = result['active'] == true;
           } on CloudException catch (error) {
             if (error.code == 'purchase-owner-mismatch' ||
-                error.code == 'purchase-migration-required')
+                error.code == 'purchase-migration-required') {
               continue;
+            }
             rethrow;
           }
-          if (purchase.pendingCompletePurchase)
+          if (active && purchase.pendingCompletePurchase) {
             await _iap.completePurchase(purchase);
+            _requireOwner(restoringUid);
+          }
         }
-        if (CloudService.currentUser?.uid != restoringUid) {
+        if (_currentUid != restoringUid) {
           return const SubscriptionRestoreResult(
             SubscriptionRestoreStatus.signInRequired,
           );
         }
-        final result = await CloudService.refreshEntitlement();
-        if (result['active'] == true) {
-          await setPlan(
-            result['productId'] == yearlyProductId
-                ? SubscriptionPlan.yearly
-                : SubscriptionPlan.monthly,
-          );
-        }
-        if (CloudService.currentUser?.uid != restoringUid) {
+        final result = await _refreshEntitlement(restoringUid);
+        if (_currentUid != restoringUid) {
           return const SubscriptionRestoreResult(
             SubscriptionRestoreStatus.signInRequired,
           );
@@ -591,6 +850,8 @@ class SubscriptionService {
   }
 
   Future<void> dispose() async {
+    _completePurchaseWait(_purchaseAttempt, false);
+    _purchaseAttempt = null;
     await _purchaseSub?.cancel();
     _purchaseSub = null;
     _initialized = false;
@@ -605,5 +866,41 @@ class SubscriptionService {
         debugPrint('SubscriptionService: 로컬 프리미엄 플래그 제거');
       }
     }
+  }
+}
+
+class _SubscriptionPurchaseAttempt {
+  _SubscriptionPurchaseAttempt({
+    required this.owner,
+    this.requireProductMatch = false,
+    required this.productId,
+    required this.startedAt,
+    required this.previouslyObservedTokens,
+  });
+
+  final String owner;
+  final bool requireProductMatch;
+  final String productId;
+  final DateTime startedAt;
+  final Set<String> previouslyObservedTokens;
+  final Completer<bool> result = Completer<bool>();
+
+  bool matches(PurchaseDetails purchase) {
+    if (purchase.productID != productId ||
+        purchase.status == PurchaseStatus.restored) {
+      return false;
+    }
+    final token = purchase.verificationData.serverVerificationData;
+    if (token.isNotEmpty && previouslyObservedTokens.contains(token)) {
+      return false;
+    }
+    final transactionMs = int.tryParse(purchase.transactionDate ?? '');
+    // Google Play supplies purchaseTime in milliseconds. Permit second-level
+    // truncation, but never call an undated/old successful receipt a new buy.
+    if (transactionMs != null) {
+      return transactionMs >= (startedAt.millisecondsSinceEpoch ~/ 1000) * 1000;
+    }
+    return purchase.status == PurchaseStatus.canceled ||
+        purchase.status == PurchaseStatus.error;
   }
 }

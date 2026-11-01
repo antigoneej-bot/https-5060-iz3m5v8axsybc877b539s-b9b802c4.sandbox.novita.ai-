@@ -1,3 +1,5 @@
+import '../../widgets/companion_coat_art.dart';
+import '../../models/companion_motion.dart';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../models/garden_gifts.dart';
@@ -22,6 +24,7 @@ class GardenCatResponse extends StatelessWidget {
   });
   @override
   Widget build(BuildContext context) {
+    final coat = selectedCompanionCoat(context);
     final index = gardenReactionNames.keys.toList().indexOf(kind).clamp(0, 3);
     final wave = animated ? math.sin(progress * math.pi) : 0.0;
     return Stack(
@@ -31,12 +34,17 @@ class GardenCatResponse extends StatelessWidget {
           child: Transform.rotate(
             angle: kind == 'heart' ? -.025 * wave : .012 * wave,
             alignment: Alignment.bottomCenter,
-            child: GardenAtlasArt(
-              asset: 'assets/living_garden/cat_reactions.webp',
-              column: index % 2,
-              row: index ~/ 2,
-              columns: 2,
-            ),
+            child: coat != null
+                ? CompanionCoatArt(
+                    coat: coat,
+                    motion: const CompanionMotionPose(3),
+                  )
+                : GardenAtlasArt(
+                    asset: 'assets/living_garden/cat_reactions.webp',
+                    column: index % 2,
+                    row: index ~/ 2,
+                    columns: 2,
+                  ),
           ),
         ),
         Positioned(

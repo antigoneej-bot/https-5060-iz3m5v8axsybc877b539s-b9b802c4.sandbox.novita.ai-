@@ -49,3 +49,13 @@ android/key.properties
 android/release-key.jks
 *.jks
 *.keystore
+
+/android/.kotlin/
+
+# Local build dependencies and credentials are never release source artifacts.
+**/node_modules/
+**/.gradle/
+/android/local.properties
+**/.env
+**/.env.*
+!**/.env.example

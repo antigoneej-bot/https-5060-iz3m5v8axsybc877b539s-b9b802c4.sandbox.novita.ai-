@@ -76,7 +76,7 @@ class _WelcomeIntroScreenState extends State<WelcomeIntroScreen> {
     _IntroPageData(
       imageAsset: 'assets/onboarding_intro/intro_3_growth.png',
       title: '고양이에게 남긴 한 줄이\n정원의 기억이 됩니다.',
-      subtitle: '기쁜 마음도 힘든 마음도 괜찮아요.\n함께한 시간은 기억의 나무에 남아요.',
+      subtitle: '기쁜 마음도 힘든 마음도 괜찮아요.\n소중한 기억은 씨앗에 담아 키울 수 있어요.',
     ),
     _IntroPageData(
       imageAsset: 'assets/onboarding_intro/intro_5_garden_grown.png',
@@ -88,6 +88,10 @@ class _WelcomeIntroScreenState extends State<WelcomeIntroScreen> {
   @override
   void initState() {
     super.initState();
+    StorageService.getCompanionName().then((name) {
+      if (mounted && _nameController.text.isEmpty && name != null)
+        _nameController.text = name;
+    });
     _pageController.addListener(() {
       setState(() => _page = _pageController.page ?? 0);
     });

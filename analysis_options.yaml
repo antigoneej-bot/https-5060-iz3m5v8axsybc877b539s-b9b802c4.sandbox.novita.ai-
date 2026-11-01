@@ -16,6 +16,8 @@ analyzer:
     # definitions reference the dev-only `pigeon` package which isn't a
     # dependency of this app, so it must be excluded from analysis.
     - "third_party/**"
+    # Server dependencies are checked by Node's own tests, not Dart analysis.
+    - "backend/node_modules/**"
 
 linter:
   # The lint rules applied to this project can be customized in the

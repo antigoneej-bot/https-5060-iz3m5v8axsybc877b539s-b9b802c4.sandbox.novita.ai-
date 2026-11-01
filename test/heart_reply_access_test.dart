@@ -14,7 +14,6 @@ import 'package:flutter_app/screens/heart_letter_history_screen.dart';
 import 'package:flutter_app/screens/heart_letters_screen.dart';
 import 'package:flutter_app/mongi/screens/mental_health_support_screen.dart';
 import 'package:flutter_app/mongi/l10n/gen/app_localizations.dart';
-import 'package:flutter_app/widgets/garden_path_card.dart';
 
 import 'package:flutter_app/models/special_letter_entry.dart';
 import 'package:flutter_app/services/access_policy.dart';
@@ -193,46 +192,25 @@ void main() {
           app,
         ),
       );
-      await until(tester, find.text('답장 열기'));
       await drainIo(tester);
-      expect(find.text('답장 열기'), findsNWidgets(2));
+      expect(find.text('답장 열기'), findsNothing);
+      expect(find.text('답장은 내일 아침에 도착해요'), findsNothing);
       expect(replies.get(quota), 0);
-      expect(
-        SpecialLetterEntry.fromMap(letters.get(newer.id) as Map).replyText,
-        isEmpty,
-      );
       await tester.tap(find.text(newer.letterText));
       await drainIo(tester);
       expect(
         SpecialLetterEntry.fromMap(letters.get(newer.id) as Map).replySeen,
         isFalse,
-        reason: 'Expanding the original letter does not read a reply.',
-      );
-      final olderCard = find.ancestor(
-        of: find.text(older.letterText),
-        matching: find.byType(GlassBlob),
-      );
-      final openOlder = find.descendant(
-        of: olderCard,
-        matching: find.text('답장 열기'),
-      );
-      await tester.ensureVisible(openOlder);
-      await tester.tap(openOlder);
-      await until(tester, find.text('이번 답장은 어땠나요? (선택)'));
-      await drainIo(tester);
-      expect(replies.get(quota), 1);
-      expect(
-        SpecialLetterEntry.fromMap(letters.get(older.id) as Map).replyText,
-        isNotEmpty,
       );
       expect(
         SpecialLetterEntry.fromMap(letters.get(newer.id) as Map).replyText,
         isEmpty,
       );
       expect(
-        SpecialLetterEntry.fromMap(letters.get(older.id) as Map).replySeen,
-        isTrue,
+        SpecialLetterEntry.fromMap(letters.get(older.id) as Map).replyText,
+        isEmpty,
       );
+      expect(replies.get(quota), 0);
       await tester.pumpWidget(const SizedBox());
       await drainIo(tester);
 
@@ -253,6 +231,12 @@ void main() {
           app,
         ),
       );
+      await until(tester, find.text('이전에 받은 답장'));
+      expect(find.text(_oldReply), findsNothing);
+      await tester.ensureVisible(find.text('이전에 받은 답장'));
+      await tester.tap(find.text('이전에 받은 답장'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
       await until(tester, find.text(_oldReply));
       await drainIo(tester);
       expect(
@@ -264,7 +248,7 @@ void main() {
       await drainIo(tester);
       expect(
         SpecialLetterEntry.fromMap(letters.get(cached.id) as Map).replySeen,
-        isTrue,
+        isFalse,
       );
       await tester.pumpWidget(const SizedBox());
       await drainIo(tester);
@@ -356,7 +340,7 @@ void main() {
       await drainIo(tester);
       expect(
         SpecialLetterEntry.fromMap(letters.get(risk.id) as Map).replySeen,
-        isTrue,
+        isFalse,
       );
     } finally {
       await tester.pumpWidget(const SizedBox());
@@ -382,7 +366,7 @@ void main() {
           app,
         ),
       );
-      expect(find.text('답장은 내일 아침에 도착해요'), findsOneWidget);
+      expect(find.text('답장은 내일 아침에 도착해요'), findsNothing);
       final ready = SpecialLetterEntry(
         id: pending.id,
         type: pending.type,
@@ -395,7 +379,7 @@ void main() {
       tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
       await tester.pump();
       await drainIo(tester);
-      await until(tester, find.text('답장 열기'));
+      expect(find.text('답장 열기'), findsNothing);
       expect(find.text('답장은 내일 아침에 도착해요'), findsNothing);
       expect(replies.get(quota), 1);
     } finally {
@@ -407,7 +391,7 @@ void main() {
   // Keep real Hive IO and its static serialized service queue in one fake zone.
   // Each scenario still resets persisted records and independently asserts behavior.
   testWidgets(
-    'heart history access, quota, visible read state, immediate support and resume',
+    'heart archive access never generates or marks arrivals; support and resume remain available',
     (tester) async {
       Future<void> reset() => io(tester, () async {
         await letters.clear();

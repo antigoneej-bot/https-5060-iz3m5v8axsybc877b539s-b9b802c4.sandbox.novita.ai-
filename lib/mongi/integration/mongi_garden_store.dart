@@ -1,7 +1,8 @@
 import 'dart:async';
 import 'session_transaction.dart';
 import '../../services/hive_encryption.dart';
-import '../models/seed.dart';
+import '../../services/local_record_transaction.dart';
+import '../models/plant_care.dart';
 import 'garden_story_catalog.dart';
 import '../../services/storage_service.dart';
 import 'dart:convert';
@@ -11,12 +12,16 @@ import '../../services/subscription_service.dart';
 import 'mongi_garden_data.dart';
 export 'mongi_garden_data.dart';
 import '../models/garden_decoration.dart';
+import 'garden_layout_store.dart';
+import '../models/seed.dart';
+import '../models/garden_layout.dart';
+import 'package:flutter/widgets.dart';
 
 class MongiGardenStore extends ValueNotifier<MongiGardenData> {
   static final instance = MongiGardenStore._();
   static const storageKey = 'local_user_mongi_garden_v1';
   MongiGardenStore._() : super(MongiGardenData());
-  Future<void> _tail = Future.value();
+  final _queue = LocalRecordQueue();
   static final _draftKey = Object();
   @override
   MongiGardenData get value =>
@@ -66,9 +71,7 @@ class MongiGardenStore extends ValueNotifier<MongiGardenData> {
   }
 
   Future<void> _serial(Future<void> Function() operation) {
-    final task = _tail.then((_) => operation());
-    _tail = task.then<void>((_) {}, onError: (Object _, StackTrace __) {});
-    return task;
+    return LocalRecordTransaction.run(() => _queue.run(operation));
   }
 
   Future<MongiGardenData> _read(SharedPreferences prefs) async {
@@ -164,13 +167,78 @@ class MongiGardenStore extends ValueNotifier<MongiGardenData> {
 
   Future<void> completeStage(int stage) =>
       _change((data) => data.clearStage(stage));
-  Future<void> plant(String id, {DateTime? now}) => _change((data) => data.plant(id, now: now));
+  Future<void> plant(String id, {DateTime? now}) =>
+      _change((data) => data.plant(id, now: now));
 
-  Future<bool> waterPlant(String id, {DateTime? now}) async {
+  /// Durable final-value journal: replay completes both planting and layout.
+  /// An existing species at this coordinate is an idempotent retry, never a replant.
+  Future<void> plantAt(String id, Offset point, {DateTime? now}) =>
+      _serial(() async {
+        await SessionTransaction.initialize();
+        final current = await _read(await SharedPreferences.getInstance());
+        final layouts = GardenLayoutStore.instance;
+        await layouts.reload();
+        if (!SeedType.all.any((s) => s.id == id))
+          throw StateError('알 수 없는 씨앗이에요.');
+        final item = 'seed:$id';
+        if ((current.seeds[id] ?? 0) > 0) {
+          if (layouts.value.positions[item] == point) {
+            value = current;
+            return;
+          }
+          throw StateError('이미 심은 식물이에요. 내 식물에서 찾아주세요.');
+        }
+        if (current.seedTokens < 1) throw StateError('보유한 씨앗이 없어요.');
+        final visible = [
+          ...current.seeds.entries
+              .where((e) => e.value > 0)
+              .map((e) => 'seed:${e.key}'),
+          ...current.placed.map((id) => 'decor:$id'),
+        ];
+        final error = layouts.value.placementError(item, point, visible);
+        if (error != null) throw StateError(error);
+        final next = current.plant(id, now: now);
+        final layout = GardenLayout(
+          spaces: layouts.value.spaces,
+          positions: {...layouts.value.positions, item: point},
+        ).grow(next.seeds.values.fold<int>(0, (a, b) => a + b));
+        final box = await HiveEncryption.openBox(SessionTransaction.boxName);
+        await SessionTransaction.commit(
+          DraftBox(box),
+          next.toJson(),
+          layout: layout.toJson(),
+        );
+        await layouts.reload();
+        value = next;
+      });
+
+  /// Hold the garden queue until private copies and the planting are removed.
+  /// Write preferences last: if it fails, the private-record transaction restores
+  /// the memories and books. No later fallible operation follows that write.
+  Future<void> removePlant(
+    String id, {
+    required Future<void> Function() removeMemories,
+  }) => LocalRecordTransaction.atomic(
+    () => _serial(() async {
+      final prefs = await SharedPreferences.getInstance();
+      final current = await _read(prefs);
+      final next = current.removePlant(id);
+      await removeMemories();
+      if (!await prefs.setString(storageKey, jsonEncode(next.toJson()))) {
+        throw StateError('나무를 삭제하지 못했어요. 다시 시도해 주세요.');
+      }
+      value = next;
+    }),
+  );
+
+  Future<bool> waterPlant(String id, {DateTime? now}) =>
+      carePlant(id, PlantCare.water, now: now);
+
+  Future<bool> carePlant(String id, PlantCare care, {DateTime? now}) async {
     var cared = false;
     final day = now ?? DateTime.now();
     await _change((data) {
-      final next = data.waterPlant(id, day);
+      final next = data.carePlant(id, care, day);
       cared = !identical(next, data);
       return next;
     });
@@ -205,7 +273,9 @@ class MongiGardenStore extends ValueNotifier<MongiGardenData> {
       _change((data) => data.copy(stage: data.stage + 1));
   Future<void> plantOriginalReward(String id) =>
       _change((data) => data.plantReward(id));
-  Future<int> receiveCheerGift(String receipt, int amount, {
+  Future<int> receiveCheerGift(
+    String receipt,
+    int amount, {
     required bool Function() isCurrentOwner,
   }) async {
     var credited = 0;
@@ -217,6 +287,54 @@ class MongiGardenStore extends ValueNotifier<MongiGardenData> {
       return next;
     });
     return credited;
+  }
+
+  /// One persisted snapshot contains receipt, food and currency together.
+  Future<void> receiveWalkReward(
+    String id,
+    Map<String, int> reward, {
+    required bool Function() isCurrentOwner,
+  }) async {
+    if (!RegExp(r'^[a-f0-9]{48}$').hasMatch(id) ||
+        reward.keys.any((k) => !['churu', 'snack', 'light'].contains(k)) ||
+        reward.values.any((v) => v < 0) ||
+        (reward['churu'] ?? 0) > 12 ||
+        (reward['snack'] ?? 0) > 12 ||
+        (reward['light'] ?? 0) > 80) {
+      throw ArgumentError('Invalid walk reward');
+    }
+    await _change((data) {
+      if (!isCurrentOwner()) throw StateError('계정이 바뀌었어요.');
+      final receipt = 'walk_$id';
+      if (data.claimedGiftReceipts.contains(receipt)) return data;
+      return data.copy(
+        essence: data.essence + (reward['light'] ?? 0),
+        claimedGiftReceipts: {...data.claimedGiftReceipts, receipt},
+        walkStock: {
+          ...data.walkStock,
+          'churu_tuna':
+              (data.walkStock['churu_tuna'] ?? 0) + (reward['churu'] ?? 0),
+          'food_dry':
+              (data.walkStock['food_dry'] ?? 0) + (reward['snack'] ?? 0),
+        },
+      );
+    });
+  }
+
+  Future<bool> consumeWalkFood(
+    String item, {
+    required bool Function() isCurrentOwner,
+  }) async {
+    var consumed = false;
+    await _change((data) {
+      if (!isCurrentOwner()) throw StateError('계정이 바뀌었어요.');
+      if ((data.walkStock[item] ?? 0) <= 0) return data;
+      consumed = true;
+      return data.copy(
+        walkStock: {...data.walkStock, item: data.walkStock[item]! - 1},
+      );
+    });
+    return consumed;
   }
 
   Future<void> addOriginalEssence(int amount) => _change(

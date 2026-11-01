@@ -55,7 +55,7 @@ class _GardenCareEntryScreenState extends State<GardenCareEntryScreen> {
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      builder: (_) => const _QuietEmotionSheet(),
+      builder: (_) => const QuietEmotionSheet(),
     );
     if (emotion == null || !mounted) return;
     await _open(QuietModeScreen(emotions: [emotion]));
@@ -158,14 +158,15 @@ class _GardenCareEntryScreenState extends State<GardenCareEntryScreen> {
 
 /// Selecting an emotion here is temporary. QuietModeScreen saves only when
 /// the user chooses to finish their reflection; closing this sheet writes none.
-class _QuietEmotionSheet extends StatefulWidget {
-  const _QuietEmotionSheet();
+class QuietEmotionSheet extends StatefulWidget {
+  const QuietEmotionSheet({super.key, this.onContinue});
+  final ValueChanged<Emotion>? onContinue;
 
   @override
-  State<_QuietEmotionSheet> createState() => _QuietEmotionSheetState();
+  State<QuietEmotionSheet> createState() => QuietEmotionSheetState();
 }
 
-class _QuietEmotionSheetState extends State<_QuietEmotionSheet> {
+class QuietEmotionSheetState extends State<QuietEmotionSheet> {
   Emotion? _selected;
 
   @override
@@ -222,7 +223,13 @@ class _QuietEmotionSheetState extends State<_QuietEmotionSheet> {
                 key: const ValueKey('quiet-emotion-continue'),
                 onPressed: _selected == null
                     ? null
-                    : () => Navigator.of(context).pop(_selected),
+                    : () {
+                        if (widget.onContinue != null) {
+                          widget.onContinue!(_selected!);
+                        } else {
+                          Navigator.of(context).pop(_selected);
+                        }
+                      },
                 child: const Text('이 마음과 잠깐 쉬기'),
               ),
             ],
