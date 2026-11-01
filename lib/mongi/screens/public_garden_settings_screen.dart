@@ -1,4 +1,5 @@
 import 'dart:async';
+import '../../models/companion_coat.dart';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -35,7 +36,12 @@ class _PublicGardenSettingsScreenState
   final _nickname = TextEditingController();
   StreamSubscription<String?>? _auth;
   GardenVisibility _visibility = GardenVisibility.private;
-  bool _discovery = false, _receiveGifts = true;
+  bool _discovery = false,
+      _receiveGifts = true,
+      _randomVisits = false,
+      _catChanged = false;
+  CompanionCoat _publicCoat = CompanionCoat.ginger;
+  int _publicCatStage = 0;
   bool _loading = true, _busy = false, _needsAccount = false;
   String? _error, _owner;
   String? _appearanceError;
@@ -64,6 +70,8 @@ class _PublicGardenSettingsScreenState
       setState(() {
         _visibility = GardenVisibility.private;
         _discovery = false;
+        _randomVisits = false;
+        _catChanged = false;
         _receiveGifts = true;
         _busy = false;
         _savedProfile = null;
@@ -119,6 +127,13 @@ class _PublicGardenSettingsScreenState
         _nickname.text = profile.nickname ?? '';
         _visibility = profile.visibility;
         _discovery = profile.discoveryOptIn;
+        _randomVisits = profile.randomVisitOptIn;
+        _catChanged = false;
+        final cat = context.read<GardenProvider>().publishedCatAppearance;
+        _publicCoat = CompanionCoat.parse(cat?['coat']) ?? CompanionCoat.ginger;
+        _publicCatStage = cat?['stage'] is int
+            ? (cat!['stage'] as int).clamp(0, 3)
+            : 0;
         _receiveGifts = profile.receiveGifts;
         _loading = false;
         _needsAccount = false;
@@ -147,6 +162,8 @@ class _PublicGardenSettingsScreenState
         (_nickname.text.trim() != (saved.nickname ?? '') ||
             _visibility != saved.visibility ||
             _discovery != saved.discoveryOptIn ||
+            _randomVisits != saved.randomVisitOptIn ||
+            _catChanged ||
             _receiveGifts != saved.receiveGifts);
   }
 
@@ -258,6 +275,12 @@ class _PublicGardenSettingsScreenState
         nickname: _nickname.text.trim(),
         visibility: _visibility,
         discoveryOptIn: _visibility == GardenVisibility.public && _discovery,
+        randomVisitOptIn: _savedProfile?.supportsRandomVisits == true
+            ? _visibility == GardenVisibility.public && _randomVisits
+            : null,
+        publicCat: _savedProfile?.supportsRandomVisits == true
+            ? {'coat': _publicCoat.name, 'stage': _publicCatStage}
+            : null,
         receiveGifts: _receiveGifts,
       );
       if (!mounted || request != _request || owner != _currentOwner) return;
@@ -365,6 +388,8 @@ class _PublicGardenSettingsScreenState
                     if (_busy || value == null) return;
                     setState(() {
                       _visibility = value;
+                      if (value != GardenVisibility.public)
+                        _randomVisits = false;
                       if (_visibility != GardenVisibility.public) {
                         _discovery = false;
                       }
@@ -403,17 +428,55 @@ class _PublicGardenSettingsScreenState
                 ),
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: const Text('둘러보기에 내 정원 소개'),
+                  title: Text(
+                    _savedProfile?.supportsRandomVisits == true
+                        ? '무작위 이웃 방문 허용'
+                        : '둘러보기에 내 정원 소개',
+                  ),
                   subtitle: Text(
                     _visibility == GardenVisibility.public
-                        ? '처음 만나는 정원사도 내 정원을 발견할 수 있어요.'
+                        ? (_savedProfile?.supportsRandomVisits == true
+                              ? '직접 허용한 정원 모습·공개용 닉네임·고양이만 보여요. 편지·감정 기록·기억의 나무 날짜와 내용은 공개되지 않아요. 언제든 해제할 수 있어요.'
+                              : '처음 만나는 정원사도 내 정원을 발견할 수 있어요. 무작위 방문은 서버 업데이트 후 별도로 허용할 수 있어요.')
                         : '모두에게 공개할 때만 선택할 수 있어요.',
                   ),
-                  value: _visibility == GardenVisibility.public && _discovery,
+                  value:
+                      _visibility == GardenVisibility.public &&
+                      (_savedProfile?.supportsRandomVisits == true
+                          ? _randomVisits
+                          : _discovery),
                   onChanged: _busy || _visibility != GardenVisibility.public
                       ? null
-                      : (value) => setState(() => _discovery = value),
+                      : (value) => setState(() {
+                          _discovery = value;
+                          if (_savedProfile?.supportsRandomVisits == true)
+                            _randomVisits = value;
+                        }),
                 ),
+                if (_savedProfile?.supportsRandomVisits == true)
+                  DropdownButtonFormField<CompanionCoat>(
+                    initialValue: _publicCoat,
+                    decoration: const InputDecoration(
+                      labelText: '정원에 보일 고양이 외형',
+                    ),
+                    items: CompanionCoat.values
+                        .map(
+                          (coat) => DropdownMenuItem(
+                            value: coat,
+                            child: Text(coat.label),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: _busy
+                        ? null
+                        : (coat) {
+                            if (coat != null)
+                              setState(() {
+                                _publicCoat = coat;
+                                _catChanged = true;
+                              });
+                          },
+                  ),
                 const Divider(height: 28),
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,

@@ -1,4 +1,5 @@
 import '../../providers/cat_care_provider.dart';
+import '../../widgets/companion_care_panel.dart';
 import '../screens/garden_world_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -67,14 +68,15 @@ class _LivingGardenEntryState extends State<LivingGardenEntry> {
 
   void _openWorld() => Navigator.of(context).push(
     MaterialPageRoute(
-      builder: (_) => GardenWorldScreen(onOpenCollection: widget.onGarden),
+      builder: (_) => GardenWorldScreen.owned(onOpenCollection: widget.onGarden),
     ),
   );
 
   @override
   Widget build(BuildContext context) {
     final garden = context.watch<GardenProvider>();
-    final companionName = context.watch<CatCareProvider>().displayName;
+    final companion = context.watch<CatCareProvider>();
+    final companionName = companion.displayName;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -85,6 +87,12 @@ class _LivingGardenEntryState extends State<LivingGardenEntry> {
               child: LivingGardenScene(
                 compact: true,
                 companionName: companionName,
+                companionScale: companion.journey.visualScale,
+                companionBondStage: companion.journey.stage,
+                companionAutomaticBehavior:
+                    companion.journeyReady &&
+                    companion.journey.automaticBehavior,
+                onCompanionCare: () => showCompanionCare(context),
                 seeds: garden.seedCounts,
                 motionEnabled: garden.gardenMotionEnabled,
                 onWrite: widget.onWrite,

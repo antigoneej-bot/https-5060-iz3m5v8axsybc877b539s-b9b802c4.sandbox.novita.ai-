@@ -12,7 +12,13 @@ class CareActionSummary {
 /// Descriptive counts only: missing is not zero, after-scores aren't baselines,
 /// repeated check-ins don't give that day extra weight in the period mean.
 class SelfCareSummary {
-  static DateTime day(DateTime d) => DateTime(d.year, d.month, d.day);
+  static DateTime day(DateTime d) {
+    // Stored care timestamps can be UTC. Reports describe the user's local
+    // calendar day, just like the date shown on their individual records.
+    final local = d.toLocal();
+    return DateTime(local.year, local.month, local.day);
+  }
+
   final List<SelfCareEntry> entries;
   final DateTime start;
   final DateTime end;

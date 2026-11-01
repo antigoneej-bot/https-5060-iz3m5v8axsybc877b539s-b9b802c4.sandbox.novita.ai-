@@ -1,0 +1,28 @@
+{
+  "version": "1.0.47+50",
+  "application_id": "com.mysticcat.journal",
+  "build_type": "TEST ONLY - UNLOCK_ALL_PREMIUM=true",
+  "flutter_tests": 752,
+  "backend_tests": 196,
+  "test_failures": 0,
+  "static_analysis": {
+    "errors": 0,
+    "warnings": 4,
+    "info": 374
+  },
+  "client_access": "existing premium access enabled; membership classification labels and test banner; payment screen replaced by feature guide",
+  "server_access": "PREMIUM_TEST_ACCESS=true supported for authenticated feature access; actual purchase status unchanged; server deployment required",
+  "pending_release_work": [
+    "new pet/tree subscription enforcement and expiry preservation",
+    "light essence currency consolidation",
+    "attendance and achievement reward implementation"
+  ],
+  "bundletool_validate": "passed",
+  "jarsigner_verify": "passed",
+  "signing_certificate_sha256": "bebaa59bc1c879a0a685ba3bd699a58010bc5e5f52ba24b5f63f0f6ccad7819b",
+  "aab_size_bytes": 215691600,
+  "aab_sha256": "71f9712c5242bf274422d41dcd3a17ad0fdeb423ef74cf4b0ce123f128fd9561",
+  "server_deployment": "not performed",
+  "play_console_upload": "not performed",
+  "physical_device_test": "not performed"
+}

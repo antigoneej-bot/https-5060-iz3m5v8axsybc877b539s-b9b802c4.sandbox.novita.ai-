@@ -1,0 +1,23 @@
+운영자 확인: 박은정 (마음냥 정원) · release-review/OPERATOR-CONFIRMED-70-KO.txt
+최근 보완: release-review/FINISH-69-KO.txt (삭제 정보 최소화·정책 보충, 서버 미배포)
+마음냥 정원 · 최신 전체 소스 1.0.61+64
+
+별도 브랜치에서 실제 분석·테스트 후 식빵 애니메이션 회귀를 수정했습니다.
+Flutter 전체 테스트 797개 및 서버 테스트 215개 통과.
+정적 분석은 오류 0건이며 경고 4건과 info 416건은 남아 있습니다.
+
+1. release-review/VALIDATION-2026-10-31-KO.txt: 수정 원인, 테스트, 미검증 항목.
+2. release-review/BUILD-RESULT-KO.txt: Android 빌드 및 용량 결과.
+3. release-review/README-KO.txt: 누적 수정, 기록 보존 및 복구 계획.
+4. public-policy: 2026-10-31 공개한 현재 정책/삭제 안내.
+   개인정보: https://mindnyang-privacy.antigone-ej.chatgpt.site/privacy
+   계정 삭제: https://mindnyang-privacy.antigone-ej.chatgpt.site/delete-account
+   public-policy-draft는 이전 초안이며 현재 공개본이 아닙니다.
+5. release-review/POLICY-PUBLICATION-68-KO.txt: 이번 공개 및 연결 결과.
+
+기존 사용자 기록과 운영 서버는 변경하지 않았습니다.
+기존 앱 업그레이드에는 이미 사용 중인 서명 설정을 계속 사용하세요.
+공개 HTTPS 정책/삭제 주소는 앱 및 빌드 기본값에 연결했습니다.
+진행 중인 실기기/Play 결제 테스트를 다시 시작할 필요는 없지만 결과 대조는 남아 있습니다. 이 소스를 곧바로 정식 출시 완료본으로 판단하지 마세요.
+문의: 마음냥정원 / maeumnyang.help@gmail.com
+키스토어·key.properties·비밀번호·인증번호는 채팅에 보내지 마세요.

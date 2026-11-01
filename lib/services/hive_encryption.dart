@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -56,13 +57,23 @@ class HiveEncryption {
     return _cipher!;
   }
 
+  /// The pinned Hive lifecycle patch waits for failed-open cleanup and handles
+  /// its internal error future. Keep all callers in the same error zone so
+  /// concurrent opens reliably receive the same failure.
+  static Future<Box> openPreservingFile(String name, {HiveCipher? cipher}) =>
+      Hive.openBox(name, encryptionCipher: cipher, crashRecovery: false);
+
   static final Map<String, Future<Box>> _opening = {};
 
+  /// Disable Hive automatic truncation on wrong-key/checksum failures.
   /// Keep both files on failure. Never silently continue writing plaintext.
   static Future<Box> openBox(String name) {
-    return _opening.putIfAbsent(name, () => _openEncrypted(name).whenComplete(() {
-      _opening.remove(name);
-    }));
+    return _opening.putIfAbsent(
+      name,
+      () => _openEncrypted(name).whenComplete(() {
+        _opening.remove(name);
+      }),
+    );
   }
 
   static Future<Box> _openEncrypted(String name) async {
@@ -70,12 +81,15 @@ class HiveEncryption {
     final cipher = await HiveEncryption.cipher();
     final plainExists = await Hive.boxExists(name);
     if (Hive.isBoxOpen(encName) && !plainExists) return Hive.box(encName);
-    final enc = Hive.isBoxOpen(encName) ? Hive.box(encName)
-      : await Hive.openBox(encName, encryptionCipher: cipher);
+    final enc = Hive.isBoxOpen(encName)
+        ? Hive.box(encName)
+        : await openPreservingFile(encName, cipher: cipher);
     if (!plainExists) return enc;
     Box? plain;
     try {
-      plain = Hive.isBoxOpen(name) ? Hive.box(name) : await Hive.openBox(name);
+      plain = Hive.isBoxOpen(name)
+          ? Hive.box(name)
+          : await openPreservingFile(name);
       await mergeLegacyRecords(plain, enc);
       await plain.close();
       plain = null;

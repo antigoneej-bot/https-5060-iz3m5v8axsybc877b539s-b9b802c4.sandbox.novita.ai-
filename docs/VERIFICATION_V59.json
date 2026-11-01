@@ -1,0 +1,29 @@
+{
+  "version": "1.0.56+59",
+  "flutter_tests_passed": 785,
+  "static_analysis_errors": 0,
+  "static_analysis_warnings": 4,
+  "bundletool": "passed",
+  "signature": "verified; matches v58",
+  "certificate_sha256": "bebaa59bc1c879a0a685ba3bd699a58010bc5e5f52ba24b5f63f0f6ccad7819b",
+  "aab_size_bytes": 224583354,
+  "aab_sha256": "be41291c15bdd181807e27e2a0cf3a5bc8a941a71903df3537b2045f3f002ecb",
+  "premium_test_access": true,
+  "test_show_onboarding": true,
+  "play_upload": "not performed",
+  "server_changes": "none; redeployment not required",
+  "physical_device_test": "not performed",
+  "checks": [
+    "Layered garden artwork and transparent foreground",
+    "Portrait and immersive landscape controls",
+    "Six coat and garden motion regression suite",
+    "Home menu relocation and subscription entry",
+    "Existing saved garden positions and growth logic preserved"
+  ],
+  "limitations": [
+    "Background trees and bench are decorative scenery; existing orchard and memory-tree data unchanged",
+    "Generated concept and runtime differ by viewport, chosen cat and saved placements",
+    "No 7-day or 15-day trial configured",
+    "No physical-device testing or Play upload"
+  ]
+}

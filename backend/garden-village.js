@@ -1,5 +1,8 @@
+import {queuePush} from './push-notifications.js';
+import {sharedTreePairRef} from './shared-trees.js';
 import {createHash, randomBytes} from 'node:crypto';
-import {accountHash, sanitizeNickname, validatePublicSnapshot, PUBLIC_CHEER_MESSAGE_COUNT} from './policy.js';
+import {accountHash, sanitizeNickname, validatePublicSnapshot, validatePublicLayout, KNOWN_SEED_IDS, KNOWN_DECORATION_IDS, PUBLIC_CHEER_MESSAGE_COUNT} from './policy.js';
+import {syncDiscoveryIndex} from './discovery-index.js';
 import {FLOWERS, liveReactions, newGardenReaction, validGardenGift} from './garden-gifts.js';
 import {acceptsGiftAmount, validCheerId} from './cheer-delivery.js';
 
@@ -13,7 +16,7 @@ export const villageDate = value => value?.toDate?.().toISOString() ?? (typeof v
 
 // Versioned owner/action-scoped seek cursors. These are positions, not authority:
 // every page repeats the current access checks. Never accept a document path.
-function pageRequest(body, uid, kind, fallbackSize, maxSize) {
+export function pageRequest(body, uid, kind, fallbackSize, maxSize) {
   const pageSize = body.pageSize === undefined ? fallbackSize : body.pageSize;
   if (!Number.isInteger(pageSize) || pageSize < 1 || pageSize > maxSize) throw new Error('invalid-page-size');
   if (body.cursor === undefined || body.cursor === null) return {pageSize, after: null};
@@ -26,7 +29,7 @@ function pageRequest(body, uid, kind, fallbackSize, maxSize) {
   else if (after.at !== undefined) throw new Error('invalid-cursor');
   return {pageSize, after};
 }
-function pageCursor(uid, kind, doc) {
+export function pageCursor(uid, kind, doc) {
   const value = {v: 1, kind, owner: accountHash(uid), id: doc.id};
   if (kind === 'cheers') value.at = cursorTime(doc.data().createdAt);
   return Buffer.from(JSON.stringify(value)).toString('base64url');
@@ -61,7 +64,7 @@ function publicationSnapshot(data) {
   if (!data) return null;
   return {seedCounts: data.seedCounts ?? {}, equippedDecorationIds: data.equippedDecorationIds ?? [],
     treeStageIndex: data.treeStageIndex ?? 0, memoryTreeStage: data.memoryTreeStage ?? 0,
-    hasCheerFlowers: data.hasCheerFlowers === true, flowerKinds: data.flowerKinds ?? [], layout: data.layout ?? null};
+    hasCheerFlowers: data.hasCheerFlowers === true, flowerKinds: data.flowerKinds ?? [], layout: data.layout ?? null, ...(data.publicCat ? {publicCat: {coat: data.publicCat.coat, stage: data.publicCat.stage}} : {})};
 }
 
 const normalizedCode = code => typeof code === 'string' ? code.toUpperCase().replace(/[ -]/g, '') : '';
@@ -74,6 +77,7 @@ export function villageSettings(profile, gardenExists = false) {
     visibility: VISIBILITIES.includes(profile?.visibility) ? profile.visibility : gardenExists ? 'public' : 'private',
     // A previous publication never silently consents to the new discovery list.
     discoveryOptIn: profile?.discoveryOptIn === true,
+    randomVisitOptIn: profile?.randomVisitOptIn === true,
     receiveGifts: profile?.receiveGifts !== false,
   };
 }
@@ -98,11 +102,15 @@ export async function blockedBetween(db, left, right, tx) {
   return a.exists || b.exists;
 }
 export function publicGardenDto(id, data) {
-  return {gardenId: id, nickname: data.nickname ?? null,
-    seedCounts: data.seedCounts ?? {}, equippedDecorationIds: data.equippedDecorationIds ?? [],
-    treeStageIndex: data.treeStageIndex ?? 0, layout: data.layout ?? null,
-    memoryTreeStage: data.memoryTreeStage ?? 0, hasCheerFlowers: data.hasCheerFlowers === true,
-    flowerKinds: data.flowerKinds ?? [], reactions: liveReactions(data.reactions)};
+  const integer = (value, min, max, fallback = min) => Number.isInteger(value) && value >= min && value <= max ? value : fallback;
+  const seeds = Object.fromEntries(Object.entries(data.seedCounts ?? {}).filter(([id, count]) => KNOWN_SEED_IDS.has(id) && Number.isInteger(count) && count >= 0 && count <= 9999));
+  return {gardenId: id, nickname: sanitizeNickname(data.nickname),
+    seedCounts: seeds, equippedDecorationIds: (Array.isArray(data.equippedDecorationIds) ? data.equippedDecorationIds : []).filter(id => KNOWN_DECORATION_IDS.has(id)).slice(0, 20),
+    treeStageIndex: integer(data.treeStageIndex, -1, 3, 0), layout: validatePublicLayout(data.layout) ? structuredClone(data.layout) : null,
+    memoryTreeStage: integer(data.memoryTreeStage, 0, 4), hasCheerFlowers: data.hasCheerFlowers === true,
+    flowerKinds: (Array.isArray(data.flowerKinds) ? data.flowerKinds : []).filter(f => FLOWERS.includes(f)).slice(0, 5),
+    publicCat: data.publicCat && ['ginger','white','tabby','black','tuxedo','calico'].includes(data.publicCat.coat) ? {coat: data.publicCat.coat, stage: integer(data.publicCat.stage, 0, 3)} : null,
+    reactions: liveReactions(data.reactions)};
 }
 export async function getVillageProfile(db, uid, {stamp = () => new Date().toISOString(), codeGenerator = () => randomBytes(6).toString('hex').toUpperCase()} = {}) {
   // Collision retry preserves a stable private invitation code for each account.
@@ -111,7 +119,7 @@ export async function getVillageProfile(db, uid, {stamp = () => new Date().toISO
     const result = await db.runTransaction(async tx => {
       const own = await tx.get(profileRef(db, uid));
       const garden = await tx.get(db.doc(`publicGardens/${uid}`));
-      if (own.data()?.inviteCode) return {inviteCode: own.data().inviteCode, ...villageSettings(own.data(), garden.exists), nickname: own.data().nickname ?? garden.data()?.nickname ?? null};
+      if (own.data()?.inviteCode) return {randomVisitsSupported: true, inviteCode: own.data().inviteCode, ...villageSettings(own.data(), garden.exists), nickname: own.data().nickname ?? garden.data()?.nickname ?? null};
       const codeRef = db.doc(`villageInviteCodes/${code}`);
       const existing = await tx.get(codeRef);
       if (existing.exists && existing.data()?.uid !== uid) return null;
@@ -119,7 +127,7 @@ export async function getVillageProfile(db, uid, {stamp = () => new Date().toISO
       const nickname = own.data()?.nickname ?? garden.data()?.nickname ?? null;
       tx.set(profileRef(db, uid), {...settings, inviteCode: code, nickname, updatedAt: stamp()}, {merge: true});
       tx.set(codeRef, {uid});
-      return {inviteCode: code, ...settings, nickname};
+      return {randomVisitsSupported: true, inviteCode: code, ...settings, nickname};
     });
     if (result) return result;
   }
@@ -127,10 +135,11 @@ export async function getVillageProfile(db, uid, {stamp = () => new Date().toISO
 }
 function validatedSettings(body, previous) {
   if ((body.visibility !== undefined && !VISIBILITIES.includes(body.visibility)) ||
-      ['discoveryOptIn', 'receiveGifts'].some(key => body[key] !== undefined && typeof body[key] !== 'boolean')) throw new Error('invalid-profile');
+      ['discoveryOptIn', 'randomVisitOptIn', 'receiveGifts'].some(key => body[key] !== undefined && typeof body[key] !== 'boolean')) throw new Error('invalid-profile');
   const next = {...previous};
-  for (const key of ['visibility', 'discoveryOptIn', 'receiveGifts']) if (body[key] !== undefined) next[key] = body[key];
+  for (const key of ['visibility', 'discoveryOptIn', 'randomVisitOptIn', 'receiveGifts']) if (body[key] !== undefined) next[key] = body[key];
   if (next.visibility !== 'public') next.discoveryOptIn = false;
+  if (!next.discoveryOptIn) next.randomVisitOptIn = false;
   return next;
 }
 export async function updateVillageProfile(db, uid, body, {stamp}) {
@@ -142,12 +151,13 @@ export async function updateVillageProfile(db, uid, body, {stamp}) {
     const nickname = body.nickname === undefined ? own.data()?.nickname ?? garden.data()?.nickname ?? null : sanitizeNickname(body.nickname);
     tx.set(ref, {...settings, nickname, updatedAt: stamp()}, {merge: true});
     if (garden.exists && body.nickname !== undefined) tx.update(gardenRef, {nickname});
-    return {inviteCode: own.data().inviteCode, ...settings, nickname};
+    syncDiscoveryIndex(tx, db, uid, settings, garden.exists);
+    return {randomVisitsSupported: true, inviteCode: own.data().inviteCode, ...settings, nickname};
   });
 }
 export async function publishVillageGarden(db, uid, body, {stamp}) {
   if ((body.appearanceOnly !== undefined && typeof body.appearanceOnly !== 'boolean') ||
-      (body.appearanceOnly === true && ['nickname', 'visibility', 'discoveryOptIn', 'receiveGifts'].some(key => body[key] !== undefined))) throw new Error('invalid-profile');
+      (body.appearanceOnly === true && ['nickname', 'visibility', 'discoveryOptIn', 'randomVisitOptIn', 'receiveGifts'].some(key => body[key] !== undefined))) throw new Error('invalid-profile');
   if (!validatePublicSnapshot(body.snapshot)) throw new Error('invalid-snapshot');
   const snapshot = body.snapshot;
   const hadProfile = (await profileRef(db, uid).get()).exists;
@@ -165,15 +175,18 @@ export async function publishVillageGarden(db, uid, body, {stamp}) {
       equippedDecorationIds: snapshot.equippedDecorationIds, treeStageIndex: snapshot.treeStageIndex,
       memoryTreeStage: snapshot.memoryTreeStage ?? 0, hasCheerFlowers: snapshot.hasCheerFlowers ?? false,
       flowerKinds: snapshot.flowerKinds ?? [], layout: snapshot.layout ?? null,
+      ...(snapshot.publicCat !== undefined ? {publicCat: snapshot.publicCat} : {}),
       updatedAt: stamp(), rand: Math.random()}, {merge: true});
+    syncDiscoveryIndex(tx, db, uid, settings, true);
   });
   // Resolve the server timestamp after commit; only the authenticated owner gets this snapshot.
   return villagePublicationStatus(db, uid);
 }
 export async function unpublishVillageGarden(db, uid, {stamp}) {
   await db.runTransaction(async tx => {
-    tx.set(profileRef(db, uid), {visibility: 'private', discoveryOptIn: false, updatedAt: stamp()}, {merge: true});
+    tx.set(profileRef(db, uid), {visibility: 'private', discoveryOptIn: false, randomVisitOptIn: false, updatedAt: stamp()}, {merge: true});
     tx.delete(db.doc(`publicGardens/${uid}`));
+    tx.delete(db.doc(`gardenDiscovery/${uid}`));
   });
   return {published: false, nickname: null};
 }
@@ -266,6 +279,11 @@ export async function respondNeighbor(db, uid, body, {stamp}) {
 export async function removeNeighbor(db, uid, body) {
   requireTarget(uid, body.gardenId);
   await db.runTransaction(async tx => {
+    const pairRef = sharedTreePairRef(db, uid, body.gardenId);
+    const pair = await tx.get(pairRef);
+    // A relationship generation is permanent: adding the same neighbor again
+    // must never restore the previous shared-tree consent.
+    tx.set(pairRef, {revision: (pair.data()?.revision ?? 0) + 1});
     tx.delete(linkRef(db, uid, body.gardenId)); tx.delete(linkRef(db, body.gardenId, uid));
   });
   return {removed: true};
@@ -294,6 +312,9 @@ export async function blockNeighbor(db, uid, body, {stamp}) {
   await db.runTransaction(async tx => {
     const access = await readVillageAccess(db, uid, body.gardenId, tx);
     if (body.blocked) {
+      const pairRef = sharedTreePairRef(db, uid, body.gardenId);
+      const pair = await tx.get(pairRef);
+      tx.set(pairRef, {revision: (pair.data()?.revision ?? 0) + 1});
       tx.set(blockRef(db, uid, body.gardenId), {targetId: body.gardenId, nickname: access.visible || access.relation.exists ? access.profile.data()?.nickname ?? access.garden.data()?.nickname ?? null : null, createdAt: stamp()});
       tx.delete(linkRef(db, uid, body.gardenId)); tx.delete(linkRef(db, body.gardenId, uid));
     } else tx.delete(blockRef(db, uid, body.gardenId));
@@ -341,7 +362,9 @@ export async function sendVillageCheer(db, uid, body, {stamp, now = Date.now()})
     }
     tx.set(logRef, {date: today, fingerprint, senderId: uid, recipientId: target});
     if (reaction) tx.update(access.garden.ref, {reactions: [...liveReactions(access.garden.data()?.reactions, now), reaction].slice(-12)});
-    tx.set(db.collection(`users/${target}/receivedCheers`).doc(), {
+    const deliveryRef = db.collection(`users/${target}/receivedCheers`).doc();
+    queuePush(tx, db, deliveryRef.path, target, 'social', now);
+    tx.set(deliveryRef, {
       messageIndex: body.messageIndex, giftLightEssence: 0, flowerKind, reaction, deliveryKind,
       senderId: uid, senderNickname: sender.data()?.nickname ?? senderGarden.data()?.nickname ?? null,
       claimed: false, createdAt: stamp(),
@@ -372,6 +395,7 @@ export async function sendGardenGift(db, uid, body, {stamp}) {
     if (data.deliveryKind === 'cheer' || !FLOWERS.includes(data.flowerKind ?? 'daisy') || (data.giftLightEssence ?? 0) !== 0) throw new Error('invalid-garden-gift');
     const time = stamp();
     tx.update(sourceRef, {transferred: true, transferredAt: time, claimed: true});
+    queuePush(tx, db, `gift:${destinationId}`, body.gardenId, 'social');
     tx.set(db.doc(`users/${body.gardenId}/receivedCheers/${destinationId}`), {
       deliveryKind: 'gift', flowerKind: data.flowerKind ?? 'daisy', giftLightEssence: 0,
       messageIndex: data.messageIndex ?? 0, reaction: null, senderId: uid,

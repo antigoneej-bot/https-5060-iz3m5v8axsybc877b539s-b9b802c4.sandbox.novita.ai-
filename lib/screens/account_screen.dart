@@ -1,21 +1,12 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../services/cloud_service.dart';
 import '../services/social_auth_service.dart';
 import '../theme.dart';
-import '../utils/feature_flags.dart';
 import 'data_safety_screen.dart';
 import 'privacy_policy_screen.dart';
 import 'terms_of_service_screen.dart';
-
-/// ⚠️ QA 전용: `FeatureFlags.useAppCheckDebugProvider` 빌드에서만 사용되는
-/// 채널. Play 스토어를 거치지 않는 사이드로딩 테스트 APK에서 Firebase App
-/// Check 디버그 시크릿을 화면에 보여주기 위한 것으로, 정식 출시 빌드에는
-/// 포함되지 않는다(해당 define이 꺼져 있으면 아래 위젯 자체가 렌더링되지
-/// 않는다).
-const _appCheckDebugChannel = MethodChannel('garden/app_check_debug');
 
 /// One account entry point. No password sign-up is offered to new users;
 /// existing password accounts retain their identity, recovery and purchases.
@@ -280,10 +271,9 @@ class _AccountScreenState extends State<AccountScreen> {
                 ? const BorderSide(color: AppColors.sageLine)
                 : null,
           ),
-          onPressed:
-              _busy ||
-                  !SocialAuthService.firebaseReady ||
-                  !SocialAuthService.supportsQuickLogin
+          // Preflight failures are explained by SocialAuthService. Disabling
+          // this button for a failed Firebase startup looks like a dead tap.
+          onPressed: _busy
               ? null
               : () => _work(() async => _finishSignIn(await signIn())),
           child: Text(label),
@@ -380,11 +370,6 @@ class _AccountScreenState extends State<AccountScreen> {
                   const Padding(
                     padding: EdgeInsets.only(bottom: 12),
                     child: Text('카카오·네이버·페이스북 로그인은 현재 연결 준비 중이에요.'),
-                  ),
-                if (FeatureFlags.useAppCheckDebugProvider)
-                  const Padding(
-                    padding: EdgeInsets.only(bottom: 12),
-                    child: _AppCheckDebugTokenPanel(),
                   ),
                 const Text(
                   '기존 구매 내역이 있다면 구매할 때 사용한 로그인 방법을 선택해 주세요. 계정은 자동으로 합쳐지지 않아요.',
@@ -556,105 +541,6 @@ class _AccountScreenState extends State<AccountScreen> {
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-/// ⚠️ QA 전용 패널: 사이드로딩한 테스트 APK에서 Firebase App Check
-/// 디버그 프로바이더가 발급한 기기별 시크릿을 보여주고 복사할 수 있게
-/// 한다. [FeatureFlags.useAppCheckDebugProvider]가 켜진 빌드에서만
-/// 호출되며, 이 값은 Firebase 콘솔의 "App Check > 디버그 토큰"에
-/// 등록해야만 효력이 생긴다. 등록 전까지는 일반 사용자 식별 정보가
-/// 아니라 "이 기기를 테스트 허용 목록에 넣기 위한 무작위 UUID"일 뿐이다.
-class _AppCheckDebugTokenPanel extends StatefulWidget {
-  const _AppCheckDebugTokenPanel();
-
-  @override
-  State<_AppCheckDebugTokenPanel> createState() =>
-      _AppCheckDebugTokenPanelState();
-}
-
-class _AppCheckDebugTokenPanelState extends State<_AppCheckDebugTokenPanel> {
-  String? _token;
-  String? _error;
-  bool _loading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    try {
-      final token = await _appCheckDebugChannel.invokeMethod<String>(
-        'readSecret',
-      );
-      if (!mounted) return;
-      setState(() {
-        _token = token;
-        _loading = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _error = '$e';
-        _loading = false;
-      });
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.amber.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.amber),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            '⚠️ QA 전용: App Check 디버그 토큰',
-            style: TextStyle(fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 6),
-          const Text(
-            '이 값을 복사해서 전달해 주세요. 이 기기를 테스트 허용 목록에 등록한 뒤에만 간편 로그인이 동작해요.',
-            style: TextStyle(fontSize: 12),
-          ),
-          const SizedBox(height: 8),
-          if (_loading)
-            const Text('불러오는 중...')
-          else if (_error != null)
-            Text('값을 읽지 못했어요: $_error')
-          else if (_token == null)
-            const Text('아직 토큰이 생성되지 않았어요. 앱을 한 번 더 열어보세요.')
-          else
-            Row(
-              children: [
-                Expanded(
-                  child: SelectableText(
-                    _token!,
-                    style: const TextStyle(fontFamily: 'monospace'),
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.copy, size: 20),
-                  tooltip: '복사',
-                  onPressed: () {
-                    Clipboard.setData(ClipboardData(text: _token!));
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('토큰을 복사했어요.')),
-                    );
-                  },
-                ),
-              ],
-            ),
-        ],
       ),
     );
   }

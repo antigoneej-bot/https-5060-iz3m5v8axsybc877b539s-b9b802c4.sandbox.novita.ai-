@@ -1,16 +1,16 @@
+import 'dart:async';
+import 'local_record_transaction.dart';
 import 'sound_service.dart';
 
 /// One serialized playback lane shared by meditation audio and every video.
 class MediaCoordinator {
+  MediaCoordinator({SoundService? sound}) : _sound = sound ?? SoundService();
   static final instance = MediaCoordinator();
-  Future<void> _tail = Future.value();
+  final SoundService _sound;
+  final _queue = LocalRecordQueue();
   Object? _owner;
   Future<void> Function()? _stop;
-  Future<void> run(Future<void> Function() action) {
-    final result = _tail.then((_) => action());
-    _tail = result.catchError((Object _) {});
-    return result;
-  }
+  Future<void> run(Future<void> Function() action) => _queue.run(action);
 
   // Called only inside run; stop callbacks must not enqueue into this lane.
   Future<void> claim(Object owner, Future<void> Function() stop) async {
@@ -22,15 +22,16 @@ class MediaCoordinator {
     }
     _owner = owner;
     _stop = stop;
-    SoundService().narrationPlaying = true;
-    await SoundService().stopAll();
+    _sound.narrationPlaying = true;
+    await _sound.stopAll();
   }
 
   void release(Object owner) {
     if (_owner != owner) return;
     _owner = null;
     _stop = null;
-    SoundService().narrationPlaying = false;
+    _sound.narrationPlaying = false;
+    unawaited(_sound.tryStartBgm());
   }
 
   Future<void> stopAll() => run(() async {
@@ -38,6 +39,6 @@ class MediaCoordinator {
     _owner = null;
     _stop = null;
     if (stop != null) await stop();
-    SoundService().narrationPlaying = false;
+    _sound.narrationPlaying = false;
   });
 }

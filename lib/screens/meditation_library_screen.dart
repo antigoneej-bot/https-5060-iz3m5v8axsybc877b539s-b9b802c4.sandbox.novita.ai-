@@ -1,3 +1,5 @@
+import '../services/meditation_completion_service.dart';
+import '../widgets/meditation_save_status.dart';
 import '../widgets/meditation_courses_card.dart';
 import '../widgets/meditation_recap_card.dart';
 import 'package:flutter/material.dart';
@@ -8,7 +10,8 @@ import '../widgets/meditation_favorite.dart';
 import '../services/meditation_library_store.dart';
 
 class MeditationLibraryScreen extends StatefulWidget {
-  const MeditationLibraryScreen({super.key});
+  final String initialVoice;
+  const MeditationLibraryScreen({super.key, this.initialVoice = 'all'});
   @override
   State<MeditationLibraryScreen> createState() =>
       _MeditationLibraryScreenState();
@@ -21,6 +24,8 @@ class _MeditationLibraryScreenState extends State<MeditationLibraryScreen> {
   @override
   void initState() {
     super.initState();
+    _voice = widget.initialVoice;
+    MeditationCompletionService.instance.retry();
     store.load().catchError((Object _) {
       if (mounted) setState(() => _error = '저장된 목록을 불러오지 못했어요.');
     });
@@ -74,6 +79,7 @@ class _MeditationLibraryScreenState extends State<MeditationLibraryScreen> {
           ),
           const SizedBox(height: 16),
           const MeditationRecapCard(),
+          const MeditationSaveStatus(),
           const MeditationCoursesCard(),
           const SizedBox(height: 12),
           chips(

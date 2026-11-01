@@ -13,11 +13,40 @@ require_android_https_endpoint() {
   local host="${value#https://}"
   host="${host%%/*}"
   host="${host%%:*}"
-  case "${host,,}" in
+  local normalized_host
+  normalized_host=$(printf '%s' "$host" | tr '[:upper:]' '[:lower:]')
+  case "$normalized_host" in
     localhost|*.localhost|*.invalid|example.com|*.example.com|127.*|0.0.0.0)
       printf '%s\n' "$name must use the real deployed host, not a placeholder or local host." >&2
       return 1 ;;
   esac
+}
+
+prepare_android_ads() {
+  local app_id="${ADMOB_ANDROID_APP_ID:-}"
+  local banner_id="${ADMOB_ANDROID_BANNER_ID:-}"
+  local test_ads="${ADMOB_TEST_ADS:-false}"
+  if [[ "$test_ads" != true && "$test_ads" != false ]]; then
+    printf '%s\n' 'ADMOB_TEST_ADS must be true or false.' >&2
+    return 1
+  fi
+  if [[ "$test_ads" == true ]]; then
+    android_release_args+=("--dart-define=ADMOB_TEST_ADS=true")
+    printf '%s\n' 'TEST ADS ONLY: this build does not earn advertising revenue.'
+  elif [[ -n "$app_id" || -n "$banner_id" ]]; then
+    if [[ ! "$app_id" =~ ^ca-app-pub-([0-9]{16})~[0-9]{10}$ ]]; then
+      printf '%s\n' 'A valid ADMOB_ANDROID_APP_ID (with ~) is required.' >&2; return 1
+    fi
+    local publisher="${BASH_REMATCH[1]}"
+    if [[ ! "$banner_id" =~ ^ca-app-pub-([0-9]{16})/[0-9]{10}$ ]] ||
+       [[ "${BASH_REMATCH[1]}" != "$publisher" || "$publisher" == 3940256099942544 ]]; then
+      printf '%s\n' 'A matching production ADMOB_ANDROID_BANNER_ID (with /) is required.' >&2; return 1
+    fi
+    android_release_args+=("--dart-define=ADMOB_ANDROID_APP_ID=$app_id"
+      "--dart-define=ADMOB_ANDROID_BANNER_ID=$banner_id")
+  else
+    printf '%s\n' 'AdMob IDs are not set: home banners remain disabled.'
+  fi
 }
 
 prepare_android_release() {
@@ -42,6 +71,7 @@ prepare_android_release() {
     "--dart-define=GARDEN_BACKEND_URL=$GARDEN_BACKEND_URL"
     "--dart-define=SOCIAL_AUTH_URL=$SOCIAL_AUTH_URL"
   )
+  prepare_android_ads || return
   if [[ -n "${GOOGLE_WEB_CLIENT_ID:-}" ]]; then
     android_release_args+=("--dart-define=GOOGLE_WEB_CLIENT_ID=$GOOGLE_WEB_CLIENT_ID")
   fi

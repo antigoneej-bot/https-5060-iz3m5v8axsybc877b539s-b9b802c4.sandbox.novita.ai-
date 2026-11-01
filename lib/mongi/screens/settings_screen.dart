@@ -1,3 +1,4 @@
+import '../../providers/cat_care_provider.dart';
 import '../../theme.dart' show AppColors;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
@@ -46,6 +47,8 @@ class SettingsScreen extends StatelessWidget {
                       ],
                       const SizedBox(height: 20),
                       _buildGardenMotionCard(context, garden),
+                      const SizedBox(height: 12),
+                      const _CompanionMotionSetting(),
                       const SizedBox(height: 20),
                       _buildAiReflectionCard(context, garden),
                       const SizedBox(height: 20),
@@ -402,7 +405,7 @@ class SettingsScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  '정원 생동감',
+                  '정원 배경 효과',
                   style: TextStyle(
                     fontWeight: FontWeight.w800,
                     fontSize: 16,
@@ -411,7 +414,7 @@ class SettingsScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '낮/밤 분위기, 반딧불이, 흔들림 애니메이션을 보여줘요. 꺼도 기록은 그대로예요.',
+                  '낙엽·물결·반짝임을 조절해요. 홈 고양이의 움직임은 별도로 설정해요.',
                   style: const TextStyle(
                     fontSize: 12.5,
                     color: AppColors.inkSoft,
@@ -744,5 +747,35 @@ class SettingsScreen extends StatelessWidget {
         notificationContent: notificationContent(l10n),
       );
     }
+  }
+}
+
+class _CompanionMotionSetting extends StatefulWidget {
+  const _CompanionMotionSetting();
+  @override
+  State<_CompanionMotionSetting> createState() => _CompanionMotionSettingState();
+}
+class _CompanionMotionSettingState extends State<_CompanionMotionSetting> {
+  bool _saving = false;
+  Future<void> _save(bool value) async {
+    if (_saving) return;
+    setState(() => _saving = true);
+    try {
+      await context.read<CatCareProvider>().setAutomaticBehavior(value);
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('고양이 움직임 설정을 저장하지 못했어요. 다시 시도해 주세요.')));
+    } finally { if (mounted) setState(() => _saving = false); }
+  }
+  @override
+  Widget build(BuildContext context) {
+    final care = context.watch<CatCareProvider>();
+    return Card(child: SwitchListTile.adaptive(
+      key: const Key('settings-companion-motion'),
+      title: const Text('고양이 움직임'),
+      subtitle: const Text('홈의 눈 깜박임·작은 몸짓을 켜요. 휴대폰의 동작 줄이기 설정을 존중해요.'),
+      value: care.journey.automaticBehavior,
+      onChanged: _saving || !care.journeyReady ? null : _save,
+    ));
   }
 }

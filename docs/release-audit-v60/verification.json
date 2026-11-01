@@ -1,0 +1,101 @@
+{
+  "version": "1.0.57+60",
+  "verdict": "C",
+  "flutter_tests_passed": 789,
+  "backend_tests_passed": 211,
+  "release_configuration_tests_passed": 3,
+  "analyze_errors": 0,
+  "analyze_existing_warnings": 4,
+  "asset_files_unchanged": 296,
+  "aab_bytes_before": 224583354,
+  "aab_bytes_after": 224635764,
+  "aab_delta_bytes": 52410,
+  "aab_sha256": "6ab71b0c1f93ed27700595a9bea3e493c67d21243919b52dcb131d03441ba6ce",
+  "bundletool_validation": "passed",
+  "signature": "verified; same original certificate",
+  "certificate_sha256": "bebaa59bc1c879a0a685ba3bd699a58010bc5e5f52ba24b5f63f0f6ccad7819b",
+  "target_sdk": 36,
+  "billing_library": "8.0.0",
+  "native_64bit_elf_alignment": [
+    {
+      "file": "base/lib/arm64-v8a/libapp.so",
+      "load_segment_alignments": [
+        65536,
+        65536,
+        65536
+      ],
+      "at_least_16kb": true
+    },
+    {
+      "file": "base/lib/arm64-v8a/libdatastore_shared_counter.so",
+      "load_segment_alignments": [
+        16384,
+        16384,
+        16384
+      ],
+      "at_least_16kb": true
+    },
+    {
+      "file": "base/lib/arm64-v8a/libflutter.so",
+      "load_segment_alignments": [
+        65536,
+        65536,
+        65536,
+        65536
+      ],
+      "at_least_16kb": true
+    },
+    {
+      "file": "base/lib/x86_64/libapp.so",
+      "load_segment_alignments": [
+        65536,
+        65536,
+        65536
+      ],
+      "at_least_16kb": true
+    },
+    {
+      "file": "base/lib/x86_64/libdatastore_shared_counter.so",
+      "load_segment_alignments": [
+        16384,
+        16384
+      ],
+      "at_least_16kb": true
+    },
+    {
+      "file": "base/lib/x86_64/libflutter.so",
+      "load_segment_alignments": [
+        65536,
+        65536,
+        65536,
+        65536
+      ],
+      "at_least_16kb": true
+    }
+  ],
+  "build_flags": {
+    "RELEASE_ENV": "audit",
+    "UNLOCK_ALL_PREMIUM": false,
+    "APP_CHECK_DEBUG_PROVIDER": false,
+    "TEST_SHOW_ONBOARDING": false
+  },
+  "live_server_deployment": "not performed",
+  "play_upload": "not performed",
+  "physical_device": "not tested",
+  "actual_billing": "not tested",
+  "firebase_rules_emulator": "not tested",
+  "policy_publication": "not performed",
+  "note": "Audit artifact only. Operator info and public URLs unresolved. Server test unlock may remain active until owner changes deployed settings.",
+  "apk_bytes": 242872916,
+  "apk_sha256": "c7dab5cfebe2820748fc615c50ce161477dea14ebac65438c04820533fec5686",
+  "apk_signature": "verified; original signing certificate",
+  "apk_zip_16kb_alignment": "passed",
+  "apk_before": "v59 APK not produced; no direct before comparison",
+  "min_sdk": 24,
+  "asset_integrity": {
+    "baseline_zip_sha256": "51b4aea81d0e4b2011e1a15c5a2fa936795b7dce0ff954dc4fc3df174a7973e3",
+    "assets_total": 296,
+    "assets_byte_identical": 296,
+    "private_key_literal_paths": []
+  }
+}

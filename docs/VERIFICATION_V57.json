@@ -1,0 +1,28 @@
+{
+  "version": "1.0.54+57",
+  "flutter_tests_passed": 784,
+  "static_analysis_errors": 0,
+  "static_analysis_warnings": 4,
+  "bundletool": "passed",
+  "signature": "verified; matches v56",
+  "certificate_sha256": "bebaa59bc1c879a0a685ba3bd699a58010bc5e5f52ba24b5f63f0f6ccad7819b",
+  "aab_size_bytes": 220462916,
+  "aab_sha256": "96ef620c8f96b534487f04d13313df14e9f03e0b4bc3cb5f1eadd1e7ecfc10d2",
+  "premium_test_access": true,
+  "test_show_onboarding": true,
+  "play_upload": "not performed",
+  "server_changes": "none; redeployment not required",
+  "physical_device_test": "not performed",
+  "checks": [
+    "Color region segmentation, clipped brush/fill/eraser pixels and persistence",
+    "Portrait and landscape full coloring viewport, foldable tools",
+    "Landscape garden controls operate while canvas fills viewport",
+    "Welcome replay once per test session; existing name preserved",
+    "Four page menu descriptions removed except all features"
+  ],
+  "limitations": [
+    "Existing paintings retained including earlier out-of-bound strokes",
+    "One detailed love-cat design; legacy designs retained",
+    "Full-screen cover may crop edges; pan or whole-image fit available"
+  ]
+}

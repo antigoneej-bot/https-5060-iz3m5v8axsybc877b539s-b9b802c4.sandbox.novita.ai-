@@ -2,6 +2,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../data/notices_data.dart';
 import '../models/notice.dart';
 import 'cloud_service.dart';
+import 'garden_bell.dart';
+import 'notification_service.dart';
 
 /// 정원소식(구 "공지사항")을 가져오고 읽음 상태를 관리합니다.
 ///
@@ -12,6 +14,7 @@ import 'cloud_service.dart';
 /// 없으면 빈 목록을 반환합니다 - 가짜 소식을 지어내지 않습니다.
 class NoticeService {
   static const String _readIdsKey = 'notice_read_ids';
+  static String? _cacheOwner;
 
   /// 마지막으로 성공적으로 가져온 목록(메모리 캐시). [fetchNotices]를 아직
   /// 호출하지 않았거나 매번 네트워크를 기다리기 어려운 화면(홈 미리보기
@@ -43,21 +46,46 @@ class NoticeService {
   static Future<List<Notice>> fetchNotices({bool reportErrors = false}) async {
     if (!CloudService.enabled) {
       if (reportErrors) throw StateError('정원소식 연결을 준비 중이에요.');
-      return _cache;
+      return cachedNotices();
     }
     try {
+      final owner = CloudService.currentUser?.uid;
       final raw = await CloudService.listGardenNews();
-      _cache = raw.map(Notice.fromJson).toList();
-      return _cache;
+      if (CloudService.currentUser?.uid != owner) {
+        throw const CloudException('account-changed');
+      }
+      final notices = raw.map(Notice.fromJson).toList();
+      // Cached home previews never retain operator-only meeting links or cleanup rows.
+      _cache = raw.where((row) => row['deleting'] != true).map((row) {
+        final safe = Map<String, dynamic>.from(row)
+          ..remove('meetingUrl')
+          ..remove('deleting');
+        return Notice.fromJson(safe);
+      }).toList();
+      _cacheOwner = owner;
+      if (owner != null) {
+        try {
+          final fresh = await GardenBell.newNotices(
+            owner,
+            _cache.map((n) => n.id).toList(),
+          );
+          if (fresh && CloudService.currentUser?.uid == owner)
+            await NotificationService().showGardenUpdate('notice');
+        } catch (_) {
+          /* A sound failure must never hide notices. */
+        }
+      }
+      return notices;
     } catch (_) {
       if (reportErrors) rethrow;
-      return _cache;
+      return cachedNotices();
     }
   }
 
   /// 마지막으로 가져온 목록을 네트워크 호출 없이 즉시 돌려준다(홈 화면
   /// 미리보기 카드처럼 동기적으로 그려야 하는 자리에서 사용).
-  static List<Notice> cachedNotices() => _cache;
+  static List<Notice> cachedNotices() =>
+      _cacheOwner == CloudService.currentUser?.uid ? _cache : const [];
 
   static Future<Set<String>> _readIds() async {
     final prefs = await SharedPreferences.getInstance();

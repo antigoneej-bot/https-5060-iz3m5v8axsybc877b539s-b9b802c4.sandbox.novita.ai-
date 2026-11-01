@@ -1,10 +1,16 @@
+import 'dart:ui' as ui;
+import 'package:flutter/rendering.dart';
+import 'package:gal/gal.dart';
+import '../../models/cat_visit.dart';
 import 'dart:async';
+import 'package:flutter/services.dart';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../services/garden_village_service.dart';
+import '../../services/cloud_service.dart';
 import '../../services/social_auth_service.dart';
 import '../../theme.dart' show AppColors;
 import '../../widgets/account_entry_card.dart';
@@ -23,8 +29,14 @@ class GardenVisitScreen extends StatefulWidget {
     this.nickname,
     this.service,
     this.accountReady,
+    this.visitId,
+    this.publicDiscovery = false,
+    this.onNextGarden,
   });
   final String gardenId;
+  final bool publicDiscovery;
+  final Future<void> Function()? onNextGarden;
+  final String? visitId;
   final String? nickname;
   final GardenVillageService? service;
   final Future<bool> Function()? accountReady;
@@ -32,10 +44,21 @@ class GardenVisitScreen extends StatefulWidget {
   State<GardenVisitScreen> createState() => _GardenVisitScreenState();
 }
 
-class _GardenVisitScreenState extends State<GardenVisitScreen> {
+class _GardenVisitScreenState extends State<GardenVisitScreen>
+    with WidgetsBindingObserver {
   late GardenVillageService _service;
   StreamSubscription<User?>? _auth;
   PublicGarden? _garden;
+  CatVisit? _visit;
+  Timer? _visitTimer;
+  Timer? _publicTimer;
+  bool _favorite = false,
+      _overview = false,
+      _publicChecking = false,
+      _orientationSet = false;
+  int _favoriteRevision = 0;
+  String _visitActivity = 'greet';
+  final _photoKey = GlobalKey();
   bool _loading = true, _busy = false, _needsAccount = false;
   bool _neighbor = false, _outgoing = false, _incoming = false;
   bool _cheered = false, _gifted = false;
@@ -48,6 +71,19 @@ class _GardenVisitScreenState extends State<GardenVisitScreen> {
     super.initState();
     _service = widget.service ?? GardenVillageService();
     _owner = _service.accountOwner;
+    if (widget.publicDiscovery) {
+      WidgetsBinding.instance.addObserver(this);
+      _publicTimer = Timer.periodic(
+        const Duration(seconds: 15),
+        (_) => _revalidatePublic(),
+      );
+    }
+    if (widget.visitId != null) {
+      _visitTimer = Timer.periodic(
+        const Duration(seconds: 30),
+        (_) => _checkVisit(),
+      );
+    }
     if (SocialAuthService.firebaseReady) {
       _auth = FirebaseAuth.instance.authStateChanges().listen((user) {
         if (!mounted || user?.uid == _owner) return;
@@ -56,6 +92,7 @@ class _GardenVisitScreenState extends State<GardenVisitScreen> {
         _service = widget.service ?? GardenVillageService();
         setState(() {
           _garden = null;
+          _visit = null;
           _cheered = false;
           _gifted = false;
           _giftRequests.clear();
@@ -70,6 +107,10 @@ class _GardenVisitScreenState extends State<GardenVisitScreen> {
   void dispose() {
     _request++;
     _auth?.cancel();
+    _visitTimer?.cancel();
+    _publicTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    if (_orientationSet) unawaited(SystemChrome.setPreferredOrientations([]));
     super.dispose();
   }
 
@@ -80,6 +121,7 @@ class _GardenVisitScreenState extends State<GardenVisitScreen> {
       _loading = true;
       _needsAccount = false;
       _garden = null;
+      _visit = null;
       _error = null;
     });
     try {
@@ -94,14 +136,33 @@ class _GardenVisitScreenState extends State<GardenVisitScreen> {
         });
         return;
       }
-      final garden = await _service.getGarden(widget.gardenId);
-      final people = await _service.listNeighbors();
+      final visit = widget.visitId == null
+          ? null
+          : await _service.getCatVisit(widget.visitId!);
+      if (visit != null &&
+          (visit.hostId != widget.gardenId || visit.guestCat == null)) {
+        throw const FormatException('초대받은 정원을 확인하지 못했어요.');
+      }
+      final garden = widget.publicDiscovery
+          ? await _service.getPublicVisitGarden(widget.gardenId)
+          : await _service.getGarden(widget.gardenId);
+      final people = widget.publicDiscovery
+          ? null
+          : await _service.listNeighbors();
       if (!mounted || request != _request) return;
       setState(() {
         _garden = garden;
-        _neighbor = people.neighbors.any((p) => p.gardenId == widget.gardenId);
-        _outgoing = people.outgoing.any((p) => p.gardenId == widget.gardenId);
-        _incoming = people.incoming.any((p) => p.gardenId == widget.gardenId);
+        _visit = visit;
+        _favorite = garden.isFavorite;
+        _neighbor =
+            people?.neighbors.any((p) => p.gardenId == widget.gardenId) ??
+            garden.neighborStatus == 'accepted';
+        _outgoing =
+            people?.outgoing.any((p) => p.gardenId == widget.gardenId) ??
+            garden.neighborStatus == 'outgoing';
+        _incoming =
+            people?.incoming.any((p) => p.gardenId == widget.gardenId) ??
+            garden.neighborStatus == 'incoming';
         _loading = false;
         _needsAccount = false;
       });
@@ -113,6 +174,52 @@ class _GardenVisitScreenState extends State<GardenVisitScreen> {
         });
       }
     }
+  }
+
+  Future<void> _checkVisit() async {
+    if (!mounted ||
+        _loading ||
+        _busy ||
+        widget.visitId == null ||
+        _visit == null)
+      return;
+    final request = _request;
+    try {
+      await _service.getCatVisit(widget.visitId!);
+    } catch (_) {
+      if (mounted && request == _request)
+        setState(() {
+          _visit = null;
+          _garden = null;
+          _error = '방문이 끝났어요. 우리 고양이와 돌아가요.';
+        });
+    }
+  }
+
+  Future<void> _photo() async {
+    if (_visit == null) return;
+    await _perform(() async {
+      final request = _request;
+      await _service.getCatVisit(widget.visitId!);
+      if (!mounted || request != _request || _visit == null) return;
+      await WidgetsBinding.instance.endOfFrame;
+      final boundary =
+          _photoKey.currentContext?.findRenderObject()
+              as RenderRepaintBoundary?;
+      if (boundary == null) throw StateError('사진을 다시 찍어 주세요.');
+      final image = await boundary.toImage(pixelRatio: 2);
+      try {
+        final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+        if (bytes == null) throw StateError('사진을 만들지 못했어요.');
+        if (!mounted || request != _request) return;
+        await Gal.putImageBytes(
+          bytes.buffer.asUint8List(),
+          name: 'mindnyang_visit_${DateTime.now().millisecondsSinceEpoch}',
+        );
+      } finally {
+        image.dispose();
+      }
+    }, '함께 찍은 사진을 휴대폰 사진첩에 저장했어요.');
   }
 
   void _message(String message) {
@@ -137,7 +244,16 @@ class _GardenVisitScreenState extends State<GardenVisitScreen> {
       _message(message);
       if (reload) await _load();
     } catch (error) {
-      if (mounted && request == _request) _message(error.toString());
+      if (mounted && request == _request) {
+        if (widget.publicDiscovery &&
+            error is CloudException &&
+            error.code == 'garden-not-found')
+          setState(() {
+            _garden = null;
+            _error = '공개가 해제되었거나 지금 방문할 수 없는 정원이에요.';
+          });
+        _message(error.toString());
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -353,12 +469,248 @@ class _GardenVisitScreenState extends State<GardenVisitScreen> {
       } else {
         await _service.removeNeighbor(widget.gardenId);
       }
-      if (mounted) Navigator.pop(context);
+      if (mounted && widget.publicDiscovery && widget.onNextGarden != null) {
+        await widget.onNextGarden!();
+      } else if (mounted)
+        Navigator.pop(context);
     }, block ? '이웃을 차단했어요.' : '이웃 연결을 해제했어요.');
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (widget.publicDiscovery && state == AppLifecycleState.resumed)
+      unawaited(_revalidatePublic());
+  }
+
+  Future<void> _revalidatePublic() async {
+    if (!mounted ||
+        !widget.publicDiscovery ||
+        _loading ||
+        _busy ||
+        _publicChecking ||
+        _garden == null ||
+        ModalRoute.of(context)?.isCurrent == false)
+      return;
+    if (WidgetsBinding.instance.lifecycleState == AppLifecycleState.paused)
+      return;
+    final request = _request, favoriteRevision = _favoriteRevision;
+    _publicChecking = true;
+    try {
+      final garden = await _service.getPublicVisitGarden(widget.gardenId);
+      if (mounted &&
+          request == _request &&
+          favoriteRevision == _favoriteRevision)
+        setState(() {
+          _garden = garden;
+          _favorite = garden.isFavorite;
+        });
+    } catch (error) {
+      if (mounted && request == _request)
+        setState(() {
+          _garden = null;
+          _error = error is CloudException && error.code == 'garden-not-found'
+              ? '공개가 해제되었거나 지금 방문할 수 없는 정원이에요.'
+              : '정원 상태를 확인하지 못했어요. 연결을 확인하고 다시 시도해 주세요.';
+        });
+    } finally {
+      _publicChecking = false;
+    }
+  }
+
+  Future<void> _toggleFavorite() async {
+    if (_busy || _garden == null) return;
+    final next = !_favorite;
+    _favoriteRevision++;
+    await _perform(() async {
+      await _service.setFavorite(widget.gardenId, next);
+      if (mounted) setState(() => _favorite = next);
+    }, next ? '즐겨찾기에 담았어요. 이웃 연결이나 기록 공유는 생기지 않아요.' : '즐겨찾기를 해제했어요.');
+  }
+
+  Future<void> _rotatePublic() async {
+    _orientationSet = true;
+    final landscape =
+        MediaQuery.orientationOf(context) == Orientation.landscape;
+    try {
+      await SystemChrome.setPreferredOrientations(
+        landscape
+            ? [DeviceOrientation.portraitUp]
+            : [
+                DeviceOrientation.landscapeLeft,
+                DeviceOrientation.landscapeRight,
+              ],
+      );
+    } catch (_) {
+      if (mounted) _message('기기의 화면 회전 설정을 확인해 주세요.');
+    }
+  }
+
+  Widget _publicView() {
+    final garden = _garden;
+    final name = garden?.nickname ?? '이웃';
+    final cat = garden?.publicCoat == null
+        ? null
+        : VisitingCat(
+            coat: garden!.publicCoat!,
+            stage: garden.publicCatStage,
+            name: '이웃 고양이',
+          );
+    return Scaffold(
+      backgroundColor: AppColors.bg0,
+      appBar: AppBar(
+        backgroundColor: AppColors.bg0,
+        title: Text(
+          garden == null ? '이웃 정원' : '$name의 정원',
+          overflow: TextOverflow.ellipsis,
+        ),
+        actions: [
+          IconButton(
+            key: const Key('public-garden-favorite'),
+            tooltip: _favorite ? '즐겨찾기 해제' : '즐겨찾기',
+            onPressed: _busy || garden == null ? null : _toggleFavorite,
+            icon: Icon(_favorite ? Icons.star : Icons.star_border),
+          ),
+          PopupMenuButton<String>(
+            tooltip: '신고와 차단',
+            enabled: !_busy && garden != null,
+            onSelected: _manage,
+            itemBuilder: (_) => const [
+              PopupMenuItem(value: 'block', child: Text('차단')),
+              PopupMenuItem(value: 'report', child: Text('신고')),
+            ],
+          ),
+        ],
+      ),
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: _loading
+                ? const Center(child: CircularProgressIndicator())
+                : _needsAccount
+                ? Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: AccountEntryCard(onChanged: _load),
+                  )
+                : garden == null
+                ? Center(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            _error ?? '지금 방문할 수 없는 정원이에요.',
+                            textAlign: TextAlign.center,
+                          ),
+                          OutlinedButton(
+                            onPressed: _load,
+                            child: const Text('다시 확인하기'),
+                          ),
+                          if (widget.onNextGarden != null)
+                            FilledButton(
+                              onPressed: widget.onNextGarden,
+                              child: const Text('다른 정원으로'),
+                            ),
+                        ],
+                      ),
+                    ),
+                  )
+                : garden.layout == null
+                ? const Center(child: Text('이웃이 정원 모습을 아직 갱신하지 않았어요.'))
+                : GardenWorldView(
+                    key: ValueKey(
+                      'public-world:${_service.accountOwner}:${widget.gardenId}',
+                    ),
+                    readOnly: true,
+                    fillViewport: true,
+                    immersive: true,
+                    overviewRequested: _overview,
+                    visitingHost: cat,
+                    companionName: cat?.name ?? '이웃 고양이',
+                    companionScale: cat?.scale ?? 1,
+                    companionBondStage: cat?.stage ?? 0,
+                    publicMemoryStage: garden.memoryTreeStage,
+                    publicCheerBed: garden.hasCheerFlowers,
+                    reactions: garden.reactions,
+                    flowerKinds: garden.flowerKinds,
+                    layout: garden.layout!,
+                    seeds: garden.seedCounts,
+                    decorations: garden.equippedDecorationIds,
+                    onMove: (_, _) async {},
+                    onMemory: (_) {},
+                    onPlant: () {},
+                    onDecorate: () {},
+                  ),
+          ),
+          if (garden != null && !_loading)
+            Positioned(
+              left: 8,
+              right: 8,
+              bottom: 0,
+              child: SafeArea(
+                top: false,
+                child: Card(
+                  color: AppColors.bg0.withValues(alpha: .96),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 4,
+                      vertical: 2,
+                    ),
+                    child: Row(
+                      children: [
+                        IconButton(
+                          key: const Key('public-garden-overview'),
+                          tooltip: '전체 보기',
+                          onPressed: () =>
+                              setState(() => _overview = !_overview),
+                          icon: const Icon(Icons.zoom_out_map),
+                        ),
+                        IconButton(
+                          key: const Key('public-garden-rotate'),
+                          tooltip: '가로·세로 전환',
+                          onPressed: _rotatePublic,
+                          icon: const Icon(Icons.screen_rotation_outlined),
+                        ),
+                        IconButton(
+                          key: const Key('public-garden-cheer'),
+                          tooltip: _cheered ? '응원 보냈어요' : '응원꽃 보내기',
+                          onPressed: _busy || _cheered ? null : () => _cheer(),
+                          icon: Icon(
+                            _cheered ? Icons.favorite : Icons.favorite_border,
+                            color: AppColors.catSage,
+                          ),
+                        ),
+                        const Spacer(),
+                        if (widget.onNextGarden != null)
+                          Flexible(
+                            flex: 5,
+                            child: FilledButton(
+                              key: const Key('public-garden-next'),
+                              onPressed: _busy ? null : widget.onNextGarden,
+                              child: const Text('다른 정원으로', maxLines: 1),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          if (_busy)
+            const Positioned(
+              left: 0,
+              right: 0,
+              top: 0,
+              child: LinearProgressIndicator(),
+            ),
+        ],
+      ),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
+    if (widget.publicDiscovery) return _publicView();
     final name = _garden?.nickname ?? widget.nickname ?? '이웃';
     return Scaffold(
       backgroundColor: AppColors.bg0,
@@ -421,22 +773,35 @@ class _GardenVisitScreenState extends State<GardenVisitScreen> {
                             child: Text('이웃이 정원 모습을 아직 갱신하지 않았어요.'),
                           ),
                         )
-                      : GardenWorldView(
-                          key: ValueKey(
-                            '${_service.accountOwner}:${widget.gardenId}',
+                      : RepaintBoundary(
+                          key: _photoKey,
+                          child: ColoredBox(
+                            color: AppColors.bg0,
+                            child: GardenWorldView(
+                              key: ValueKey(
+                                '${_service.accountOwner}:${widget.gardenId}',
+                              ),
+                              readOnly: true,
+                              fillViewport: _visit != null,
+                              visitingHost: _visit?.hostCat,
+                              visitingGuest: _visit?.guestCat,
+                              visitActivity: _visitActivity,
+                              companionName: _visit?.hostCat.name ?? '이웃 고양이',
+                              companionScale: _visit?.hostCat.scale ?? 1,
+                              companionBondStage: _visit?.hostCat.stage ?? 0,
+                              publicMemoryStage: _garden!.memoryTreeStage,
+                              publicCheerBed: _garden!.hasCheerFlowers,
+                              reactions: _garden!.reactions,
+                              flowerKinds: _garden!.flowerKinds,
+                              layout: _garden!.layout!,
+                              seeds: _garden!.seedCounts,
+                              decorations: _garden!.equippedDecorationIds,
+                              onMove: (_, _) async {},
+                              onMemory: (_) {},
+                              onPlant: () {},
+                              onDecorate: () {},
+                            ),
                           ),
-                          readOnly: true,
-                          publicMemoryStage: _garden!.memoryTreeStage,
-                          publicCheerBed: _garden!.hasCheerFlowers,
-                          reactions: _garden!.reactions,
-                          flowerKinds: _garden!.flowerKinds,
-                          layout: _garden!.layout!,
-                          seeds: _garden!.seedCounts,
-                          decorations: _garden!.equippedDecorationIds,
-                          onMove: (_, _) async {},
-                          onMemory: (_) {},
-                          onPlant: () {},
-                          onDecorate: () {},
                         ),
                 ),
                 SafeArea(
@@ -447,6 +812,43 @@ class _GardenVisitScreenState extends State<GardenVisitScreen> {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       mainAxisSize: MainAxisSize.min,
                       children: [
+                        if (_visit != null) ...[
+                          Text(
+                            '${_visit!.guestCat!.name}와 함께 방문 중 · 초대 당시의 고양이 모습이에요',
+                          ),
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 4,
+                            children: [
+                              for (final activity in const {
+                                'greet': '인사하기',
+                                'walk': '함께 산책',
+                                'rest': '함께 쉬기',
+                              }.entries)
+                                ChoiceChip(
+                                  label: Text(activity.value),
+                                  selected: _visitActivity == activity.key,
+                                  onSelected: _busy
+                                      ? null
+                                      : (_) => setState(
+                                          () => _visitActivity = activity.key,
+                                        ),
+                                ),
+                              IconButton(
+                                key: const Key('visit-photo'),
+                                tooltip: '함께 사진 찍기',
+                                onPressed: _busy ? null : _photo,
+                                icon: const Icon(Icons.camera_alt_outlined),
+                              ),
+                              TextButton(
+                                onPressed: _busy
+                                    ? null
+                                    : () => Navigator.pop(context),
+                                child: const Text('방문 마치기'),
+                              ),
+                            ],
+                          ),
+                        ],
                         if (!_neighbor)
                           OutlinedButton.icon(
                             onPressed: _busy || _outgoing

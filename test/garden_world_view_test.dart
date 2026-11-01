@@ -1,3 +1,6 @@
+import 'package:audioplayers_platform_interface/audioplayers_platform_interface.dart';
+import 'support/fake_audioplayers_platform.dart';
+import 'support/fake_global_audioplayers_platform.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_app/mongi/widgets/garden_cat_pose.dart';
 import 'package:flutter_app/mongi/widgets/garden_grounded_art.dart';
@@ -8,8 +11,279 @@ import 'package:flutter_app/mongi/widgets/garden_ambient.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_app/mongi/models/garden_layout.dart';
 import 'package:flutter_app/mongi/widgets/garden_world_view.dart';
+import 'package:flutter_app/mongi/widgets/living_garden_scene.dart';
 
 void main() {
+  testWidgets(
+    'inspection preserves plant bounds and root, persists beyond flash, and tracks real watering',
+    (t) async {
+      t.view.physicalSize = const Size(390, 844);
+      t.view.devicePixelRatio = 1;
+      addTearDown(t.view.resetPhysicalSize);
+      addTearDown(t.view.resetDevicePixelRatio);
+      final layout = GardenLayout(
+        positions: const {'seed:pine': Offset(.36, .55)},
+      );
+      Future<void> show({
+        String? focus,
+        bool watered = false,
+        bool readOnly = false,
+      }) async {
+        await t.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: GardenWorldView(
+                layout: layout,
+                seeds: const {'pine': 1},
+                decorations: const [],
+                motionEnabled: false,
+                fillViewport: true,
+                cultivationMode: true,
+                focusPlantId: focus,
+                plantFocusRequest: focus == null ? 0 : 1,
+                wateredOn: watered
+                    ? {
+                        'pine': DateTime.now().toIso8601String().substring(
+                          0,
+                          10,
+                        ),
+                      }
+                    : const {},
+                readOnly: readOnly,
+                onInspectPlant: (_) {},
+                onMove: (_, __) async {},
+                onMemory: (_) {},
+                onPlant: () {},
+                onDecorate: () {},
+              ),
+            ),
+          ),
+        );
+        await t.pumpAndSettle();
+      }
+
+      await show();
+      final art = find.byType(GardenPlantArt);
+      final size = t.getSize(art);
+      final position = t.widget<AnimatedPositioned>(
+        find.byKey(const ValueKey('world-position-seed:pine')),
+      );
+      await show(focus: 'pine');
+      final groundStack = t.widget<SizedBox>(find.byKey(const Key('garden-world-ground'))).child! as Stack;
+      final haloIndex = groundStack.children.indexWhere((w) => w.key == const Key('located-plant-highlight'));
+      final itemsIndex = groundStack.children.indexWhere((w) => w.key == const Key('garden-item-layer'));
+      expect(haloIndex, greaterThanOrEqualTo(0));
+      expect(haloIndex, lessThan(itemsIndex), reason: 'Halo must never paint over plant artwork or its name');
+      expect(
+        t.getSize(art),
+        size,
+        reason: 'Selection must not add layout padding',
+      );
+      final selected = t.widget<AnimatedPositioned>(
+        find.byKey(const ValueKey('world-position-seed:pine')),
+      );
+      expect(selected.top, position.top);
+      expect(selected.left, position.left);
+      expect(find.byKey(const ValueKey('needs-water-pine')), findsOneWidget);
+      await t.pump(const Duration(seconds: 4));
+      expect(find.byKey(const Key('located-plant-highlight')), findsOneWidget);
+      await show(focus: 'pine', watered: true);
+      expect(find.byKey(const ValueKey('needs-water-pine')), findsNothing);
+      t.view.physicalSize = const Size(844, 390);
+      await t.pumpAndSettle();
+      final camera = t.widget<InteractiveViewer>(
+        find.byKey(const Key('garden-world-camera')),
+      );
+      final ground = MatrixUtils.transformPoint(
+        camera.transformationController!.value,
+        const Offset(.36 * 2400, .55 * 800),
+      );
+      expect(
+        ground.dx,
+        inInclusiveRange(
+          0,
+          t.getSize(find.byKey(const Key('garden-world-camera'))).width,
+        ),
+      );
+      expect(
+        ground.dy,
+        inInclusiveRange(
+          0,
+          t.getSize(find.byKey(const Key('garden-world-camera'))).height,
+        ),
+      );
+      await show(focus: 'pine', readOnly: true);
+      expect(find.byKey(const Key('plant-focus-backdrop')), findsNothing);
+      expect(find.byKey(const Key('located-plant-highlight')), findsNothing);
+      expect(find.byKey(const ValueKey('plant-soil-seed:pine')), findsNothing);
+      expect(t.takeException(), isNull);
+      await t.pumpWidget(const SizedBox());
+    },
+  );
+  setUpAll(() {
+    AudioplayersPlatformInterface.instance = FakeAudioplayersPlatform();
+    GlobalAudioplayersPlatformInterface.instance =
+        FakeGlobalAudioplayersPlatform();
+  });
+  testWidgets(
+    'locating a saved pine brings its original coordinate into view',
+    (t) async {
+      t.view.physicalSize = const Size(390, 844);
+      t.view.devicePixelRatio = 1;
+      addTearDown(t.view.resetPhysicalSize);
+      addTearDown(t.view.resetDevicePixelRatio);
+      final layout = GardenLayout(
+        positions: const {'seed:pine': Offset(.36, .55)},
+      );
+      Future<void> show(int request, {bool readOnly = false}) async {
+        await t.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: GardenWorldView(
+                fillViewport: true,
+                motionEnabled: false,
+                readOnly: readOnly,
+                layout: layout,
+                seeds: const {'pine': 1},
+                decorations: const [],
+                focusPlantId: 'pine',
+                plantFocusRequest: request,
+                onMove: (_, __) async {},
+                onMemory: (_) {},
+                onPlant: () {},
+                onDecorate: () {},
+              ),
+            ),
+          ),
+        );
+        await t.pumpAndSettle();
+      }
+
+      await show(0);
+      final camera = find.byKey(const Key('garden-world-camera'));
+      final before = t
+          .widget<InteractiveViewer>(camera)
+          .transformationController!
+          .value
+          .clone();
+      await show(1);
+      final after = t
+          .widget<InteractiveViewer>(camera)
+          .transformationController!
+          .value
+          .clone();
+      expect(after.storage[12], greaterThan(before.storage[12]));
+      final point = MatrixUtils.transformPoint(
+        after,
+        const Offset(.36 * 2400, .55 * 800),
+      );
+      expect(point.dx, inInclusiveRange(0, t.getSize(camera).width));
+      expect(layout.positions['seed:pine'], const Offset(.36, .55));
+      expect(
+        find.byKey(const ValueKey('plant-soil-seed:pine')),
+        findsOneWidget,
+      );
+      await show(2, readOnly: true);
+      expect(find.byKey(const ValueKey('plant-soil-seed:pine')), findsNothing);
+      expect(find.byKey(const Key('plant-focus-backdrop')), findsNothing);
+      expect(
+        t.widget<InteractiveViewer>(camera).transformationController!.value,
+        after,
+      );
+      expect(t.takeException(), isNull);
+      await t.pumpWidget(const SizedBox());
+    },
+  );
+  testWidgets(
+    'garden goals show growth and never offer public garden expansion',
+    (t) async {
+      Future<void> show(bool readOnly) async {
+        await t.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: GardenWorldView(
+                immersive: true,
+                motionEnabled: false,
+                readOnly: readOnly,
+                layout: GardenLayout(spaces: 2),
+                seeds: const {'love': 3},
+                decorations: const [],
+                onMove: (_, __) async {},
+                onMemory: (_) {},
+                onPlant: () {},
+                onDecorate: () {},
+              ),
+            ),
+          ),
+        );
+        await t.pumpAndSettle();
+      }
+
+      await show(false);
+      final goals = find.byKey(const Key('garden-growth-goals'));
+      await t.ensureVisible(goals);
+      await t.tap(goals);
+      await t.pumpAndSettle();
+      expect(find.text('다음 땅까지 성장 5회'), findsOneWidget);
+      expect(find.text('작은 정원'), findsOneWidget);
+      expect(find.text('꽃밭'), findsOneWidget);
+      expect(find.text('나무 뜰'), findsOneWidget);
+      await t.tap(find.text('꽃밭'));
+      await t.pumpAndSettle();
+      expect(find.text('다음 땅까지 성장 5회'), findsNothing);
+      await show(true);
+      expect(find.byKey(const Key('garden-growth-goals')), findsNothing);
+      expect(t.takeException(), isNull);
+      await t.pumpWidget(const SizedBox());
+    },
+  );
+  testWidgets('private cat care opens on tap; public cats cannot mutate care', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    var calls = 0;
+    Future<void> show(bool readOnly, double scale) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: GardenWorldView(
+              readOnly: readOnly,
+              motionEnabled: false,
+              companionScale: scale,
+              onCompanionCare: () => calls++,
+              layout: GardenLayout(spaces: 3),
+              seeds: const {},
+              decorations: const [],
+              onMove: (_, __) async {},
+              onMemory: (_) {},
+              onPlant: () {},
+              onDecorate: () {},
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    await show(false, .82);
+    final cat = find.byKey(const Key('garden-companion'));
+    final small = tester.getRect(cat);
+    await tester.tap(cat);
+    expect(calls, 1);
+    await show(false, 1);
+    final grown = tester.getRect(cat);
+    expect(grown.width, greaterThan(small.width));
+    expect(grown.bottom, closeTo(small.bottom, .01));
+    await show(true, 1);
+    await tester.tap(cat);
+    await tester.pump();
+    expect(calls, 1);
+    expect(tester.takeException(), isNull);
+  });
+
   Future<void> showWorld(
     WidgetTester tester, {
     double width = 390,
@@ -18,6 +292,8 @@ void main() {
     bool reduced = true,
     bool motionEnabled = true,
     bool readOnly = false,
+    VoidCallback? companionCare,
+    double companionScale = 1,
     List<GardenReaction> reactions = const [],
     int publicMemoryStage = 0,
     bool publicCheerBed = false,
@@ -48,6 +324,8 @@ void main() {
                 layout: layout,
                 motionEnabled: motionEnabled,
                 readOnly: readOnly,
+                onCompanionCare: companionCare,
+                companionScale: companionScale,
                 reactions: reactions,
                 publicMemoryStage: publicMemoryStage,
                 publicCheerBed: publicCheerBed,
@@ -124,28 +402,39 @@ void main() {
     await tester.pump();
   }
 
-  testWidgets('resting the cat freezes the route and resumes at the same place', (tester) async {
-    await showWorld(tester, reduced: false);
-    await tester.tap(find.byTooltip('고양이 산책하기'));
-    await tester.pump();
-    await tester.pump(const Duration(seconds: 2));
-    // Measure the bottom-anchored foot point, not the top-left: resting
-    // keeps a slight idle breathing scale that bulges upward from the
-    // feet, so the top edge jitters by design while the feet stay put.
-    final before = tester.getBottomLeft(find.byType(GardenCatPose));
-    await tester.tap(find.byTooltip('고양이 앉아서 쉬기'));
-    await tester.pump();
-    await tester.pump(const Duration(seconds: 8));
-    expect((tester.getBottomLeft(find.byType(GardenCatPose)) - before).distance,
-        lessThan(.01));
-    expect(tester.widget<GardenBenchMoonlight>(find.byType(GardenBenchMoonlight)).seated,
-        isFalse);
-    await tester.tap(find.byTooltip('고양이 산책하기'));
-    await tester.pump();
-    expect((tester.getBottomLeft(find.byType(GardenCatPose)) - before).distance,
-        lessThan(.01));
-    await tester.pumpWidget(const SizedBox.shrink());
-  });
+  testWidgets(
+    'resting the cat freezes the route and resumes at the same place',
+    (tester) async {
+      await showWorld(tester, reduced: false);
+      await tester.tap(find.byTooltip('고양이 산책하기'));
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 2));
+      // Measure the bottom-anchored foot point, not the top-left: resting
+      // keeps a slight idle breathing scale that bulges upward from the
+      // feet, so the top edge jitters by design while the feet stay put.
+      final before = tester.getBottomLeft(find.byType(GardenCatPose));
+      await tester.tap(find.byTooltip('고양이 앉아서 쉬기'));
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 8));
+      expect(
+        (tester.getBottomLeft(find.byType(GardenCatPose)) - before).distance,
+        lessThan(.01),
+      );
+      expect(
+        tester
+            .widget<GardenBenchMoonlight>(find.byType(GardenBenchMoonlight))
+            .seated,
+        isFalse,
+      );
+      await tester.tap(find.byTooltip('고양이 산책하기'));
+      await tester.pump();
+      expect(
+        (tester.getBottomLeft(find.byType(GardenCatPose)) - before).distance,
+        lessThan(.01),
+      );
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
 
   testWidgets('camera pans, zooms and can return home', (tester) async {
     await showWorld(tester);
@@ -262,14 +551,10 @@ void main() {
   ) async {
     await showWorld(tester, reduced: false);
     final bench = find.byKey(const ValueKey('world-item-decor:bench'));
-    // The wide-garden layout (AspectRatio 1.25, depth-scaled art) renders the
-    // bench at a different on-screen size than the old portrait layout;
-    // this reflects the intentional ZIP layout change, not a test bug.
-    // Flutter's layout pass can round the final pixel values slightly
-    // (e.g. off by 1e-4), so compare with a tolerance instead of exact.
+    // Default ground row y=.665: width=220*(.88+(.665-.52)*.55).
     final benchSize = tester.getSize(bench);
-    expect(benchSize.width, closeTo(209.935, 0.01));
-    expect(benchSize.height, closeTo(162.027, 0.01));
+    expect(benchSize.width, closeTo(211.145, 0.01));
+    expect(benchSize.height, closeTo(162.834, 0.01));
     await openTools(tester);
     await tester.tap(find.text('물 주기'));
     await tester.pump();
@@ -291,16 +576,26 @@ void main() {
     expect(find.text('물주기 마치기'), findsNothing);
     await tester.pumpWidget(const SizedBox());
   });
-  testWidgets('failed watering does not show a saved growth or water effect', (tester) async {
-    await showWorld(tester, water: (_) async => throw StateError('disk failure'));
+  testWidgets('failed watering does not show a saved growth or water effect', (
+    tester,
+  ) async {
+    await showWorld(
+      tester,
+      water: (_) async => throw StateError('disk failure'),
+    );
     await openTools(tester);
     await tester.tap(find.text('물 주기'));
     await tester.pump();
     await tester.tap(find.byKey(const ValueKey('world-item-seed:love')));
     await tester.pumpAndSettle();
     expect(find.text('물주기를 저장하지 못했어요. 다시 시도해 주세요.'), findsOneWidget);
-    expect(tester.widgetList<CustomPaint>(find.byType(CustomPaint))
-      .map((w) => w.painter).whereType<GardenWaterDrops>(), isEmpty);
+    expect(
+      tester
+          .widgetList<CustomPaint>(find.byType(CustomPaint))
+          .map((w) => w.painter)
+          .whereType<GardenWaterDrops>(),
+      isEmpty,
+    );
   });
 
   testWidgets('watering works without animation under reduced motion', (
@@ -354,7 +649,7 @@ void main() {
       await tester.tap(find.text('기억의 나무'));
       await tester.tap(find.text('응원 꽃'));
       expect([memories, flowers], [1, 1]);
-      expect(find.byKey(const Key('garden-memory-tree')), findsOneWidget);
+      expect(find.byKey(const Key('garden-memory-tree')), findsNothing);
       await showWorld(
         tester,
         readOnly: true,
@@ -382,7 +677,8 @@ void main() {
       memoryTree: () => fail('private memory opened'),
       flowers: () => fail('private flowers opened'),
     );
-    for (final key in ['garden-memory-tree', 'garden-cheer-flowers']) {
+    expect(find.byKey(const Key('garden-memory-tree')), findsNothing);
+    for (final key in ['garden-cheer-flowers']) {
       final gesture = tester.widget<GestureDetector>(find.byKey(Key(key)));
       expect(gesture.onTap, isNull);
     }
@@ -395,7 +691,9 @@ void main() {
     await showWorld(
       tester,
       reactions: [
-        GardenReaction('heart', DateTime.now().add(const Duration(seconds: 1))),
+        // Screen/asset setup can take longer than one wall-clock second on CI.
+        // The expired state is supplied explicitly on the rebuild below.
+        GardenReaction('heart', DateTime.now().add(const Duration(hours: 1))),
       ],
     );
     expect(find.text('💗'), findsOneWidget);

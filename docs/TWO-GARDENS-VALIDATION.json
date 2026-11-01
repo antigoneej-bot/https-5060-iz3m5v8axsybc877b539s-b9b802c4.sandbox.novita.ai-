@@ -1,0 +1,21 @@
+{
+  "base": "1.0.71+74",
+  "changed": [
+    "docs/TWO-GARDENS-PATCH-KO.txt",
+    "lib/mongi/screens/garden_world_screen.dart",
+    "lib/mongi/widgets/garden_world_view.dart",
+    "lib/mongi/widgets/resting_garden_view.dart",
+    "test/garden_fullscreen_test.dart",
+    "test/garden_scenery_test.dart",
+    "test/garden_world_offline_test.dart",
+    "test/garden_world_view_test.dart"
+  ],
+  "structuralCheck": "PASS: 666 Dart/Kotlin files",
+  "changedDartSyntaxParse": "PASS",
+  "assetsAndStorageBytesPreserved": true,
+  "flutterAnalyze": "NOT RUN",
+  "flutterTests": "NOT RUN",
+  "deviceOrEmulator": "NOT RUN",
+  "apkAabBuild": "NOT RUN",
+  "baseline866Tests": "Before this patch; not current verification"
+}

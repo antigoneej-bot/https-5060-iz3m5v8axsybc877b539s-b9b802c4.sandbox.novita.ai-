@@ -1,3 +1,4 @@
+import 'garden_push_service.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
@@ -35,20 +36,16 @@ class SocialAuthException implements Exception {
     'invalid-callback' || 'invalid-proof' => '로그인 확인에 실패했어요. 앱에서 다시 시작해 주세요.',
     'app-check-required' =>
       '설치된 앱의 인증을 확인하지 못해 로그인을 계속할 수 없어요. 오류 코드 AUTH-04를 알려 주세요.',
-    'app-check-timeout' =>
-      '앱 인증 확인이 지연되고 있어요. 연결을 확인하고 다시 시도해 주세요. (AUTH-05)',
+    'app-check-timeout' => '앱 인증 확인이 지연되고 있어요. 연결을 확인하고 다시 시도해 주세요. (AUTH-05)',
     'auth-server-unreachable' =>
       '로그인 서버에 연결하지 못했어요. 인터넷 연결을 확인하고 다시 시도해 주세요. (AUTH-06)',
-    'auth-server-not-found' =>
-      '로그인 서버를 찾지 못했어요. 오류 코드 AUTH-07을 알려 주세요.',
+    'auth-server-not-found' => '로그인 서버를 찾지 못했어요. 오류 코드 AUTH-07을 알려 주세요.',
     'auth-server-rejected' =>
       '로그인 서버가 앱의 요청을 받아들이지 못했어요. 오류 코드 AUTH-08을 알려 주세요.',
     'auth-server-response-invalid' =>
       '로그인 서버의 응답을 확인하지 못했어요. 오류 코드 AUTH-09를 알려 주세요.',
-    'auth-server-timeout' =>
-      '로그인 서버의 응답이 늦어지고 있어요. 잠시 후 다시 시도해 주세요. (AUTH-10)',
-    'provider-error' =>
-      '선택한 서비스에서 로그인 인증을 완료하지 못했어요. 다시 시도해 주세요. (AUTH-11)',
+    'auth-server-timeout' => '로그인 서버의 응답이 늦어지고 있어요. 잠시 후 다시 시도해 주세요. (AUTH-10)',
+    'provider-error' => '선택한 서비스에서 로그인 인증을 완료하지 못했어요. 다시 시도해 주세요. (AUTH-11)',
     'browser-open-failed' =>
       '로그인 창을 열거나 앱으로 돌아오는 중 오류가 발생했어요. 오류 코드 AUTH-12를 알려 주세요.',
     'identity-not-verified' => '계정 인증을 확인하지 못했어요. 로그아웃 후 다시 로그인해 주세요.',
@@ -340,9 +337,9 @@ class SocialAuthService {
     }
     String? appCheck;
     try {
-      appCheck = await FirebaseAppCheck.instance
-          .getToken()
-          .timeout(const Duration(seconds: 15));
+      appCheck = await FirebaseAppCheck.instance.getToken().timeout(
+        const Duration(seconds: 15),
+      );
     } on TimeoutException {
       throw const SocialAuthException('app-check-timeout');
     } catch (_) {
@@ -399,6 +396,7 @@ class SocialAuthService {
   static Future<void> signOut() async {
     // Stop uploads before changing the account. Existing local records and the
     // backup owner binding remain; logging in never silently transfers them.
+    await GardenPushService.instance.beforeSignOut();
     await AutoBackupService.instance.disable();
     if (firebaseReady) await FirebaseAuth.instance.signOut();
     if (_googleInitialization != null) {

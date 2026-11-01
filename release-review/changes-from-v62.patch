@@ -1,0 +1,1421 @@
+diff --git a/android/settings.gradle.kts b/android/settings.gradle.kts
+index c35e03c..878a389 100644
+--- a/android/settings.gradle.kts
++++ b/android/settings.gradle.kts
+@@ -19,7 +19,8 @@ pluginManagement {
+ 
+ plugins {
+     id("dev.flutter.flutter-plugin-loader") version "1.0.0"
+-    id("com.android.application") version "8.9.1" apply false
++    // Kotlin 2.2 metadata requires R8 8.10.21 or newer (bundled with AGP 8.10).
++    id("com.android.application") version "8.10.1" apply false
+     id("org.jetbrains.kotlin.android") version "2.2.0" apply false
+     id("com.google.gms.google-services") version "4.4.2" apply false
+ }
+diff --git a/backend/community-policy.js b/backend/community-policy.js
+new file mode 100644
+index 0000000..483b6c7
+--- /dev/null
++++ b/backend/community-policy.js
+@@ -0,0 +1,56 @@
++// Server-owned consent and moderation; private records are never altered.
++export const COMMUNITY_VERSION = '2026-10-31';
++const writes = new Set(['publishGarden', 'updateVillageProfile', 'createSharedTree',
++  'addSharedTreeNote', 'inviteCatVisit', 'respondCatVisit', 'requestNeighbor',
++  'sendPublicCheer', 'sendGardenGift', 'setCardDisplay', 'offerCardTrade']);
++export async function enforceCommunityPolicy(db, uid, action) {
++  if (!writes.has(action)) return;
++  const policy = (await db.doc(`users/${uid}/settings/community`).get()).data();
++  if (policy?.suspended === true) throw new Error('community-suspended');
++  if (policy?.version !== COMMUNITY_VERSION) throw new Error('community-consent-required');
++}
++export async function acceptCommunityPolicy(db, uid, version, stamp) {
++  if (version !== COMMUNITY_VERSION) throw new Error('community-consent-required');
++  await db.doc(`users/${uid}/settings/community`).set({version, acceptedAt: stamp()}, {merge: true});
++  return {version};
++}
++// Called only by the trusted operator CLI using IAM credentials, never a client UID.
++export async function resolveGardenReport(db, reportId, decision, operator, stamp) {
++  if (!/^[a-f0-9]{64}$/.test(reportId) || !['dismiss', 'hide', 'suspend'].includes(decision) || !operator)
++    throw new Error('invalid-moderation');
++  return db.runTransaction(async tx => {
++    const reportRef = db.doc(`villageReports/${reportId}`);
++    const report = await tx.get(reportRef);
++    if (!report.exists) throw new Error('report-not-found');
++    if (report.data().state !== 'pending') return {alreadyResolved: true};
++    const uid = report.data().targetId;
++    if (typeof uid !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(uid)) throw new Error('invalid-moderation');
++    let tree;
++    if (report.data().kind === 'shared-note') {
++      if (![report.data().treeId, report.data().noteId].every(v => typeof v === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(v))) throw new Error('invalid-moderation');
++      tree = await tx.get(db.doc(`sharedTrees/${report.data().treeId}`));
++    }
++    if (decision !== 'dismiss' && tree?.exists) {
++      const noteId = report.data().noteId;
++      const note = (tree.data().notes ?? []).find(n => n.id === noteId);
++      if (note && note.authorUid !== uid) throw new Error('invalid-moderation');
++      tx.update(tree.ref, {notes:(tree.data().notes ?? []).filter(n => n.id !== noteId),
++        activities:(tree.data().activities ?? []).filter(a => a.noteId !== noteId), updatedAt:stamp()});
++    }
++    if (decision === 'suspend' || (decision === 'hide' && !tree)) {
++      tx.set(db.doc(`villageProfiles/${uid}`), {visibility: 'private', discoveryOptIn: false}, {merge:true});
++      tx.delete(db.doc(`publicGardens/${uid}`));
++    }
++    if (decision === 'suspend') tx.set(db.doc(`users/${uid}/settings/community`), {suspended: true}, {merge:true});
++    tx.update(reportRef, {state: 'resolved', decision, reviewedBy: operator, reviewedAt: stamp()});
++    return {resolved: true};
++  });
++}
++
++export async function restoreCommunityAccess(db, uid, operator, stamp) {
++  if (!/^[A-Za-z0-9_-]{1,128}$/.test(uid) || !operator) throw new Error('invalid-moderation');
++  // No automatic re-publication: owner chooses visibility again after restoration.
++  await db.doc(`users/${uid}/settings/community`).set({suspended:false,
++    restoredBy:operator, restoredAt:stamp()}, {merge:true});
++  return {restored:true};
++}
+diff --git a/backend/index.js b/backend/index.js
+index d71ec2e..890bb01 100644
+--- a/backend/index.js
++++ b/backend/index.js
+@@ -1,3 +1,5 @@
++import {enforceCommunityPolicy, acceptCommunityPolicy} from './community-policy.js';
++import {subscriptionNotificationToken} from './play-notification.js';
+ import {memoryCardActions, removeMemoryCards} from './memory-cards.js';
+ import {premiumFeatureAccess} from './premium-test-access.js';
+ import {orchardActions} from './orchard.js';
+@@ -119,6 +121,8 @@ export const gardenApi = onRequest({region:'asia-northeast3', maxInstances:3, ti
+     lease = await acquireAccountLease(uid, action);
+     if (req.rawBody.length > 8 * 1024 * 1024) {res.status(413).json({error:'too-large'});return;}
+     await rateLimit(uid, action === 'backup' ? 'backup' : 'api');
++    if (action === 'acceptCommunityPolicy') {res.json(await acceptCommunityPolicy(db, uid, req.body.version, () => FieldValue.serverTimestamp()));return;}
++    await enforceCommunityPolicy(db, uid, action);
+     if (action === 'listGardenUpdates') {res.json(await listGardenUpdates(db, uid));return;}
+     if (action === 'setPushDevice') {res.json(await setPushDevice(db, uid, req.body));return;}
+     if (action === 'verify') {
+@@ -257,7 +261,7 @@ export const gardenApi = onRequest({region:'asia-northeast3', maxInstances:3, ti
+     }
+     res.status(400).json({error:'unknown-action'});
+   } catch (error) {
+-    const expected = ['invalid-card','card-stock','card-trade-limit','card-trade-missing','card-trade-expired','invalid-orchard','orchard-owned','orchard-coins','orchard-watered','orchard-not-ready','orchard-stock','orchard-full','invalid-cat-visit','cat-visit-unavailable','cat-invite-daily-limit','purchase-owner-mismatch','purchase-migration-required','rate-limit','account-busy',
++    const expected = ['community-consent-required','community-suspended','invalid-card','card-stock','card-trade-limit','card-trade-missing','card-trade-expired','invalid-orchard','orchard-owned','orchard-coins','orchard-watered','orchard-not-ready','orchard-stock','orchard-full','invalid-cat-visit','cat-visit-unavailable','cat-invite-daily-limit','purchase-owner-mismatch','purchase-migration-required','rate-limit','account-busy',
+       'invalid-bloom','cheer-not-found','account-deleting','cheer-already-sent-today','news-not-found','already-reserved',
+       'reservation-closed','reservation-not-available','reservation-full',
+       'garden-not-found','invalid-id','invalid-garden-gift','invalid-delivery-receipt','client-update-required',
+@@ -284,8 +288,8 @@ export const gardenApi = onRequest({region:'asia-northeast3', maxInstances:3, ti
+ export const playNotifications = onMessagePublished({topic:'play-rtdn',region:'asia-northeast3',retry:true,timeoutSeconds:60}, async event => {
+   const notification = event.data.message.json;
+   if (notification?.packageName !== PACKAGE) return;
+-  const token = notification.subscriptionNotification?.purchaseToken;
+-  if (typeof token !== 'string') return;
++  const token = subscriptionNotificationToken(notification, PACKAGE);
++  if (!token) return;
+   const doc = await db.doc(`purchaseTokens/${tokenHash(token)}`).get();
+   if (!doc.exists || doc.data().deleted) return;
+   const uid = doc.data().uid;
+diff --git a/backend/moderate-reports.mjs b/backend/moderate-reports.mjs
+new file mode 100644
+index 0000000..da51b43
+--- /dev/null
++++ b/backend/moderate-reports.mjs
+@@ -0,0 +1,16 @@
++// Run in Cloud Shell with a restricted operator IAM identity.
++import {initializeApp} from 'firebase-admin/app';
++import {getFirestore, FieldValue} from 'firebase-admin/firestore';
++import {resolveGardenReport, restoreCommunityAccess} from './community-policy.js';
++const [command, reportId, decision] = process.argv.slice(2);
++if (!process.env.GOOGLE_CLOUD_PROJECT) throw new Error('Set GOOGLE_CLOUD_PROJECT explicitly');
++initializeApp({projectId: process.env.GOOGLE_CLOUD_PROJECT});
++const db = getFirestore();
++if (command === 'list') {
++  const rows = await db.collection('villageReports').where('state','==','pending').limit(50).get();
++  console.log(JSON.stringify(rows.docs.map(d => ({id:d.id, targetId:d.data().targetId, reason:d.data().reason, kind:d.data().kind ?? 'garden', treeId:d.data().treeId ?? null, noteId:d.data().noteId ?? null})),null,2));
++} else if (command === 'restore' && process.env.MODERATION_OPERATOR) {
++  console.log(await restoreCommunityAccess(db, reportId, process.env.MODERATION_OPERATOR, () => FieldValue.serverTimestamp()));
++} else if (command === 'resolve' && process.env.MODERATION_OPERATOR) {
++  console.log(await resolveGardenReport(db, reportId, decision, process.env.MODERATION_OPERATOR, () => FieldValue.serverTimestamp()));
++} else throw new Error('Use list OR resolve REPORT_ID dismiss|hide|suspend; set MODERATION_OPERATOR for audit attribution');
+diff --git a/backend/play-notification.js b/backend/play-notification.js
+new file mode 100644
+index 0000000..986679a
+--- /dev/null
++++ b/backend/play-notification.js
+@@ -0,0 +1,9 @@
++// Notifications only trigger authoritative Google revalidation. A refund may
++// leave a subscription active; never revoke solely from an unverified payload.
++export function subscriptionNotificationToken(notification, packageName) {
++  if (notification?.packageName !== packageName) return null;
++  const ordinary = notification.subscriptionNotification?.purchaseToken;
++  const voided = notification.voidedPurchaseNotification;
++  const token = ordinary ?? (voided?.productType === 1 ? voided.purchaseToken : null);
++  return typeof token === 'string' && token.length >= 8 && token.length <= 4096 ? token : null;
++}
+diff --git a/backend/shared-trees.js b/backend/shared-trees.js
+index f2bbee7..d4d768c 100644
+--- a/backend/shared-trees.js
++++ b/backend/shared-trees.js
+@@ -287,5 +287,22 @@ export async function removeSharedTreeAccount(db, uid) {
+     await db.recursiveDelete(doc.ref);
+   }
+ }
+-export const sharedTreeActions = {createSharedTree, listSharedTrees, getSharedTree, respondSharedTree, waterSharedTree,
++export async function reportSharedTreeNote(db, uid, body, deps = {}) {
++  exactKeys(body, ['id', 'noteId']);
++  const id = treeId(body);
++  if (!safeId(body.noteId)) throw new Error('invalid-shared-tree-note');
++  return db.runTransaction(async tx => {
++    const data = await authorized(db, uid, id, tx);
++    const note = (data.notes ?? []).find(n => n.id === body.noteId);
++    if (!note || note.authorUid === uid) throw new Error('invalid-shared-tree-note');
++    const ref = db.doc(`villageReports/${digest('shared-note', uid, id, body.noteId)}`);
++    const existing = await tx.get(ref);
++    if (!existing.exists) tx.set(ref, {reporterId:uid, targetId:note.authorUid,
++      kind:'shared-note', treeId:id, noteId:body.noteId, reason:'shared_note',
++      createdAt:stamp(deps), state:'pending'});
++    return {reported:true};
++  });
++}
++
++export const sharedTreeActions = {reportSharedTreeNote,createSharedTree, listSharedTrees, getSharedTree, respondSharedTree, waterSharedTree,
+   addSharedTreeNote, deleteSharedTreeNote, listMySharedTreeNotes, leaveSharedTree, markSharedTreeSeen, setSharedTreeStyle};
+diff --git a/backend/test/release_hardening.test.js b/backend/test/release_hardening.test.js
+new file mode 100644
+index 0000000..0201449
+--- /dev/null
++++ b/backend/test/release_hardening.test.js
+@@ -0,0 +1,41 @@
++import test from 'node:test';
++import assert from 'node:assert/strict';
++import {memoryDb} from '../testing/memory-db.js';
++import {COMMUNITY_VERSION, enforceCommunityPolicy, acceptCommunityPolicy, resolveGardenReport, restoreCommunityAccess} from '../community-policy.js';
++import {subscriptionNotificationToken} from '../play-notification.js';
++const stamp = () => '2026-10-31T00:00:00Z';
++test('consent is account scoped, versioned, preserves suspension; private and deletion routes remain available', async () => {
++  const db=memoryDb();
++  await assert.rejects(enforceCommunityPolicy(db,'a','publishGarden'), /consent-required/);
++  await acceptCommunityPolicy(db,'a',COMMUNITY_VERSION,stamp);
++  await enforceCommunityPolicy(db,'a','publishGarden');
++  await assert.rejects(enforceCommunityPolicy(db,'b','addSharedTreeNote'), /consent-required/);
++  await assert.rejects(acceptCommunityPolicy(db,'a','old',stamp), /consent-required/);
++  await db.doc('users/a/settings/community').set({suspended:true},{merge:true});
++  await acceptCommunityPolicy(db,'a',COMMUNITY_VERSION,stamp);
++  await assert.rejects(enforceCommunityPolicy(db,'a','publishGarden'), /suspended/);
++  for(const action of ['backup','deleteCloudAccount','unpublishGarden','reportGarden','deleteSharedTreeNote']) await enforceCommunityPolicy(db,'a',action);
++});
++test('moderation atomically hides public appearance, retains private records, resolves once', async () => {
++  const id='a'.repeat(64), db=memoryDb({[`villageReports/${id}`]:{targetId:'a',state:'pending'},
++    'publicGardens/a':{nickname:'x'},'users/a/private/journal':{text:'retain'}});
++  await resolveGardenReport(db,id,'suspend','operator',stamp);
++  assert.equal(db.rows.has('publicGardens/a'),false);
++  assert.equal(db.rows.get('users/a/private/journal').text,'retain');
++  assert.equal(db.rows.get('villageProfiles/a').discoveryOptIn,false);
++  await assert.rejects(enforceCommunityPolicy(db,'a','addSharedTreeNote'), /suspended/);
++  assert.deepEqual(await resolveGardenReport(db,id,'dismiss','operator',stamp),{alreadyResolved:true});
++  await assert.rejects(resolveGardenReport(db,'../x','hide','operator',stamp), /invalid-moderation/);
++  await restoreCommunityAccess(db,'a','operator',stamp);
++  assert.equal(db.rows.get('users/a/settings/community').suspended,false);
++  assert.equal(db.rows.has('publicGardens/a'),false);
++  await assert.rejects(enforceCommunityPolicy(db,'a','publishGarden'), /consent-required/);
++});
++test('RTDN supports voided subscriptions, ignores other packages, one-time products and malformed tokens', () => {
++  const pkg='com.mysticcat.journal', token='valid-purchase-token';
++  assert.equal(subscriptionNotificationToken({packageName:pkg,voidedPurchaseNotification:{productType:1,purchaseToken:token}},pkg),token);
++  assert.equal(subscriptionNotificationToken({packageName:pkg,subscriptionNotification:{purchaseToken:token}},pkg),token);
++  for(const n of [{packageName:'other',subscriptionNotification:{purchaseToken:token}},
++    {packageName:pkg,voidedPurchaseNotification:{productType:2,purchaseToken:token}},
++    {packageName:pkg,subscriptionNotification:{purchaseToken:{}}}]) assert.equal(subscriptionNotificationToken(n,pkg),null);
++});
+diff --git a/backend/test/shared_trees.test.js b/backend/test/shared_trees.test.js
+index 40f3841..4b20db0 100644
+--- a/backend/test/shared_trees.test.js
++++ b/backend/test/shared_trees.test.js
+@@ -195,3 +195,22 @@ test('real neighbor actions alone generate unread badges and marking a shown rev
+   assert.equal(result.activities.filter(a => a.type === 'watered').length, 1);
+   await assert.rejects(tree.markSharedTreeSeen(db, 'stranger', {id, version: 100}, deps), /not-found/);
+ });
++
++test('shared note reports require membership, deduplicate, and never copy private text', async () => {
++  const {db,id} = await accepted();
++  await tree.addSharedTreeNote(db,'host',{id,requestId:'note-request-12345',text:'shared content'},deps);
++  const note=db.rows.get(`sharedTrees/${id}`).notes[0];
++  await assert.rejects(tree.reportSharedTreeNote(db,'stranger',{id,noteId:note.id},deps),/not-found/);
++  await assert.rejects(tree.reportSharedTreeNote(db,'host',{id,noteId:note.id},deps),/invalid-shared-tree-note/);
++  await tree.reportSharedTreeNote(db,'guest',{id,noteId:note.id},deps);
++  await tree.reportSharedTreeNote(db,'guest',{id,noteId:note.id},deps);
++  const reports=[...db.rows].filter(([k])=>k.startsWith('villageReports/'));
++  assert.equal(reports.length,1);
++  assert.equal(reports[0][1].targetId,'host');
++  assert.equal(JSON.stringify(reports[0][1]).includes('shared content'),false);
++  const {resolveGardenReport}=await import('../community-policy.js');
++  await resolveGardenReport(db,reports[0][0].split('/')[1],'hide','operator',deps.stamp);
++  assert.equal(db.rows.get(`sharedTrees/${id}`).notes.length,0);
++  assert.equal(db.rows.get(`sharedTrees/${id}`).activities.some(a=>a.noteId===note.id),false);
++  assert.equal(db.rows.has('users/host/sharedTrees/'+id),true);
++});
+diff --git a/backend/testing/api-regression.mjs b/backend/testing/api-regression.mjs
+index 303fe41..bc6d683 100644
+--- a/backend/testing/api-regression.mjs
++++ b/backend/testing/api-regression.mjs
+@@ -63,6 +63,12 @@ async function call(uid,body){
+  return result;
+ }
+ 
++// Consent is enforced by the actual API, not merely a widget.
++assert.equal((await call('consent-user',{action:'publishGarden'})).body.error,'community-consent-required');
++assert.equal((await call('consent-user',{action:'acceptCommunityPolicy',version:'old'})).status,403);
++assert.equal((await call('consent-user',{action:'acceptCommunityPolicy',version:'2026-10-31'})).status,200);
++for (const uid of ['alice','bob','carol','owner']) rows.set(`users/${uid}/settings/community`, {version:'2026-10-31'});
++
+ rows.set('users/bob/receivedCheers/gift1',{giftLightEssence:5,claimed:false});
+ const oldClient = await call('bob',{action:'claimCheer',id:'gift1'});
+ assert.equal(oldClient.body.error, 'client-update-required');
+@@ -81,6 +87,7 @@ assert.equal((await call('bob',{action:'claimCheerV2',id:'../gift1'})).status, 4
+ console.log('PASS: actual routes replay pending gifts, list them after lost responses, ACK idempotently and reject unsafe old clients.');
+ 
+ rows.clear();
++for (const uid of ['alice','bob','carol','owner']) rows.set(`users/${uid}/settings/community`, {version:'2026-10-31'});
+ rows.set('publicGardens/bob',{nickname:'test'});
+ const currency = await call('alice',{action:'sendPublicCheer',gardenId:'bob',messageIndex:0,giftLightEssence:5});
+ assert.equal(currency.status,403);
+@@ -97,6 +104,7 @@ assert.equal((await call('alice',{...payload,messageIndex:1})).status,409);
+ console.log('PASS: new currency is blocked; flowers/reactions survive; retry sends one flower and one reaction.');
+ 
+ rows.clear();
++for (const uid of ['alice','bob','carol','owner']) rows.set(`users/${uid}/settings/community`, {version:'2026-10-31'});
+ rows.set('publicGardens/bob',{nickname:'test'});
+ const {accountHash} = await import('../policy.js');
+ rows.set(`accountLocks/${accountHash('bob')}`,{deleting:true});
+@@ -105,6 +113,7 @@ assert.equal([...rows.keys()].some(k=>k.startsWith('users/bob/receivedCheers/'))
+ console.log('PASS: sending to a deleting account cannot recreate its received-gift data.');
+ 
+ rows.clear();
++for (const uid of ['alice','bob','carol','owner']) rows.set(`users/${uid}/settings/community`, {version:'2026-10-31'});
+ rows.set('gardenNews/n1',{reservedCount:2,capacity:2});
+ rows.set('gardenNewsReservations/n1_alice',{newsId:'n1',uid:'alice',email:'alice@example.invalid',note:'test'});
+ rows.set('gardenNewsReservations/n1_bob',{newsId:'n1',uid:'bob'});
+@@ -121,6 +130,7 @@ assert.equal(rows.get(`accountLocks/${accountHash('alice')}`).deletionCompleted,
+ console.log('PASS: actual deletion route removes personal reservations and releases the correct seat.');
+ 
+ rows.clear();
++for (const uid of ['alice','bob','carol','owner']) rows.set(`users/${uid}/settings/community`, {version:'2026-10-31'});
+ deleteAuthError=new Error('simulated auth outage');
+ assert.equal((await call('partial-delete',{action:'deleteCloudAccount'})).status,503);
+ assert.equal(rows.get(`accountLocks/${accountHash('partial-delete')}`).deleted,true);
+@@ -132,6 +142,7 @@ assert.equal(rows.get(`accountLocks/${accountHash('partial-delete')}`).deletionC
+ console.log('PASS: failed Auth deletion leaves social rejoin locked; successful retry alone marks completion.');
+ 
+ rows.clear();
++for (const uid of ['alice','bob','carol','owner']) rows.set(`users/${uid}/settings/community`, {version:'2026-10-31'});
+ for (const provider of ['kakao','naver','facebook']) {
+  tokenIdentity={uid:`social-${provider}`,firebase:{sign_in_provider:'custom'},
+   garden_social_verified:true,garden_social_provider:provider};
+@@ -161,6 +172,7 @@ assert.equal(typeof mod.namespace.socialAuth,'function');
+ console.log('PASS: Google and three verified social providers reach real garden routes; unverified/anonymous claims and admin spoofing fail; email-less reservations work.');
+ 
+ rows.clear();
++for (const uid of ['alice','bob','carol','owner']) rows.set(`users/${uid}/settings/community`, {version:'2026-10-31'});
+ tokenIdentity={uid:'unverified-owner',email_verified:false,firebase:{sign_in_provider:'password'},auth_time:Date.now()/1000};
+ rows.set('users/unverified-owner',{private:true});
+ assert.equal((await call('ignored',{action:'listPublicGardens'})).status,403);
+@@ -180,6 +192,7 @@ for (const provider of ['anonymous',undefined,'']) {
+ console.log('PASS: unverified-email owner can delete after recent login; ordinary access stays denied, anonymous and invalid/stale/future auth time cannot begin cleanup.');
+ 
+ rows.clear();
++for (const uid of ['alice','bob','carol','owner']) rows.set(`users/${uid}/settings/community`, {version:'2026-10-31'});
+ rows.set('publicGardens/account-a',{nickname:'A의 정원',seedCounts:{pine:9},privateField:'never-return'});
+ tokenIdentity={uid:'account-a',firebase:{sign_in_provider:'google.com'}};
+ const ownA=await call('ignored',{action:'getMyPublicGardenStatus',uid:'account-b',gardenId:'account-b'});
+@@ -198,6 +211,7 @@ assert.equal((await call('ignored',{action:'getMyPublicGardenStatus'})).body.pub
+ console.log('PASS: own-publication status follows verified token UID only; account changes, injected UID and private fields cannot leak another publication.');
+ 
+ rows.clear();
++for (const uid of ['alice','bob','carol','owner']) rows.set(`users/${uid}/settings/community`, {version:'2026-10-31'});
+ tokenIdentity = null;
+ const publicSnapshot = {seedCounts:{pine:1},equippedDecorationIds:['bench'],treeStageIndex:1};
+ assert.equal((await call('alice',{action:'publishGarden',snapshot:publicSnapshot,nickname:'앨리스',visibility:'neighbors',discoveryOptIn:false})).status,200);
+@@ -235,6 +249,7 @@ assert.equal(rows.has('villageProfiles/bob'),false);
+ assert.equal(rows.get(`users/alice/receivedCheers/${receivedFlower.id}`).senderId,null);
+ console.log('PASS: actual village routes connect two accounts, enforce scopes, send free emoji/flowers, transfer once, reject planted retired sources, block both directions and erase deleted attribution.');
+ rows.clear();
++for (const uid of ['alice','bob','carol','owner']) rows.set(`users/${uid}/settings/community`, {version:'2026-10-31'});
+ tokenIdentity = null;
+ for (const id of ['one', 'two', 'three']) {
+  rows.set(`users/owner/receivedCheers/${id}`, {createdAt:new Timestamp(100, 7),claimed:true,flowerKind:'tulip',bloomConfirmed:true});
+@@ -269,6 +284,7 @@ assert.equal((await call('owner',{action:'publishGarden',snapshot:publicSnapshot
+ console.log('PASS: actual routes paginate discovery and timestamp-tied inbox history, reject invalid/cross-account cursors with 400, return owner-only appearance/time and preserve privacy on appearance-only update.');
+ 
+ rows.clear();
++for (const uid of ['alice','bob','carol','owner']) rows.set(`users/${uid}/settings/community`, {version:'2026-10-31'});
+ const newsAdminIdentity = {uid:'news-admin-kakao',firebase:{sign_in_provider:'custom'},
+  garden_social_verified:true,garden_social_provider:'kakao',garden_news_admin:true};
+ tokenIdentity = newsAdminIdentity;
+@@ -300,6 +316,7 @@ assert.equal(rows.has(`gardenNewsReservations/${newsId}_news-member`),false);
+ console.log('PASS: claimed Kakao news admin creates, updates, reads attendees and deletes news; scoped role does not grant subscription or paid cloud backup.');
+ 
+ rows.clear();
++for (const uid of ['alice','bob','carol','owner']) rows.set(`users/${uid}/settings/community`, {version:'2026-10-31'});
+ rows.set('gardenNews/protected-news',{...newsInput,reservedCount:1});
+ rows.set('gardenNewsReservations/protected-news_attendee',{newsId:'protected-news',uid:'attendee',email:'private@example.invalid'});
+ const newsAdminActions = ['adminCreateGardenNews','adminUpdateGardenNews',
+diff --git a/lib/main.dart b/lib/main.dart
+index 4be318b..dd2a44c 100644
+--- a/lib/main.dart
++++ b/lib/main.dart
+@@ -1,3 +1,4 @@
++import 'widgets/community_consent.dart';
+ import 'utils/welcome_policy.dart';
+ import 'widgets/premium_test_access.dart';
+ import 'widgets/background_music_gate.dart';
+@@ -197,6 +198,7 @@ class MysticCatApp extends StatelessWidget {
+   const MysticCatApp({super.key});
+   @override
+   Widget build(BuildContext context) {
++    CloudService.requestCommunityConsent = requestCommunityConsent;
+     return MultiProvider(
+       providers: [
+         ChangeNotifierProvider(create: (_) => GardenProvider()),
+@@ -208,6 +210,7 @@ class MysticCatApp extends StatelessWidget {
+         ChangeNotifierProvider(create: (_) => BuriedEmotionProvider()),
+       ],
+       child: MaterialApp(
++        navigatorKey: communityNavigatorKey,
+         navigatorObservers: [gardenAdRoutes],
+         localizationsDelegates: mongi.AppLocalizations.localizationsDelegates,
+         supportedLocales: const [Locale('ko')],
+diff --git a/lib/mongi/integration/mongi_garden_data.dart b/lib/mongi/integration/mongi_garden_data.dart
+index 24025a0..70b9b08 100644
+--- a/lib/mongi/integration/mongi_garden_data.dart
++++ b/lib/mongi/integration/mongi_garden_data.dart
+@@ -7,6 +7,7 @@ class MongiGardenData {
+   final int stage;
+   final int seedTokens;
+   final int essence;
++  final Map<String, int> walkStock;
+   final Set<String> claimedGiftReceipts;
+   final Map<String, int> seeds;
+   final Map<String, String> plantedOn;
+@@ -28,6 +29,7 @@ class MongiGardenData {
+     this.stage = 1,
+     this.seedTokens = 0,
+     this.essence = 0,
++    Map<String, int> walkStock = const {},
+     Set<String> claimedGiftReceipts = const {},
+     Map<String, int> seeds = const {},
+     Map<String, String> plantedOn = const {},
+@@ -41,7 +43,8 @@ class MongiGardenData {
+     Set<String>? careDays,
+     Set<String> meditationDays = const {},
+     Map<String, int> storyProgress = const {},
+-  }) : claimedGiftReceipts = Set.unmodifiable(claimedGiftReceipts),
++  }) : walkStock = Map.unmodifiable(walkStock),
++       claimedGiftReceipts = Set.unmodifiable(claimedGiftReceipts),
+        seeds = Map.unmodifiable(seeds),
+        plantedOn = Map.unmodifiable(plantedOn),
+        wateredOn = Map.unmodifiable(wateredOn),
+@@ -60,6 +63,7 @@ class MongiGardenData {
+     'stage': stage,
+     'seedTokens': seedTokens,
+     'essence': essence,
++    'walkStock': walkStock,
+     'claimedGiftReceipts': claimedGiftReceipts.toList(),
+     'seeds': seeds,
+     'plantedOn': plantedOn,
+@@ -193,7 +197,17 @@ class MongiGardenData {
+     }
+     final owned = decorations('owned'), placed = decorations('placed');
+     if (!owned.containsAll(placed)) throw const FormatException('소유하지 않은 장식');
++    final walk = <String, int>{};
++    final rawWalk = json['walkStock'] ?? <String, dynamic>{};
++    if (rawWalk is! Map) throw const FormatException('잘못된 산책 보관함');
++    for (final entry in rawWalk.entries) {
++      if (!['churu_tuna','food_dry'].contains(entry.key) || entry.value is! int || entry.value < 0) {
++        throw const FormatException('잘못된 산책 보관함');
++      }
++      walk[entry.key as String] = entry.value as int;
++    }
+     return MongiGardenData(
++      walkStock: walk,
+       stage: count('stage', 1),
+       seedTokens: count('seedTokens', 0),
+       essence: count('essence', 0),
+@@ -217,6 +231,7 @@ class MongiGardenData {
+     int? stage,
+     int? seedTokens,
+     int? essence,
++    Map<String, int>? walkStock,
+     Set<String>? claimedGiftReceipts,
+     Map<String, int>? seeds,
+     Map<String, String>? plantedOn,
+@@ -234,6 +249,7 @@ class MongiGardenData {
+     stage: stage ?? this.stage,
+     seedTokens: seedTokens ?? this.seedTokens,
+     essence: essence ?? this.essence,
++    walkStock: walkStock ?? this.walkStock,
+     claimedGiftReceipts: claimedGiftReceipts ?? this.claimedGiftReceipts,
+     seeds: seeds ?? this.seeds,
+     plantedOn: plantedOn ?? this.plantedOn,
+diff --git a/lib/mongi/integration/mongi_garden_store.dart b/lib/mongi/integration/mongi_garden_store.dart
+index 132122c..e349cae 100644
+--- a/lib/mongi/integration/mongi_garden_store.dart
++++ b/lib/mongi/integration/mongi_garden_store.dart
+@@ -243,6 +243,37 @@ class MongiGardenStore extends ValueNotifier<MongiGardenData> {
+     return credited;
+   }
+ 
++  /// One persisted snapshot contains receipt, food and currency together.
++  Future<void> receiveWalkReward(String id, Map<String, int> reward,
++      {required bool Function() isCurrentOwner}) async {
++    if (!RegExp(r'^[a-f0-9]{48}$').hasMatch(id) || reward.keys.any((k) => !['churu','snack','light'].contains(k)) ||
++        reward.values.any((v) => v < 0) || (reward['churu'] ?? 0) > 12 ||
++        (reward['snack'] ?? 0) > 12 || (reward['light'] ?? 0) > 80) {
++      throw ArgumentError('Invalid walk reward');
++    }
++    await _change((data) {
++      if (!isCurrentOwner()) throw StateError('계정이 바뀌었어요.');
++      final receipt = 'walk_$id';
++      if (data.claimedGiftReceipts.contains(receipt)) return data;
++      return data.copy(essence: data.essence + (reward['light'] ?? 0),
++        claimedGiftReceipts: {...data.claimedGiftReceipts, receipt},
++        walkStock: {...data.walkStock,
++          'churu_tuna': (data.walkStock['churu_tuna'] ?? 0) + (reward['churu'] ?? 0),
++          'food_dry': (data.walkStock['food_dry'] ?? 0) + (reward['snack'] ?? 0)});
++    });
++  }
++
++  Future<bool> consumeWalkFood(String item, {required bool Function() isCurrentOwner}) async {
++    var consumed = false;
++    await _change((data) {
++      if (!isCurrentOwner()) throw StateError('계정이 바뀌었어요.');
++      if ((data.walkStock[item] ?? 0) <= 0) return data;
++      consumed = true;
++      return data.copy(walkStock: {...data.walkStock, item: data.walkStock[item]! - 1});
++    });
++    return consumed;
++  }
++
+   Future<void> addOriginalEssence(int amount) => _change(
+     (data) => amount <= 0 ? data : data.copy(essence: data.essence + amount),
+   );
+diff --git a/lib/mongi/screens/shared_trees_screen.dart b/lib/mongi/screens/shared_trees_screen.dart
+index b45d699..9ee742e 100644
+--- a/lib/mongi/screens/shared_trees_screen.dart
++++ b/lib/mongi/screens/shared_trees_screen.dart
+@@ -398,6 +398,19 @@ class _SharedTreeScreenState extends State<SharedTreeScreen>
+       await _load();
+   }
+ 
++  Future<void> _reportNote(SharedTreeNote note) async {
++    final yes = await showDialog<bool>(context:context, builder:(ctx) => AlertDialog(
++      title:const Text('이 공유 메모를 신고할까요?'),
++      content:const Text('운영자가 이 공유 메모를 검토할 수 있도록 신고합니다. 개인 감정 기록은 전송하지 않아요.'),
++      actions:[TextButton(onPressed:()=>Navigator.pop(ctx,false), child:const Text('취소')),
++        FilledButton(onPressed:()=>Navigator.pop(ctx,true), child:const Text('신고'))]));
++    if (yes != true || !mounted) return;
++    await _perform(() async {
++      await _service.reportNote(widget.id,note.id);
++      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('신고가 접수됐어요.')));
++    });
++  }
++
+   Future<void> _deleteNote(SharedTreeNote note) async {
+     final yes = await showDialog<bool>(
+       context: context,
+@@ -641,6 +654,8 @@ class _SharedTreeScreenState extends State<SharedTreeScreen>
+                                   fontSize: 12,
+                                 ),
+                               ),
++                              if (!note.mine)
++                                TextButton(onPressed: _busy ? null : () => _reportNote(note), child: const Text('신고')),
+                               if (note.mine)
+                                 TextButton(
+                                   onPressed: _busy
+diff --git a/lib/mongi/widgets/garden_ambient.dart b/lib/mongi/widgets/garden_ambient.dart
+index bdff7eb..6cedbe0 100644
+--- a/lib/mongi/widgets/garden_ambient.dart
++++ b/lib/mongi/widgets/garden_ambient.dart
+@@ -1,4 +1,5 @@
+ import '../../widgets/companion_coat_art.dart';
++import '../../widgets/companion_loaf_art.dart';
+ import '../../models/companion_motion.dart';
+ import 'dart:math' as math;
+ import 'dart:typed_data';
+@@ -479,6 +480,7 @@ class GardenCatArt extends StatelessWidget {
+   final Animation<double> animation;
+   final bool blinking;
+   final bool resting;
++  final bool loafMotion;
+   final bool naturalMotion;
+   final double headTilt, eyeClosure, breath;
+   final double motionSeconds;
+@@ -488,6 +490,7 @@ class GardenCatArt extends StatelessWidget {
+     required this.animation,
+     this.blinking = true,
+     this.resting = false,
++    this.loafMotion = true,
+     this.naturalMotion = false,
+     this.motionSeconds = 0,
+     this.smiling = false,
+@@ -499,6 +502,7 @@ class GardenCatArt extends StatelessWidget {
+   @override
+   Widget build(BuildContext context) {
+     final coat = selectedCompanionCoat(context);
++    if (resting) return CompanionLoafArt(coatIndex: coat?.index ?? 0, motionEnabled: loafMotion);
+     if (coat != null) {
+       return AnimatedBuilder(
+         animation: animation,
+diff --git a/lib/mongi/widgets/garden_world_view.dart b/lib/mongi/widgets/garden_world_view.dart
+index 8966c3b..e51b73f 100644
+--- a/lib/mongi/widgets/garden_world_view.dart
++++ b/lib/mongi/widgets/garden_world_view.dart
+@@ -251,6 +251,7 @@ class _GardenWorldViewState extends State<GardenWorldView>
+   int _zone = 1;
+   bool _toolsOpen = false;
+   bool _catWanders = false;
++  bool _loafRest = false;
+   bool _editing = false, _saving = false;
+   late bool _night = DateTime.now().hour < 6 || DateTime.now().hour >= 19;
+   String? _selected;
+@@ -570,6 +571,9 @@ class _GardenWorldViewState extends State<GardenWorldView>
+         child: Row(
+           mainAxisSize: MainAxisSize.min,
+           children: [
++            button('storybook-loaf', _loafRest ? '식빵 끝내기' : '식빵 쉬기',
++              Icons.pets_outlined, const Color(0xFFF4E5D8),
++              () => setState(() { _loafRest = !_loafRest; if (_loafRest) _catWanders = false; })),
+             if (!widget.readOnly) ...[
+               button(
+                 'storybook-water',
+@@ -1394,7 +1398,7 @@ class _GardenWorldViewState extends State<GardenWorldView>
+                                   bondStage: widget.companionBondStage,
+                                   night: _night,
+                                   resting:
+-                                      moment.resting ||
++                                      _loafRest || moment.resting ||
+                                       (widget.visitingGuest != null &&
+                                           widget.visitActivity == 'rest'),
+                                 ),
+diff --git a/lib/screens/cat_walk_screen.dart b/lib/screens/cat_walk_screen.dart
+index 6434eb1..de5712b 100644
+--- a/lib/screens/cat_walk_screen.dart
++++ b/lib/screens/cat_walk_screen.dart
+@@ -1,3 +1,7 @@
++import '../services/cloud_service.dart';
++import '../services/cat_care_service.dart';
++import '../mongi/integration/mongi_garden_store.dart';
++import '../mongi/integration/session_transaction.dart';
+ import 'dart:async';
+ import 'dart:convert';
+ import 'package:flutter/foundation.dart';
+@@ -13,7 +17,8 @@ import '../services/subscription_service.dart';
+ import '../theme.dart';
+ 
+ /// The approved walk runs from bundled assets, never the private preview URL.
+-/// No record text, credentials, billing actions or inventory writes enter JS.
++/// No record text, credentials or billing actions enter JS. Native code validates
++/// bounded reward requests and persists inventory; JS never writes storage.
+ class CatWalkScreen extends StatefulWidget {
+   const CatWalkScreen({super.key});
+   @override
+@@ -54,6 +59,11 @@ class _CatWalkScreenState extends State<CatWalkScreen>
+   bool _ready = false, _failed = false, _sharing = false, _full = false;
+   bool _visible = true;
+   int _loadEpoch = 0;
++  String? _walkId, _walkOwner, _walkAccount;
++  bool get _ownsWalk => _walkOwner == CatCareService.localOwner && _walkAccount == CloudService.currentUser?.uid;
++  final _walkClock = Stopwatch();
++  bool _rewardSaving = false, _rewardSaved = false, _feeding = false;
++  Map<String, int>? _pendingReward;
+   Map<String, Object>? _profile;
+   DateTime _lastEffect = DateTime.fromMillisecondsSinceEpoch(0);
+ 
+@@ -141,6 +151,7 @@ class _CatWalkScreenState extends State<CatWalkScreen>
+   }
+ 
+   void _syncSound() {
++    if (!_sound.sfxEnabled) unawaited(_sound.stopPurr());
+     unawaited(
+       _run(
+         'window.applyHostSound(${jsonEncode({'bgm': _sound.bgmEnabled, 'sfx': _sound.sfxEnabled, 'volume': _sound.bgmVolume})});',
+@@ -158,6 +169,32 @@ class _CatWalkScreenState extends State<CatWalkScreen>
+       final data = jsonDecode(message.message);
+       if (data is! Map<String, dynamic>) return;
+       switch (data['type']) {
++        case 'walkBegin':
++          if (_rewardSaving || (_pendingReward != null && !_rewardSaved)) return;
++          _walkId = SessionTransaction.newId();
++          _walkOwner = CatCareService.localOwner;
++          _walkAccount = CloudService.currentUser?.uid;
++          _pendingReward = null; _rewardSaved = false;
++          _walkClock..reset()..start();
++        case 'walkPause':
++          _walkClock.stop();
++        case 'walkResume':
++          if (_walkId != null && !_rewardSaved) _walkClock.start();
++        case 'walkReward':
++          await _saveWalkReward(data);
++        case 'walkFeed':
++          final kind = data['kind'];
++          if (_feeding || !_rewardSaved || !['churu','snack'].contains(kind)) return;
++          _feeding = true;
++          try {
++            final ok = await MongiGardenStore.instance.consumeWalkFood(
++              kind == 'churu' ? 'churu_tuna' : 'food_dry',
++              isCurrentOwner: () => _ownsWalk);
++            await _run('window.walkFeedResult(${jsonEncode(kind)}, $ok);');
++          } catch (_) {
++            await _run('window.walkFeedResult(${jsonEncode(kind)}, false);');
++          } finally { _feeding = false; }
++
+         case 'fullscreen':
+           await _setFullscreen(data['value'] == true);
+         case 'startMusic':
+@@ -173,6 +210,8 @@ class _CatWalkScreenState extends State<CatWalkScreen>
+           if (v is num && v.isFinite && v >= 0 && v <= 1) {
+             await _sound.setBgmVolume(v.toDouble());
+           }
++        case 'stopPurr':
++          await _sound.stopPurr();
+         case 'chime':
+         case 'purr':
+           final now = DateTime.now();
+@@ -217,9 +256,40 @@ class _CatWalkScreenState extends State<CatWalkScreen>
+     }
+   }
+ 
++  Future<void> _saveWalkReward(Map<String, dynamic> data) async {
++    if (_rewardSaving || _walkId == null) return;
++    _walkClock.stop();
++    _rewardSaving = true;
++    try {
++      if (!_ownsWalk) throw StateError('계정 변경');
++      if (_pendingReward == null) {
++        final raw = data['bag'];
++        if (raw is! Map || ['churu','snack','light'].any((k) => raw[k] is! int || raw[k] < 0)) {
++          throw StateError('잘못된 보상');
++        }
++        final reward = {for (final k in ['churu','snack','light']) k: raw[k] as int};
++        final seconds = _walkClock.elapsedMilliseconds / 1000;
++        if (reward['churu']! > 12 || reward['snack']! > 12 || reward['light']! > 80 ||
++            (seconds < 2 && reward.values.any((n) => n > 0)) ||
++            reward['churu']! + reward['snack']! + (reward['light']! / 20).ceil() > (seconds / 2).floor() + 1) {
++          throw StateError('잘못된 보상');
++        }
++        _pendingReward = reward;
++      }
++      await MongiGardenStore.instance.receiveWalkReward(_walkId!, _pendingReward!,
++        isCurrentOwner: () => _ownsWalk);
++      _rewardSaved = true;
++      _rewardSaving = false;
++      await _run('window.walkRewardResult(true);');
++    } catch (_) {
++      await _run('window.walkRewardResult(false);');
++    } finally { _rewardSaving = false; }
++  }
++
+   @override
+   void didChangeAppLifecycleState(AppLifecycleState state) {
+     _visible = state == AppLifecycleState.resumed;
++    if (!_visible) { _walkClock.stop(); unawaited(_sound.stopPurr()); }
+     if (!_visible) unawaited(_run('window.hostPause();'));
+     // The app's existing lifecycle owner controls the one SoundService player.
+   }
+@@ -272,7 +342,9 @@ class _CatWalkScreenState extends State<CatWalkScreen>
+ 
+   @override
+   void dispose() {
++    _walkClock.stop();
+     _loadEpoch++;
++    unawaited(_sound.stopPurr());
+     unawaited(_nativeFullscreen(false));
+     _sound.removeListener(_syncSound);
+     WidgetsBinding.instance.removeObserver(this);
+diff --git a/lib/screens/privacy_policy_screen.dart b/lib/screens/privacy_policy_screen.dart
+index 46b4e5d..a2cef83 100644
+--- a/lib/screens/privacy_policy_screen.dart
++++ b/lib/screens/privacy_policy_screen.dart
+@@ -140,7 +140,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
+                             accent: AppColors.blobButterAccent,
+                             background: AppColors.blobButter,
+                             body:
+-                                '개인정보 처리와 관련해 궁금한 점이 있으시면 아래 이메일로 '
++                                '일반 문의, 개인정보 문의 또는 계정 삭제 요청은 아래 이메일로 '
+                                 '문의해 주세요.\n\n${PrivacyConfig.operatorNotice}',
+                           ),
+                           const SizedBox(height: 14),
+diff --git a/lib/screens/terms_of_service_screen.dart b/lib/screens/terms_of_service_screen.dart
+index f8433d5..ea14044 100644
+--- a/lib/screens/terms_of_service_screen.dart
++++ b/lib/screens/terms_of_service_screen.dart
+@@ -1,3 +1,4 @@
++import '../services/privacy_config.dart';
+ import 'package:flutter/material.dart';
+ import '../theme.dart';
+ import '../widgets/stars_background.dart';
+@@ -82,10 +83,14 @@ class TermsOfServiceScreen extends StatelessWidget {
+                             body:
+                                 '이용자는 다음 각 호의 행위를 하지 않아야 합니다.\n\n'
+                                 '· 앱의 정상적인 운영을 방해하는 행위\n'
++                                '· 괴롭힘·혐오·성적 콘텐츠·폭력 위협·스팸·사기 게시\n'
++                                '· 타인의 개인정보 또는 권리를 침해하는 콘텐츠 공유\n'
+                                 '· 타인의 개인정보를 무단으로 수집·저장하는 행위\n'
+                                 '· 관계 법령 또는 이 약관에서 금지하는 행위\n\n'
+-                                '이용자는 본인의 기기 및 계정 관리에 책임이 있으며, 이로 인해 '
+-                                '발생하는 문제에 대해 앱 운영자는 책임을 지지 않습니다.',
++                                '공개·공유 기능을 사용하기 전 이 약관에 동의해야 합니다. 부적절한 '
++                                '콘텐츠나 사용자는 신고·차단할 수 있습니다. 운영자는 신고를 검토하여 '
++                                '공개 중단 또는 공유 이용 제한 등의 조치를 취할 수 있습니다. '
++                                '개인 기록은 공개 동의와 관계없이 사용할 수 있습니다.',
+                           ),
+                           const SizedBox(height: 14),
+                           _PolicySection(
+@@ -132,13 +137,13 @@ class TermsOfServiceScreen extends StatelessWidget {
+                             accent: AppColors.blobRoseAccent,
+                             background: AppColors.blobRose,
+                             body:
+-                                '이 약관과 관련해 궁금한 점이 있으시면 마이 탭의 문의하기 기능을 '
+-                                '이용해 주세요.',
++                                '일반 문의·개인정보 문의·계정 삭제 요청은 '
++                                '${PrivacyConfig.contact}으로 보내 주세요. 비밀번호나 인증번호는 보내지 마세요.',
+                           ),
+                           const SizedBox(height: 22),
+                           Center(
+                             child: Text(
+-                              '시행일: 2025년 1월 1일',
++                              '커뮤니티 약관 버전: 2026-10-31',
+                               style: bodyFont(
+                                 fontSize: 11,
+                                 color: AppColors.inkSoft,
+diff --git a/lib/services/cat_care_service.dart b/lib/services/cat_care_service.dart
+index 3d3b6c1..a525505 100644
+--- a/lib/services/cat_care_service.dart
++++ b/lib/services/cat_care_service.dart
+@@ -1,3 +1,4 @@
++import '../mongi/integration/mongi_garden_store.dart';
+ import 'dart:async';
+ import 'package:shared_preferences/shared_preferences.dart';
+ import '../models/cat_care_state.dart';
+@@ -595,7 +596,7 @@ class CatCareService {
+   }
+ 
+   /// 소모품별로 지금 보관함에 몇 개씩 남아있는지 반환합니다.
+-  static Future<Map<String, int>> getConsumableInventory() async {
++  static Future<Map<String, int>> getConsumableInventory({bool includeWalk = true}) async {
+     final prefs = await SharedPreferences.getInstance();
+     final raw = prefs.getStringList(_consumableInventoryKey) ?? [];
+     final map = <String, int>{};
+@@ -606,6 +607,12 @@ class CatCareService {
+         if (n != null && n > 0) map[parts[0]] = n;
+       }
+     }
++    if (includeWalk) {
++      await MongiGardenStore.instance.reload();
++      for (final entry in MongiGardenStore.instance.value.walkStock.entries) {
++        map[entry.key] = (map[entry.key] ?? 0) + entry.value;
++      }
++    }
+     return map;
+   }
+ 
+@@ -633,7 +640,7 @@ class CatCareService {
+         return (false, points);
+       }
+       final newPoints = points - accessory.pointCost;
+-      final inv = await getConsumableInventory();
++      final inv = await getConsumableInventory(includeWalk: false);
+       inv[accessory.id] = (inv[accessory.id] ?? 0) + 1;
+       await prefs.setInt(_pointsKey, newPoints);
+       await _saveConsumableInventory(prefs, inv);
+@@ -677,16 +684,22 @@ class CatCareService {
+     CatAccessory accessory, {
+     required bool isPremium,
+   }) async {
++    final owner = _uid;
+     final prefs = await SharedPreferences.getInstance();
+-    final inv = await getConsumableInventory();
++    final inv = await getConsumableInventory(includeWalk: false);
+     final count = inv[accessory.id] ?? 0;
+     final temperature = prefs.getInt(_tempKey) ?? startTemperature;
+     final points = prefs.getInt(_pointsKey) ?? 0;
+-    if (count <= 0) {
++    if (owner != _uid) throw StateError('계정이 바뀌었어요.');
++    final fromWalk = count <= 0 && await MongiGardenStore.instance.consumeWalkFood(
++      accessory.id, isCurrentOwner: () => owner == _uid);
++    if (count <= 0 && !fromWalk) {
+       return (false, temperature, points);
+     }
+-    inv[accessory.id] = count - 1;
+-    await _saveConsumableInventory(prefs, inv);
++    if (!fromWalk) {
++      inv[accessory.id] = count - 1;
++      await _saveConsumableInventory(prefs, inv);
++    }
+ 
+     final (newTemp, newPoints) = _gainTemperature(
+       current: temperature,
+diff --git a/lib/services/cloud_service.dart b/lib/services/cloud_service.dart
+index 27b96b5..e6625ba 100644
+--- a/lib/services/cloud_service.dart
++++ b/lib/services/cloud_service.dart
+@@ -36,10 +36,14 @@ class CloudService {
+   }
+ 
+   static const _secure = FlutterSecureStorage();
++  static Future<bool> Function()? requestCommunityConsent;
++  static Future<bool>? _communityPrompt;
++
+   static Future<Map<String, dynamic>> call(
+     String action, [
+     Map<String, dynamic> params = const {},
+     String? expectedUid,
++    bool consentRetried = false,
+   ]) async {
+     final uri = Uri.tryParse(endpoint);
+     if (uri == null || uri.scheme != 'https')
+@@ -69,7 +73,7 @@ class CloudService {
+             'X-Firebase-AppCheck': appCheck,
+             'Content-Type': 'application/json',
+           },
+-          body: jsonEncode({'action': action, ...params}),
++          body: jsonEncode({...params, 'action': action}),
+         )
+         .timeout(const Duration(seconds: 50));
+     if (currentUser?.uid != user.uid)
+@@ -81,6 +85,20 @@ class CloudService {
+       } catch (_) {
+         throw const CloudException('temporarily-unavailable');
+       }
++      if (body is Map && body['error'] == 'community-consent-required' &&
++          action != 'acceptCommunityPolicy' && !consentRetried) {
++        final prompt = requestCommunityConsent;
++        if (prompt == null) throw const CloudException('community-consent-required');
++        final pending = _communityPrompt ??= prompt();
++        bool accepted;
++        try { accepted = await pending; } finally {
++          if (identical(_communityPrompt, pending)) _communityPrompt = null;
++        }
++        if (!accepted) throw const CloudException('community-consent-required');
++        if (currentUser?.uid != user.uid) throw const CloudException('account-changed');
++        await call('acceptCommunityPolicy', {'version': '2026-10-31'}, user.uid);
++        return call(action, params, user.uid, true);
++      }
+       throw CloudException(
+         body is Map
+             ? body['error']?.toString() ?? 'temporarily-unavailable'
+@@ -645,6 +663,8 @@ class CloudException implements Exception {
+     'invalid-bloom' => '이 꽃의 심기 정보를 확인하지 못했어요. 목록을 새로고침해 주세요.',
+     'request-conflict' => '이 선물의 전송 정보가 달라졌어요. 목록을 다시 열어 주세요.',
+     'invalid-target' => '연결할 이웃을 다시 선택해 주세요.',
++    'community-consent-required' => '공개·공유 전에 커뮤니티 이용약관 동의가 필요해요.',
++    'community-suspended' => '공유 기능 이용이 제한되어 있어요. 운영자에게 문의해 주세요.',
+     'invalid-message' => '응원 문구를 다시 선택해 주세요.',
+     'invalid-report' => '신고 사유를 다시 선택해 주세요.',
+     'invalid-card' => '카드 선택을 다시 확인해주세요.',
+diff --git a/lib/services/privacy_config.dart b/lib/services/privacy_config.dart
+index d4a84a0..19020b4 100644
+--- a/lib/services/privacy_config.dart
++++ b/lib/services/privacy_config.dart
+@@ -1,10 +1,11 @@
+-/// Supply verified operator information at release build time. No invented contact.
++/// Contact confirmed by the operator. Other release details remain configurable.
+ class PrivacyConfig {
+-  static const operatorName = String.fromEnvironment('PRIVACY_OPERATOR');
+-  static const contact = String.fromEnvironment('PRIVACY_CONTACT');
++  static const operatorName = String.fromEnvironment('PRIVACY_OPERATOR', defaultValue: '마음냥정원');
++  static const contact = String.fromEnvironment(
++    'PRIVACY_CONTACT', defaultValue: 'maeumnyang.help@gmail.com');
+   static const policyUrl = String.fromEnvironment('PRIVACY_POLICY_URL');
+   static const deletionUrl = String.fromEnvironment('ACCOUNT_DELETION_URL');
+-  static String get operatorNotice => operatorName.isEmpty || contact.isEmpty
+-      ? '운영자·개인정보 보호 담당자 및 문의처: 출시 전 확인 필요. 현재 테스트 버전의 안내이며 정식 공개 전 운영 정보를 확정합니다.'
+-      : '운영자·개인정보 보호 담당자: $operatorName\n문의: $contact';
++  static String get operatorNotice =>
++      '운영·문의: ${operatorName.isEmpty ? "출시 전 확정 예정" : operatorName}\n'
++      '일반 문의·개인정보 문의·계정 삭제 요청: $contact';
+ }
+diff --git a/lib/services/shared_tree_service.dart b/lib/services/shared_tree_service.dart
+index da5dec8..d3b62ca 100644
+--- a/lib/services/shared_tree_service.dart
++++ b/lib/services/shared_tree_service.dart
+@@ -97,6 +97,10 @@ class SharedTreeService {
+     if (accept) _track(AnalyticsEvents.sharedTreeJoined);
+   }
+ 
++  Future<void> reportNote(String id, String noteId) async {
++    await _call('reportSharedTreeNote', {'id':id, 'noteId':noteId});
++  }
++
+   Future<SharedTree> water(String id) async {
+     final tree = _tree(await _call('waterSharedTree', {'id': id}));
+     _track(AnalyticsEvents.sharedTreeWatered);
+diff --git a/lib/services/sound_service.dart b/lib/services/sound_service.dart
+index d188a93..9934e58 100644
+--- a/lib/services/sound_service.dart
++++ b/lib/services/sound_service.dart
+@@ -210,6 +210,10 @@ class SoundService extends ChangeNotifier {
+   Future<void> playChime() => _playEffect(_sfxPlayer, 'audio/sfx_chime.mp3');
+   Future<void> playMeow() => _playEffect(_meowPlayer, 'audio/sfx_meow.mp3');
+   Future<void> playPurr() => _playEffect(_purrPlayer, 'audio/sfx_purr.mp3');
++  Future<void> stopPurr() => _effectQueues
++      .putIfAbsent(_purrPlayer, LocalRecordQueue.new).run(() async {
++        try { await _purrPlayer.stop(); } catch (_) { /* Safe during teardown. */ }
++      });
+   Future<void> playBubblePop() =>
+       _playEffect(_bubblePlayer, 'audio/sfx_bubble_pop.mp3');
+   Future<void> playGardenComplete() =>
+diff --git a/lib/widgets/community_consent.dart b/lib/widgets/community_consent.dart
+new file mode 100644
+index 0000000..c274407
+--- /dev/null
++++ b/lib/widgets/community_consent.dart
+@@ -0,0 +1,19 @@
++import 'package:flutter/material.dart';
++import '../screens/terms_of_service_screen.dart';
++
++final communityNavigatorKey = GlobalKey<NavigatorState>();
++Future<bool> requestCommunityConsent() async {
++  final context = communityNavigatorKey.currentContext;
++  if (context == null) return false;
++  return await showDialog<bool>(context: context, barrierDismissible: false,
++    builder: (dialogContext) => AlertDialog(
++      title: const Text('이웃과 함께하는 약속'),
++      content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
++        const Text('정원 별명과 공유 글은 다른 이용자에게 보여요. 괴롭힘·혐오·성적 콘텐츠·폭력 위협·스팸·사기·타인의 개인정보 공개를 금지합니다. 부적절한 내용은 신고·차단할 수 있고, 검토 후 공개 중단이나 공유 이용 제한이 적용될 수 있어요. 동의하지 않아도 개인 기록은 사용할 수 있어요.'),
++        TextButton(onPressed: () => Navigator.of(dialogContext).push(MaterialPageRoute<void>(
++          builder: (_) => const TermsOfServiceScreen())), child: const Text('이용약관 전체 읽기')),
++      ])),
++      actions: [TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('나중에')),
++        FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('동의하고 계속'))],
++    )) ?? false;
++}
+diff --git a/lib/widgets/companion_loaf_art.dart b/lib/widgets/companion_loaf_art.dart
+new file mode 100644
+index 0000000..6817ef3
+--- /dev/null
++++ b/lib/widgets/companion_loaf_art.dart
+@@ -0,0 +1,143 @@
++import 'dart:async';
++import 'dart:math' as math;
++import 'dart:ui' as ui;
++import 'package:flutter/material.dart';
++import 'package:flutter/services.dart';
++import '../services/sound_service.dart';
++
++/// Dedicated tucked-paw art; no changes to the standing/walking sprites.
++class CompanionLoafArt extends StatefulWidget {
++  final int coatIndex;
++  final bool motionEnabled;
++  const CompanionLoafArt({super.key, this.coatIndex = 0, this.motionEnabled = true});
++  @override
++  State<CompanionLoafArt> createState() => _CompanionLoafArtState();
++}
++
++class _CompanionLoafArtState extends State<CompanionLoafArt>
++    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
++  static _CompanionLoafArtState? _audioOwner;
++  static Future<ui.Image>? _image;
++  late final _breath = AnimationController(vsync: this,
++      duration: const Duration(milliseconds: 2200));
++  final _sound = SoundService();
++  Timer? _purr;
++  bool _foreground = true, _ready = false, _active = false;
++
++  static Future<ui.Image> _load() async {
++    try {
++      final data = await rootBundle.load('assets/living_garden/companion_loaf.png');
++      final codec = await ui.instantiateImageCodec(data.buffer.asUint8List(
++          data.offsetInBytes, data.lengthInBytes));
++      final image = (await codec.getNextFrame()).image;
++      codec.dispose();
++      return image;
++    } catch (_) { _image = null; rethrow; }
++  }
++
++  @override
++  void initState() {
++    super.initState();
++    _foreground = WidgetsBinding.instance.lifecycleState == null ||
++        WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
++    WidgetsBinding.instance.addObserver(this);
++    _sound.addListener(_sync);
++    _purr = Timer.periodic(const Duration(seconds: 8), (_) => _purrOnce());
++  }
++
++  void _purrOnce() {
++    if (!mounted || !_active || !_sound.sfxEnabled ||
++        _sound.gardenSuspended || _sound.narrationPlaying) return;
++    if (_audioOwner != null && _audioOwner != this) return;
++    _audioOwner = this;
++    unawaited(_sound.playPurr());
++  }
++
++  void _silence() {
++    if (_audioOwner != this) return;
++    _audioOwner = null;
++    unawaited(_sound.stopPurr());
++  }
++
++  void _sync() {
++    if (!_ready || !mounted) return;
++    final wasActive = _active;
++    _active = _foreground && TickerMode.of(context) &&
++        (ModalRoute.of(context)?.isCurrent ?? true);
++    if (_active && widget.motionEnabled && !MediaQuery.disableAnimationsOf(context)) {
++      if (!_breath.isAnimating) _breath.repeat(reverse: true);
++    } else { _breath.stop(); }
++    if (!_active || !_sound.sfxEnabled || _sound.gardenSuspended ||
++        _sound.narrationPlaying) { _silence(); }
++    else if (!wasActive) { _purrOnce(); }
++  }
++
++  @override
++  void didChangeDependencies() {
++    super.didChangeDependencies();
++    _ready = true;
++    _sync();
++  }
++
++  @override
++  void didUpdateWidget(covariant CompanionLoafArt oldWidget) {
++    super.didUpdateWidget(oldWidget);
++    _sync();
++  }
++
++  @override
++  void didChangeAppLifecycleState(AppLifecycleState state) {
++    _foreground = state == AppLifecycleState.resumed;
++    _sync();
++  }
++
++  @override
++  void dispose() {
++    _active = false;
++    _purr?.cancel();
++    _sound.removeListener(_sync);
++    WidgetsBinding.instance.removeObserver(this);
++    _silence();
++    _breath.dispose();
++    super.dispose();
++  }
++
++  @override
++  Widget build(BuildContext context) => Semantics(
++    label: '앞발을 접고 식빵 자세로 골골거리며 쉬는 고양이',
++    image: true,
++    child: FutureBuilder<ui.Image>(
++      future: _image ??= _load(),
++      builder: (context, snapshot) => snapshot.hasData
++          ? AnimatedBuilder(animation: _breath, builder: (context, _) =>
++              CustomPaint(painter: CompanionLoafPainter(snapshot.data!,
++                  widget.coatIndex, .997 + _breath.value * .006)))
++          : const SizedBox.expand(),
++    ),
++  );
++}
++
++class CompanionLoafPainter extends CustomPainter {
++  final ui.Image image;
++  final int coatIndex;
++  final double breath;
++  const CompanionLoafPainter(this.image, this.coatIndex, this.breath);
++  @override
++  void paint(Canvas canvas, Size size) {
++    if (size.isEmpty) return;
++    final index = coatIndex.clamp(0, 5).toInt();
++    final cellW = image.width / 3, cellH = image.height / 2;
++    final source = Rect.fromLTWH((index % 3) * cellW,
++        (index ~/ 3) * cellH, cellW, cellH);
++    final scale = math.min(size.width / cellW, size.height * .82 / cellH);
++    final w = cellW * scale, h = cellH * scale * breath;
++    // Measured contact line per row keeps the loaf grounded during breathing.
++    final foot = index < 3 ? 476 / 512 : 428 / 512;
++    canvas.drawImageRect(image, source,
++        Rect.fromLTWH((size.width - w) / 2, size.height * .967 - h * foot, w, h),
++        Paint()..filterQuality = FilterQuality.medium);
++  }
++  @override
++  bool shouldRepaint(CompanionLoafPainter old) =>
++      image != old.image || coatIndex != old.coatIndex || breath != old.breath;
++}
+diff --git a/lib/widgets/companion_presence.dart b/lib/widgets/companion_presence.dart
+index 5a04603..e2910a6 100644
+--- a/lib/widgets/companion_presence.dart
++++ b/lib/widgets/companion_presence.dart
+@@ -104,6 +104,7 @@ class _CompanionPresenceState extends State<CompanionPresence>
+         return GardenCatArt(
+           animation: _clock,
+           naturalMotion: true,
++          loafMotion: widget.enabled,
+           motionSeconds: interacting
+               ? widget.interactionProgress * 2.4
+               : _clock.value * 72,
+@@ -116,7 +117,7 @@ class _CompanionPresenceState extends State<CompanionPresence>
+                   _clock.value * 72 > 2.7 &&
+                   _clock.value * 72 < 4.2,
+           blinking: _allowed,
+-          resting: widget.resting,
++          resting: widget.resting || widget.interaction == CompanionInteraction.resting,
+           headTilt: frame.headTilt,
+           eyeClosure: widget.resting ? 1 : frame.eyeClosure,
+           breath: frame.breath,
+diff --git a/public-policy-draft/delete-account.html b/public-policy-draft/delete-account.html
+new file mode 100644
+index 0000000..2f9675b
+--- /dev/null
++++ b/public-policy-draft/delete-account.html
+@@ -0,0 +1 @@
++<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex"><title>마음냥 정원 계정 삭제 요청 안내 · 검토 초안</title><style>body{font-family:system-ui,sans-serif;max-width:820px;margin:40px auto;padding:0 22px;line-height:1.8;color:#384450;background:#faf8f4}h1{font-size:28px}h2{font-size:20px;margin-top:30px}a{color:#406a77}table{border-collapse:collapse;width:100%}td,th{border:1px solid #ddd;padding:12px;text-align:left}aside{padding:16px;background:#fff0d7;border-radius:12px}.button{display:inline-block;background:#dfede8;padding:12px 22px;border-radius:12px}code{overflow-wrap:anywhere}</style></head><body><h1>마음냥 정원 계정·데이터 삭제 요청</h1><aside>게시 전 운영 검토용입니다. 실제 접수·본인 확인·처리 기한을 확정하고 삭제 절차를 검증한 뒤 공개하세요.</aside><p>운영·문의: 마음냥정원<br>연락처: <a href="mailto:maeumnyang.help@gmail.com">maeumnyang.help@gmail.com</a></p><h2>앱 없이 삭제를 요청하는 방법</h2><ol><li>아래 버튼으로 이메일 작성 화면을 엽니다. 자동으로 전송되지는 않습니다.</li><li>사용한 로그인 방식과 계정을 확인할 수 있는 최소한의 정보를 적습니다.</li><li>내용을 확인한 뒤 직접 전송합니다. 추가 본인 확인이 필요하면 운영자가 안내합니다.</li></ol><p><a class="button" href="mailto:maeumnyang.help@gmail.com?subject=%5B%EB%A7%88%EC%9D%8C%EB%83%A5%20%EC%A0%95%EC%9B%90%5D%20%EA%B3%84%EC%A0%95%20%EB%B0%8F%20%EB%8D%B0%EC%9D%B4%ED%84%B0%20%EC%82%AD%EC%A0%9C%20%EC%9A%94%EC%B2%AD&amp;body=%EA%B3%84%EC%A0%95%20%EB%B0%8F%20%EA%B4%80%EB%A0%A8%20%EC%84%9C%EB%B2%84%20%EB%8D%B0%EC%9D%B4%ED%84%B0%20%EC%82%AD%EC%A0%9C%EB%A5%BC%20%EC%9A%94%EC%B2%AD%ED%95%A9%EB%8B%88%EB%8B%A4.%0A%EC%82%AC%EC%9A%A9%ED%95%9C%20%EB%A1%9C%EA%B7%B8%EC%9D%B8%20%EB%B0%A9%EC%8B%9D%3A%0A%EA%B3%84%EC%A0%95%EC%9D%84%20%ED%99%95%EC%9D%B8%ED%95%A0%20%EC%88%98%20%EC%9E%88%EB%8A%94%20%EC%9D%B4%EB%A9%94%EC%9D%BC%20%EB%98%90%EB%8A%94%20%EC%82%AC%EC%9A%A9%EC%9E%90%20%EC%8B%9D%EB%B3%84%20%EC%A0%95%EB%B3%B4%3A%0A%ED%9A%8C%EC%8B%A0%EB%B0%9B%EC%9D%84%20%EC%9D%B4%EB%A9%94%EC%9D%BC%3A%0A%0A%EB%B9%84%EB%B0%80%EB%B2%88%ED%98%B8%C2%B7%EC%9D%B8%EC%A6%9D%EB%B2%88%ED%98%B8%C2%B7%EC%A3%BC%EB%AF%BC%EB%93%B1%EB%A1%9D%EB%B2%88%ED%98%B8%EB%8A%94%20%EB%B3%B4%EB%82%B4%EC%A7%80%20%EB%A7%88%EC%84%B8%EC%9A%94.">계정 삭제 요청 메일 작성</a></p><p>메일 앱이 열리지 않으면 위 주소를 복사하여 사용하시는 이메일 서비스에서 보내세요. 비밀번호·인증번호·주민등록번호는 보내지 마세요.</p><h2>삭제 범위</h2><p>계정과 관련 서버 백업, 공개 정원 및 관련 사용자 데이터가 삭제 처리 대상입니다. 보안·부정 이용 방지를 위해 남는 결제 삭제 표식과 운영 기록의 항목·보유기간은 개인정보처리방침에 확정하여 공개해야 합니다. 메일 요청만으로 기기에 있는 오프라인 기록이나 사용자가 외부로 내보낸 파일을 원격 삭제하지는 않습니다.</p><h2>구독 해지는 별도입니다</h2><p>계정 삭제와 Google Play 구독 해지는 별개입니다. 구독 중이라면 Play 스토어의 구독 관리에서 해지 여부를 확인해 주세요.</p><p><a href="privacy.html">개인정보처리방침 초안</a></p></body></html>
+\ No newline at end of file
+diff --git a/public-policy-draft/privacy.html b/public-policy-draft/privacy.html
+new file mode 100644
+index 0000000..1fb4684
+--- /dev/null
++++ b/public-policy-draft/privacy.html
+@@ -0,0 +1 @@
++<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex"><title>마음냥 정원 개인정보처리방침 · 검토 초안</title><style>body{font-family:system-ui,sans-serif;max-width:820px;margin:40px auto;padding:0 22px;line-height:1.8;color:#384450;background:#faf8f4}h1{font-size:28px}h2{font-size:20px;margin-top:30px}a{color:#406a77}table{border-collapse:collapse;width:100%}td,th{border:1px solid #ddd;padding:12px;text-align:left}aside{padding:16px;background:#fff0d7;border-radius:12px}.button{display:inline-block;background:#dfede8;padding:12px 22px;border-radius:12px}code{overflow-wrap:anywhere}</style></head><body><h1>마음냥 정원 개인정보처리방침</h1><aside>공개 전 검토 초안입니다. 아래 미확정 항목을 확인하고 실제 운영 설정과 맞춘 후 게시해야 합니다.</aside><p>운영·문의: 마음냥정원<br>이메일: <a href="mailto:maeumnyang.help@gmail.com">maeumnyang.help@gmail.com</a></p><h2>1. 처리하는 정보와 목적</h2><table><tr><th>기능</th><th>정보·목적</th></tr><tr><td>감정 기록·편지·정원·돌보기</td><td>개인 기록과 성장·아이템·산책 보상은 기기에 저장합니다. 기록 암호화를 적용하며 일부 설정은 앱 전용 설정 저장소에 보관합니다.</td></tr><tr><td>로그인</td><td>Firebase 계정 식별자와 로그인 공급자의 인증 정보를 사용합니다. 구글은 이름·이메일·프로필 정보가 전달될 수 있습니다. 다른 로그인 공급자 연동 범위는 실제 활성 설정을 확인해야 합니다.</td></tr><tr><td>백업</td><td>사용자가 선택한 파일 또는 서버에 암호화 백업을 저장합니다. 서버 백업 암호를 서버에 전송하지 않습니다. 암호를 분실하면 복원이 불가능할 수 있습니다.</td></tr><tr><td>구독</td><td>계정 식별자·구매 토큰·상품·구독 상태를 구독 검증과 복원에 사용합니다. 카드번호를 직접 저장하는 결제 화면은 없습니다.</td></tr><tr><td>이웃·공동 나무</td><td>직접 공개한 정원 외형·별명·공유 메모·기념일·상호작용을 참여자 또는 선택한 공개 범위에서 제공합니다. 개인 편지와 감정 통계는 공개 정원에 포함하지 않습니다.</td></tr><tr><td>신고·운영</td><td>신고자·대상 계정·사유와 공유 메모 참조, 처리 상태·담당자·시각을 처리합니다. 약관 동의 버전과 동의 시각도 저장합니다.</td></tr><tr><td>알림·클래스</td><td>알림 토큰·계정·알림 선택, 선택한 일정·예약 상태·신청 메모를 처리합니다.</td></tr><tr><td>분석·광고</td><td>사용 통계 공유는 기본 꺼짐이며 동의 시 Firebase Analytics를 사용합니다. AdMob 광고가 활성화되면 기기 식별자·IP·광고 상호작용·진단 정보 등이 처리될 수 있습니다. 일기 본문을 광고 타기팅 정보로 전달하지 않습니다.</td></tr></table><h2>2. 보관·삭제·복원</h2><p>기기 기록은 직접 삭제하거나 앱 데이터를 삭제할 때까지 보관됩니다. 로그아웃은 삭제가 아닙니다. 서버 백업은 최근 10개를 보관하도록 구현되어 있으며 이전 백업에 삭제 전 기록이 남을 수 있습니다. 계정 삭제는 관련 서버 데이터 정리 절차를 수행합니다. 원문 토큰·계정 식별자를 제거한 구매 토큰 해시의 삭제 표식은 중복 구매 연결 방지에 사용됩니다. 이미 내보내거나 공유한 파일은 사용자가 별도로 삭제해야 합니다. 재설치 시 자동 복원을 보장하지 않습니다.</p><h2>3. 동의·권리 행사</h2><p>사용 통계 공유는 앱 설정에서 변경할 수 있고, 공개 정원 설정과 차단은 냥이 마을에서 관리합니다. 앱의 기록 보관과 백업에서 계정 삭제를 요청하거나 <a href="delete-account.html">외부 삭제 요청 안내</a>를 이용할 수 있습니다. 문의 및 권리 행사 이메일은 maeumnyang.help@gmail.com입니다.</p><h2>4. 외부 서비스와 국외 처리</h2><p>Firebase·Google Cloud·Google Play·AdMob 및 선택한 로그인 공급자가 해당 기능에 사용됩니다. 서울 리전 서버를 사용하더라도 인증·광고·통계의 모든 처리가 한국에서만 이루어진다고 보장하지 않습니다.</p><aside><b>게시 전 반드시 확정할 내용</b><ul><li>실제 운영 주체와 개인정보 보호 담당자 표시의 정확성</li><li>공급업체별 수탁자명·처리 국가·이전 항목·시점·방법·보유기간·거부 방법</li><li>신고·운영 로그와 결제 삭제 표식의 보유기간 및 근거</li><li>외부 계정 삭제 본인 확인 절차와 처리 기한</li><li>실제 광고·분석·소셜 로그인 설정과 Data Safety의 일치</li><li>정식 시행일과 공개 URL</li></ul></aside><p>작성 기준: 2026-10-31 소스 검토. 시행일 확정 전입니다.</p></body></html>
+\ No newline at end of file
+diff --git a/pubspec.yaml b/pubspec.yaml
+index 8765334..2931d68 100644
+--- a/pubspec.yaml
++++ b/pubspec.yaml
+@@ -2,7 +2,7 @@ name: flutter_app
+ description: "마음냥 정원 - 고양이와 함께하는 마음 기록"
+ publish_to: 'none'
+ 
+-version: 1.0.59+62
++version: 1.0.61+64
+ 
+ environment:
+   sdk: ^3.9.2
+diff --git a/test/garden_world_offline_test.dart b/test/garden_world_offline_test.dart
+index 27aba97..ee15eb2 100644
+--- a/test/garden_world_offline_test.dart
++++ b/test/garden_world_offline_test.dart
+@@ -1,4 +1,7 @@
+ import 'package:flutter_app/theme.dart';
++import 'package:audioplayers_platform_interface/audioplayers_platform_interface.dart';
++import 'support/fake_audioplayers_platform.dart';
++import 'support/fake_global_audioplayers_platform.dart';
+ import 'dart:async';
+ import 'dart:convert';
+ import 'dart:io';
+@@ -40,6 +43,8 @@ class _Garden extends GardenProvider {
+ void main() {
+   TestWidgetsFlutterBinding.ensureInitialized();
+   setUpAll(() async {
++    AudioplayersPlatformInterface.instance = FakeAudioplayersPlatform();
++    GlobalAudioplayersPlatformInterface.instance = FakeGlobalAudioplayersPlatform();
+     for (final font in ['GowunDodum', 'GamjaFlower']) {
+       final loader = FontLoader(font)
+         ..addFont(rootBundle.load('assets/fonts/$font-Regular.ttf'));
+diff --git a/test/garden_world_view_test.dart b/test/garden_world_view_test.dart
+index a514d38..6b99cf5 100644
+--- a/test/garden_world_view_test.dart
++++ b/test/garden_world_view_test.dart
+@@ -1,4 +1,7 @@
+ import 'package:flutter_app/mongi/widgets/storybook_garden.dart';
++import 'package:audioplayers_platform_interface/audioplayers_platform_interface.dart';
++import 'support/fake_audioplayers_platform.dart';
++import 'support/fake_global_audioplayers_platform.dart';
+ import 'package:flutter/material.dart';
+ import 'package:flutter_app/mongi/widgets/garden_cat_pose.dart';
+ import 'package:flutter_app/mongi/widgets/garden_grounded_art.dart';
+@@ -11,6 +14,10 @@ import 'package:flutter_app/mongi/models/garden_layout.dart';
+ import 'package:flutter_app/mongi/widgets/garden_world_view.dart';
+ 
+ void main() {
++  setUpAll(() {
++    AudioplayersPlatformInterface.instance = FakeAudioplayersPlatform();
++    GlobalAudioplayersPlatformInterface.instance = FakeGlobalAudioplayersPlatform();
++  });
+   testWidgets('private cat care opens on tap; public cats cannot mutate care', (
+     tester,
+   ) async {
+diff --git a/test/privacy_entrypoint_test.dart b/test/privacy_entrypoint_test.dart
+index 2bbc951..077186c 100644
+--- a/test/privacy_entrypoint_test.dart
++++ b/test/privacy_entrypoint_test.dart
+@@ -6,8 +6,14 @@ void main() {
+   test('both privacy entry points resolve to current policy, not local-only copy', () {
+     expect(const legacy.PrivacyPolicyScreen(), isA<current.PrivacyPolicyScreen>());
+   });
+-  test('unconfigured operator is explicitly unresolved, never an invented email', () {
+-    expect(PrivacyConfig.operatorNotice, contains('확인 필요'));
+-    expect(PrivacyConfig.contact, isEmpty);
++  test('default contact uses the operator-confirmed name and support email', () {
++    expect(PrivacyConfig.operatorName, '마음냥정원');
++    expect(PrivacyConfig.contact, 'maeumnyang.help@gmail.com');
++    expect(PrivacyConfig.operatorNotice, contains(PrivacyConfig.operatorName));
++    expect(PrivacyConfig.operatorNotice, contains(PrivacyConfig.contact));
++  });
++  test('unpublished policy and deletion URLs are not invented', () {
++    expect(PrivacyConfig.policyUrl, isEmpty);
++    expect(PrivacyConfig.deletionUrl, isEmpty);
+   });
+ }
+diff --git a/test/walk_reward_store_test.dart b/test/walk_reward_store_test.dart
+new file mode 100644
+index 0000000..1c83f8b
+--- /dev/null
++++ b/test/walk_reward_store_test.dart
+@@ -0,0 +1,31 @@
++import 'package:flutter_test/flutter_test.dart';
++import 'package:shared_preferences/shared_preferences.dart';
++import 'package:flutter_app/mongi/integration/mongi_garden_store.dart';
++void main() {
++  TestWidgetsFlutterBinding.ensureInitialized();
++  final store = MongiGardenStore.instance;
++  setUp(() async {SharedPreferences.setMockInitialValues({}); await store.reload();});
++  test('old garden loads empty food, new food survives copy and roundtrip', () {
++    final old = MongiGardenData().toJson()..remove('walkStock');
++    expect(MongiGardenData.fromJson(old).walkStock, isEmpty);
++    final data=MongiGardenData(walkStock:{'churu_tuna':2},essence:20).copy(stage:2);
++    expect(MongiGardenData.fromJson(data.toJson()).walkStock['churu_tuna'],2);
++  });
++  test('retry and concurrent reward calls credit one receipt with food and essence', () async {
++    final id=List.filled(48,'a').join();
++    await Future.wait(List.generate(3, (_) => store.receiveWalkReward(id,
++      {'churu':2,'snack':1,'light':25},isCurrentOwner:()=>true)));
++    await store.reload();
++    expect(store.value.essence,25);
++    expect(store.value.walkStock,{'churu_tuna':2,'food_dry':1});
++    expect(await store.consumeWalkFood('food_dry',isCurrentOwner:()=>true),true);
++    expect(await store.consumeWalkFood('food_dry',isCurrentOwner:()=>true),false);
++    expect(store.value.essence,25);
++  });
++  test('account change and malformed reward never mint currency', () async {
++    final id=List.filled(48,'b').join();
++    await expectLater(store.receiveWalkReward(id,{'light':25},isCurrentOwner:()=>false),throwsStateError);
++    await expectLater(store.receiveWalkReward(id,{'light':999},isCurrentOwner:()=>true),throwsArgumentError);
++    expect(store.value.essence,0);
++  });
++}
+diff --git a/tool/android_build_config.sh b/tool/android_build_config.sh
+index 29f4761..5ea9593 100644
+--- a/tool/android_build_config.sh
++++ b/tool/android_build_config.sh
+@@ -13,7 +13,9 @@ require_android_https_endpoint() {
+   local host="${value#https://}"
+   host="${host%%/*}"
+   host="${host%%:*}"
+-  case "${host,,}" in
++  local normalized_host
++  normalized_host=$(printf '%s' "$host" | tr '[:upper:]' '[:lower:]')
++  case "$normalized_host" in
+     localhost|*.localhost|*.invalid|example.com|*.example.com|127.*|0.0.0.0)
+       printf '%s\n' "$name must use the real deployed host, not a placeholder or local host." >&2
+       return 1 ;;
+diff --git a/tool/build_store_bundle.sh b/tool/build_store_bundle.sh
+index 08cefa7..23586b8 100644
+--- a/tool/build_store_bundle.sh
++++ b/tool/build_store_bundle.sh
+@@ -3,6 +3,8 @@ set -euo pipefail
+ cd "$(dirname "$0")/.."
+ # Test APKs and Play bundles must use the same login/server configuration.
+ source tool/android_build_config.sh
++export PRIVACY_OPERATOR="${PRIVACY_OPERATOR:-마음냥정원}"
++export PRIVACY_CONTACT="${PRIVACY_CONTACT:-maeumnyang.help@gmail.com}"
+ for key in PRIVACY_OPERATOR PRIVACY_CONTACT PRIVACY_POLICY_URL ACCOUNT_DELETION_URL; do
+   if [[ -z "${!key:-}" ]]; then
+     printf '%s\n' "Set verified $key before a production build." >&2
+diff --git a/tool/check_build_environment.py b/tool/check_build_environment.py
+new file mode 100644
+index 0000000..48012c9
+--- /dev/null
++++ b/tool/check_build_environment.py
+@@ -0,0 +1,27 @@
++from pathlib import Path
++import shutil, os
++root=Path(__file__).resolve().parent.parent
++lines=['마음냥 정원 빌드 환경 확인 (키/비밀번호 내용은 읽거나 출력하지 않음)']
++for name in ['flutter','dart','java','adb','node','python3']:
++ lines.append(f'{name}: '+('사용 가능' if shutil.which(name) else '명령 경로에서 찾지 못함'))
++lines.append('현재 프로젝트 Android 서명 설정: '+('있음' if (root/'android/key.properties').is_file() else '없음'))
++found=[]
++for folder in ['Downloads','Desktop','Documents']:
++ base=Path.home()/folder
++ if not base.is_dir():continue
++ count=0
++ for current,dirs,files in os.walk(base):
++  count+=1
++  rel=Path(current).relative_to(base)
++  dirs[:]=[x for x in dirs if not x.startswith('.') and x not in ['node_modules','build','Pods']]
++  if len(rel.parts)>=5:dirs[:]=[]
++  if count>5000:break
++  if Path(current).name=='android' and 'key.properties' in files:
++   found.append(str(Path(current).parent))
++lines.append('기존 서명 설정 후보 프로젝트 폴더:')
++lines.extend(found or ['기본 검색 범위에서 찾지 못함. 예전에 APK를 만든 작업 환경 확인이 필요합니다.'])
++lines.append('key.properties가 있어도 실제 서명 키의 존재·일치 여부는 별도 확인해야 합니다.')
++lines.append('이 결과는 환경 진단이며 앱 검사·빌드 성공 결과가 아닙니다.')
++text='\n'.join(lines)+'\n'
++(root/'BUILD-ENVIRONMENT-RESULT.txt').write_text(text)
++print(text)
+diff --git a/tool/test_cat_walk.cjs b/tool/test_cat_walk.cjs
+index 45355db..2b6bfcc 100644
+--- a/tool/test_cat_walk.cjs
++++ b/tool/test_cat_walk.cjs
+@@ -1,7 +1,7 @@
+ const fs=require('fs'),vm=require('vm'),assert=require('assert');
+ const ctx=new Proxy({measureText:t=>({width:t.length*12})},{get:(o,k)=>o[k]||(()=>{})});
+ function element(){return {value:'또리',checked:true,disabled:false,style:{},parentElement:{style:{}},classList:{add(){},remove(){},contains(){return true}},getBoundingClientRect:()=>({width:360,height:800}),getContext:()=>ctx,append(){},replaceChildren(){},setAttribute(){},blur(){},scrollIntoView(){},toBlob:f=>f({})}}
+-const els={};const sandbox={WalkHost:{postMessage(){}},console,Promise,Set,Math,Date,document:{getElementById:id=>els[id]??=element(),createElement:()=>element(),createTextNode:t=>t,addEventListener(){}},localStorage:{getItem:()=>null,setItem(){},removeItem(){}},Image:class{set src(v){this.complete=true;this.naturalWidth=1672;queueMicrotask(()=>this.onload?.())}},requestAnimationFrame(){},performance:{now:()=>0},URL:{createObjectURL:()=> 'blob:test',revokeObjectURL(){}},window:{}};
++const els={};const sandbox={WalkHost:{postMessage(raw){const msg=JSON.parse(raw);if(msg.type==='walkReward') sandbox.window.walkRewardResult(true);if(msg.type==='walkFeed') sandbox.window.walkFeedResult(msg.kind,true);}},console,Promise,Set,Math,Date,document:{getElementById:id=>els[id]??=element(),createElement:()=>element(),createTextNode:t=>t,addEventListener(){}},localStorage:{getItem:()=>null,setItem(){},removeItem(){}},Image:class{set src(v){this.complete=true;this.naturalWidth=v.includes('companion_loaf')?1536:1672;this.naturalHeight=v.includes('companion_loaf')?1024:1448;queueMicrotask(()=>this.onload?.())}},requestAnimationFrame(){},performance:{now:()=>0},URL:{createObjectURL:()=> 'blob:test',revokeObjectURL(){}},window:{}};
+ vm.createContext(sandbox);let html=fs.readFileSync('assets/cat_walk.html','utf8');vm.runInContext(fs.readFileSync('assets/cat_walk/assets/catalog.js','utf8')+fs.readFileSync('assets/cat_walk/assets/dialogue.js','utf8')+fs.readFileSync('assets/cat_walk/assets/rewards.js','utf8')+fs.readFileSync('assets/cat_walk/assets/music.js','utf8')+html.match(/<script>([\s\S]*)<\/script>/)[1],sandbox);
+ vm.runInContext("window.applyWalkProfile({name:'또리',coat:0,emotions:['joyful','anxious']})",sandbox);
+ setImmediate(()=>{vm.runInContext(`
+@@ -11,7 +11,7 @@ receive(20);if(reaction.kind!=='joy')throw Error('joy reaction');
+ receive(6);if(reaction.kind!=='float')throw Error('anxiety reaction');
+ resizeWalk();if(c.width!==324||catX>=c.width*.3)throw Error('portrait camera');c.getBoundingClientRect=()=>({width:800,height:360});resizeWalk();if(c.width!==1600||catX!==270)throw Error('landscape camera');
+ const beforeWorld=world,beforeTime=elapsed;frame(20);if(world<=beforeWorld||elapsed<=beforeTime)throw Error('emotion must not stop walk');jump();if(vy<=0)throw Error('emotion must allow jump');y=vy=0;
+-pause();if(mode!=='paused')throw Error('pause');begin();if(!reaction)throw Error('resume preserves reaction');
++pause();if(mode!=='paused'||!loafUserPause)throw Error('manual loaf pause');const loafWorld=world,loafElapsed=elapsed;frame(40);if(world!==loafWorld||elapsed!==loafElapsed)throw Error('rest must freeze walk and rewards');drawLoaf(x,100,200,170);begin();if(!reaction)throw Error('resume preserves reaction');if(loafUserPause)throw Error('resume must end loaf');pause(false);if(loafUserPause)throw Error('background pause must not trigger purr');begin();
+ reaction=null;for(const event of discoveryTypes){discovery=event;discover();if(reaction.kind!==event.id)throw Error('discovery');const w=world,e=elapsed;frame(last+20);if(world!==w||elapsed!==e)throw Error('special discovery must pause');jump();if(vy!==0)throw Error('special pause jump');reaction=null}
+ if(discoveries.length!==3)throw Error('discoveries');caught.add(0);caught.add(20);finishWalk();if(mode!=='done'||!postcardUrl)throw Error('postcard');
+ begin();if(caught.size||discoveries.length||reaction)throw Error('reset');
+@@ -26,6 +26,8 @@ begin();resetRewards();reaction=null;for(const type of ['churu','snack','pouch']
+ collectReward({type:'treasure'});if(bag.light!==25||!specialReaction())throw Error('treasure reward');const rw=world;frame(last+20);if(world!==rw)throw Error('treasure pause');reactionTime=1.59;frame(last+20);if(specialReaction())throw Error('treasure pause duration');
+ finishWalk();if(!$('rewardResult').textContent.includes('25'))throw Error('reward result');begin();if(bag.light||bag.churu||bag.snack)throw Error('reward reset');selected.clear();for(let i=0;i<1900&&mode==='running';i++)frame(last+35);if(!bag.churu||!bag.snack||!bag.light)throw Error('no-emotion full walk rewards');
+ begin();reaction=null;discovery=hiddenDiscovery();const beforeFood=bag.churu;discover();if(bag.churu!==beforeFood+1||!specialReaction())throw Error('hidden food');discover();if(bag.churu!==beforeFood+1)throw Error('hidden double claim');finishWalk();feedCat('churu');if(bag.churu!==beforeFood||feedingUntil<=t)throw Error('feeding');feedCat('churu');if(bag.churu!==beforeFood)throw Error('feeding double click');t=feedingUntil+1;feedCat('churu');if(bag.churu<0)throw Error('negative food');feedingVisual($('farewellCat').getContext('2d'));
++window.rewardPending=true;const priorMode=mode;begin();if(mode!==priorMode)throw Error('pending reward must block new session');window.walkRewardResult(false);if(!$('start').textContent.includes('다시 시도')||!$('choose').disabled)throw Error('failed save retry UI');window.walkRewardResult(true);if(window.rewardPending||$('choose').disabled)throw Error('successful save releases UI');
++console.log('PASS: reward persistence handshake, failed-save retry and new-walk guard');
+ console.log('PASS: hidden treasure claim; food consumption; double-click guard; empty bag');
+ console.log('PASS: pickup totals, duplicate guard, special pause/release, result, reset, 60-second walk with no emotions');
+ console.log('PASS: all 37 emotion mappings; mood-aware varied lines; nickname/polite/blank; dialogue cooldown; uninterrupted walking;');
+diff --git a/tool/test_release_config.py b/tool/test_release_config.py
+index b63ea7a..e32d7f4 100644
+--- a/tool/test_release_config.py
++++ b/tool/test_release_config.py
+@@ -7,8 +7,8 @@ class ReleaseConfiguration(unittest.TestCase):
+   for k in ['PRIVACY_OPERATOR','PRIVACY_CONTACT','PRIVACY_POLICY_URL','ACCOUNT_DELETION_URL']:env.pop(k,None)
+   env.update(config)
+   return subprocess.run(['bash','tool/build_store_bundle.sh'],cwd=ROOT,env=env,capture_output=True,text=True)
+- def test_missing_operator_stops_before_build(self):
+-  r=self.run_build();self.assertNotEqual(r.returncode,0);self.assertIn('PRIVACY_OPERATOR',r.stderr)
++ def test_missing_policy_url_stops_before_build(self):
++  r=self.run_build();self.assertNotEqual(r.returncode,0);self.assertIn('PRIVACY_POLICY_URL',r.stderr)
+  def test_http_policy_rejected(self):
+   r=self.run_build(PRIVACY_OPERATOR='Test',PRIVACY_CONTACT='verified elsewhere',PRIVACY_POLICY_URL='http://policy.invalid',ACCOUNT_DELETION_URL='https://delete.invalid')
+   self.assertNotEqual(r.returncode,0);self.assertIn('HTTPS',r.stderr)
+diff --git a/tool/verify_candidate.sh b/tool/verify_candidate.sh
+new file mode 100644
+index 0000000..e0d832d
+--- /dev/null
++++ b/tool/verify_candidate.sh
+@@ -0,0 +1,17 @@
++#!/usr/bin/env bash
++set -euo pipefail
++cd "$(dirname "$0")/.."
++for executable in flutter node python3; do
++  if ! command -v "$executable" >/dev/null 2>&1; then
++    printf '%s\n' "Required tool missing: $executable. Verification incomplete."
++    exit 1
++  fi
++done
++flutter pub get
++flutter analyze --no-fatal-infos --no-fatal-warnings
++flutter test
++node tool/test_cat_walk.cjs
++python3 tool/test_release_config.py
++python3 tool/test_billing_check.py
++(cd backend && node --test)
++printf '%s\n' 'Local checks passed. Real-device, console, billing and signing verification still required.'

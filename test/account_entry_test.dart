@@ -68,9 +68,42 @@ void main() {
         );
         expect(
           button.onPressed,
-          isNull,
+          isNotNull,
           reason:
-              'An unconfigured build explains setup rather than faking login.',
+              'An unconfigured build must explain a tap instead of appearing unresponsive.',
+        );
+        await tester.tap(find.text(label));
+        await tester.pumpAndSettle();
+        expect(
+          find.descendant(
+            of: find.byType(SnackBar),
+            matching: find.textContaining('AUTH-01'),
+          ),
+          findsOneWidget,
+        );
+        expect(find.text('로그인을 취소했어요.'), findsNothing);
+
+        // Let the visible error dismiss before tapping another provider; the
+        // persistent inline explanation must remain available when revisited.
+        await tester.pump(const Duration(seconds: 11));
+        await tester.pumpAndSettle();
+        expect(find.byType(SnackBar), findsNothing);
+        await tester.scrollUntilVisible(
+          find.textContaining('AUTH-01'),
+          -200,
+          scrollable: find
+              .descendant(
+                of: find.byType(ListView),
+                matching: find.byType(Scrollable),
+              )
+              .first,
+        );
+        expect(
+          find.descendant(
+            of: find.byType(ListView),
+            matching: find.textContaining('AUTH-01'),
+          ),
+          findsOneWidget,
         );
       }
       expect(tester.takeException(), isNull);

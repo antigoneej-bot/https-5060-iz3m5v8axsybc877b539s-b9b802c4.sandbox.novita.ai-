@@ -121,6 +121,8 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 350));
       expect(find.byType(EmotionStatisticsScreen), findsOneWidget);
+      await tester.tap(find.text('통계 자세히'));
+      await tester.pumpAndSettle();
       expect(find.text('3번'), findsOneWidget);
       await tester.scrollUntilVisible(
         find.text('함께 모은 기록'),
@@ -156,6 +158,8 @@ void main() {
     (tester) async {
       final garden = _Garden()..fail = true;
       await open(tester, const EmotionStatisticsScreen(), garden, width: 360);
+      await tester.tap(find.text('통계 자세히'));
+      await tester.pumpAndSettle();
       expect(find.text('2번'), findsOneWidget);
       final retry = find.text('정원 일기를 불러오지 못했어요. 다시 시도');
       await tester.scrollUntilVisible(

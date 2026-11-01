@@ -1,0 +1,48 @@
+마음냥 정원 v60 콘솔·실기기 체크리스트 (2026-10-30)
+아래 [ ]는 미확인입니다. 코드가 있다는 이유로 체크하지 마세요.
+
+[ ] 실제 운영자명/개인정보 보호 담당자/이메일 수신 확인
+[ ] 공개 방침과 외부 계정 삭제 URL: 로그아웃한 브라우저·다른 지역/기기에서 열림
+[ ] 외부 삭제 요청: 앱 미설치 상태 접수 → 본인 확인 → 서버 삭제 → 결과 통지
+[ ] 대상 연령 확정, 콘텐츠 등급 설문(UGC·사용자 교류·구매·광고)을 실제 기능대로 응답
+[ ] UGC 금지 내용/약관 확정, 공개·공동 콘텐츠 업로드 전 동의 화면과 버전 기록
+[ ] 닉네임/공동 메모/사용자 신고 접수·담당자 처리·차단·콘텐츠 제거·제재 테스트
+[ ] Health apps 선언, 의료 진단/치료/예방으로 오인되지 않는 스토어 문구
+[ ] 광고 포함 여부 및 AdMob 실 ID·app-ads.txt/개인정보 메시지 설정, 무료 사용자 광고 확인
+[ ] Data Safety: 로그인/백업/UGC/광고/통계/FCM을 배포 중인 전체 버전 기준으로 신고
+[ ] API36, 앱 서명 SHA256, Play Integrity와 Firebase Android app ID 일치
+[ ] Firestore/Storage deny-all 실제 배포본, 서비스 계정 최소 권한, API 키 앱/API 제한
+[ ] socialAuth 비밀키는 Secret Manager, 제공사 리디렉션·코드 일회성·TTL 정책
+[ ] Google Play Android Developer API 활성화와 서비스 계정 구독 조회/승인 권한
+[ ] SKU garden_plus_monthly / garden_plus_yearly 활성, 월/연 기본 요금제·대상 국가·가격 일치
+[ ] 무료 체험 설정 여부 확인: 기간/자격/종료 후 금액/자동 갱신을 실제 화면과 대조
+[ ] RTDN play-rtdn 주제·게시 권한·playNotifications 트리거·재시도 확인
+[ ] 서버 RELEASE_ENV=production, PREMIUM_TEST_ACCESS=false (현재 테스트 종료 시 설정)
+[ ] 앱 정식 빌드: UNLOCK_ALL_PREMIUM=false, TEST_SHOW_ONBOARDING=false, APP_CHECK_DEBUG_PROVIDER=false, ADMOB_TEST_ADS=false
+[ ] Play 라이선스 테스트에서 승인·거절·보류·재개·취소·만료·grace·hold·복원·월→연 전환
+[ ] 실제 구매 토큰 isTestPurchase=false 및 서버 승인/권한 확인, 실제 해지·환불 재검증
+[ ] 결제 중 앱 강제 종료 후 재실행/구매 복원, 다른 계정의 토큰으로 권한 받지 못함
+[ ] 네트워크 단절·서버 오류 때 기록 손실·가짜 결제 성공·중복 과금 없음
+[ ] 구독 종료 후 기록/나무/아이템 보존, 백업 복원 가능, 새 유료 작업 제한
+[ ] 기존 v59 위에 업데이트(삭제 없이) 후 기존 편지·통계·정원·6종·37마리 모두 유지
+[ ] Android 7/최신 Android/16KB 환경·저사양 기기에서 실행/재실행·회전·음악·알림
+[ ] 손상/키 실패 복구 화면, 정상 암호화 백업 복원, 재설치 시 복원 범위 안내 확인
+[ ] 실제 Firebase 두 계정으로 비공개 기록 읽기/수정 차단, 차단 후 이웃·공동 메모 접근 차단
+[ ] 계정 삭제 후 공개 정원·백업·공동 메모·알림·예약·구매토큰 정리 및 재가입 새UID
+[ ] 로그/오류 보고에 편지·토큰·사용자 입력 미노출
+[ ] Play 사전 출시 보고서·SDK 경고·심사 접근 안내·앱 접근 권한 자료 완료
+
+서버 적용 순서
+1. gcloud functions describe gardenApi --gen2 --region=asia-northeast3 --project=mycatapp-99bc8
+   실제 소스 위치·런타임·환경·서비스 계정 확인. 비밀 값은 공유하지 않음.
+2. 현재 배포 소스를 백업하고 backend-changes.patch와 비교. 이번 소스가 서버 최신과 다르면 강제 덮어쓰지 않고 병합.
+3. 테스트 환경에서 node --test, 실제 두 계정·Play 테스트 구매·App Check·삭제 시나리오 실행.
+4. gardenApi, playNotifications에 변경 적용. 기존 IAM/Secret/환경변수를 보존. firestore/storage 규칙도 실제 비교.
+5. 운영 전 테스트 플래그 해제, 버전/설정 기록 및 롤백 절차 확보.
+이번 작업에서는 Cloud/Play에 직접 배포하지 않았습니다.
+
+정식 빌드
+운영자/문의/정책URL/삭제URL/실제 서버URL을 확인 후 환경변수로 설정하고
+bash tool/build_store_bundle.sh
+현재 v60 Audit APK/AAB는 설정 및 정책이 미완성이므로 정식 배포 금지.
+APK 직접 설치는 Play Integrity 제약으로 온라인 기능이 제한될 수 있어, 구독 검증은 Play 내부 테스트 설치로 수행.

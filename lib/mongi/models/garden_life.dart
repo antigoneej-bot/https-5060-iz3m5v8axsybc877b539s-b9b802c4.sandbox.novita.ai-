@@ -18,7 +18,12 @@ class _Stop {
   final Offset to;
   final double rest;
   final String arriveLabel, walkLabel;
-  const _Stop(this.to, this.rest, this.arriveLabel, {this.walkLabel = '천천히 걷는 몽이'});
+  const _Stop(
+    this.to,
+    this.rest,
+    this.arriveLabel, {
+    this.walkLabel = '천천히 걷는 몽이',
+  });
 }
 
 enum GardenCatFacing { side, toward, away }
@@ -87,7 +92,9 @@ class GardenCatMoment {
               ? const Offset(0, 1)
               : Offset(-ab.dy / along, ab.dx / along);
           final side =
-              ((o.dx - closest.dx) * normal.dx + (o.dy - closest.dy) * normal.dy) >= 0
+              ((o.dx - closest.dx) * normal.dx +
+                      (o.dy - closest.dy) * normal.dy) >=
+                  0
               ? -1.0
               : 1.0;
           bend = closest + normal * (side * (radius + 20));
@@ -96,12 +103,21 @@ class GardenCatMoment {
     }
     if (bend == null) return [a, b];
     // Round the detour corner so direction never changes at a sharp elbow.
-    final rounding = math.min(26.0, math.min((bend - a).distance, (b - bend).distance) * .25);
+    final rounding = math.min(
+      26.0,
+      math.min((bend - a).distance, (b - bend).distance) * .25,
+    );
     final entry = Offset.lerp(bend, a, rounding / (bend - a).distance)!;
     final exit = Offset.lerp(bend, b, rounding / (b - bend).distance)!;
-    return [a, entry, for (var i = 1; i <= 10; i++)
-      entry * math.pow(1 - i / 10, 2).toDouble() +
-      bend * (2 * (1 - i / 10) * i / 10) + exit * math.pow(i / 10, 2).toDouble(), b];
+    return [
+      a,
+      entry,
+      for (var i = 1; i <= 10; i++)
+        entry * math.pow(1 - i / 10, 2).toDouble() +
+            bend * (2 * (1 - i / 10) * i / 10) +
+            exit * math.pow(i / 10, 2).toDouble(),
+      b,
+    ];
   }
 
   static double _pathLength(List<Offset> path) {
@@ -209,13 +225,12 @@ class GardenCatMoment {
     bool quiet = false,
     bool animated = true,
     Offset? anchor,
+    Offset? homePosition,
   }) {
     Offset safe(Offset p) =>
         Offset(p.dx.clamp(110.0, 2290.0), p.dy.clamp(420.0, 720.0));
-    const home = Offset(1200, 395);
-    final sniff = plant == null
-        ? null
-        : safe(plant + const Offset(-66, -5));
+    final home = homePosition ?? const Offset(1200, 395);
+    final sniff = plant == null ? null : safe(plant + const Offset(-66, -5));
     final seat = bench == null ? null : safe(bench + const Offset(0, -58));
     final ground = seat == null ? null : safe(seat + const Offset(-60, 58));
     final flowerBed = zoneLeftOpen ? const Offset(560, 525) : null;
@@ -245,14 +260,14 @@ class GardenCatMoment {
     // front lawn -> the tree yard -> (if there's a bench) a nap -> home.
     // Locked zones and missing items simply drop out of the list below.
     final stops = <_Stop>[];
-    void addStop(Offset to, double rest, String arriveLabel, {String? walkLabel}) {
+    void addStop(
+      Offset to,
+      double rest,
+      String arriveLabel, {
+      String? walkLabel,
+    }) {
       stops.add(
-        _Stop(
-          to,
-          rest,
-          arriveLabel,
-          walkLabel: walkLabel ?? '천천히 걷는 몽이',
-        ),
+        _Stop(to, rest, arriveLabel, walkLabel: walkLabel ?? '천천히 걷는 몽이'),
       );
     }
 
@@ -283,13 +298,22 @@ class GardenCatMoment {
     var total = 0.0;
     for (final leg in legs) {
       total += leg.walk;
-      total += (leg.to == ground) ? benchHop + benchRest + benchHopBack : leg.stop.rest;
+      total += (leg.to == ground)
+          ? benchHop + benchRest + benchHopBack
+          : leg.stop.rest;
     }
     var t = total <= 0 ? 0.0 : seconds % total;
 
     for (final leg in legs) {
       if (t < leg.walk) {
-        return _walking(leg.from, leg.to, obstacles, t, leg.walk, leg.stop.walkLabel);
+        return _walking(
+          leg.from,
+          leg.to,
+          obstacles,
+          t,
+          leg.walk,
+          leg.stop.walkLabel,
+        );
       }
       t -= leg.walk;
       if (leg.to == ground) {

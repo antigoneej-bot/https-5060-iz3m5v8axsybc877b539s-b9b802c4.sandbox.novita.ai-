@@ -1,0 +1,32 @@
+변경 파일 및 이유 (v59 → v60)
+.gitignore — 생성 Kotlin 캐시 제외
+android/app/build.gradle.kts — 정식 빌드 테스트 플래그·운영 정보 검사
+android/app/src/main/AndroidManifest.xml — HTTP 평문 통신 차단
+android/app/src/main/res/xml/backup_rules.xml — OS 백업 제외 명시
+android/app/src/main/res/xml/data_extraction_rules.xml — OS 추출 제외 path 명시
+backend/index.js — 서버 과수원 구독 검사와 기존 관리자 혜택 보존
+backend/policy.js — 테스트 구매 표시
+backend/premium-test-access.js — 운영 환경 테스트 개방 방지
+backend/test/policy.test.js — 보안·권한·개인정보·설정 회귀 검증
+backend/test/premium_test_access.test.js — 보안·권한·개인정보·설정 회귀 검증
+backend/testing/api-regression.mjs — 보안·권한·개인정보·설정 회귀 검증
+docs/release-audit-v60/Audit-Report.html — 보고서·정책 초안·증빙
+docs/release-audit-v60/Data-Safety-Reference.html — 보고서·정책 초안·증빙
+docs/release-audit-v60/Execution-Notes.txt — 보고서·정책 초안·증빙
+docs/release-audit-v60/Play-Console-Device-Checklist.txt — 보고서·정책 초안·증빙
+docs/release-audit-v60/Privacy-Policy-Draft.html — 보고서·정책 초안·증빙
+docs/release-audit-v60/asset-integrity.json — 보고서·정책 초안·증빙
+docs/release-audit-v60/manifest.xml — 보고서·정책 초안·증빙
+docs/release-audit-v60/verification.json — 보고서·정책 초안·증빙
+lib/main.dart — 릴리스 예외/스택 노출 제한
+lib/mongi/screens/privacy_policy_screen.dart — 현재 처리 방식 안내 통일·검증된 운영 설정 연결
+lib/screens/privacy_policy_screen.dart — 현재 처리 방식 안내 통일·검증된 운영 설정 연결
+lib/services/backup_service.dart — 복원 저널도 비파괴 파일 열기 적용
+lib/services/draft_service.dart — 초안에도 비파괴 파일 열기 적용
+lib/services/hive_encryption.dart — 손상/오류키 시 파일 절단 방지 및 중복 오류 단일 전달
+lib/services/privacy_config.dart — 현재 처리 방식 안내 통일·검증된 운영 설정 연결
+pubspec.yaml — 1.0.57+60 버전
+test/encrypted_corruption_preservation_test.dart — 보안·권한·개인정보·설정 회귀 검증
+test/privacy_entrypoint_test.dart — 현재 처리 방식 안내 통일·검증된 운영 설정 연결
+tool/build_store_bundle.sh — 정식 배포 설정 검사
+tool/test_release_config.py — 보안·권한·개인정보·설정 회귀 검증

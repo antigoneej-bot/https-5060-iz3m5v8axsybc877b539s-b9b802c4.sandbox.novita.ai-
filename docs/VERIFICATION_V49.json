@@ -1,0 +1,32 @@
+{
+  "version": "1.0.46+49",
+  "application_id": "com.mysticcat.journal",
+  "flutter_tests": 749,
+  "backend_tests": 193,
+  "test_failures": 0,
+  "static_analysis": {
+    "errors": 0,
+    "warnings": 4,
+    "info": 327
+  },
+  "orchard_checks": [
+    "natural growth and no withering",
+    "Korean daily watering and 10-30 harvest",
+    "atomic harvest, sale, purchase and gifts",
+    "idempotent retries and interrupted request recovery",
+    "account separation",
+    "neighbor acceptance, blocks and gifts-disabled enforcement",
+    "feeding stock deduction",
+    "390x844 and 320x640 UI and 1.8x text"
+  ],
+  "server_updater": "v47/v48 baseline guard, already-applied and source-conflict checks passed; live deployment not tested",
+  "bundletool_validate": "passed",
+  "jarsigner_verify": "passed",
+  "signing_certificate_sha256": "bebaa59bc1c879a0a685ba3bd699a58010bc5e5f52ba24b5f63f0f6ccad7819b",
+  "aab_size_bytes": 215745555,
+  "aab_sha256": "58b777f81fefa2c4fc37567e5a288f6f8d9b75f93ca24afb6174c1cfb99724ea",
+  "server_deployment": "not performed",
+  "play_console_upload": "not performed",
+  "physical_device_test": "not performed",
+  "preview": "real Flutter widgets with seeded test inventory; not live user account data"
+}

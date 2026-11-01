@@ -1,0 +1,37 @@
+마음냥 정원 남은 출시 점검 작업 · 2026-10-31
+기준 a0cc3df 보존 / 별도 finish-release-69 브랜치
+
+실제 완료
+1. 서버 계정 삭제 시 해당 사용자의 socialAuthIdentities.uid 제거. 해시 키·제공사·세대 유지, 재가입 시 새 UID 사용.
+2. 삭제 실패→재시도, 다른 계정 보존, 이전 구매/UID 재연결 차단 회귀 확인.
+3. 개인 운영(사업자 미등록) 반영. 공개 방침에 Firebase Auth 미국 처리 및 삭제 후 Google 측 최대 180일 정리 안내 보충.
+4. 콘솔 입력 목록과 환경변수 예시에 실제 정책/삭제 URL 반영.
+5. 개인정보 서버 설정 읽기 전용 점검 도구 작성. DB/Storage 위치, 복구·보관 설정, 로그 버킷 보유기간, 로그인 세션 TTL, 서버 테스트 플래그만 조회. 비밀키·기록 본문·실제 로그를 읽지 않음.
+
+테스트와 한계
+- node --test: 서버 216개 통과. 이후 테스트 단언만 추가, 실제 API/소셜 로그인 40개 재실행 통과.
+- python3 tool/test_privacy_check.py: 모의 환경 7개 통과.
+- python3 tool/test_release_config.py: 3개 통과.
+- git diff --check 통과.
+- 읽기 전용 점검 실행: gcloud가 없어 UNKNOWN/CLOUD_SHELL_REQUIRED. 운영 설정 조회 성공 아님.
+- Flutter 실행 코드는 이번에 변경하지 않음. 이전 APK는 재빌드하지 않음. 서버 변경은 앱 업데이트와 별도로 서버 배포 필요.
+- 운영 서버 배포, 기존 데이터 일괄 변경, 실제 삭제, 유료 결제는 실행하지 않음.
+- 이전 Flutter 전체/Android 검증 기록은 기존 보고서에 유지. 이번 결과로 새 전체 테스트 통과를 주장하지 않음.
+
+남은 외부 의존성
+- Firebase 공식 연결은 제안했으나 연결 완료는 미확인. 연결 후 실제 서버 설정·계정 삭제·규칙·배포 소스 대조 필요.
+- Play Console 자동 접속이 승인 검토에서 거절됨: play.google.com 요청과 google.play 감지 주소 불일치. 우회하지 않음. 콘솔 URL 입력/정식 출시 제출은 변경되지 않음.
+- 공개할 개인 운영자 실명/개인정보 담당자명은 미확인. 사업자명·사업자번호를 만들지 않음.
+- 제공사별 실제 계약/국외 이전, 운영 로그·문의 보유기간, 이메일 삭제 처리기한은 검증되지 않음.
+- 남은 최소 삭제 표식은 무기한 TTL 미설정 상태. 임의 만료는 이전 구매/삭제 계정 재생성 위험이 있으므로 보관 근거·기간과 안전 전환안을 확정해야 함.
+- 최신 운영 버전 코드, 기존 업로드 서명, 실제 구독·환불·복원 및 실기기 업그레이드 결과는 기존 테스트를 이어서 대조해야 함.
+
+Cloud Shell에서 선택적으로 실행
+python3 Mindnyang-Privacy-Check.py
+이 파일은 설정 조회만 수행하며 배포/삭제/결제/권한 변경을 하지 않음. 출력은 정책 검토 근거이며 출시 승인 판정이 아님.
+
+참고
+https://firebase.google.com/support/privacy/
+https://docs.cloud.google.com/logging/quotas
+https://support.google.com/googleplay/android-developer/answer/10144311
+https://support.google.com/googleplay/android-developer/answer/13327111

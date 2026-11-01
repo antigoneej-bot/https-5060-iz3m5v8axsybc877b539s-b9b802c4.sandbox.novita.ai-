@@ -1,0 +1,19 @@
+{
+  "version": "1.0.43+46",
+  "application_id": "com.mysticcat.journal",
+  "build_method": "Flutter 3.35.4 / Dart 3.9.2 full Gradle release compilation, release lint and signed appbundle packaging. Generated outputs isolated under /tmp to avoid workspace artifact-processing interference; standard project build configuration restored in source deliverable.",
+  "bundletool_validate": "passed",
+  "signature_verify": "passed",
+  "signing_certificate_sha256": "bebaa59bc1c879a0a685ba3bd699a58010bc5e5f52ba24b5f63f0f6ccad7819b",
+  "same_release_key": true,
+  "six_companion_motion_assets": "7 files byte-identical to v45",
+  "v44_icon": "preserved",
+  "full_suite": "725 tests passed",
+  "targeted_garden_suite": "21 camera, layout, motion, tool state and offline screen tests passed",
+  "static_analysis": "No errors; 6 existing informational diagnostics in garden files.",
+  "visual_review": "320x640, 390x844 and 844x390 viewport and visible cat bounds passed; portrait cat >1.7x previous screen width; full-garden overview and reset passed",
+  "physical_device_test": "not performed",
+  "play_console_upload": "not performed",
+  "aab_size_bytes": 215598781,
+  "sha256": "535c149df62b5145035fdf3de87b6051dcc29807c24752697b33ec0cf437a7c0"
+}

@@ -1,9 +1,11 @@
+import 'support/encrypted_meditation_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_app/services/meditation_course_store.dart';
 import 'package:flutter_app/data/solutions_data.dart';
 
 void main() {
+  useEncryptedMeditationStorage();
   TestWidgetsFlutterBinding.ensureInitialized();
   test('courses only contain published media', () {
     for (final c in meditationCourses) {

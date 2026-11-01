@@ -446,3 +446,29 @@ test('Facebook wrong app, page tokens, expired access, malformed user IDs and mi
   await assert.rejects(invalidToken.run(),/provider-error/);
   assert.equal(invalidToken.calls.length,1);
 });
+
+
+test('successful Facebook return has an explicit empty fragment; other providers unchanged', async () => {
+  for (const provider of ['facebook', 'kakao', 'naver']) {
+    const s = setup(), r = await s.ready(provider);
+    assert.equal(r.result.redirectUrl.endsWith('#'), provider === 'facebook');
+    const url = new URL(r.result.redirectUrl);
+    assert.equal(url.searchParams.get('session'), r.session);
+    assert.equal(url.hash, '');
+    assert.equal(s.minted.length, 0);
+  }
+});
+
+test('minimized deleted identity without UID still rejoins as a fresh generation', async () => {
+  for (const provider of ['kakao','naver','facebook']) {
+    const s=setup(), key=socialIdentityKey(provider,'user-123');
+    const oldUid=socialUid(provider,key,4);
+    await s.db.doc(`socialAuthIdentities/${key}`).set({provider,generation:4});
+    await s.db.doc(`accountLocks/${accountHash(oldUid)}`).set({deleted:true,deletionCompleted:true});
+    await s.db.doc('purchaseTokens/deleted-purchase').set({deleted:true});
+    await exchange(s,(await s.ready(provider)).session);
+    assert.equal(s.minted[0].uid,socialUid(provider,key,5));
+    assert.equal(s.users.has(oldUid),false);
+    assert.deepEqual((await s.db.doc('purchaseTokens/deleted-purchase').get()).data(),{deleted:true});
+  }
+});

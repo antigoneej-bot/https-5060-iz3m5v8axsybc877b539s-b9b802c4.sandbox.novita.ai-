@@ -1,3 +1,4 @@
+import { releaseEventSeat } from './garden-events.js';
 // Deletion can be retried after any partial batch. Each seat decrement and
 // reservation deletion commit together; other participants retain their seats.
 export async function removeAccountReservations(db, uid) {
@@ -16,7 +17,7 @@ export async function removeAccountReservations(db, uid) {
         const news = newsRef ? await tx.get(newsRef) : null;
         tx.delete(doc.ref);
         if (news?.exists) {
-          tx.update(newsRef, {reservedCount: Math.max(0, (news.data().reservedCount ?? 0) - 1)});
+          tx.update(newsRef, releaseEventSeat(news.data(), reservation.data().sessionId));
         }
       });
       removed++;

@@ -11,7 +11,6 @@ import 'package:hive/src/box/box_base_impl.dart';
 // ignore: implementation_imports
 import 'package:hive/src/backend/vm/storage_backend_vm.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter_app/data/replies/acceptance_reply_content.dart';
 import 'package:flutter_app/data/shadow_cats_data.dart';
 import 'package:flutter_app/models/cat_care_state.dart';
 import 'package:flutter_app/models/letter_entry.dart';
@@ -104,117 +103,49 @@ void main() {
   );
 
   test(
-    'new heart feedback remains effective after20 older cat replies',
-    () async {
-      final box = await HiveEncryption.openBox('personal_replies_local_user');
-      for (var i = 0; i < 20; i++) {
-        final id = 'letter:1000000000000000_${i.toString().padLeft(2, '0')}';
-        await box.put(
-          id,
-          jsonEncode({
-            'id': id,
-            'reply': '과거 고양이 답장 $i',
-            'parts': <String>[],
-            'engineVersion': 2,
-          }),
-        );
-      }
-      final first = await create('heart:2000000000000000');
-      final authored = acceptanceReplyContent['04']!.replies.map((r) => r.text);
-      expect(authored.any(first.contains), isTrue);
-      await PersonalReplyService.setFeedback(
-        'heart:2000000000000000',
-        'off_topic',
-      );
-      final next = await create('heart:2000000000000001');
-      expect(
-        authored.any(next.contains),
-        isFalse,
-        reason: 'Newest heart feedback must not disappear behind letter: keys',
-      );
-      final firstRow = jsonDecode(box.get('heart:2000000000000000') as String);
-      final nextRow = jsonDecode(box.get('heart:2000000000000001') as String);
-      expect(nextRow['replySequence'], greaterThan(firstRow['replySequence']));
-    },
-  );
-
-  test(
-    'legacy timestamp fallback includes newer heart records before older cat keys',
+    'all existing heart and cat archives remain readable without reordering or rewriting',
     () async {
       final box = await HiveEncryption.openBox('personal_replies_local_user');
       for (var i = 0; i < 20; i++) {
         final id = 'letter:1000000000000000_$i';
         await box.put(id, jsonEncode({'id': id, 'reply': '과거 고양이 답장 $i'}));
       }
-      const id = 'heart:2000000000000000_love';
+      const heartId = 'heart:2000000000000000_love';
       await box.put(
-        id,
-        jsonEncode({
-          'id': id,
-          'reply': oldReply,
-          'engineVersion': PersonalReplyService.currentEngineVersion,
-          'situation': 'accept:04',
-          'topic': 'general',
-        }),
+        heartId,
+        jsonEncode({'reply': oldReply, 'engineVersion': 0}),
       );
-      await PersonalReplyService.setFeedback(id, 'off_topic');
-      final reply = await create('heart:2000000000000001');
-      expect(
-        acceptanceReplyContent['04']!.replies.any(
-          (r) => reply.contains(r.text),
-        ),
-        isFalse,
+      await PersonalReplyService.setFeedback(heartId, 'off_topic');
+      final snapshot = Map.from(box.toMap());
+      expect(await create(heartId, refresh: true), oldReply);
+      await expectLater(
+        create('heart:new'),
+        throwsA(isA<ReplyGenerationRetired>()),
       );
+      expect(box.toMap(), snapshot);
+      expect(await PersonalReplyService.feedback(heartId), 'off_topic');
     },
   );
 
   test(
-    'timed-out refresh never releases uncommitted reply before rollback',
+    'archive refresh never enters a disk write even when that write would stall',
     () async {
       final box = await HiveEncryption.openBox('personal_replies_local_user');
-      await HiveEncryption.openBox('reply_feedback_local_user');
       const id = 'letter:stall';
-      await box.put(id, jsonEncode({'id': id, 'reply': oldReply}));
+      await box.put(id, jsonEncode({'reply': oldReply, 'engineVersion': 0}));
       // ignore: invalid_use_of_protected_member
       final backend = (box as BoxBaseImpl).backend as StorageBackendVm;
-      final delayed = _OneDelayedWrite(backend.writeRaf);
+      final original = backend.writeRaf;
+      final delayed = _OneDelayedWrite(original);
       backend.writeRaf = delayed;
-      await runZoned(
-        () async {
-          final refresh = create(id, refresh: true);
-          final failed = expectLater(refresh, throwsA(isA<TimeoutException>()));
-          await delayed.entered.future;
-          await failed;
-          var readCompleted = false;
-          final read = PersonalReplyService.savedReply(id).then((value) {
-            readCompleted = true;
-            return value;
-          });
-          var metadataCompleted = false;
-          final metadata = PersonalReplyService.needsRefresh(id).then((value) {
-            metadataCompleted = true;
-            return value;
-          });
-          await Future<void>.delayed(const Duration(milliseconds: 20));
-          expect(readCompleted, isFalse);
-          expect(metadataCompleted, isFalse);
-          delayed.gate.completeError(
-            FileSystemException('simulated disk write failure'),
-          );
-          expect(await read, oldReply);
-          expect(await metadata, isTrue);
-        },
-        zoneSpecification: ZoneSpecification(
-          createTimer: (self, parent, zone, duration, callback) =>
-              parent.createTimer(
-                zone,
-                duration == const Duration(seconds: 45)
-                    ? const Duration(milliseconds: 150)
-                    : duration,
-                callback,
-              ),
-        ),
-      );
+      try {
+        expect(await create(id, refresh: true), oldReply);
+        expect(await PersonalReplyService.savedReply(id), oldReply);
+        expect(await PersonalReplyService.needsRefresh(id), isFalse);
+        expect(delayed.entered.isCompleted, isFalse);
+      } finally {
+        backend.writeRaf = original;
+      }
     },
   );
 
@@ -243,7 +174,9 @@ void main() {
       letterText: '나는 오늘 외로워.',
     );
     await StorageService.saveLetter(entry);
-    await openCat(entry);
+    final replies = await HiveEncryption.openBox('personal_replies_local_user');
+    await replies.put('letter:${entry.id}', jsonEncode({'reply': oldReply}));
+    expect(await openCat(entry), oldReply);
     await StorageService.deleteLetter(entry.id);
     await expectLater(openCat(entry), throwsStateError);
     expect(await PersonalReplyService.savedReply('letter:${entry.id}'), isNull);
@@ -251,7 +184,7 @@ void main() {
   });
 
   test(
-    'delete and waiting cat generation share source existence guard',
+    'delete and waiting cat archive read share source existence guard',
     () async {
       final entry = LetterEntry(
         id: 'queued-delete',
@@ -323,16 +256,16 @@ void main() {
   );
 
   test(
-    'v2 answer remains readable and can be explicitly upgraded once to v3',
+    'v2 answer remains unchanged and readable without automatic upgrade',
     () async {
       final box = await HiveEncryption.openBox('personal_replies_local_user');
       const id = 'letter:v2';
       await box.put(id, jsonEncode({'reply': oldReply, 'engineVersion': 2}));
       await box.put('quota:2026-10-16', 1);
       expect(await PersonalReplyService.savedReply(id), oldReply);
-      expect(await PersonalReplyService.needsRefresh(id), isTrue);
+      expect(await PersonalReplyService.needsRefresh(id), isFalse);
       final answer = await create(id, refresh: true);
-      expect(answer, isNot(oldReply));
+      expect(answer, oldReply);
       expect(await PersonalReplyService.needsRefresh(id), isFalse);
       expect(await create(id, refresh: true), answer);
       expect(box.get('quota:2026-10-16'), 1);
@@ -348,10 +281,11 @@ void main() {
         letterText: '나는 오늘 외로워.',
       );
       await StorageService.saveLetter(entry);
-      final answer = await openCat(entry);
       final replies = await HiveEncryption.openBox(
         'personal_replies_local_user',
       );
+      await replies.put('letter:${entry.id}', jsonEncode({'reply': oldReply}));
+      final answer = await openCat(entry);
       final cache = await HiveEncryption.openBox('reply_cache_local_user');
       await cache.put(entry.id, oldReply);
       // ignore: invalid_use_of_protected_member
@@ -380,42 +314,34 @@ void main() {
     },
   );
 
-  test(
-    'failed heart embedded-cache write cannot leak through waiting read fallback',
-    () async {
-      final letters = await HiveEncryption.openBox(
-        'special_letters_local_user',
+  test('heart archive lookup never rewrites embedded legacy text', () async {
+    final letters = await HiveEncryption.openBox('special_letters_local_user');
+    final entry = SpecialLetterEntry(
+      id: 'heart-cache-read',
+      type: SpecialLetterType.love,
+      letterText: '나는 오늘 외로워.',
+      replyText: oldReply,
+      createdAt: DateTime(2026, 10, 1),
+    );
+    await letters.put(entry.id, entry.toMap());
+    // ignore: invalid_use_of_protected_member
+    final backend = (letters as BoxBaseImpl).backend as StorageBackendVm;
+    final original = backend.writeRaf;
+    final delayed = _OneDelayedWrite(original);
+    backend.writeRaf = delayed;
+    try {
+      expect(
+        await SpecialLetterService.ensureReply(entry, refreshExisting: true),
+        oldReply,
       );
-      final entry = SpecialLetterEntry(
-        id: 'heart-cache-fails',
-        type: SpecialLetterType.love,
-        letterText: '나는 오늘 외로워.',
-        replyText: oldReply,
-        createdAt: DateTime(2026, 10, 1),
+      expect(await SpecialLetterService.savedReply(entry), oldReply);
+      expect(
+        SpecialLetterService.getAllEntries().single.toMap(),
+        entry.toMap(),
       );
-      await letters.put(entry.id, entry.toMap());
-      // ignore: invalid_use_of_protected_member
-      final backend = (letters as BoxBaseImpl).backend as StorageBackendVm;
-      final delayed = _OneDelayedWrite(backend.writeRaf);
-      backend.writeRaf = delayed;
-      final refresh = SpecialLetterService.ensureReply(
-        entry,
-        refreshExisting: true,
-      );
-      final rejected = expectLater(
-        refresh,
-        throwsA(isA<FileSystemException>()),
-      );
-      await delayed.entered.future;
-      // Hive now exposes the uncommitted source row in memory. Lookup must read
-      // its legacy text only after the queued refresh has completed rollback.
-      final waitingRead = SpecialLetterService.savedReply(entry);
-      delayed.gate.completeError(
-        FileSystemException('simulated source write failure'),
-      );
-      await rejected;
-      expect(await waitingRead, oldReply);
-      expect(SpecialLetterService.getAllEntries().single.replyText, oldReply);
-    },
-  );
+      expect(delayed.entered.isCompleted, isFalse);
+    } finally {
+      backend.writeRaf = original;
+    }
+  });
 }

@@ -1,0 +1,68 @@
+마음냥 정원 1.0.71+74 기반 — 두 정원 분리 소스 패치
+
+중요: 이번 파일은 새 소스 수정본입니다. Flutter 실행·전체 테스트·APK/AAB 빌드를 새로 완료한 버전이 아닙니다.
+기존 review 폴더의 866개 통과와 74번 APK/AAB 해시는 수정 전 원본의 결과입니다.
+원본 안내문은 input/BASELINE74-START-HERE-KO.txt에 보존했습니다.
+
+사용자 의도
+완성된 풍경에서 쉬는 정원과, 기존의 실제 가꾸는 정원을 분리합니다.
+나비·반딧불이·반짝이는 볕이 있던 기존 넓은 잔디 정원을 다시 연결합니다.
+
+반영
+1. 내가 가꾸는 정원 (기본 선택)
+- 기존 assets/living_garden/world_day.webp / world_night.webp 원본을 사용합니다.
+- 기존 GardenAtmosphere.animated를 연결해 낮의 연노랑 나비·햇살·반짝임,
+  밤의 반딧불이·달빛, 물결 효과를 복원합니다.
+- 현재 저장된 씨앗·식물 성장·물주기·배치·장식 데이터를 그대로 사용합니다.
+- 원본은 넓은 잔디가 중심인 정원이며 가장자리 나무·꽃·작은 집도 원본 그대로 남습니다.
+  ‘연못만 남긴 새 배경’을 제작한 것이 아니라 실제 남아 있던 원본을 복원한 것입니다.
+- 심기·물주기·내 식물·전체보기, 위치 찾기, 첫 물주기, 추억 기록을 유지합니다.
+- 보조 메뉴에 햇살/반딧불이/현재 시간 보기를 추가했습니다.
+2. 쉬어가는 정원
+- assets/storybook_garden/panorama.png / foreground.png의 완성된 풍경을 유지합니다.
+- 사용자가 선택한 동반 고양이와 낮/밤 풍경·풍경 전체보기를 제공합니다.
+- 저장된 사용자 식물과 장식을 이 공간에 복제하지 않습니다.
+- 읽기 전용이며 심기·물주기·편집·재화 저장 경로가 연결되지 않습니다.
+- 이 공간의 전체 개방 풍경은 별도의 화면 상태일 뿐 실제 정원 확장 데이터에 영향을 주지 않습니다.
+3. 이동
+- 일반 화면에는 ‘내가 가꾸는 정원 / 쉬어가는 정원’ 선택 버튼을 제공합니다.
+- 낮은 가로 화면에서는 정원 공간을 확보하도록 상단 제목의 드롭다운으로 전환합니다.
+- 기본 선택은 내가 가꾸는 정원이며 두 공간을 전환해도 화면의 카메라/선택 상태를 보존합니다.
+- 심을 자리 선택·심기 저장/복구·선택 카드 물주기 저장 중에는 공간 전환을 막습니다.
+- 숨겨진 공간의 애니메이션은 TickerMode로 중지하고, 배경/동작 줄이기 설정을 존중합니다.
+- 정원 상세/도구/방문 화면도 원본 정원 렌더러를 기본으로 사용합니다.
+
+변경 파일
+lib/mongi/screens/garden_world_screen.dart
+lib/mongi/widgets/garden_world_view.dart
+lib/mongi/widgets/resting_garden_view.dart (신규)
+test/garden_scenery_test.dart (신규)
+test/garden_world_offline_test.dart
+test/garden_world_view_test.dart
+test/garden_fullscreen_test.dart
+
+검증 완료
+- 구조 검사: 666개 Dart/Kotlin 파일, 로컬 import, Android XML, 에셋 경로 통과.
+- 변경된 Dart 파일의 tree-sitter 문법 파싱 통과. 타입 분석/Flutter 실행을 대체하지 않습니다.
+- assets, 정원 integration 저장 처리, 서비스, 모델, 프로바이더, backend, Android/iOS 원본 바이트 보존 확인.
+- 저장 스키마/키/좌표/재화/고양이 6종 이미지/로그인/구독 설정은 변경하지 않았습니다.
+
+실행 미완료
+이 환경에는 Flutter/Dart SDK가 없어 새 Flutter 테스트·실제 화면·APK/AAB 빌드를 실행하지 못했습니다.
+아래 테스트는 추가/수정만 했으며 통과로 보고하지 않습니다.
+- 기존 낮/밤 에셋 및 자연 효과 연결, 완성 풍경과 분리
+- 정원 전환 시 저장 데이터·좌표·카메라 유지 및 쉬는 공간에 편집 기능 없음
+- 심기 중 전환 차단
+- 기존 애니메이션 수명주기/전체화면 검사 갱신
+
+데스크톱 후속 검증 (flutter_app)
+flutter pub get --enforce-lockfile
+flutter analyze --no-fatal-infos
+flutter test test/garden_scenery_test.dart test/garden_world_offline_test.dart test/garden_world_view_test.dart test/garden_fullscreen_test.dart
+flutter test
+
+320x640, 390x844, 844x390과 글자 2배에서 두 공간 전환, 식물 선택·심기·물주기·전체보기 확인.
+실제 낮/밤 자연 효과, 고양이 6종, 기존 데이터로 재실행 및 업데이트 보존 확인.
+이 ZIP의 pubspec 버전은 1.0.71+74를 유지했습니다. 다음 빌드 전에 사용 중인 최대 버전 코드를 확인하고
+충돌 없는 새 버전을 지정하세요. 현재 ZIP에는 이번 패치 APK/AAB가 없습니다.
+기존 review 자료를 이번 패치의 화면/빌드 결과로 재사용하지 말고 새로 검증하세요.

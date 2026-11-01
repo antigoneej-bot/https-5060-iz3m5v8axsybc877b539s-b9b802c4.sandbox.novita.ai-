@@ -1,0 +1,19 @@
+{
+  "lib/arm64-v8a/libVkLayer_khronos_validation.so": [
+    65536,
+    65536,
+    65536,
+    65536
+  ],
+  "lib/arm64-v8a/libdatastore_shared_counter.so": [
+    16384,
+    16384,
+    16384
+  ],
+  "lib/arm64-v8a/libflutter.so": [
+    65536,
+    65536,
+    65536,
+    65536
+  ]
+}

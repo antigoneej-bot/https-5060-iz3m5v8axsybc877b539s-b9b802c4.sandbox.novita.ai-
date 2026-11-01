@@ -1,3 +1,6 @@
+import '../models/keepsake_tree.dart';
+import 'meditation_checkin_store.dart';
+import '../models/companion_journey.dart';
 import '../mongi/models/garden_layout.dart';
 import '../mongi/integration/cheer_flower_store.dart';
 import '../mongi/integration/mongi_garden_store.dart';
@@ -23,11 +26,18 @@ import '../data/shadow_cats_data.dart';
 import '../data/meditation_media_data.dart';
 import 'meditation_course_store.dart';
 import 'hive_encryption.dart';
+import 'local_record_transaction.dart';
+import 'garden_memory_book_store.dart';
+import '../models/care_journal_entry.dart';
+import '../models/garden_memory_book.dart';
 
 /// Additive restore: existing records always win. Pending journal makes a
 /// partially applied merge resumable without deleting current records.
 class BackupService {
   static const boxes = [
+    'care_journal',
+    'garden_memory_books',
+    'keepsake_trees',
     'letter_entries',
     'self_care',
     'reflection_letters',
@@ -92,6 +102,7 @@ class BackupService {
       'growth_level',
     };
     const strings = {
+      'companion_journey_v1',
       'mongi_garden_v1',
       'care_last_date',
       'care_companion_cat_id',
@@ -282,9 +293,9 @@ class BackupService {
 
   static Future<Box> _journal() async => Hive.isBoxOpen('restore_journal__enc')
       ? Hive.box('restore_journal__enc')
-      : Hive.openBox(
+      : HiveEncryption.openPreservingFile(
           'restore_journal__enc',
-          encryptionCipher: await HiveEncryption.cipher(),
+          cipher: await HiveEncryption.cipher(),
         );
   static Future<Box?> _existing(String name) async {
     final logical = '${name}_local_user';
@@ -296,7 +307,9 @@ class BackupService {
 
   static Future<Map<String, dynamic>> snapshot() async {
     await DraftTextController.flushAll();
-    return MongiGardenStore.instance.consistentRead(_snapshotCommitted);
+    return LocalRecordTransaction.run(
+      () => MongiGardenStore.instance.consistentRead(_snapshotCommitted),
+    );
   }
 
   static Future<Map<String, dynamic>> _snapshotCommitted() async {
@@ -331,6 +344,13 @@ class BackupService {
             ? 'string'
             : 'strings',
         'value': value,
+      };
+    }
+    final checkIns = await MeditationCheckInStore.read();
+    if (checkIns != null) {
+      settings[MeditationCheckInStore.key] = {
+        'type': 'string',
+        'value': checkIns,
       };
     }
     final result = <String, dynamic>{
@@ -399,6 +419,36 @@ class BackupService {
             throw const FormatException('잘못된 정원 배치 기록이에요.');
           }
           GardenLayout.fromJson(value);
+          continue;
+        }
+        if (entry.key == 'care_journal') {
+          if (value is! Map) throw const FormatException('돌봄 모음 형식이 달라요.');
+          final care = CareJournalEntry.fromJson(
+            Map<String, dynamic>.from(value),
+          );
+          if (row['key'] != care.id) {
+            throw const FormatException('돌봄 모음이 일치하지 않아요.');
+          }
+          continue;
+        }
+        if (entry.key == 'keepsake_trees') {
+          if (value is! Map) throw const FormatException('기억의 나무 형식이 달라요.');
+          final tree = KeepsakeTree.fromJson(value);
+          if (row['key'] != tree.id) throw const FormatException('기억의 나무가 일치하지 않아요.');
+          continue;
+        }
+        if (entry.key == 'garden_memory_books') {
+          if (row['key'] == '__creation_policy') {
+            GardenMemoryBookStore.validatePolicy(value);
+            continue;
+          }
+          if (value is! Map) throw const FormatException('정원 기록집 형식이 달라요.');
+          final book = GardenMemoryBook.fromJson(
+            Map<String, dynamic>.from(value),
+          );
+          if (row['key'] != book.id) {
+            throw const FormatException('정원 기록집이 일치하지 않아요.');
+          }
           continue;
         }
         if (entry.key == 'garden_cheer_flowers') {
@@ -492,17 +542,33 @@ class BackupService {
           Map<String, dynamic>.from(jsonDecode(v as String) as Map),
         );
       }
+      if (entry.key == 'local_user_companion_journey_v1') {
+        CompanionJourney.decode(v as String);
+      }
     }
   }
 
-  static int count(Map<String, dynamic> data) => (data['boxes'] as Map).values
-      .fold<int>(0, (sum, rows) => sum + (rows as List).length);
+  static bool _isPersonalRecord(Object? boxName, Object? key) =>
+      boxName != 'garden_memory_books' ||
+      key != GardenMemoryBookStore.policyKey;
+
+  static int count(Map<String, dynamic> data) =>
+      (data['boxes'] as Map).entries.fold<int>(
+        0,
+        (sum, entry) =>
+            sum +
+            (entry.value as List)
+                .where((row) => _isPersonalRecord(entry.key, row['key']))
+                .length,
+      );
   static Future<bool> hasLocalRecords() async {
     // Game progress exists independently of journal entries. Preserve even an
     // unreadable snapshot so importing a backup cannot silently erase it.
     final prefs = await SharedPreferences.getInstance();
     if (prefs.containsKey('local_user_mongi_garden_v1')) return true;
+    if (prefs.containsKey('local_user_companion_journey_v1')) return true;
     if (_meditationTypes.keys.any(prefs.containsKey)) return true;
+    if (await MeditationCheckInStore.read() != null) return true;
     for (final name in boxes.where(
       (name) => !{
         'drafts',
@@ -512,26 +578,29 @@ class BackupService {
       }.contains(name),
     )) {
       final box = await _existing(name);
-      if (box != null && box.isNotEmpty) return true;
+      if (box != null && box.keys.any((key) => _isPersonalRecord(name, key))) {
+        return true;
+      }
     }
     return false;
   }
 
-  static Future<int> restore(Map<String, dynamic> data) async {
-    validate(data);
-    final journal = await _journal();
-    if (journal.containsKey('pending') || journal.containsKey('deferred'))
-      throw StateError('이전 복원을 마치려면 앱을 다시 열어 주세요.');
-    await journal.put('pending', {
-      'data': data,
-      'restoreProfile': !await hasLocalRecords(),
-    });
-    await journal.flush();
-    return resumePending();
-  }
+  static Future<int> restore(Map<String, dynamic> data) =>
+      LocalRecordTransaction.run(() async {
+        validate(data);
+        final journal = await _journal();
+        if (journal.containsKey('pending') || journal.containsKey('deferred'))
+          throw StateError('이전 복원을 마치려면 앱을 다시 열어 주세요.');
+        await journal.put('pending', {
+          'data': data,
+          'restoreProfile': !await hasLocalRecords(),
+        });
+        await journal.flush();
+        return resumePending();
+      });
 
   // Keep the source journal for later retry; do not roll back merged records.
-  static Future<void> deferPending() async {
+  static Future<void> deferPending() => LocalRecordTransaction.run(() async {
     final journal = await _journal();
     final pending = journal.get('pending');
     if (pending == null) return;
@@ -547,9 +616,9 @@ class BackupService {
     await journal.flush();
     await journal.delete('pending');
     await journal.flush();
-  }
+  });
 
-  static Future<void> archiveDeferred() async {
+  static Future<void> archiveDeferred() => LocalRecordTransaction.run(() async {
     final journal = await _journal();
     if (journal.containsKey('pending'))
       throw StateError('진행 중인 복원이 있어요. 앱을 다시 열어 보류해 주세요.');
@@ -562,13 +631,13 @@ class BackupService {
     await journal.flush();
     await journal.delete('deferred');
     await journal.flush();
-  }
+  });
 
   static Future<bool> hasPending() async =>
       (await _journal()).containsKey('pending');
   static Future<bool> hasDeferred() async =>
       (await _journal()).containsKey('deferred');
-  static Future<int> retryDeferred() async {
+  static Future<int> retryDeferred() => LocalRecordTransaction.run(() async {
     final journal = await _journal();
     final deferred = journal.get('deferred');
     if (deferred == null) return resumePending();
@@ -580,9 +649,9 @@ class BackupService {
     await journal.delete('deferred');
     await journal.flush();
     return added;
-  }
+  });
 
-  static Future<int> resumePending() async {
+  static Future<int> resumePending() => LocalRecordTransaction.run(() async {
     final journal = await _journal();
     final pending = journal.get('pending');
     if (pending == null) return 0;
@@ -594,7 +663,7 @@ class BackupService {
       for (final row in entry.value as List) {
         if (!box.containsKey(row['key'])) {
           await box.put(row['key'], row['value']);
-          added++;
+          if (_isPersonalRecord(entry.key, row['key'])) added++;
         }
       }
       await box.flush();
@@ -603,13 +672,22 @@ class BackupService {
     for (final entry in (data['settings'] as Map).entries) {
       final key = entry.key as String;
       var v = entry.value['value'];
+      if (key == MeditationCheckInStore.key) {
+        await MeditationCheckInStore.update(
+          (current) => current == null
+              ? v as String
+              : _mergeMeditationPref(key, current, v as Object) as String?,
+        );
+        continue;
+      }
       if (_meditationTypes.containsKey(key) && prefs.containsKey(key)) {
         v = _mergeMeditationPref(key, prefs.get(key)!, v as Object);
         if (v == null) continue;
       }
       // Also protect snapshots written since a restore was queued, including
       // journals created by an older app version with restoreProfile=true.
-      if (entry.key == 'local_user_mongi_garden_v1' &&
+      if ((entry.key == 'local_user_mongi_garden_v1' ||
+              entry.key == 'local_user_companion_journey_v1') &&
           prefs.containsKey(entry.key)) {
         continue;
       }
@@ -633,5 +711,5 @@ class BackupService {
     await journal.delete('pending');
     await journal.flush();
     return added;
-  }
+  });
 }

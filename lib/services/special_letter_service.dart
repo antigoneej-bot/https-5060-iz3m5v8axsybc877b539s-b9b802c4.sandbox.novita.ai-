@@ -5,14 +5,15 @@ import '../models/special_letter_entry.dart';
 import 'personal_reply_service.dart';
 import '../models/reply_style.dart';
 import 'hive_encryption.dart';
-import 'notification_service.dart';
+import 'local_record_transaction.dart';
+import '../mongi/integration/plant_memory_store.dart';
+import 'care_journal_store.dart';
+import 'garden_memory_book_store.dart';
 
 /// 감사·용서·미안함·사랑, 네 가지 마음편지의 저장을 담당하는 서비스.
 ///
-/// 그림자 고양이 편지와 동일하게, 답장은 다음날 오전 6시가 지나야 열어볼
-/// 수 있습니다. 편지 작성 시에는 원문만 저장하고, 답장을 받을 수 있는
-/// 시각이 지난 뒤 사용자가 선택해 열 때 답장을 생성합니다. 저장된 답장은
-/// 다시 생성하지 않습니다. 계정별 Hive Box를 사용해, 다른 로컬 서비스
+/// 새 자동 답장은 생성하거나 예약하지 않습니다. 이미 저장된 답장은
+/// 과거 기록으로만 열람할 수 있고 원문은 그대로 보존합니다. 계정별 Hive Box를 사용해, 다른 로컬 서비스
 /// (PromiseService 등)와 동일한 패턴을 따릅니다.
 class SpecialLetterService {
   static String _uid = 'guest';
@@ -20,14 +21,15 @@ class SpecialLetterService {
   static ValueListenable<Box>? get listenable =>
       _box != null && _box!.isOpen ? _box!.listenable() : null;
 
-  static Future<void> setCurrentUser(String userId) async {
-    if (_uid == userId && _box != null && _box!.isOpen) return;
-    _uid = userId;
-    if (_box != null && _box!.isOpen) {
-      await _box!.close();
-    }
-    _box = await HiveEncryption.openBox('special_letters_$_uid');
-  }
+  static Future<void> setCurrentUser(String userId) =>
+      LocalRecordTransaction.atomic(() async {
+        if (_uid == userId && _box != null && _box!.isOpen) return;
+        _uid = userId;
+        if (_box != null && _box!.isOpen) {
+          await _box!.close();
+        }
+        _box = await HiveEncryption.openBox('special_letters_$_uid');
+      });
 
   static Box get _b {
     if (_box == null || !_box!.isOpen) {
@@ -38,14 +40,13 @@ class SpecialLetterService {
     return _box!;
   }
 
-  /// 원문을 저장합니다. 다음날 오전 6시 이후 사용자가 답장을 선택해
-  /// 열 때 생성하므로, 편지를 쓰거나 목록을 보는 것만으로 횟수를 쓰지 않습니다.
+  /// 원문과 기존 정원 돌봄 보상을 저장합니다. 자동 답장은 만들지 않습니다.
   static Future<SpecialLetterEntry> sendLetter({
     required SpecialLetterType type,
     required String letterText,
     ReplyStyle replyStyle = ReplyStyle.listen,
     String? submissionId,
-  }) async {
+  }) => LocalRecordTransaction.run(() async {
     final now = DateTime.now();
     final id =
         submissionId ?? '${now.microsecondsSinceEpoch}_${type.storageKey}';
@@ -75,21 +76,20 @@ class SpecialLetterService {
       createdAt: now,
       replyStyle: replyStyle,
     );
-    await _b.put(entry.id, entry.toMap());
-    await _b.flush();
+    await LocalRecordTransaction.atomic(() async {
+      LocalRecordTransaction.capture(_b);
+      await _b.put(entry.id, entry.toMap());
+      await _b.flush();
+    });
+    // A reward-link failure may be retried with the immutable submission ID.
+    // It must not erase an already durably saved letter.
     if (entry.letterText.trim().isNotEmpty) {
       await MongiGardenStore.instance.claimCompletedCare(
         now: entry.createdAt.toLocal(),
       );
     }
-    try {
-      await NotificationService().scheduleHeartLetterReplyNotification(
-        typeLabel: type.label,
-        scheduledAt: entry.replyAvailableAt,
-      );
-    } catch (_) {}
     return entry;
-  }
+  });
 
   static bool _sourceIsCurrent(
     Box box,
@@ -190,34 +190,37 @@ class SpecialLetterService {
     return all;
   }
 
-  static Future<void> deleteLetter(String id) async {
-    final box = _b;
-    final userId = _uid;
-    Object? previousSource;
-    var captured = false;
-    await PersonalReplyService.remove(
-      'heart:$id',
-      deleteSource: () async {
-        if (_uid != userId || !identical(_box, box) || !box.isOpen) {
-          throw StateError('사용자가 변경됐어요. 편지를 다시 열어 주세요.');
-        }
-        previousSource = box.get(id);
-        captured = true;
-        await box.delete(id);
-        await box.flush();
-      },
-      restoreSource: () async {
-        if (!captured ||
-            _uid != userId ||
-            !identical(_box, box) ||
-            !box.isOpen) {
-          return;
-        }
-        if (previousSource != null) await box.put(id, previousSource);
-        await box.flush();
-      },
-    );
-  }
+  static Future<void> deleteLetter(String id) =>
+      LocalRecordTransaction.atomic(() async {
+        final box = _b;
+        final userId = _uid;
+        LocalRecordTransaction.capture(box);
+        await PersonalReplyService.remove(
+          'heart:$id',
+          deleteSource: () async {
+            if (_uid != userId || !identical(_box, box) || !box.isOpen) {
+              throw StateError('사용자가 변경됐어요. 편지를 다시 열어 주세요.');
+            }
+            await CareJournalStore.instance.removeLetterSource(
+              'heart:$id',
+              () async {
+                await GardenMemoryBookStore.instance.removeLetterSource(
+                  'heart:$id',
+                  () async {
+                    await PlantMemoryStore.instance.removeLetterSource(
+                      'heart:$id',
+                      () async {
+                        await box.delete(id);
+                        await box.flush();
+                      },
+                    );
+                  },
+                );
+              },
+            );
+          },
+        );
+      });
 
   /// 답장을 열어봤음을 표시합니다(홈 화면 배너를 한 번만 보여주기 위함).
   static Future<void> markReplySeen(String id) async {
@@ -231,6 +234,7 @@ class SpecialLetterService {
         Map<dynamic, dynamic>.from(raw as Map),
       );
       if (entry.replySeen) return;
+      LocalRecordTransaction.capture(box);
       await box.put(id, entry.withReplySeen().toMap());
       await box.flush();
     });
@@ -239,11 +243,5 @@ class SpecialLetterService {
   /// 답장이 준비됐지만 아직 열어보지 않은 마음편지 중 가장 최근 것을
   /// 반환합니다(없으면 null). 홈 화면의 "답장이 도착했어요" 배너에
   /// 사용됩니다.
-  static SpecialLetterEntry? get unseenReadyReply {
-    if (_box == null || !_box!.isOpen) return null;
-    for (final e in getAllEntries()) {
-      if (e.isReplyReady && !e.replySeen) return e;
-    }
-    return null;
-  }
+  static SpecialLetterEntry? get unseenReadyReply => null;
 }

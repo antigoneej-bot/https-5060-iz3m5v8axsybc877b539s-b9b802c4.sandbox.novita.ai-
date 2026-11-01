@@ -1,0 +1,19 @@
+{
+  "version": "1.0.42+45",
+  "application_id": "com.mysticcat.journal",
+  "build_method": "Flutter 3.35.4 / Dart 3.9.2 and Gradle release compilation from modified source; release lint passed; final compiled module packaged with official bundletool 1.18.2 because workspace-generated temporary ZIP sidecars broke Gradle single-file packaging",
+  "bundletool_validate": "passed",
+  "signature_verify": "passed",
+  "signing_certificate_sha256": "bebaa59bc1c879a0a685ba3bd699a58010bc5e5f52ba24b5f63f0f6ccad7819b",
+  "same_release_key": true,
+  "six_companion_motion_assets": "7 files byte-identical to v44",
+  "v44_icon": "preserved",
+  "full_suite": "719 tests passed before final image-cache parameter adjustment",
+  "final_targeted_suite": "7 tests passed after adjustment, including added filter/grid/favorites flow test",
+  "static_analysis": "No errors; 312 existing warnings/informational findings. New widgets/tests and modified video widget: no issues.",
+  "visual_review": "390px preview; 320px with 200% text overflow test passed",
+  "physical_device_test": "not performed",
+  "play_console_upload": "not performed",
+  "aab_size_bytes": 215618201,
+  "sha256": "4962149f04f5f54adff7a72e0a060b4d7f38b0ce67eaa47d764a39432f46c49c"
+}

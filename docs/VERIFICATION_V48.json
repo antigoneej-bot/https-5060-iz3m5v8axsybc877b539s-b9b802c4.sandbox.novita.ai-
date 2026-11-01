@@ -1,0 +1,18 @@
+{
+  "version": "1.0.45+48",
+  "application_id": "com.mysticcat.journal",
+  "full_suite": "740 tests passed",
+  "backend_suite": "184 tests passed",
+  "backend_deployment": "not performed; guarded Cloud Shell updater supplied",
+  "installer_checks": "baseline patch, already-applied, conflict and unsafe archive checks passed; live deployment not tested",
+  "cat_visit_tests": "5 tests passed including 2 phone sizes; real widget preview exported",
+  "static_analysis": "Full project: 0 errors, 4 existing warnings, 319 informational diagnostics",
+  "build_method": "Full Flutter 3.35.4 / Dart 3.9.2 Gradle release compilation and original release signing; isolated temporary output path, standard source configuration restored",
+  "bundletool_validate": "passed",
+  "jarsigner_verify": "passed",
+  "signing_certificate_sha256": "bebaa59bc1c879a0a685ba3bd699a58010bc5e5f52ba24b5f63f0f6ccad7819b",
+  "aab_size_bytes": 215666997,
+  "sha256": "ee4a8e9f51ec546702c781bea251e2856a80d34fb677ec91cf2ad5ce99115615",
+  "physical_device_test": "not performed",
+  "play_console_upload": "not performed"
+}

@@ -11,11 +11,11 @@ const appFontFallback = [
 /// 구분감을 주되 전체적으로는 톤을 맞춘 하나의 팔레트로 통일합니다.
 class AppColors {
   // 배경: 밝고 따뜻한 크림/아이보리
-  static const bg0 = Color(0xFFFAF7F2); // 가장 밝은 배경 (필드, 입력창)
+  static const bg0 = Color(0xFFFFFCF7); // 가장 밝은 배경 (필드, 입력창)
   static const bg1 = Color(0xFFFFFCF7); // 카드/패널 배경 (흰색)
   static const bg2 = Color(0xFFF3EADA); // 강조 표면 (활성 탭 등, 연한 크림)
 
-  static const lavenderInk = Color(0xFF66517E);
+  static const lavenderInk = Color(0xFF7A6989);
   static const sageLine = Color(0xFFCBDDCE);
 
   // 카드 앞면 (기존 유지 - 크림톤이라 밝은 테마와도 잘 어울림)
@@ -23,8 +23,8 @@ class AppColors {
   static const cardFace2 = Color(0xFFFCEFD2);
 
   // 텍스트: 밝은 배경 위에 놓일 진한 차콜/잉크 톤 (기존보다 살짝 더 차분하고 모던하게)
-  static const ink = Color(0xFF383032); // 카드 위 진한 텍스트
-  static const inkSoft = Color(0xFF6F625B); // 연한 보조 텍스트
+  static const ink = Color(0xFF65615F); // 카드 위 진한 텍스트
+  static const inkSoft = Color(0xFF746C65); // 연한 보조 텍스트
 
   // 메인 포인트 컬러 (기존 골드 유지 - 데일리 내면소통/성장 등 핵심 액션에 사용)
   static const gold = Color(0xFFDDA24C);
@@ -33,7 +33,7 @@ class AppColors {
   static const roseStrong = Color(0xFFA64E64);
 
   // 'moon' : 밝은 배경 위 진한 본문 텍스트
-  static const moon = Color(0xFF564C46);
+  static const moon = Color(0xFF68625D);
   static const line = Color(0x1A383032); // 연한 반투명 보더
 
   // ── 카테고리 포인트 컬러 팔레트 (부드럽고 현대적인 톤으로 통일한 6색) ──
@@ -47,7 +47,7 @@ class AppColors {
   static const catDustyRose = Color(0xFFC38D96);
   static const catDustyRoseBg = Color(0xFFF9ECEE);
   // 데일리 내면소통 = 휴식 → 딥 네이비
-  static const catNavy = Color(0xFF3A4664);
+  static const catNavy = Color(0xFF69758A);
   static const catNavyBg = Color(0xFFE9EBF2);
   // 그림자 고양이들 (37마리 도감) = 고양이정원 → 올리브
   static const catOlive = Color(0xFF8D8C57);
@@ -57,7 +57,7 @@ class AppColors {
   static const catPeachBg = Color(0xFFFCEEE5);
 
   // 홈 대표 타이틀용 파스텔 그린 (귀엽고 동글동글한 폰트와 함께 사용)
-  static const titlePastelGreen = Color(0xFF44775B);
+  static const titlePastelGreen = Color(0xFF617E6B);
   static const titlePastelGreenSoft = Color(0xFFB7D9C2);
 
   // ── 힐링 정원 산책로 메뉴용 파스텔 블롭 컬러 (반투명 유기적 알약 카드) ──

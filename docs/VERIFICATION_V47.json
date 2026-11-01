@@ -1,0 +1,15 @@
+{
+  "version": "1.0.44+47",
+  "application_id": "com.mysticcat.journal",
+  "full_suite": "735 tests passed",
+  "family_screen_capture": "2 widget tests passed",
+  "static_analysis": "No errors; 13 informational diagnostics",
+  "build_method": "Full Flutter 3.35.4 / Dart 3.9.2 Gradle release compilation and original release signing; isolated temporary output path, standard source configuration restored",
+  "bundletool_validate": "passed",
+  "jarsigner_verify": "passed",
+  "signing_certificate_sha256": "bebaa59bc1c879a0a685ba3bd699a58010bc5e5f52ba24b5f63f0f6ccad7819b",
+  "aab_size_bytes": 215622966,
+  "sha256": "b7f9a861c1149a68126a5bde7f49d4b4b280da37fe01008e63426b421b755864",
+  "physical_device_test": "not performed",
+  "play_console_upload": "not performed"
+}

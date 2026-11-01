@@ -5,6 +5,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../widgets/emotion_cat_video.dart';
+import '../widgets/emotion_cat_carousel.dart';
 import '../data/shadow_cats_data.dart';
 import '../data/alternative_emotion_mapping.dart';
 import '../models/shadow_cat.dart';
@@ -15,7 +16,7 @@ import '../theme.dart';
 import '../widgets/garden_path_card.dart';
 import 'premium_screen.dart';
 
-/// 37마리 그림자 감정 고양이 카드 그리드에서
+/// 감정 고양이를 좌우로 넘기거나 전체 그리드에서
 /// 지금 내 기분과 닮은 고양이 한 마리를 골라 선택하는 화면.
 /// 딱딱한 사각 카드 그리드 대신, 카드마다 조금씩 다른 유기적인 블롭
 /// 모양과 파스텔 톤을 주어 정원의 화단처럼 느껴지도록 합니다.
@@ -23,7 +24,8 @@ import 'premium_screen.dart';
 /// (이전에는 유료(Basic 구독) 전용 캐릭터가 있었지만, 현재는 전원
 /// 무료로 전환되어 관련 안내/잠금 코드는 더 트리거되지 않습니다.)
 class CatSelectionScreen extends StatefulWidget {
-  const CatSelectionScreen({super.key});
+  const CatSelectionScreen({super.key, this.initialGroup});
+  final String? initialGroup;
 
   @override
   State<CatSelectionScreen> createState() => _CatSelectionScreenState();
@@ -90,6 +92,9 @@ class _CatSelectionScreenState extends State<CatSelectionScreen>
   @override
   void initState() {
     super.initState();
+    _group = catBrowseGroups.containsKey(widget.initialGroup)
+        ? widget.initialGroup
+        : null;
     _loadFavorites();
     _sharedFloat = AnimationController(
       vsync: this,
@@ -149,11 +154,7 @@ class _CatSelectionScreenState extends State<CatSelectionScreen>
     }).toList();
     final browsing =
         _group != null || _query.isNotEmpty || _showAll || _favoritesOnly;
-    final allCats = browsing
-        ? (_showAll || _query.isNotEmpty || _favoritesOnly
-              ? filtered
-              : filtered.take(6).toList())
-        : <ShadowCat>[];
+    final allCats = filtered;
     final isPremiumUser = context.watch<AppStateProvider>().isPremiumUser;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -169,7 +170,7 @@ class _CatSelectionScreenState extends State<CatSelectionScreen>
         ),
         const SizedBox(height: 6),
         Text(
-          '먼저 가까운 마음을 골라주세요.\n오늘 고른 감정이 함께 키우는 고양이를 바꾸지는 않아요.',
+          '좌우로 넘기며 지금 마음과 닮은 고양이를 만나보세요.\n오늘 고른 감정이 함께 키우는 고양이를 바꾸지는 않아요.',
           textAlign: TextAlign.center,
           style: bodyFont(
             fontSize: 12.5,
@@ -201,13 +202,13 @@ class _CatSelectionScreenState extends State<CatSelectionScreen>
                 }),
               ),
             _EmotionFilterPill(
-              label: '전체 고양이',
-              selected: _showAll && _group == null,
+              label: '모든 감정',
+              selected: _group == null && !_favoritesOnly && _query.isEmpty,
               colorSet:
                   _pillColors[catBrowseGroups.length % _pillColors.length],
               onTap: () => setState(() {
                 _group = null;
-                _showAll = true;
+                _showAll = false;
                 _favoritesOnly = false;
                 _search.clear();
                 _query = '';
@@ -276,59 +277,79 @@ class _CatSelectionScreenState extends State<CatSelectionScreen>
                 : const SizedBox.shrink(),
           ),
         const SizedBox(height: 18),
-        GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: allCats.length,
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            childAspectRatio: 0.78,
+        Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            Text('${allCats.length}가지 마음', style: bodyFont(fontSize: 13)),
+            TextButton.icon(
+              onPressed: () => setState(() => _showAll = !_showAll),
+              icon: Icon(
+                _showAll ? Icons.swipe_rounded : Icons.grid_view_rounded,
+              ),
+              label: Text(_showAll ? '좌우로 보기' : '전체 보기'),
+            ),
+          ],
+        ),
+        if (!_showAll && allCats.isNotEmpty)
+          EmotionCatCarousel(
+            key: ValueKey(allCats.map((cat) => cat.id).join(',')),
+            cats: allCats,
+            favorites: _favorites,
+            onFavorite: _toggleFavorite,
+            onSelect: (cat) {
+              if (cat.isPremium && !isPremiumUser) {
+                _onTapPremiumCat(cat);
+              } else {
+                app.selectCat(cat);
+              }
+            },
           ),
-          itemBuilder: (context, index) {
-            final cat = allCats[index];
-            final locked = cat.isPremium && !isPremiumUser;
-            return Stack(
-              children: [
-                _CatCard(
-                  cat: cat,
-                  seed: index,
-                  locked: locked,
-                  motion: _motionFor(index),
-                  sharedAnimation: _sharedFloat,
-                  onTap: locked
-                      ? () => _onTapPremiumCat(cat)
-                      : () => context.read<AppStateProvider>().selectCat(cat),
-                ),
-                Positioned(
-                  top: 0,
-                  right: 0,
-                  child: IconButton(
-                    tooltip: _favorites.contains(cat.id)
-                        ? '즐겨찾기 해제'
-                        : '즐겨찾기 추가',
-                    onPressed: () => _toggleFavorite(cat.id),
-                    icon: Icon(
-                      _favorites.contains(cat.id)
-                          ? Icons.star
-                          : Icons.star_border,
-                      color: AppColors.ink,
+        if (_showAll)
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: allCats.length,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+              childAspectRatio: 0.78,
+            ),
+            itemBuilder: (context, index) {
+              final cat = allCats[index];
+              final locked = cat.isPremium && !isPremiumUser;
+              return Stack(
+                children: [
+                  _CatCard(
+                    cat: cat,
+                    seed: index,
+                    locked: locked,
+                    motion: _motionFor(index),
+                    sharedAnimation: _sharedFloat,
+                    onTap: locked
+                        ? () => _onTapPremiumCat(cat)
+                        : () => context.read<AppStateProvider>().selectCat(cat),
+                  ),
+                  Positioned(
+                    top: 0,
+                    right: 0,
+                    child: IconButton(
+                      tooltip: _favorites.contains(cat.id)
+                          ? '즐겨찾기 해제'
+                          : '즐겨찾기 추가',
+                      onPressed: () => _toggleFavorite(cat.id),
+                      icon: Icon(
+                        _favorites.contains(cat.id)
+                            ? Icons.star
+                            : Icons.star_border,
+                        color: AppColors.ink,
+                      ),
                     ),
                   ),
-                ),
-              ],
-            );
-          },
-        ),
-        if (browsing &&
-            !_showAll &&
-            _query.isEmpty &&
-            !_favoritesOnly &&
-            filtered.length > 6)
-          TextButton(
-            onPressed: () => setState(() => _showAll = true),
-            child: Text('이 마음의 고양이 더 보기 (${filtered.length - 6})'),
+                ],
+              );
+            },
           ),
       ],
     );

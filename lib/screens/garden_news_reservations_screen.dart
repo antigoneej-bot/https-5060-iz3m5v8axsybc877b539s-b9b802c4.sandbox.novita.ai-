@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import '../models/notice.dart';
+import 'package:intl/intl.dart';
 import '../services/cloud_service.dart';
 import '../theme.dart';
 
 /// (관리자 전용) 특정 정원소식의 신청자 목록 화면.
 ///
-/// 이름/연락처 등은 애초에 수집하지 않으므로 보여줄 수 없다 - 신청 시
-/// 로그인 계정의 인증된 이메일과, 사용자가 남긴 선택적 한줄 메모만 있다.
+/// 신청자가 직접 입력한 이름·요청과 계정의 검증된 이메일만 운영자에게 보여준다.
 class GardenNewsReservationsScreen extends StatefulWidget {
   final Notice news;
   const GardenNewsReservationsScreen({super.key, required this.news});
@@ -57,12 +57,16 @@ class _GardenNewsReservationsScreenState
         centerTitle: true,
       ),
       body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: _load,
-          child: _buildBody(),
-        ),
+        child: RefreshIndicator(onRefresh: _load, child: _buildBody()),
       ),
     );
+  }
+
+  String _sessionDate(dynamic value) {
+    final date = DateTime.tryParse(value.toString());
+    return date == null
+        ? '날짜 확인 필요'
+        : DateFormat('yyyy.MM.dd HH:mm').format(date.toLocal());
   }
 
   Widget _buildBody() {
@@ -112,18 +116,37 @@ class _GardenNewsReservationsScreenState
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                r['email']?.toString() ?? '(이메일 없음)',
+                r['displayName']?.toString().isNotEmpty == true
+                    ? r['displayName'].toString()
+                    : r['email']?.toString() ?? '신청자 ${index + 1}',
                 style: const TextStyle(
                   fontWeight: FontWeight.w700,
                   fontSize: 13.5,
                   color: AppColors.ink,
                 ),
               ),
+              if (r['sessionStartsAt'] != null) ...[
+                const SizedBox(height: 4),
+                Text(
+                  '신청 일정: ${_sessionDate(r['sessionStartsAt'])}',
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    color: AppColors.inkSoft,
+                  ),
+                ),
+              ],
+              if (r['email'] != null && r['displayName'] != null) ...[
+                const SizedBox(height: 4),
+                Text(r['email'].toString()),
+              ],
               if (r['note'] != null) ...[
                 const SizedBox(height: 4),
                 Text(
                   r['note'].toString(),
-                  style: const TextStyle(fontSize: 12.5, color: AppColors.inkSoft),
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    color: AppColors.inkSoft,
+                  ),
                 ),
               ],
             ],

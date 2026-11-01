@@ -1,0 +1,41 @@
+{
+  "version": "1.0.36+39",
+  "base": "1.0.35+38",
+  "date": "2026-10-26",
+  "feature_categories": 10,
+  "feature_shortcuts": 32,
+  "changed_files": [
+    "lib/screens/all_features_screen.dart",
+    "lib/screens/home_tab_screen.dart",
+    "lib/screens/my_screen.dart",
+    "lib/screens/my_garden_screen.dart",
+    "pubspec.yaml",
+    "test/feature_directory_collection_test.dart",
+    "docs/FEATURE_DIRECTORY_V39.md"
+  ],
+  "reproduced_before_fix": "GridView reads ExpansionTile PageStorage bool as double: type 'bool' is not a subtype of type 'double?' in type cast",
+  "fix": "Remove nested GridView scroll state; natural-height Wrap tiles and responsive header",
+  "full_tests_passed": 699,
+  "final_header_adjustment_targeted_tests_passed": 5,
+  "tested_viewports": [
+    [
+      320,
+      1
+    ],
+    [
+      360,
+      2
+    ],
+    [
+      390,
+      1
+    ]
+  ],
+  "visual_review": "Rendered Korean-font collection at 2x text scale and feature search inspected",
+  "analysis_errors": 0,
+  "existing_project_warnings": 4,
+  "device_tested": false,
+  "apk_built": false,
+  "aab_built": false,
+  "server_changes": false
+}

@@ -16,8 +16,7 @@ Set<String> gardenRecordDays(
 }
 
 String gardenRecordMessage(int days) {
-  if (days == 0) return '한 줄이나 감정 하나를 남기면 기억의 나무가 자라기 시작해요.';
-  if (days >= 6) return '기억의 나무가 꽃을 피웠어요. 앞으로의 기록도 나무에서 돌아볼 수 있어요.';
-  final next = days < 3 ? 3 : 6;
-  return '$days일의 시간이 나무에 남았어요. 다른 날의 기록이 ${next - days}일 더 쌓이면 모습이 달라져요.';
+  if (days == 0) return '한 줄이나 감정 하나로 오늘의 기록을 시작해요.';
+  if (days >= 6) return '함께한 기록이 쌓였어요. 앞으로의 기록도 차곡차곡 간직해요.';
+  return '$days일의 마음을 기록했어요. 소중한 장면은 기억의 씨앗에 따로 담아 키울 수 있어요.';
 }

@@ -1,3 +1,6 @@
+import '../utils/feature_flags.dart';
+import '../widgets/premium_test_access.dart';
+import '../mongi/services/ad_service.dart';
 import '../services/cloud_service.dart';
 import 'account_screen.dart';
 import 'dart:async';
@@ -15,45 +18,95 @@ import '../providers/cat_care_provider.dart';
 import '../providers/promise_provider.dart';
 import '../mongi/providers/garden_provider.dart';
 
+/// The screen's billing boundary also lets widget tests exercise delayed store
+/// and account results without contacting a real billing or login service.
+@visibleForTesting
+class PremiumScreenBilling {
+  final _subscription = SubscriptionService();
+
+  String? get currentUid => CloudService.currentUser?.uid;
+  bool get backendEnabled => CloudService.enabled;
+  bool get supportedStore =>
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+  bool hasProduct(SubscriptionPlan plan) => _subscription.hasProduct(plan);
+  String priceLabelFor(SubscriptionPlan plan) =>
+      _subscription.priceLabelFor(plan);
+  String offerLabelFor(SubscriptionPlan plan) =>
+      _subscription.offerLabelFor(plan);
+  Future<void> refreshProducts() => _subscription.refreshProducts();
+  String productAvailabilityLabel(SubscriptionPlan plan) =>
+      _subscription.productAvailabilityLabel(plan);
+  Future<void> refreshStatus(String owner) async {
+    await CloudService.refreshEntitlement(expectedUid: owner);
+  }
+
+  Future<bool> isPremium() => _subscription.isPremium();
+  Future<SubscriptionPlan?> currentPlan() => _subscription.currentPlanIfKnown();
+  Future<String> statusLabel() => CloudService.subscriptionStatusLabel();
+  Future<bool> ensureSignedIn(BuildContext context) =>
+      AccountScreen.ensureSignedIn(context);
+  Future<bool> purchase(SubscriptionPlan plan) =>
+      _subscription.purchasePremium(plan: plan);
+  Future<bool> changeToYearly() => _subscription.purchasePremium(
+    plan: SubscriptionPlan.yearly,
+    replaceMonthly: true,
+  );
+  Future<SubscriptionRestoreResult> restore() =>
+      _subscription.restorePurchasesWithResult();
+  Future<void> cancel() => _subscription.cancelPremium();
+  Future<void> logPurchase(SubscriptionPlan plan) =>
+      AnalyticsService().logEvent(AnalyticsEvents.premiumPurchase, {
+        'plan': plan == SubscriptionPlan.yearly ? 'yearly' : 'monthly',
+      });
+}
+
 /// '마음냥 구독' 구독 안내 및 구매 화면 (페이월).
 ///
 /// [SubscriptionService.storeBillingEnabled]가 false인 동안에는 혜택·가격은
 /// 보여 주되, 구매 버튼은 비활성(준비 중)으로 두어 무료 잠금 해제를 막습니다.
 /// 실결제 연동 후 플래그를 true로 바꾸면 이 화면 CTA가 구매 플로우로 이어집니다.
 class PremiumScreen extends StatefulWidget {
-  const PremiumScreen({super.key});
+  const PremiumScreen({super.key, this.billing});
+
+  @visibleForTesting
+  final PremiumScreenBilling? billing;
 
   @override
   State<PremiumScreen> createState() => _PremiumScreenState();
 }
 
-class _PremiumScreenState extends State<PremiumScreen> {
-  final _sub = SubscriptionService();
+class _PremiumScreenState extends State<PremiumScreen>
+    with WidgetsBindingObserver {
+  late final _billing = widget.billing ?? PremiumScreenBilling();
   bool _isPremium = false;
   String _statusLabel = '무료 이용 중';
   bool _loading = true;
   bool _purchasing = false;
+  bool _refreshingStatus = false;
+  bool _awaitingManagementReturn = false;
+  String? _managementOwner;
+  int _loadGeneration = 0;
+  String? _displayOwner;
   SubscriptionPlan _selectedPlan = SubscriptionPlan.yearly;
-  SubscriptionPlan _activePlan = SubscriptionPlan.monthly;
+  SubscriptionPlan? _activePlan;
 
-  bool get _supportedStore =>
-      !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+  bool get _supportedStore => _billing.supportedStore;
 
   bool get _billingReady =>
       _supportedStore &&
       SubscriptionService.storeBillingEnabled &&
-      CloudService.enabled &&
-      _sub.hasProduct(_selectedPlan);
+      _billing.backendEnabled &&
+      _billing.hasProduct(_selectedPlan);
 
   String get _billingCaption {
     if (!_supportedStore) {
       return '구독 구매와 복원은 Google Play에서 설치한 Android 앱에서 이용할 수 있어요.';
     }
-    if (!SubscriptionService.storeBillingEnabled || !CloudService.enabled) {
+    if (!SubscriptionService.storeBillingEnabled || !_billing.backendEnabled) {
       return SubscriptionService.billingComingSoonCaption;
     }
-    if (!_sub.hasProduct(_selectedPlan)) {
-      return '선택한 구독 상품을 불러오지 못했어요. 연결을 확인한 뒤 다시 확인해 주세요.';
+    if (!_billing.hasProduct(_selectedPlan)) {
+      return _billing.productAvailabilityLabel(_selectedPlan);
     }
     return '언제든 해지할 수 있어요 · 구독은 자동 갱신됩니다';
   }
@@ -61,162 +114,321 @@ class _PremiumScreenState extends State<PremiumScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _load();
-    AnalyticsService().logEvent(AnalyticsEvents.premiumScreenView);
+    unawaited(
+      AnalyticsService()
+          .logEvent(AnalyticsEvents.premiumScreenView)
+          .catchError((Object _) {}),
+    );
   }
 
-  Future<void> _load() async {
-    if (mounted) setState(() => _loading = true);
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && _awaitingManagementReturn) {
+      _awaitingManagementReturn = false;
+      if (_billing.currentUid == _managementOwner) {
+        unawaited(_refreshSubscriptionStatus());
+      } else {
+        unawaited(_load());
+      }
+    }
+  }
+
+  Future<void> _refreshSubscriptionStatus() async {
+    if (_refreshingStatus) return;
+    final owner = _billing.currentUid;
+    if (owner == null) return;
+    setState(() => _refreshingStatus = true);
     try {
-      if (_supportedStore) await _sub.refreshProducts();
-      final premium = await _sub.isPremium();
-      final plan = await _sub.currentPlan();
-      final statusLabel = await CloudService.subscriptionStatusLabel();
-      if (!mounted) return;
+      await _billing.refreshStatus(owner);
+      if (!_sameOwner(owner)) return;
+      final active = await _billing.isPremium();
+      if (!_sameOwner(owner)) return;
+      final plan = await _billing.currentPlan();
+      if (!_sameOwner(owner)) return;
+      final status = await _billing.statusLabel();
+      if (!_sameOwner(owner)) return;
+      setState(() {
+        _isPremium = active;
+        _activePlan = plan;
+        _displayOwner = owner;
+        _statusLabel = status;
+      });
+      _applyPremium(active);
+    } catch (_) {
+      if (mounted && _sameOwner(owner)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              '최신 구독 상태를 확인하지 못했어요. 기존 이용 상태는 유지돼요. 잠시 후 다시 확인해 주세요.',
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _refreshingStatus = false);
+        if (!_sameOwner(owner)) await _load();
+      }
+    }
+  }
+
+  bool _sameOwner(String? owner) => mounted && _billing.currentUid == owner;
+
+  Future<void> _load() async {
+    final generation = ++_loadGeneration;
+    final owner = _billing.currentUid;
+    bool isCurrent() =>
+        mounted && generation == _loadGeneration && _sameOwner(owner);
+    if (mounted) {
+      setState(() {
+        _loading = true;
+        if (_displayOwner != owner) {
+          _isPremium = false;
+          _activePlan = null;
+          _statusLabel = '무료 이용 중';
+          _displayOwner = owner;
+        }
+      });
+    }
+    try {
+      if (_supportedStore) await _billing.refreshProducts();
+      if (!isCurrent()) return;
+      final premium = await _billing.isPremium();
+      if (!isCurrent()) return;
+      final plan = await _billing.currentPlan();
+      if (!isCurrent()) return;
+      final statusLabel = await _billing.statusLabel();
+      if (!isCurrent()) return;
       setState(() {
         _isPremium = premium;
         _activePlan = plan;
         _statusLabel = statusLabel;
       });
     } catch (_) {
-      if (mounted) {
+      if (isCurrent()) {
         setState(() => _statusLabel = '이용 상태를 확인하지 못했어요. 다시 확인해 주세요.');
       }
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted && generation == _loadGeneration) {
+        if (_sameOwner(owner)) {
+          setState(() => _loading = false);
+        } else {
+          // A different account must get its own snapshot, never this result.
+          unawaited(_load());
+        }
+      }
     }
   }
 
-  Future<void> _purchase() async {
+  void _applyPremium(bool active) {
+    context.read<AppStateProvider>().setAccountPremium(active);
+    context.read<CatCareProvider>().setAccountPremium(active);
+    context.read<PromiseProvider>().setAccountPremium(active);
+    context.read<GardenProvider>().setAccountPremium(active);
+  }
+
+  Future<void> _changeToYearly() async {
+    final owner = _billing.currentUid;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('연간 구독으로 바꿀까요?'),
+        content: Text(
+          '연간 ${_billing.priceLabelFor(SubscriptionPlan.yearly)}를 지금 결제하는 방식이에요. 남은 월간 이용분은 Google Play가 새 이용 기간에 반영해요. 최종 금액과 다음 결제일을 Play 결제 화면에서 확인한 뒤 승인해 주세요. 기존 월간 구독을 대체하며, 취소하면 현재 구독이 유지돼요.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('돌아가기'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Play에서 확인'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted || !_sameOwner(owner)) return;
+    setState(() => _selectedPlan = SubscriptionPlan.yearly);
+    await _purchase(replaceMonthly: true);
+  }
+
+  Future<void> _purchase({bool replaceMonthly = false}) async {
     if (_purchasing) return;
     if (!_billingReady) {
-      if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(_billingCaption)));
       return;
     }
+    ++_loadGeneration;
     setState(() => _purchasing = true);
-    if (!await AccountScreen.ensureSignedIn(context)) {
-      if (mounted) setState(() => _purchasing = false);
-      return;
-    }
-    if (!mounted) return;
-    var ok = false;
+    final initialOwner = _billing.currentUid;
+    String? owner;
     try {
-      ok = await _sub.purchasePremium(plan: _selectedPlan);
-    } catch (_) {
-      ok = false;
-    } finally {
-      if (mounted) {
-        setState(() {
-          _purchasing = false;
-          _isPremium = ok;
-          if (ok) _activePlan = _selectedPlan;
-        });
+      if (!await _billing.ensureSignedIn(context) || !mounted) return;
+      owner = _billing.currentUid;
+      if (owner == null) return;
+      final plan = _selectedPlan;
+      final ok = await (replaceMonthly
+          ? _billing.changeToYearly()
+          : _billing.purchase(plan));
+      if (!mounted || !_sameOwner(owner)) return;
+      if (!ok) {
+        // A cancelled/failed new transaction does not revoke existing access.
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('구매가 완료되지 않았어요. 잠시 후 다시 확인해 주세요.')),
+        );
+        return;
       }
-    }
-    if (!mounted) return;
-    if (!ok) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('구매가 완료되지 않았어요. 잠시 후 다시 확인해 주세요.')),
-      );
-    }
-    if (ok) {
-      final statusLabel = await CloudService.subscriptionStatusLabel();
-      if (!mounted) return;
-      setState(() => _statusLabel = statusLabel);
-      final app = context.read<AppStateProvider>();
-      final care = context.read<CatCareProvider>();
-      final promise = context.read<PromiseProvider>();
-      final garden = context.read<GardenProvider>();
-      final planLabel = _selectedPlan == SubscriptionPlan.yearly
-          ? 'yearly'
-          : 'monthly';
-      unawaited(() async {
-        try {
-          await AnalyticsService().logEvent(AnalyticsEvents.premiumPurchase, {
-            'plan': planLabel,
-          });
-          // 구매 결과(ok)로 이미 구독 상태를 알고 있으므로, SubscriptionService를
-          // 다시 조회하거나(refreshPremiumStatus) 전체 상태를 재로딩(load)하지
-          // 않고 setAccountPremium으로 4개 provider를 즉시·일관되게 맞춥니다.
-          // 화면 재초기화·불필요한 재조회·구독 상태 불일치를 모두 피합니다.
-          app.setAccountPremium(true);
-          care.setAccountPremium(true);
-          promise.setAccountPremium(true);
-          garden.setAccountPremium(true);
-        } catch (_) {}
-      }());
+      var statusLabel = '마음냥 구독 이용 중';
+      try {
+        statusLabel = await _billing.statusLabel();
+      } catch (_) {
+        // Store verification already succeeded; a label lookup is optional.
+      }
+      if (!mounted || !_sameOwner(owner)) return;
+      setState(() {
+        _isPremium = true;
+        _displayOwner = owner;
+        _activePlan = plan;
+        _statusLabel = statusLabel;
+      });
+      // Access is applied now, without waiting for optional analytics. There is
+      // no asynchronous gap between the owner check and these provider writes.
+      _applyPremium(true);
+      unawaited(_billing.logPurchase(plan).catchError((Object _) {}));
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('마음냥 구독 멤버십이 시작되었어요 🌷')));
+    } on CloudException catch (error) {
+      final expectedOwner = owner ?? initialOwner;
+      if (!mounted || !_sameOwner(expectedOwner)) return;
+      if (error.code == 'subscription-already-active') {
+        // The server preflight refreshed this account's cache. Read that
+        // authoritative state; the exception itself must never grant access.
+        await _load();
+        if (!mounted || !_sameOwner(expectedOwner)) return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
+    } catch (_) {
+      if (mounted && (owner == null || _sameOwner(owner))) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('구매가 완료되지 않았어요. 잠시 후 다시 확인해 주세요.')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _purchasing = false);
+        if (!_sameOwner(owner ?? initialOwner)) await _load();
+      }
     }
   }
 
   Future<void> _cancel() async {
-    if (!SubscriptionService.storeBillingEnabled) return;
-    await _sub.cancelPremium();
-    if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Play 구독 관리 화면으로 이동합니다')));
+    if (_purchasing ||
+        _refreshingStatus ||
+        !SubscriptionService.storeBillingEnabled) {
+      return;
+    }
+    final owner = _billing.currentUid;
+    setState(() => _purchasing = true);
+    _awaitingManagementReturn = true;
+    _managementOwner = owner;
+    try {
+      await _billing.cancel();
+      // Never mark the subscription cancelled just because Play opened.
+    } catch (_) {
+      _awaitingManagementReturn = false;
+      if (mounted && _sameOwner(owner)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              '구독 관리 화면을 열지 못했어요. Play 스토어 → 프로필 → 결제 및 정기 결제 → 정기 결제에서 해지할 수 있어요.',
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _purchasing = false);
+        if (!_sameOwner(owner)) await _load();
+      }
+    }
   }
 
   Future<void> _restore() async {
-    if (_purchasing) return;
-    if (!SubscriptionService.storeBillingEnabled) return;
+    if (_purchasing || !SubscriptionService.storeBillingEnabled) return;
+    ++_loadGeneration;
     setState(() => _purchasing = true);
-    if (!await AccountScreen.ensureSignedIn(context)) {
-      if (mounted) setState(() => _purchasing = false);
-      return;
-    }
-    if (!mounted) return;
-    var result = SubscriptionRestoreResult(
-      SubscriptionRestoreStatus.unavailable,
-      active: _isPremium,
-    );
+    final initialOwner = _billing.currentUid;
+    String? owner;
     try {
-      result = await _sub.restorePurchasesWithResult();
-      _activePlan = await _sub.currentPlan();
+      if (!await _billing.ensureSignedIn(context) || !mounted) return;
+      owner = _billing.currentUid;
+      if (owner == null) return;
+      final result = await _billing.restore();
+      if (!mounted || !_sameOwner(owner)) return;
+      // An unavailable restore is not proof that an existing entitlement ended.
+      // In particular, do not overwrite access refreshed by the account bridge
+      // while this attempt was waiting for Play.
+      if (result.unavailable) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(result.message)));
+        return;
+      }
+      final active = result.active;
+      final plan = await _billing.currentPlan();
+      if (!mounted || !_sameOwner(owner)) return;
+      var statusLabel = active ? '마음냥 구독 이용 중' : '무료 이용 중';
+      try {
+        statusLabel = await _billing.statusLabel();
+      } catch (_) {}
+      if (!mounted || !_sameOwner(owner)) return;
+      setState(() {
+        _isPremium = active;
+        _displayOwner = owner;
+        _activePlan = plan;
+        _statusLabel = statusLabel;
+      });
+      _applyPremium(active);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(result.message)));
     } catch (_) {
-      // Keep the known entitlement, but never describe an unchecked restore
-      // as a success. The next attempt can query the store again.
+      if (mounted && (owner == null || _sameOwner(owner))) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              const SubscriptionRestoreResult(
+                SubscriptionRestoreStatus.unavailable,
+              ).message,
+            ),
+          ),
+        );
+      }
     } finally {
       if (mounted) {
-        setState(() {
-          _purchasing = false;
-          _isPremium = result.active;
-        });
+        setState(() => _purchasing = false);
+        if (!_sameOwner(owner ?? initialOwner)) await _load();
       }
     }
-    if (!mounted) return;
-    {
-      final app = context.read<AppStateProvider>();
-      final care = context.read<CatCareProvider>();
-      final promise = context.read<PromiseProvider>();
-      final garden = context.read<GardenProvider>();
-      final active = result.active;
-      unawaited(() async {
-        try {
-          // result.active로 이미 복원된 구독 상태를 알고 있으므로, 동일하게
-          // setAccountPremium으로 4개 provider를 즉시 맞춥니다(재조회/전체
-          // 재로딩 없이). active가 false면(복원 실패) 구독자 상태로 되돌리지
-          // 않습니다.
-          app.setAccountPremium(active);
-          care.setAccountPremium(active);
-          promise.setAccountPremium(active);
-          garden.setAccountPremium(active);
-        } catch (_) {}
-      }());
-    }
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(result.message)));
   }
 
   @override
   Widget build(BuildContext context) {
+    if (FeatureFlags.debugUnlockAllPremium) return const MembershipTestScreen();
     return Scaffold(
       body: GardenScaffoldBackground(
         child: SafeArea(
@@ -259,24 +471,33 @@ class _PremiumScreenState extends State<PremiumScreen> {
                                 _HeroCard(
                                   isPremium: _isPremium,
                                   activePlan: _activePlan,
+                                  monthlyPrice: _billing.priceLabelFor(
+                                    SubscriptionPlan.monthly,
+                                  ),
                                 ),
                                 const SizedBox(height: 18),
                                 TextButton(
-                                  onPressed: () async {
-                                    await Navigator.of(context).push(
-                                      MaterialPageRoute(
-                                        builder: (_) => const AccountScreen(),
-                                      ),
-                                    );
-                                    await _load();
-                                  },
+                                  onPressed: _purchasing
+                                      ? null
+                                      : () async {
+                                          await Navigator.of(context).push(
+                                            MaterialPageRoute(
+                                              builder: (_) =>
+                                                  const AccountScreen(),
+                                            ),
+                                          );
+                                          if (mounted) await _load();
+                                        },
                                   child: const Text('간편 로그인 · 구매 계정 관리'),
                                 ),
                                 if (!_isPremium) ...[
                                   _PlanSelector(
                                     selected: _selectedPlan,
-                                    onChanged: (p) =>
-                                        setState(() => _selectedPlan = p),
+                                    billing: _billing,
+                                    onChanged: _purchasing
+                                        ? null
+                                        : (p) =>
+                                              setState(() => _selectedPlan = p),
                                   ),
                                   const SizedBox(height: 18),
                                 ],
@@ -284,7 +505,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
                                   Padding(
                                     padding: const EdgeInsets.only(bottom: 16),
                                     child: Text(
-                                      _sub.offerLabelFor(_selectedPlan),
+                                      _billing.offerLabelFor(_selectedPlan),
                                     ),
                                   ),
                                 Padding(
@@ -307,7 +528,44 @@ class _PremiumScreenState extends State<PremiumScreen> {
                                   const SizedBox(height: 14),
                                   _SecondaryButton(
                                     label: '멤버십 해지하기',
-                                    onTap: _cancel,
+                                    onTap: _purchasing || _refreshingStatus
+                                        ? null
+                                        : _cancel,
+                                  ),
+                                  const SizedBox(height: 10),
+                                  const Text(
+                                    'Google Play 화면에서 해지를 완료해 주세요. 해지 후에도 이미 결제한 기간까지 이용할 수 있어요.',
+                                    textAlign: TextAlign.center,
+                                  ),
+                                  if (_activePlan == SubscriptionPlan.monthly &&
+                                      _supportedStore) ...[
+                                    const SizedBox(height: 10),
+                                    OutlinedButton(
+                                      onPressed:
+                                          _purchasing ||
+                                              _refreshingStatus ||
+                                              !_billing.hasProduct(
+                                                SubscriptionPlan.yearly,
+                                              )
+                                          ? null
+                                          : _changeToYearly,
+                                      child: Text(
+                                        '연간으로 변경 · ${_billing.priceLabelFor(SubscriptionPlan.yearly)}',
+                                      ),
+                                    ),
+                                    const Text(
+                                      'Play 결제 화면에서 남은 이용 기간 반영과 금액을 확인할 수 있어요.',
+                                    ),
+                                  ],
+                                  TextButton(
+                                    onPressed: _purchasing || _refreshingStatus
+                                        ? null
+                                        : _refreshSubscriptionStatus,
+                                    child: Text(
+                                      _refreshingStatus
+                                          ? '구독 상태 확인 중…'
+                                          : '구독 상태 다시 확인',
+                                    ),
                                   ),
                                 ] else ...[
                                   _PrimaryPurchaseButton(
@@ -315,7 +573,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
                                     enabled: _billingReady,
                                     disabledLabel: !_supportedStore
                                         ? 'Android 앱에서 이용'
-                                        : _sub.hasProduct(_selectedPlan)
+                                        : _billing.hasProduct(_selectedPlan)
                                         ? '결제 연결 준비 중'
                                         : '구독 상품 확인 필요',
                                     onTap: _purchase,
@@ -326,7 +584,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
                                     const SizedBox(height: 10),
                                     _SecondaryButton(
                                       label: '구매 복원',
-                                      onTap: _purchasing ? () {} : _restore,
+                                      onTap: _purchasing ? null : _restore,
                                     ),
                                   ],
                                   const SizedBox(height: 10),
@@ -362,15 +620,21 @@ class _PremiumScreenState extends State<PremiumScreen> {
 
 class _HeroCard extends StatelessWidget {
   final bool isPremium;
-  final SubscriptionPlan activePlan;
-  const _HeroCard({required this.isPremium, required this.activePlan});
+  final SubscriptionPlan? activePlan;
+  final String monthlyPrice;
+  const _HeroCard({
+    required this.isPremium,
+    required this.activePlan,
+    required this.monthlyPrice,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final sub = SubscriptionService();
-    final activeLabel = activePlan == SubscriptionPlan.yearly
-        ? '현재 이용 중 ✓ (연간)'
-        : '현재 이용 중 ✓ (월간)';
+    final activeLabel = switch (activePlan) {
+      SubscriptionPlan.yearly => '현재 이용 중 ✓ (연간)',
+      SubscriptionPlan.monthly => '현재 이용 중 ✓ (월간)',
+      null => '현재 이용 중 ✓',
+    };
     return GlassBlob(
       accent: AppColors.blobButterAccent,
       background: AppColors.blobButter,
@@ -423,9 +687,7 @@ class _HeroCard extends StatelessWidget {
               ),
             ),
             child: Text(
-              isPremium
-                  ? activeLabel
-                  : sub.priceLabelFor(SubscriptionPlan.monthly),
+              isPremium ? activeLabel : monthlyPrice,
               style: numberFont(
                 fontSize: 16,
                 color: AppColors.blobButterAccent,
@@ -449,8 +711,13 @@ class _HeroCard extends StatelessWidget {
 /// 월간/연간 구독 플랜 선택 카드.
 class _PlanSelector extends StatelessWidget {
   final SubscriptionPlan selected;
-  final ValueChanged<SubscriptionPlan> onChanged;
-  const _PlanSelector({required this.selected, required this.onChanged});
+  final ValueChanged<SubscriptionPlan>? onChanged;
+  final PremiumScreenBilling billing;
+  const _PlanSelector({
+    required this.selected,
+    required this.onChanged,
+    required this.billing,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -460,12 +727,12 @@ class _PlanSelector extends StatelessWidget {
           child: _PlanCard(
             plan: SubscriptionPlan.monthly,
             title: '월간',
-            price: SubscriptionService().priceLabelFor(
-              SubscriptionPlan.monthly,
-            ),
+            price: billing.priceLabelFor(SubscriptionPlan.monthly),
             caption: '언제든 부담 없이',
             selected: selected == SubscriptionPlan.monthly,
-            onTap: () => onChanged(SubscriptionPlan.monthly),
+            onTap: onChanged == null
+                ? null
+                : () => onChanged!(SubscriptionPlan.monthly),
           ),
         ),
         const SizedBox(width: 10),
@@ -473,10 +740,12 @@ class _PlanSelector extends StatelessWidget {
           child: _PlanCard(
             plan: SubscriptionPlan.yearly,
             title: '연간',
-            price: SubscriptionService().priceLabelFor(SubscriptionPlan.yearly),
+            price: billing.priceLabelFor(SubscriptionPlan.yearly),
             caption: '매년 결제',
             selected: selected == SubscriptionPlan.yearly,
-            onTap: () => onChanged(SubscriptionPlan.yearly),
+            onTap: onChanged == null
+                ? null
+                : () => onChanged!(SubscriptionPlan.yearly),
           ),
         ),
       ],
@@ -489,10 +758,8 @@ class _PlanCard extends StatelessWidget {
   final String title;
   final String price;
   final String caption;
-  final String? badge;
-  final String? originalPrice;
   final bool selected;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
   const _PlanCard({
     required this.plan,
     required this.title,
@@ -500,8 +767,6 @@ class _PlanCard extends StatelessWidget {
     required this.caption,
     required this.selected,
     required this.onTap,
-    this.badge,
-    this.originalPrice,
   });
 
   @override
@@ -534,27 +799,6 @@ class _PlanCard extends StatelessWidget {
                     color: AppColors.ink,
                   ),
                 ),
-                if (badge != null) ...[
-                  const SizedBox(width: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 7,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.gold,
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    child: Text(
-                      badge!,
-                      style: bodyFont(
-                        fontSize: 9.5,
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ],
                 const Spacer(),
                 Icon(
                   selected ? Icons.check_circle_rounded : Icons.circle_outlined,
@@ -566,20 +810,6 @@ class _PlanCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 8),
-            if (originalPrice != null) ...[
-              Text(
-                originalPrice!,
-                style:
-                    bodyFont(
-                      fontSize: 11,
-                      color: AppColors.inkSoft.withValues(alpha: 0.6),
-                    ).copyWith(
-                      decoration: TextDecoration.lineThrough,
-                      decorationColor: AppColors.inkSoft.withValues(alpha: 0.6),
-                    ),
-              ),
-              const SizedBox(height: 1),
-            ],
             Text(price, style: numberFont(fontSize: 16, color: AppColors.ink)),
             const SizedBox(height: 3),
             Text(
@@ -597,17 +827,13 @@ class _FeatureList extends StatelessWidget {
   const _FeatureList();
 
   static const _features = [
-    ('🎁', '정원 장식 선물', '구독 장식을 받아 정원을 꾸며요. 이미 얻은 장식은 구독 종료 후에도 남아요'),
-    ('📖', '정원의 이야기', '첫 장은 무료 · 공개된 다음 장은 구독과 기록 3일·5일 조건으로 열려요'),
-    ('💌', '고양이 답장 전체 이용', '기록은 무료 · 무료 답장 하루 1회 · 구독하면 추가 답장도 함께'),
-    ('📊', '상세 주간·월간 감정통계', '내 기록의 흐름과 감정별 빈도·패턴을 살펴봐요'),
-    ('🎧', '모든 공개 명상·리추얼', '숲 명상과 빗소리는 무료 · 구독하면 전체 콘텐츠 이용'),
-    ('📊', '기록 패턴 살펴보기', '지난달/분기 비교, 요일·시간대 패턴, 다시 떠오른 감정까지 살펴보기'),
-    ('✨', '오늘의 카드와 내 마음', '내가 고른 감정과 무작위 카드를 나란히 보는 재미용 이야기'),
-    ('🧠', '감정을 돌아보는 질문', '오늘의 감정을 더 깊이 들여다보는 이야기와 질문으로 내 경험 돌아보기'),
-    ('🌡️', '돌봄 온기 포인트 적립', '돌봄 활동으로 온기가 100도에 닿을 때마다 포인트가 쌓여요'),
-    ('📊', '지난달과 감정 기록 비교', '같은 기간의 기록 횟수와 자주 고른 감정을 나란히 살펴봐요'),
-    ('🌱', '주제별 실천 여정', '준비된 작은 실천을 내 속도로 이어가요'),
+    ('🌳', '내 시간이 쌓이는 정원', '구독 장식과 공개된 정원 이야기를 이어가요. 이미 받은 장식은 구독이 끝나도 남아요.'),
+    (
+      '📚',
+      '나를 돌아보는 월간 기록집',
+      '내가 고른 문장·나무의 기억·돌봄 경험을 한 달씩 모아요. 첫 기본 기록집은 무료이고, 기존 기록집은 계속 볼 수 있어요.',
+    ),
+    ('🌷', '함께 만드는 기억', '이웃을 초대해 기념 나무를 함께 가꿔요. 초대받은 친구는 무료로 참여할 수 있어요.'),
   ];
 
   @override
@@ -618,7 +844,11 @@ class _FeatureList extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
       child: Column(
         children: [
-          for (final f in _features)
+          for (final f in [
+            if (AdService.instance.configured)
+              ('🌿', '광고 없이 이용', '구독 기간과 구독 무료체험 기간에는 홈 배너 광고가 표시되지 않아요'),
+            ..._features,
+          ])
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 10),
               child: Row(
@@ -653,6 +883,22 @@ class _FeatureList extends StatelessWidget {
                 ],
               ),
             ),
+          const ExpansionTile(
+            tilePadding: EdgeInsets.zero,
+            title: Text('그 밖의 구독 혜택'),
+            children: [
+              Padding(
+                padding: EdgeInsets.only(bottom: 16),
+                child: Text(
+                  '상세 주간·월간 통계와 지난달·분기 비교, 요일·시간대 기록 패턴, '
+                  '나에게 도움이 됐던 돌봄의 긴 기간 비교, 감정을 돌아보는 질문, '
+                  '오늘의 카드와 내 마음, 돌봄 온기 포인트, 주제별 실천 여정을 이용할 수 있어요. '
+                  '정원의 다음 이야기는 구독과 기록 3일·5일 조건으로 열려요. '
+                  '오프라인 클래스 참가비는 구독에 포함되지 않아요.',
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -662,7 +908,7 @@ class _FeatureList extends StatelessWidget {
 class _PrimaryPurchaseButton extends StatelessWidget {
   final bool loading;
   final bool enabled;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
   final String disabledLabel;
   const _PrimaryPurchaseButton({
     required this.loading,
@@ -713,7 +959,7 @@ class _PrimaryPurchaseButton extends StatelessWidget {
 
 class _SecondaryButton extends StatelessWidget {
   final String label;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
   const _SecondaryButton({required this.label, required this.onTap});
 
   @override

@@ -478,7 +478,7 @@ class _DataSafetyScreenState extends State<DataSafetyScreen> {
                   '이 기기의 정원 전체를 이 계정에 백업합니다. 처음 백업하거나 서버에서 복원한 계정에 연결되며 다른 계정으로는 백업·복원할 수 없어요. 로그아웃해도 기기 기록은 남아요.',
                 ),
                 const Text(
-                  '자동 백업은 구독 중 앱을 열었을 때 하루 한 번 시도합니다. 최근 10개 버전을 보관하며 구독 종료 후에도 기존 백업은 복원할 수 있어요.',
+                  '자동 백업은 구독 중 앱을 사용하는 동안 1분마다 변경을 확인해요. 새 기록이 있으면 마지막 백업 이후 최소 2분 간격으로 저장해요. 앱이 닫혀 있거나 연결이 끊기면 다음에 열 때 다시 시도해요. 최근 10개 버전을 보관하며 구독 종료 후에도 기존 백업은 복원할 수 있어요.',
                 ),
                 ValueListenableBuilder<String>(
                   valueListenable: AutoBackupService.instance.status,
@@ -559,7 +559,7 @@ class _DataSafetyScreenState extends State<DataSafetyScreen> {
                             builder: (context) => AlertDialog(
                               title: const Text('서버 계정과 백업을 삭제할까요?'),
                               content: const Text(
-                                '이 작업은 되돌릴 수 없어요. 기기 기록과 Play 구독은 별도로 남아요. 구독 해지는 Play에서 해주세요. 최근 5분 이내 로그인해야 삭제할 수 있어요.',
+                                '이 작업은 되돌릴 수 없어요. 함께 가꾸는 나무와 그 안의 공유 메모는 두 사람 모두에게서 삭제돼요. 기기 기록과 Play 구독은 별도로 남아요. 구독 해지는 Play에서 해주세요. 최근 5분 이내 로그인해야 삭제할 수 있어요.',
                               ),
                               actions: [
                                 TextButton(

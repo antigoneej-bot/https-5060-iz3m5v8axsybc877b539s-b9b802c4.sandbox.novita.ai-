@@ -1,3 +1,4 @@
+import '../services/privacy_config.dart';
 import 'package:flutter/material.dart';
 import '../theme.dart';
 import '../widgets/stars_background.dart';
@@ -82,10 +83,14 @@ class TermsOfServiceScreen extends StatelessWidget {
                             body:
                                 '이용자는 다음 각 호의 행위를 하지 않아야 합니다.\n\n'
                                 '· 앱의 정상적인 운영을 방해하는 행위\n'
+                                '· 괴롭힘·혐오·성적 콘텐츠·폭력 위협·스팸·사기 게시\n'
+                                '· 타인의 개인정보 또는 권리를 침해하는 콘텐츠 공유\n'
                                 '· 타인의 개인정보를 무단으로 수집·저장하는 행위\n'
                                 '· 관계 법령 또는 이 약관에서 금지하는 행위\n\n'
-                                '이용자는 본인의 기기 및 계정 관리에 책임이 있으며, 이로 인해 '
-                                '발생하는 문제에 대해 앱 운영자는 책임을 지지 않습니다.',
+                                '공개·공유 기능을 사용하기 전 이 약관에 동의해야 합니다. 부적절한 '
+                                '콘텐츠나 사용자는 신고·차단할 수 있습니다. 운영자는 신고를 검토하여 '
+                                '공개 중단 또는 공유 이용 제한 등의 조치를 취할 수 있습니다. '
+                                '개인 기록은 공개 동의와 관계없이 사용할 수 있습니다.',
                           ),
                           const SizedBox(height: 14),
                           _PolicySection(
@@ -132,13 +137,13 @@ class TermsOfServiceScreen extends StatelessWidget {
                             accent: AppColors.blobRoseAccent,
                             background: AppColors.blobRose,
                             body:
-                                '이 약관과 관련해 궁금한 점이 있으시면 마이 탭의 문의하기 기능을 '
-                                '이용해 주세요.',
+                                '일반 문의·개인정보 문의·계정 삭제 요청은 '
+                                '${PrivacyConfig.contact}으로 보내 주세요. 비밀번호나 인증번호는 보내지 마세요.',
                           ),
                           const SizedBox(height: 22),
                           Center(
                             child: Text(
-                              '시행일: 2025년 1월 1일',
+                              '커뮤니티 약관 버전: 2026-10-31',
                               style: bodyFont(
                                 fontSize: 11,
                                 color: AppColors.inkSoft,

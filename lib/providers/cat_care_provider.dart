@@ -1,4 +1,8 @@
 import '../utils/companion_name.dart';
+import '../models/companion_coat.dart';
+import '../models/companion_journey.dart';
+import '../services/companion_journey_store.dart';
+import '../services/notification_service.dart';
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
@@ -13,6 +17,13 @@ import '../data/shadow_cats_data.dart';
 
 /// 다마고치식 '마음 돌보기' 상태를 화면에 공급하는 Provider
 class CatCareProvider extends ChangeNotifier {
+  CatCareProvider({
+    NotificationService? notifications,
+    DateTime Function()? now,
+  }) : _notifications = notifications ?? NotificationService(),
+       _now = now ?? DateTime.now;
+  final NotificationService _notifications;
+  final DateTime Function() _now;
   CatCareState state = CatCareState(
     temperature: CatCareService.startTemperature,
     fedToday: false,
@@ -23,6 +34,97 @@ class CatCareProvider extends ChangeNotifier {
     growthDays: 0,
   );
   bool isLoading = true;
+  CompanionJourney journey = const CompanionJourney();
+  bool journeyReady = false;
+  String? journeyError;
+  int _journeyEpoch = 0;
+
+  @override
+  void dispose() {
+    _journeyEpoch++;
+    super.dispose();
+  }
+
+  Future<void> loadJourney() async {
+    final owner = CatCareService.localOwner, epoch = _journeyEpoch;
+    try {
+      final loaded = await CompanionJourneyStore.load(owner);
+      if (owner != CatCareService.localOwner || epoch != _journeyEpoch) return;
+      journey = loaded;
+      journeyReady = true;
+      journeyError = null;
+    } catch (_) {
+      if (epoch != _journeyEpoch) return;
+      journeyReady = false;
+      journeyError = '함께한 기록을 불러오지 못했어요. 다시 눌러 주세요.';
+    }
+    notifyListeners();
+  }
+
+  Future<void> rememberMoment(
+    CompanionMoment action, {
+    bool requiredSave = false,
+  }) async {
+    final owner = CatCareService.localOwner, epoch = _journeyEpoch;
+    try {
+      final saved = await CompanionJourneyStore.record(
+        owner,
+        action,
+        now: _now(),
+      );
+      if (owner != CatCareService.localOwner || epoch != _journeyEpoch) return;
+      journey = saved;
+      journeyReady = true;
+      journeyError = null;
+    } catch (_) {
+      if (epoch != _journeyEpoch) return;
+      journeyError = '함께한 기록을 저장하지 못했어요. 돌봄을 다시 눌러 주세요.';
+      notifyListeners();
+      if (requiredSave) rethrow;
+      return;
+    }
+    notifyListeners();
+    await _notifications.refreshCompanionReminders();
+  }
+
+  Future<void> selectCoat(CompanionCoat coat) async {
+    final owner = CatCareService.localOwner, epoch = _journeyEpoch;
+    final saved = await CompanionJourneyStore.setCoat(owner, coat);
+    if (owner != CatCareService.localOwner || epoch != _journeyEpoch) return;
+    journey = saved;
+    journeyReady = true;
+    journeyError = null;
+    notifyListeners();
+  }
+
+  Future<void> adoptCompanion(CompanionCoat coat) async {
+    final owner = CatCareService.localOwner, epoch = _journeyEpoch;
+    final saved = await CompanionJourneyStore.adopt(owner, coat);
+    if (owner != CatCareService.localOwner || epoch != _journeyEpoch) return;
+    journey = saved;
+    journeyReady = true;
+    journeyError = null;
+    notifyListeners();
+  }
+
+  Future<void> keepBabyAppearance(bool value) async {
+    final owner = CatCareService.localOwner, epoch = _journeyEpoch;
+    final saved = await CompanionJourneyStore.setBaby(owner, value);
+    if (owner != CatCareService.localOwner || epoch != _journeyEpoch) return;
+    journey = saved;
+    notifyListeners();
+  }
+
+  Future<void> setAutomaticBehavior(bool value) async {
+    final owner = CatCareService.localOwner, epoch = _journeyEpoch;
+    final saved = await CompanionJourneyStore.setAutomaticBehavior(
+      owner,
+      value,
+    );
+    if (owner != CatCareService.localOwner || epoch != _journeyEpoch) return;
+    journey = saved;
+    notifyListeners();
+  }
 
   /// 웰컴 투어에서 사용자가 지어준 아기고양이의 이름. 없으면 null.
   String? companionName;
@@ -70,11 +172,18 @@ class CatCareProvider extends ChangeNotifier {
   }
 
   /// 화면에서 실제로 사용할 성장일수(디버그 오버라이드가 있으면 그 값을 사용).
-  int get effectiveGrowthDays => debugGrowthDaysOverride ?? state.growthDays;
+  int get effectiveGrowthDays =>
+      debugGrowthDaysOverride ?? journey.activeGrowthDays;
 
   /// 화면에서 실제로 사용할 성장 단계(디버그 오버라이드 반영).
   CatGrowthStage get effectiveGrowthStage =>
-      CatCareState.stageForGrowthDays(effectiveGrowthDays);
+      CatGrowthStage.values[effectiveGrowthDays >= 90
+          ? 3
+          : effectiveGrowthDays >= 30
+          ? 2
+          : effectiveGrowthDays >= 7
+          ? 1
+          : 0];
 
   /// 지금까지 구매한 착용형/가구 아이템 id 목록(소모품은 별도로 관리).
   List<String> ownedAccessoryIds = [];
@@ -139,6 +248,7 @@ class CatCareProvider extends ChangeNotifier {
     // 회원가입 + 아기고양이 이름짓기 + 로그인을 모두 마친 시점부터 비로소
     // '출석 1일차'가 기록되기 시작합니다.
     final signedUp = await StorageService.isOnboardingCompleted();
+    await loadJourney();
     state = await CatCareService.loadAndApplyDailyDecay(
       defaultCompanionCatId: shadowCats.first.id,
       isPremium: isPremium,
@@ -151,6 +261,7 @@ class CatCareProvider extends ChangeNotifier {
     await _refreshAchievements();
     isLoading = false;
     notifyListeners();
+    await _notifications.refreshCompanionReminders();
   }
 
   /// 이름이 지어져 있으면 이름을, 없으면 기본 문구를 반환합니다.
@@ -161,6 +272,7 @@ class CatCareProvider extends ChangeNotifier {
     await StorageService.setCompanionName(value);
     companionName = value;
     notifyListeners();
+    await _notifications.refreshCompanionReminders();
   }
 
   /// 100도를 달성할 때마다 적립된 포인트(구독자 전용 보상). 화면에서
@@ -168,10 +280,21 @@ class CatCareProvider extends ChangeNotifier {
   int get points => state.points;
 
   Future<void> _complete(CareTask task) async {
+    // Initialize migration before the legacy counter adds today's first care.
+    if (!journeyReady) await loadJourney();
+    state = await CatCareService.loadAndApplyDailyDecay(
+      defaultCompanionCatId: state.companionCatId,
+      isPremium: isPremium,
+      countAttendance: false,
+    );
     final prevStage = state.growthStage;
     final wasBodyCareDone = state.bodyCareDoneToday;
     final wasAllDone = state.allDoneToday;
     state = await CatCareService.completeTask(task, isPremium: isPremium);
+    await rememberMoment(
+      task == CareTask.feed ? CompanionMoment.feed : CompanionMoment.care,
+      requiredSave: task == CareTask.feed,
+    );
     final newStage = state.growthStage;
     if (newStage != prevStage) {
       justReachedStage = newStage;
@@ -214,8 +337,9 @@ class CatCareProvider extends ChangeNotifier {
   /// 다른 대사를 골라 반환합니다. 애정 표현 누적 횟수도 함께 늘어나며,
   /// 뱃지 달성 여부도 다시 계산합니다.
   Future<String> patCat() async {
+    await rememberMoment(CompanionMoment.pet, requiredSave: true);
     final total = await CatCareService.recordPat();
-    await SoundService().playMeow();
+    unawaited(SoundService().playMeow().catchError((Object _) {}));
     await _refreshAchievements();
     notifyListeners();
 
@@ -264,6 +388,11 @@ class CatCareProvider extends ChangeNotifier {
   }
 
   Future<void> feed() => _complete(CareTask.feed);
+  Future<void> playWithCat() async {
+    await rememberMoment(CompanionMoment.play, requiredSave: true);
+    unawaited(SoundService().playMeow().catchError((Object _) {}));
+  }
+
   Future<void> water() => _complete(CareTask.water);
   Future<void> bath() => _complete(CareTask.bath);
   Future<void> clean() => _complete(CareTask.clean);
@@ -324,17 +453,25 @@ class CatCareProvider extends ChangeNotifier {
   /// 편지를 써서 보낸 것 자체로 마음 온도에 +1도를 더합니다. 사용자가 직접
   /// 온도 값을 입력하는 절차 없이, "편지를 보냈다"는 사실만으로 자동
   /// 적용되는 보너스입니다. 명상 실천 여부와는 완전히 독립적입니다.
-  Future<void> applyLetterSentBonus() =>
-      applyPromiseBonus(delta: 1, countAsActivityBonus: true);
+  Future<void> applyLetterSentBonus() async {
+    await applyPromiseBonus(delta: 1, countAsActivityBonus: true);
+    await rememberMoment(CompanionMoment.letter);
+  }
 
   /// 편지를 보낸 뒤 (완전히 선택사항인) 명상/움직임까지 실천했을 때, 추가로
   /// +1도를 더 올립니다. 편지 전송 보너스와는 별개의 독립적인 트리거이며,
   /// 명상을 하지 않고 건너뛰어도 이미 적용된 편지 보너스에는 영향이
   /// 없습니다.
-  Future<void> applyMeditationBonus() =>
-      applyPromiseBonus(delta: 1, countAsActivityBonus: true);
+  Future<void> applyMeditationBonus() async {
+    await applyPromiseBonus(delta: 1, countAsActivityBonus: true);
+    await rememberMoment(CompanionMoment.meditation);
+  }
 
   void reset() {
+    _journeyEpoch++;
+    journey = const CompanionJourney();
+    journeyReady = false;
+    journeyError = null;
     state = CatCareState(
       temperature: CatCareService.startTemperature,
       fedToday: false,
@@ -430,6 +567,15 @@ class CatCareProvider extends ChangeNotifier {
         companionCatId: state.companionCatId,
         growthDays: state.growthDays,
         points: newPoints,
+      );
+      // Treat food and grooming from the inventory as real care too. The
+      // item is already consumed, so a memory retry must not consume it again.
+      await rememberMoment(
+        accessory.id.startsWith('food_') || accessory.id.startsWith('churu_')
+            ? CompanionMoment.feed
+            : accessory.id == 'brush'
+            ? CompanionMoment.brush
+            : CompanionMoment.care,
       );
       await _refreshAchievements();
       notifyListeners();

@@ -5,7 +5,13 @@ import 'package:video_player/video_player.dart';
 class EmotionCatVideo extends StatefulWidget {
   final String imageAsset;
   final String? videoAsset;
-  const EmotionCatVideo({super.key, required this.imageAsset, this.videoAsset});
+  final int imageCacheWidth;
+  const EmotionCatVideo({
+    super.key,
+    required this.imageAsset,
+    this.videoAsset,
+    this.imageCacheWidth = 300,
+  });
   @override
   State<EmotionCatVideo> createState() => _EmotionCatVideoState();
 }
@@ -99,7 +105,10 @@ class _EmotionCatVideoState extends State<EmotionCatVideo>
     });
     try {
       if (_player == null) {
-        final player = VideoPlayerController.asset(widget.videoAsset!);
+        final player = VideoPlayerController.asset(
+          widget.videoAsset!,
+          videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
+        );
         _player = player;
         await player.initialize();
         if (!mounted || _player != player) return;
@@ -149,7 +158,11 @@ class _EmotionCatVideoState extends State<EmotionCatVideo>
     return Stack(
       fit: StackFit.expand,
       children: [
-        Image.asset(widget.imageAsset, fit: BoxFit.cover, cacheWidth: 300),
+        Image.asset(
+          widget.imageAsset,
+          fit: BoxFit.cover,
+          cacheWidth: widget.imageCacheWidth,
+        ),
         if (playing)
           FittedBox(
             fit: BoxFit.cover,

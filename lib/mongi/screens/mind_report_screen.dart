@@ -17,7 +17,7 @@ import '../services/emotion_insight_service.dart';
 import '../services/mind_reflection_service.dart';
 import 'diary_screen.dart';
 import 'emotion_calendar_screen.dart';
-import 'emotion_collection_screen.dart';
+import '../../screens/memory_cards_screen.dart';
 import 'gratitude_log_screen.dart';
 import 'mental_health_support_screen.dart';
 import 'mood_trend_screen.dart';
@@ -640,41 +640,10 @@ class _CollectionSummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    final total = Emotion.all.length;
-    final ratio = total == 0 ? 0.0 : metCount / total;
     return _MiniCardShell(
-      onTap: () {
-        Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const EmotionCollectionScreen()),
-        );
-      },
-      accentColor: const Color(0xFF8B6BB5),
-      emoji: '📖',
-      title: l10n.mindReportCollectionTitle,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '$metCount / $total',
-            style: const TextStyle(
-              fontWeight: FontWeight.w800,
-              fontSize: 16,
-              color: Color(0xFF8B6BB5),
-            ),
-          ),
-          const SizedBox(height: 6),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(6),
-            child: LinearProgressIndicator(
-              value: ratio,
-              minHeight: 6,
-              backgroundColor: const Color(0xFFF0EAE3),
-              valueColor: const AlwaysStoppedAnimation(Color(0xFF8B6BB5)),
-            ),
-          ),
-        ],
-      ),
+      onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const MemoryCardsScreen())),
+      accentColor: const Color(0xFF8B6BB5), emoji: '🃏', title: '마음냥 추억 카드',
+      child: const Text('특별한 장면을 모으고\n이웃과 교환·자랑해요.'),
     );
   }
 }

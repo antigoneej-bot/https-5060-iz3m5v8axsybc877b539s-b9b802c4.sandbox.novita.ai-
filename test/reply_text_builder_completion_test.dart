@@ -13,6 +13,7 @@ import 'package:flutter_app/services/storage_service.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   late Directory directory;
+  final started = <Future<String>>[];
   const channel = MethodChannel('plugins.it_nomads.com/flutter_secure_storage');
   setUp(() async {
     directory = await Directory.systemTemp.createTemp('reply-completion-');
@@ -37,23 +38,38 @@ void main() {
     }
   });
   tearDown(() async {
+    // An assertion failure must not close Hive underneath an outstanding reply.
+    // Await real I/O completion; a two-second wall-clock cutoff races disk I/O
+    // when the full suite and Android build share this Windows machine.
+    await Future.wait(
+      started.map(
+        (future) =>
+            future.then<void>((_) {}, onError: (Object _, StackTrace __) {}),
+      ),
+    );
+    started.clear();
     await Hive.close();
     await directory.delete(recursive: true);
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, null);
   });
-  Future<String> open(String id) => buildReplyText(
-    entry: LetterEntry(
-      id: id,
-      catId: shadowCats.first.id,
-      date: DateTime(2026, 1, 1),
-      letterText: '오늘의 테스트 편지',
-    ),
-    cat: shadowCats.first,
-    history: const [],
-    growthStage: CatGrowthStage.baby,
-    visitStreak: 1,
-  );
+  Future<String> open(String id) {
+    final future = buildReplyText(
+      entry: LetterEntry(
+        id: id,
+        catId: shadowCats.first.id,
+        date: DateTime(2026, 1, 1),
+        letterText: '오늘의 테스트 편지',
+      ),
+      cat: shadowCats.first,
+      history: const [],
+      growthStage: CatGrowthStage.baby,
+      visitStreak: 1,
+    );
+    started.add(future);
+    return future;
+  }
+
   test(
     'cached reply completes, simultaneous opens share it, reopening works',
     () async {
@@ -62,18 +78,9 @@ void main() {
       final first = open('cached');
       final second = open('cached');
       expect(identical(first, second), isTrue);
-      expect(
-        await first.timeout(const Duration(seconds: 2)),
-        '이미 저장한 고양이 답장입니다.',
-      );
-      expect(
-        await second.timeout(const Duration(seconds: 2)),
-        '이미 저장한 고양이 답장입니다.',
-      );
-      expect(
-        await open('cached').timeout(const Duration(seconds: 2)),
-        '이미 저장한 고양이 답장입니다.',
-      );
+      expect(await first, '이미 저장한 고양이 답장입니다.');
+      expect(await second, '이미 저장한 고양이 답장입니다.');
+      expect(await open('cached'), '이미 저장한 고양이 답장입니다.');
     },
   );
   test(
@@ -84,7 +91,7 @@ void main() {
       );
       const reply = '이전에 생성하고 저장한 답장 그대로입니다.';
       await history.put('letter:saved', jsonEncode({'reply': reply}));
-      expect(await open('saved').timeout(const Duration(seconds: 2)), reply);
+      expect(await open('saved'), reply);
       expect(jsonDecode(history.get('letter:saved') as String)['reply'], reply);
     },
   );
@@ -99,14 +106,8 @@ void main() {
       for (final damaged in ['', '   ', '…']) {
         await cache.put('damaged', damaged);
         await history.put('letter:damaged', jsonEncode({'reply': reply}));
-        expect(
-          await open('damaged').timeout(const Duration(seconds: 2)),
-          reply,
-        );
-        expect(
-          await open('damaged').timeout(const Duration(seconds: 2)),
-          reply,
-        );
+        expect(await open('damaged'), reply);
+        expect(await open('damaged'), reply);
       }
     },
   );

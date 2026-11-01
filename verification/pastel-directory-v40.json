@@ -1,0 +1,35 @@
+{
+  "version": "1.0.37+40",
+  "application_id": "com.mysticcat.journal",
+  "version_code": 40,
+  "version_name": "1.0.37",
+  "bundletool_validation": "passed",
+  "signature_verified": true,
+  "same_signer_as_v39": true,
+  "signer_sha256": "bebaa59bc1c879a0a685ba3bd699a58010bc5e5f52ba24b5f63f0f6ccad7819b",
+  "debuggable": false,
+  "abis": [
+    "arm64-v8a",
+    "armeabi-v7a",
+    "x86_64"
+  ],
+  "feature_directory_and_production_urls_in_all_abis": true,
+  "APP_CHECK_DEBUG_PROVIDER": false,
+  "UNLOCK_ALL_PREMIUM": false,
+  "flutter_full_tests_passed": 701,
+  "final_targeted_tests_passed": 7,
+  "device_tested": false,
+  "play_console_uploaded": false,
+  "bytes": 203652914,
+  "sha256": "2a03a3e9a37c9bbc01f28b4924180589246c498a38bb55e60d158ac69bce952d",
+  "category_colors": 10,
+  "feature_shortcuts": 32,
+  "font_families": [
+    "GamjaFlower",
+    "GowunDodum"
+  ],
+  "floating_cards": true,
+  "reduced_motion_test": "passed",
+  "changed_files_analysis": "no issues",
+  "design_review": "390px default text and 320px 2x text; screenshots inspected"
+}

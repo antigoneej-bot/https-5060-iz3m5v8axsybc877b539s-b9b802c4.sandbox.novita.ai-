@@ -171,70 +171,38 @@ void main() {
       await seed(saved);
       await PersonalReplyService.setFeedback('heart:${saved.id}', 'matched');
     });
+    final original = Map.from(letters.get(saved.id) as Map);
     await tester.pumpWidget(screen(saved));
-    await until(tester, find.text(_refreshLabel));
-    await until(
-      tester,
-      find.byWidgetPredicate((w) => w is FilterChip && w.selected),
-    );
-    expect(find.text(_oldReply), findsOneWidget);
-    expect(replies.get(quota), 1);
-
-    await tester.tap(find.text(_refreshLabel));
+    await until(tester, find.text('이전에 받은 답장'));
+    expect(find.text(_oldReply), findsNothing);
+    expect(find.text(_refreshLabel), findsNothing);
+    await tester.tap(find.text('이전에 받은 답장'));
     await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
     expect(find.text(_oldReply), findsOneWidget);
-    final action = tester.widget<TextButton>(
-      find.ancestor(
-        of: find.text(_refreshLabel),
-        matching: find.byWidgetPredicate((widget) => widget is TextButton),
-      ),
-    );
-    expect(action.onPressed, isNull);
-    await until(tester, find.text(_done));
-    expect(find.text(_oldReply), findsNothing);
     expect(find.text(_refreshLabel), findsNothing);
-    expect(
-      find.byWidgetPredicate((w) => w is FilterChip && w.selected),
-      findsNothing,
-    );
-    expect(feedback.get('heart:${saved.id}'), isNull);
+    expect(find.text(_done), findsNothing);
+    expect(feedback.get('heart:${saved.id}'), 'matched');
     expect(replies.get(quota), 1);
-    final replaced = SpecialLetterEntry.fromMap(letters.get(saved.id) as Map);
-    expect(replaced.letterText, saved.letterText);
-    expect(replaced.replyText, isNot(_oldReply));
-    expect(replaced.replyText, isNotEmpty);
+    expect(letters.get(saved.id), original);
     expect(tester.takeException(), isNull);
-
-    // A reopened dialog may still receive an old object from its parent.
-    // The latest stored reply must win and must not offer another replacement.
-    await drainIo(tester);
-    await tester.pumpWidget(const SizedBox());
-    await tester.pumpWidget(screen(saved));
-    await until(tester, find.text(replaced.replyText));
-    expect(find.text(_oldReply), findsNothing);
-    expect(find.text(_refreshLabel), findsNothing);
     await drainIo(tester);
     await tester.pumpWidget(const SizedBox());
   }
 
   Future<void> checkFailedRefresh(WidgetTester tester) async {
     final saved = entry('failure');
-    await io(tester, () => seed(saved));
     await tester.pumpWidget(screen(saved));
-    await until(tester, find.text(_refreshLabel));
-    // The underlying letter disappeared while its dialog remained open.
-    await io(tester, () => letters.delete(saved.id));
-    await tester.tap(find.text(_refreshLabel));
-    await until(tester, find.text('새 답장 다시 시도'));
-    expect(find.text(_oldReply), findsOneWidget);
-    expect(find.text('새 답장을 준비하지 못했어요. 기존 답장은 그대로예요.'), findsOneWidget);
-    expect(find.text(_done), findsNothing);
+    await until(tester, find.text('이전에 받은 답장 다시 읽기'));
+    expect(find.text(_refreshLabel), findsNothing);
     expect(replies.get(quota), 1);
-
-    await io(tester, () => letters.put(saved.id, saved.toMap()));
-    await tester.tap(find.text('새 답장 다시 시도'));
-    await until(tester, find.text(_done));
-    expect(find.text(_oldReply), findsNothing);
+    await io(tester, () => seed(saved));
+    await tester.tap(find.text('이전에 받은 답장 다시 읽기'));
+    await until(tester, find.text('이전에 받은 답장'));
+    await tester.tap(find.text('이전에 받은 답장'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text(_oldReply), findsOneWidget);
     expect(replies.get(quota), 1);
     expect(tester.takeException(), isNull);
     await drainIo(tester);
@@ -250,6 +218,10 @@ void main() {
     });
     await tester.pumpWidget(screen(first));
     await tester.pumpWidget(screen(second));
+    await until(tester, find.text('이전에 받은 답장'));
+    await tester.tap(find.text('이전에 받은 답장'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
     await until(tester, find.text(second.replyText));
     expect(find.text(first.replyText), findsNothing);
     expect(find.text(_done), findsNothing);
@@ -286,19 +258,23 @@ void main() {
         ),
       ),
     );
-    await tester.ensureVisible(find.text('💌 답장 도착'));
-    await tester.tap(find.text('💌 답장 도착'));
+    final cat = shadowCatById(catLetter.catId);
+    final card = find.text('${cat.emoji} ${cat.nameKr}');
+    expect(find.text('💌 답장 도착'), findsNothing);
+    await tester.ensureVisible(card);
+    await tester.tap(card);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 350));
-    await until(tester, find.text(_refreshLabel));
+    await until(tester, find.text('이전에 받은 답장'));
+    await tester.ensureVisible(find.text('이전에 받은 답장'));
+    await tester.tap(find.text('이전에 받은 답장'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
     expect(find.text(_oldReply), findsOneWidget);
-    await tester.ensureVisible(find.text(_refreshLabel));
-    await tester.tap(find.text(_refreshLabel));
-    await until(tester, find.text(_done));
-    expect(find.text(_oldReply), findsNothing);
+    expect(find.text(_refreshLabel), findsNothing);
     expect(app.history.single.letterText, catLetter.letterText);
     expect(replies.get(quota), 1);
-    expect(app.seen, contains(catLetter.id));
+    expect(app.seen, isEmpty);
     expect(tester.takeException(), isNull);
     await drainIo(tester);
     await tester.pumpWidget(const SizedBox());
@@ -350,7 +326,7 @@ void main() {
   }
 
   testWidgets(
-    'reply refresh: explicit action, quota, feedback, failure retry, entry change and cat history',
+    'archive: optional read, unchanged quota and feedback, read retry, entry change and cat history',
     (tester) async {
       try {
         await checkExplicitRefresh(tester);

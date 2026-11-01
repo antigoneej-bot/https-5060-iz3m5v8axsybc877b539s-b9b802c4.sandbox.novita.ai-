@@ -1,6 +1,5 @@
-import 'dart:async';
 import '../widgets/saved_heart_reply.dart';
-import '../widgets/reply_support_actions.dart';
+import '../widgets/letter_care_closing_card.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/special_letter_entry.dart';
@@ -27,8 +26,6 @@ class HeartLetterHistoryScreen extends StatefulWidget {
 
 class _HeartLetterHistoryScreenState extends State<HeartLetterHistoryScreen>
     with WidgetsBindingObserver {
-  Timer? _arrivalTimer;
-
   @override
   void initState() {
     super.initState();
@@ -37,7 +34,6 @@ class _HeartLetterHistoryScreenState extends State<HeartLetterHistoryScreen>
 
   @override
   void dispose() {
-    _arrivalTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -45,22 +41,6 @@ class _HeartLetterHistoryScreenState extends State<HeartLetterHistoryScreen>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed && mounted) setState(() {});
-  }
-
-  void _scheduleArrival(List<SpecialLetterEntry> entries) {
-    _arrivalTimer?.cancel();
-    final pending = entries.where((entry) => !entry.isReplyReady).toList()
-      ..sort((a, b) => a.replyAvailableAt.compareTo(b.replyAvailableAt));
-    if (pending.isEmpty) return;
-    final wait = pending.first.replyAvailableAt.difference(DateTime.now());
-    _arrivalTimer = Timer(
-      wait.isNegative
-          ? const Duration(milliseconds: 100)
-          : wait + const Duration(milliseconds: 100),
-      () {
-        if (mounted) setState(() {});
-      },
-    );
   }
 
   static const Map<SpecialLetterType, ({Color accent, Color background})>
@@ -88,7 +68,6 @@ class _HeartLetterHistoryScreenState extends State<HeartLetterHistoryScreen>
     final type = widget.type;
     final palette = _palette[type]!;
     final entries = SpecialLetterService.getEntriesOfType(type);
-    _scheduleArrival(entries);
     return FeatureScaffold(
       title: type.label,
       child: Column(
@@ -149,7 +128,7 @@ class _EmptyHistoryHint extends StatelessWidget {
           Text('🌿', style: const TextStyle(fontSize: 26)),
           const SizedBox(height: 10),
           Text(
-            '언제든 짧게 한 통 적어보세요.\n답장은 내일 아침에 도착해요.',
+            '언제든 짧게 한 통 적어보세요.\n그대로 남겨두어도 괜찮아요.',
             textAlign: TextAlign.center,
             style: bodyFont(
               fontSize: 12.5,
@@ -163,7 +142,7 @@ class _EmptyHistoryHint extends StatelessWidget {
   }
 }
 
-/// 편지 원문(짧게 접혀 있음)과 그에 대한 답장을 함께 보여주는 카드.
+/// 편지 원문과 선택한 돌봄, 과거에 저장된 답장을 읽는 카드.
 /// 목록 전체가 한 번에 펼쳐져 있으면 부담스러울 수 있어, 편지 원문은
 /// 한 줄만 미리 보이고, 필요하면 펼쳐서 전체를 볼 수 있게 했습니다.
 class _HistoryLetterCard extends StatefulWidget {
@@ -234,64 +213,8 @@ class _HistoryLetterCardState extends State<_HistoryLetterCard> {
             ),
           ),
           const SizedBox(height: 12),
-          if (!entry.isReplyReady)
-            ReplySupportActions(letterText: entry.letterText),
-          if (!entry.isReplyReady)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-                color: AppColors.blobLavender.withValues(alpha: 0.5),
-                border: Border.all(
-                  color: AppColors.blobLavenderAccent.withValues(alpha: 0.25),
-                ),
-              ),
-              child: Row(
-                children: [
-                  const Text('🌙', style: TextStyle(fontSize: 15)),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      '답장은 내일 아침에 도착해요',
-                      style: bodyFont(fontSize: 12, color: AppColors.inkSoft),
-                    ),
-                  ),
-                ],
-              ),
-            )
-          else
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-                color: Colors.white.withValues(alpha: 0.7),
-                border: Border.all(color: widget.accent.withValues(alpha: 0.3)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const Text('💌', style: TextStyle(fontSize: 13)),
-                      const SizedBox(width: 5),
-                      Text(
-                        '받은 답장',
-                        style: pathLabelFont(
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w700,
-                          color: widget.accent,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  SavedHeartReply(
-                    key: ValueKey('heart:${entry.id}'),
-                    entry: entry,
-                  ),
-                ],
-              ),
-            ),
+          if (_expanded) LetterCareClosingCard.heart(letter: entry),
+          SavedHeartReply(key: ValueKey('heart:${entry.id}'), entry: entry),
         ],
       ),
     );

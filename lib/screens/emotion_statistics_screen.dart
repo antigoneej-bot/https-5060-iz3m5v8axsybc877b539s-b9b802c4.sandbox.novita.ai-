@@ -1,4 +1,5 @@
 import '../widgets/subscription_gate.dart';
+import '../widgets/emotion_comic_book.dart';
 import '../widgets/period_reflection_card.dart';
 import 'monthly_shadow_reflection_screen.dart';
 import 'package:flutter/material.dart';
@@ -28,6 +29,7 @@ class _EmotionStatisticsScreenState extends State<EmotionStatisticsScreen> {
   late DateTime _month;
   late DateTime _week;
   bool _premium = false;
+  bool _comic = true;
   bool _gardenLoading = true;
   bool _gardenFailed = false;
   @override
@@ -201,7 +203,7 @@ class _EmotionStatisticsScreenState extends State<EmotionStatisticsScreen> {
         backgroundColor: const Color(0xFFEDF5EE),
         surfaceTintColor: Colors.transparent,
         title: Text(
-          '감정 통계',
+          '마음냥 만화책',
           style: titleFont(fontSize: 28, color: AppColors.titlePastelGreen),
         ),
       ),
@@ -258,6 +260,11 @@ class _EmotionStatisticsScreenState extends State<EmotionStatisticsScreen> {
                   child: ListView(
                     padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
                     children: [
+                      Text(
+                        '내 기록으로 보는 주간·월간 감정 통계',
+                        style: bodyFont(fontSize: 14, color: AppColors.inkSoft),
+                      ),
+                      const SizedBox(height: 12),
                       Container(
                         padding: const EdgeInsets.all(5),
                         decoration: BoxDecoration(
@@ -351,296 +358,340 @@ class _EmotionStatisticsScreenState extends State<EmotionStatisticsScreen> {
                             ),
                           ],
                         ),
-                      Container(
-                        margin: const EdgeInsets.only(top: 8, bottom: 24),
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: AppColors.blobMint,
-                          borderRadius: BorderRadius.circular(24),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Text(
-                              '차곡차곡 모인 마음',
-                              style: titleFont(
-                                fontSize: 27,
-                                color: AppColors.titlePastelGreen,
-                              ),
-                            ),
-                            _note(
-                              '${start.year}년 ${_label(start)} – ${_label(end)} · $days일',
-                            ),
-                            const SizedBox(height: 8),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: _metric('${byDay.length}일', '기록한 날'),
-                                ),
-                                Expanded(
-                                  child: _metric('${records.length}번', '남긴 기록'),
-                                ),
-                                Expanded(
-                                  child: _metric('${ranked.length}개', '감정 항목'),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                      if (_gardenLoading) const LinearProgressIndicator(),
-                      if (_gardenFailed)
-                        TextButton.icon(
-                          onPressed: _loadGarden,
-                          icon: const Icon(Icons.refresh),
-                          label: const Text('정원 일기를 불러오지 못했어요. 다시 시도'),
-                        ),
-                      _section('함께 모은 기록', [
-                        Text(
-                          '편지 ${summary.letterCount}개 · 정원 일기 ${summary.gardenCount}개',
-                        ),
-                        const SizedBox(height: 8),
-                        _note(
-                          '각 기록에서 직접 고른 감정을 모았어요. 선택 항목이 달라 출처별로 구분하며, 돌봄 온기나 게임 점수는 포함하지 않아요.',
-                        ),
-                        if (summary.averageIntensity != null) ...[
-                          const SizedBox(height: 12),
-                          Text(
-                            '직접 남긴 감정 강도 평균 ${summary.averageIntensity!.toStringAsFixed(1)}/5',
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          ChoiceChip(
+                            label: const Text('만화책으로 보기'),
+                            selected: _comic,
+                            onSelected: (_) => setState(() => _comic = true),
                           ),
-                          _note(
-                            '강도를 입력한 정원 일기 ${summary.intensities.length}개만 계산했어요. 편지나 강도 미입력 기록은 평균에 넣지 않아요. 강도는 감정의 좋고 나쁨이나 건강 점수가 아니에요.',
+                          const SizedBox(width: 8),
+                          ChoiceChip(
+                            label: const Text('통계 자세히'),
+                            selected: !_comic,
+                            onSelected: (_) => setState(() => _comic = false),
                           ),
                         ],
-                      ]),
-                      _section(_monthly ? '감정 달력' : '날짜별 기록', [
-                        _note('날짜를 누르면 그날의 모든 기록을 볼 수 있어요.'),
-                        const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            for (final day in [
-                              '월',
-                              '화',
-                              '수',
-                              '목',
-                              '금',
-                              '토',
-                              '일',
-                            ])
-                              Expanded(
-                                child: Center(
-                                  child: Text(
-                                    day,
-                                    style: bodyFont(
-                                      fontSize: 13,
-                                      color: AppColors.inkSoft,
+                      ),
+                      if (_comic) ...[
+                        if (_gardenLoading) const LinearProgressIndicator(),
+                        if (_gardenFailed)
+                          TextButton(
+                            onPressed: _loadGarden,
+                            child: const Text('정원 일기 불러오기 재시도'),
+                          ),
+                        EmotionComicBook(
+                          key: ValueKey(
+                            'comic_${_monthly}_${start.toIso8601String()}',
+                          ),
+                          summary: summary,
+                          start: start,
+                          end: end,
+                          monthly: _monthly,
+                          detailed: _premium,
+                        ),
+                      ],
+                      if (!_comic) ...[
+                        Container(
+                          margin: const EdgeInsets.only(top: 8, bottom: 24),
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: AppColors.blobMint,
+                            borderRadius: BorderRadius.circular(24),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Text(
+                                '차곡차곡 모인 마음',
+                                style: titleFont(
+                                  fontSize: 27,
+                                  color: AppColors.titlePastelGreen,
+                                ),
+                              ),
+                              _note(
+                                '${start.year}년 ${_label(start)} – ${_label(end)} · $days일',
+                              ),
+                              const SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: _metric('${byDay.length}일', '기록한 날'),
+                                  ),
+                                  Expanded(
+                                    child: _metric(
+                                      '${records.length}번',
+                                      '남긴 기록',
+                                    ),
+                                  ),
+                                  Expanded(
+                                    child: _metric(
+                                      '${ranked.length}개',
+                                      '감정 항목',
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (_gardenLoading) const LinearProgressIndicator(),
+                        if (_gardenFailed)
+                          TextButton.icon(
+                            onPressed: _loadGarden,
+                            icon: const Icon(Icons.refresh),
+                            label: const Text('정원 일기를 불러오지 못했어요. 다시 시도'),
+                          ),
+                        _section('함께 모은 기록', [
+                          Text(
+                            '편지 ${summary.letterCount}개 · 정원 일기 ${summary.gardenCount}개',
+                          ),
+                          const SizedBox(height: 8),
+                          _note(
+                            '각 기록에서 직접 고른 감정을 모았어요. 선택 항목이 달라 출처별로 구분하며, 돌봄 온기나 게임 점수는 포함하지 않아요.',
+                          ),
+                          if (summary.averageIntensity != null) ...[
+                            const SizedBox(height: 12),
+                            Text(
+                              '직접 남긴 감정 강도 평균 ${summary.averageIntensity!.toStringAsFixed(1)}/5',
+                            ),
+                            _note(
+                              '강도를 입력한 정원 일기 ${summary.intensities.length}개만 계산했어요. 편지나 강도 미입력 기록은 평균에 넣지 않아요. 강도는 감정의 좋고 나쁨이나 건강 점수가 아니에요.',
+                            ),
+                          ],
+                        ]),
+                        _section(_monthly ? '감정 달력' : '날짜별 기록', [
+                          _note('날짜를 누르면 그날의 모든 기록을 볼 수 있어요.'),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              for (final day in [
+                                '월',
+                                '화',
+                                '수',
+                                '목',
+                                '금',
+                                '토',
+                                '일',
+                              ])
+                                Expanded(
+                                  child: Center(
+                                    child: Text(
+                                      day,
+                                      style: bodyFont(
+                                        fontSize: 13,
+                                        color: AppColors.inkSoft,
+                                      ),
                                     ),
                                   ),
                                 ),
-                              ),
-                          ],
-                        ),
-                        GridView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          gridDelegate:
-                              SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 7,
-                                mainAxisSpacing: 6,
-                                crossAxisSpacing: 4,
-                                mainAxisExtent:
-                                    76 +
-                                    (MediaQuery.textScalerOf(
-                                                  context,
-                                                ).scale(16) -
-                                                16)
-                                            .clamp(0, 64) *
-                                        3,
-                              ),
-                          itemCount: offset + calendarDays,
-                          itemBuilder: (context, index) {
-                            if (index < offset) return const SizedBox.shrink();
-                            final date = DateTime(
-                              start.year,
-                              start.month,
-                              start.day + index - offset,
-                            );
-                            final entries =
-                                byDay[date] ?? <UnifiedEmotionRecord>[];
-                            final future = date.isAfter(today);
-                            final cat = entries.isEmpty ? null : entries.last;
-                            return Semantics(
-                              label: '${_label(date)}, ${entries.length}개 기록',
-                              button: !future,
-                              child: InkWell(
-                                borderRadius: BorderRadius.circular(14),
-                                onTap: future
-                                    ? null
-                                    : () => _openDay(date, entries),
-                                child: Container(
-                                  padding: const EdgeInsets.all(3),
-                                  decoration: BoxDecoration(
-                                    color: cat == null
-                                        ? AppColors.bg0
-                                        : cat.background,
-                                    borderRadius: BorderRadius.circular(14),
-                                    border: Border.all(
-                                      color: date == today
-                                          ? AppColors.titlePastelGreen
-                                          : Colors.transparent,
-                                      width: 1.5,
-                                    ),
-                                  ),
-                                  child: Column(
-                                    children: [
-                                      Text(
-                                        '${date.day}',
-                                        style: bodyFont(
-                                          fontSize: 13,
-                                          height: 1.3,
-                                          color: future
-                                              ? AppColors.inkSoft
-                                              : AppColors.ink,
-                                        ),
+                            ],
+                          ),
+                          GridView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            gridDelegate:
+                                SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: 7,
+                                  mainAxisSpacing: 6,
+                                  crossAxisSpacing: 4,
+                                  mainAxisExtent:
+                                      76 +
+                                      (MediaQuery.textScalerOf(
+                                                    context,
+                                                  ).scale(16) -
+                                                  16)
+                                              .clamp(0, 64) *
+                                          3,
+                                ),
+                            itemCount: offset + calendarDays,
+                            itemBuilder: (context, index) {
+                              if (index < offset)
+                                return const SizedBox.shrink();
+                              final date = DateTime(
+                                start.year,
+                                start.month,
+                                start.day + index - offset,
+                              );
+                              final entries =
+                                  byDay[date] ?? <UnifiedEmotionRecord>[];
+                              final future = date.isAfter(today);
+                              final cat = entries.isEmpty ? null : entries.last;
+                              return Semantics(
+                                label: '${_label(date)}, ${entries.length}개 기록',
+                                button: !future,
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(14),
+                                  onTap: future
+                                      ? null
+                                      : () => _openDay(date, entries),
+                                  child: Container(
+                                    padding: const EdgeInsets.all(3),
+                                    decoration: BoxDecoration(
+                                      color: cat == null
+                                          ? AppColors.bg0
+                                          : cat.background,
+                                      borderRadius: BorderRadius.circular(14),
+                                      border: Border.all(
+                                        color: date == today
+                                            ? AppColors.titlePastelGreen
+                                            : Colors.transparent,
+                                        width: 1.5,
                                       ),
-                                      const SizedBox(height: 4),
-                                      if (cat != null)
+                                    ),
+                                    child: Column(
+                                      children: [
                                         Text(
-                                          cat.emoji,
-                                          style: const TextStyle(
-                                            fontSize: 18,
-                                            height: 1.2,
+                                          '${date.day}',
+                                          style: bodyFont(
+                                            fontSize: 13,
+                                            height: 1.3,
+                                            color: future
+                                                ? AppColors.inkSoft
+                                                : AppColors.ink,
                                           ),
                                         ),
-                                      if (entries.length > 1)
+                                        const SizedBox(height: 4),
+                                        if (cat != null)
+                                          Text(
+                                            cat.emoji,
+                                            style: const TextStyle(
+                                              fontSize: 18,
+                                              height: 1.2,
+                                            ),
+                                          ),
+                                        if (entries.length > 1)
+                                          Text(
+                                            '+${entries.length - 1}',
+                                            style: bodyFont(
+                                              fontSize: 12,
+                                              height: 1.2,
+                                              color: AppColors.inkSoft,
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 8),
+                          _note(
+                            '아이콘은 그날 남긴 감정 중 하나예요. 시간 없이 저장된 정원 일기도 있어 순서를 추정하지 않아요. 빈칸은 기록이 없는 날이에요.',
+                          ),
+                        ]),
+                        if (!_premium)
+                          _section('이번 주의 대표 감정', [
+                            Text(
+                              ranked.isEmpty
+                                  ? '기록이 아직 없어요.'
+                                  : ranked.first.emotion.displayLabel,
+                            ),
+                            SubscriptionNotice(
+                              message: '상세 주간·월간 분석은 마음냥 구독으로 이용해요.',
+                              onReturn: _loadPremium,
+                            ),
+                          ]),
+                        if (_premium)
+                          _section('자주 기록한 감정', [
+                            if (records.isEmpty)
+                              Container(
+                                padding: const EdgeInsets.all(20),
+                                decoration: BoxDecoration(
+                                  color: AppColors.blobMint,
+                                  borderRadius: BorderRadius.circular(18),
+                                ),
+                                child: Column(
+                                  children: [
+                                    const Icon(
+                                      Icons.spa_outlined,
+                                      size: 32,
+                                      color: AppColors.titlePastelGreen,
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      '아직 남긴 기록이 없어요',
+                                      style: bodyFont(fontSize: 16),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    _note('편지와 정원 일기에 남긴 마음이 이곳에 모여요.'),
+                                  ],
+                                ),
+                              ),
+                            for (final item in top)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 14),
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            item.emotion.displayLabel,
+                                            style: bodyFont(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
                                         Text(
-                                          '+${entries.length - 1}',
+                                          '${item.count}번',
                                           style: bodyFont(
-                                            fontSize: 12,
-                                            height: 1.2,
+                                            fontSize: 15,
                                             color: AppColors.inkSoft,
                                           ),
                                         ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                        const SizedBox(height: 8),
-                        _note(
-                          '아이콘은 그날 남긴 감정 중 하나예요. 시간 없이 저장된 정원 일기도 있어 순서를 추정하지 않아요. 빈칸은 기록이 없는 날이에요.',
-                        ),
-                      ]),
-                      if (!_premium)
-                        _section('이번 주의 대표 감정', [
-                          Text(
-                            ranked.isEmpty
-                                ? '기록이 아직 없어요.'
-                                : ranked.first.emotion.displayLabel,
-                          ),
-                          SubscriptionNotice(
-                            message: '상세 주간·월간 분석은 마음냥 구독으로 이용해요.',
-                            onReturn: _loadPremium,
-                          ),
-                        ]),
-                      if (_premium)
-                        _section('자주 기록한 감정', [
-                          if (records.isEmpty)
-                            Container(
-                              padding: const EdgeInsets.all(20),
-                              decoration: BoxDecoration(
-                                color: AppColors.blobMint,
-                                borderRadius: BorderRadius.circular(18),
-                              ),
-                              child: Column(
-                                children: [
-                                  const Icon(
-                                    Icons.spa_outlined,
-                                    size: 32,
-                                    color: AppColors.titlePastelGreen,
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    '아직 남긴 기록이 없어요',
-                                    style: bodyFont(fontSize: 16),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  _note('편지와 정원 일기에 남긴 마음이 이곳에 모여요.'),
-                                ],
-                              ),
-                            ),
-                          for (final item in top)
-                            Padding(
-                              padding: const EdgeInsets.only(bottom: 14),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: Text(
-                                          item.emotion.displayLabel,
-                                          style: bodyFont(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.w700,
-                                          ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Semantics(
+                                      label:
+                                          '${item.emotion.displayLabel}, 전체 ${records.length}번 중 ${item.count}번',
+                                      child: ClipRRect(
+                                        borderRadius: BorderRadius.circular(8),
+                                        child: LinearProgressIndicator(
+                                          value: item.count / records.length,
+                                          color: item.emotion.color,
+                                          backgroundColor:
+                                              item.emotion.background,
+                                          minHeight: 10,
                                         ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        '${item.count}번',
-                                        style: bodyFont(
-                                          fontSize: 15,
-                                          color: AppColors.inkSoft,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Semantics(
-                                    label:
-                                        '${item.emotion.displayLabel}, 전체 ${records.length}번 중 ${item.count}번',
-                                    child: ClipRRect(
-                                      borderRadius: BorderRadius.circular(8),
-                                      child: LinearProgressIndicator(
-                                        value: item.count / records.length,
-                                        color: item.emotion.color,
-                                        backgroundColor:
-                                            item.emotion.background,
-                                        minHeight: 10,
                                       ),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
-                            ),
-                          if (ranked.length > 3)
-                            Text(
-                              '그 밖의 감정 ${records.length - top.fold<int>(0, (sum, item) => sum + item.count)}번',
-                            ),
-                          if (records.isNotEmpty)
-                            _note('기록에서 선택한 횟수예요. 감정의 강도나 전체 생활의 비율은 아니에요.'),
-                        ], background: AppColors.catPeachBg),
-                      if (_monthly)
-                        _section('지난달과 나란히 보기', [
-                          if (!_premium) ...[
-                            const Text('구독으로 같은 기간의 기록량과 감정을 비교할 수 있어요.'),
-                            TextButton(
-                              onPressed: () async {
-                                await Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (_) => const PremiumScreen(),
-                                  ),
-                                );
-                                await _loadPremium();
-                              },
-                              child: const Text('정원 플러스 보기'),
-                            ),
-                          ] else
-                            ..._comparison(history, start, end, records),
-                        ], background: AppColors.catLavenderBg),
+                            if (ranked.length > 3)
+                              Text(
+                                '그 밖의 감정 ${records.length - top.fold<int>(0, (sum, item) => sum + item.count)}번',
+                              ),
+                            if (records.isNotEmpty)
+                              _note('기록에서 선택한 횟수예요. 감정의 강도나 전체 생활의 비율은 아니에요.'),
+                          ], background: AppColors.catPeachBg),
+                        if (_monthly)
+                          _section('지난달과 나란히 보기', [
+                            if (!_premium) ...[
+                              const Text('구독으로 같은 기간의 기록량과 감정을 비교할 수 있어요.'),
+                              TextButton(
+                                onPressed: () async {
+                                  await Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (_) => const PremiumScreen(),
+                                    ),
+                                  );
+                                  await _loadPremium();
+                                },
+                                child: const Text('정원 플러스 보기'),
+                              ),
+                            ] else
+                              ..._comparison(history, start, end, records),
+                          ], background: AppColors.catLavenderBg),
+                      ],
                       PeriodReflectionCard(
                         key: ValueKey(
                           '${_monthly ? 'month' : 'week'}_${start.toIso8601String()}',

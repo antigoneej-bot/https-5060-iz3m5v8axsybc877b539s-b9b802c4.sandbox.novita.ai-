@@ -1,19 +1,20 @@
 import 'package:flutter/foundation.dart';
 import '../../services/hive_encryption.dart';
 import '../models/garden_layout.dart';
+import 'session_transaction.dart';
+import '../../services/local_record_transaction.dart';
 
 class GardenLayoutStore extends ValueNotifier<GardenLayout> {
   static final instance = GardenLayoutStore._();
   static const boxName = 'garden_layout_local_user';
   GardenLayoutStore._() : super(GardenLayout());
-  Future<void> _tail = Future.value();
+  final _queue = LocalRecordQueue();
   Future<void> _serial(Future<void> Function() action) {
-    final result = _tail.then((_) => action());
-    _tail = result.then<void>((_) {}, onError: (Object _, StackTrace __) {});
-    return result;
+    return LocalRecordTransaction.run(() => _queue.run(action));
   }
 
   Future<void> reload() => _serial(() async {
+    await SessionTransaction.initialize();
     final box = await HiveEncryption.openBox(boxName);
     final raw = box.get('layout');
     value = raw == null ? GardenLayout() : GardenLayout.fromJson(raw as Map);
@@ -22,6 +23,7 @@ class GardenLayoutStore extends ValueNotifier<GardenLayout> {
   /// Read before each serialized update; failed writes never replace UI state.
   Future<void> update(GardenLayout Function(GardenLayout) change) =>
       _serial(() async {
+        await SessionTransaction.initialize();
         final box = await HiveEncryption.openBox(boxName);
         final raw = box.get('layout');
         final previous = raw == null

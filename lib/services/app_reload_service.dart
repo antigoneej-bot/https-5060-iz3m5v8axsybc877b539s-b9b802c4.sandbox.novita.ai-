@@ -5,6 +5,9 @@ import 'auto_backup_service.dart';
 import 'meditation_course_store.dart';
 import 'meditation_library_store.dart';
 import 'sound_service.dart';
+import 'care_journal_store.dart';
+import 'garden_memory_book_store.dart';
+import '../mongi/integration/plant_memory_store.dart';
 
 /// The application owns disposing/recreating its tree. Data screens never
 /// force-close the app to apply restored records: [reload] re-runs the root
@@ -56,6 +59,9 @@ class AppReloadService {
     await DraftTextController.flushAll();
     await (await SharedPreferences.getInstance()).reload();
     await MongiGardenStore.instance.reload();
+    await PlantMemoryStore.instance.reload();
+    await CareJournalStore.instance.reload();
+    await GardenMemoryBookStore.instance.reload();
     await MeditationCourseStore.instance.reload();
     await MeditationLibraryStore.instance.reload();
     // Audio device failures must not trap users after a successful restore.

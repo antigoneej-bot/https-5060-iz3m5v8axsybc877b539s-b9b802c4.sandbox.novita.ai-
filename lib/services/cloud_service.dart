@@ -36,10 +36,14 @@ class CloudService {
   }
 
   static const _secure = FlutterSecureStorage();
+  static Future<bool> Function()? requestCommunityConsent;
+  static Future<bool>? _communityPrompt;
+
   static Future<Map<String, dynamic>> call(
     String action, [
     Map<String, dynamic> params = const {},
     String? expectedUid,
+    bool consentRetried = false,
   ]) async {
     final uri = Uri.tryParse(endpoint);
     if (uri == null || uri.scheme != 'https')
@@ -69,7 +73,7 @@ class CloudService {
             'X-Firebase-AppCheck': appCheck,
             'Content-Type': 'application/json',
           },
-          body: jsonEncode({'action': action, ...params}),
+          body: jsonEncode({...params, 'action': action}),
         )
         .timeout(const Duration(seconds: 50));
     if (currentUser?.uid != user.uid)
@@ -80,6 +84,28 @@ class CloudService {
         body = jsonDecode(response.body);
       } catch (_) {
         throw const CloudException('temporarily-unavailable');
+      }
+      if (body is Map &&
+          body['error'] == 'community-consent-required' &&
+          action != 'acceptCommunityPolicy' &&
+          !consentRetried) {
+        final prompt = requestCommunityConsent;
+        if (prompt == null)
+          throw const CloudException('community-consent-required');
+        final pending = _communityPrompt ??= prompt();
+        bool accepted;
+        try {
+          accepted = await pending;
+        } finally {
+          if (identical(_communityPrompt, pending)) _communityPrompt = null;
+        }
+        if (!accepted) throw const CloudException('community-consent-required');
+        if (currentUser?.uid != user.uid)
+          throw const CloudException('account-changed');
+        await call('acceptCommunityPolicy', {
+          'version': '2026-10-31',
+        }, user.uid);
+        return call(action, params, user.uid, true);
       }
       throw CloudException(
         body is Map
@@ -141,8 +167,10 @@ class CloudService {
 
   static Future<void> clearGardenOwner() =>
       _secure.delete(key: 'garden_cloud_owner');
-  static Future<String> accountId() async {
+  static Future<String> accountId({String? expectedUid}) async {
     final user = currentUser;
+    if (expectedUid != null && user?.uid != expectedUid)
+      throw const CloudException('account-changed');
     if (user == null || !await hasTrustedAccount(user))
       throw const CloudException('authentication-required');
     final hash = await Sha256().hash(utf8.encode(user.uid));
@@ -153,8 +181,11 @@ class CloudService {
         .join();
   }
 
-  static Future<Map<String, dynamic>> verify(String token) async {
-    final uid = currentUser?.uid;
+  static Future<Map<String, dynamic>> verify(
+    String token, {
+    String? expectedUid,
+  }) async {
+    final uid = expectedUid ?? currentUser?.uid;
     if (uid == null) throw const CloudException('authentication-required');
     // Play's purchase callback may arrive while the app-resume status request
     // holds the account lease. Only a confirmed pre-action busy rejection is
@@ -163,25 +194,77 @@ class CloudService {
       owner: uid,
       action: () => call('verify', {'token': token}, uid),
     );
-    if (currentUser?.uid == uid) {
-      await _secure.write(key: 'entitlement_$uid', value: jsonEncode(result));
-      entitlementChanges.value++;
-    }
+    await _saveEntitlement(uid, result);
     return result;
   }
 
-  static Future<Map<String, dynamic>> refreshEntitlement() async {
-    final uid = currentUser?.uid;
+  static Future<Map<String, dynamic>> refreshEntitlement({
+    String? expectedUid,
+  }) async {
+    final uid = expectedUid ?? currentUser?.uid;
     if (uid == null) throw const CloudException('authentication-required');
     final result = await retryAccountBusy(
       owner: uid,
       action: () => call('status', const {}, uid),
     );
-    if (currentUser?.uid == uid) {
-      await _secure.write(key: 'entitlement_$uid', value: jsonEncode(result));
-      entitlementChanges.value++;
-    }
+    await _saveEntitlement(uid, result);
     return result;
+  }
+
+  static Future<void> _saveEntitlement(
+    String uid,
+    Map<String, dynamic> result,
+  ) async {
+    if (currentUser?.uid != uid) throw const CloudException('account-changed');
+    await _secure.write(key: 'entitlement_$uid', value: jsonEncode(result));
+    // Storage writes can yield too. Never report another account's completed
+    // request as a success after the user changes accounts during the write.
+    if (currentUser?.uid != uid) throw const CloudException('account-changed');
+    entitlementChanges.value++;
+  }
+
+  /// Read the verified plan for this account, never the legacy device-wide
+  /// plan preference. An expired or stale cache cannot select a billing SKU.
+  static Future<String?> cachedSubscriptionProductId({
+    String? expectedUid,
+  }) async {
+    final uid = expectedUid ?? currentUser?.uid;
+    if (uid == null) return null;
+    if (currentUser?.uid != uid) throw const CloudException('account-changed');
+    final raw = await _secure.read(key: 'entitlement_$uid');
+    if (currentUser?.uid != uid) throw const CloudException('account-changed');
+    if (raw == null) return null;
+    try {
+      final record = jsonDecode(raw);
+      if (!_isCurrentEntitlement(record)) return null;
+      final productId = record['productId'];
+      return productId == 'garden_plus_monthly' ||
+              productId == 'garden_plus_yearly'
+          ? productId as String
+          : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Read-only details for My. Never use this presentation record to grant access.
+  static Future<Map<String, dynamic>?> cachedSubscriptionRecord({
+    required String expectedUid,
+  }) async {
+    if (currentUser?.uid != expectedUid) {
+      throw const CloudException('account-changed');
+    }
+    final raw = await _secure.read(key: 'entitlement_$expectedUid');
+    if (currentUser?.uid != expectedUid) {
+      throw const CloudException('account-changed');
+    }
+    if (raw == null) return null;
+    try {
+      final record = jsonDecode(raw);
+      return record is Map ? Map<String, dynamic>.from(record) : null;
+    } catch (_) {
+      return null;
+    }
   }
 
   static Future<String> subscriptionStatusLabel() async {
@@ -199,8 +282,14 @@ class CloudService {
       if (expiry != null && !expiry.isAfter(DateTime.now()))
         return '구독 만료 · 기록과 아이템은 보관돼요';
       if (!await cachedPremium()) return '구독 상태 확인 필요';
-      if (record['state'] == 'cancelScheduled')
-        return '해지 예약 · 남은 이용 기간까지 사용 가능';
+      if (record['state'] == 'cancelScheduled') {
+        if (expiry == null) return '해지 예약 · 남은 이용 기간까지 사용 가능';
+        final local = expiry.toLocal();
+        final date = '${local.year}.${local.month}.${local.day}';
+        final time =
+            '${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
+        return '해지 예약 · $date $time까지 이용 가능';
+      }
       if (record['state'] == 'trial') return '무료체험 이용 중';
       return '마음냥 구독 이용 중';
     } catch (_) {
@@ -232,6 +321,8 @@ class CloudService {
     String? nickname,
     GardenVisibility? visibility,
     bool? discoveryOptIn,
+    bool? randomVisitOptIn,
+    Map<String, dynamic>? publicCat,
     bool? receiveGifts,
     bool appearanceOnly = false,
   }) async {
@@ -245,10 +336,12 @@ class CloudService {
         'memoryTreeStage': memoryTreeStage,
         'hasCheerFlowers': hasCheerFlowers,
         'flowerKinds': flowerKinds,
+        if (publicCat != null) 'publicCat': publicCat,
       },
       if (nickname != null) 'nickname': nickname,
       if (visibility != null) 'visibility': visibility.name,
       if (discoveryOptIn != null) 'discoveryOptIn': discoveryOptIn,
+      if (randomVisitOptIn != null) 'randomVisitOptIn': randomVisitOptIn,
       if (receiveGifts != null) 'receiveGifts': receiveGifts,
     }, owner);
     return PublicGardenStatusSnapshot.fromJson(result);
@@ -479,6 +572,30 @@ class CloudService {
     return ids.map((e) => e.toString()).toSet();
   }
 
+  /// Advertising must distinguish a confirmed free account from an unknown
+  /// entitlement. Existing access checks intentionally retain their bool API.
+  static Future<bool?> cachedAdFreeEntitlement() async {
+    final uid = currentUser?.uid;
+    if (uid == null) return false;
+    final raw = await _secure.read(key: 'entitlement_$uid');
+    if (currentUser?.uid != uid || raw == null) return null;
+    try {
+      final record = jsonDecode(raw);
+      if (record is! Map) return null;
+      if (_isCurrentEntitlement(record)) return true;
+      final now = DateTime.now().toUtc();
+      final checked = DateTime.tryParse(record['checkedAt']?.toString() ?? '');
+      if (record['active'] != false ||
+          checked == null ||
+          checked.isAfter(now.add(const Duration(minutes: 5))) ||
+          now.difference(checked) >= const Duration(hours: 48))
+        return null;
+      return false;
+    } catch (_) {
+      return null;
+    }
+  }
+
   static Future<bool> cachedPremium() async {
     final uid = currentUser?.uid;
     if (uid == null) return false;
@@ -486,17 +603,23 @@ class CloudService {
     if (currentUser?.uid != uid) return false;
     if (raw == null) return false;
     try {
-      final result = jsonDecode(raw);
-      final now = DateTime.now().toUtc();
-      final checked = DateTime.parse(result['checkedAt'] as String).toUtc();
-      final expires = DateTime.parse(result['expiresAt'] as String).toUtc();
-      return result['active'] == true &&
-          expires.isAfter(now) &&
-          !checked.isAfter(now.add(const Duration(minutes: 5))) &&
-          now.difference(checked) < const Duration(hours: 48);
+      return _isCurrentEntitlement(jsonDecode(raw));
     } catch (_) {
       return false;
     }
+  }
+
+  static bool _isCurrentEntitlement(dynamic result) {
+    if (result is! Map) return false;
+    final now = DateTime.now().toUtc();
+    final checked = DateTime.tryParse(result['checkedAt']?.toString() ?? '');
+    final expires = DateTime.tryParse(result['expiresAt']?.toString() ?? '');
+    return result['active'] == true &&
+        checked != null &&
+        expires != null &&
+        expires.isAfter(now) &&
+        !checked.isAfter(now.add(const Duration(minutes: 5))) &&
+        now.difference(checked) < const Duration(hours: 48);
   }
 }
 
@@ -505,6 +628,9 @@ class CloudException implements Exception {
   const CloudException(this.code);
   @override
   String toString() => switch (code) {
+    'subscription-already-active' => '이미 이용 중인 구독이 있어요. 현재 이용 상태를 다시 확인할게요.',
+    'subscription-check-unavailable' =>
+      '구독 상태를 확인하지 못해 결제를 시작하지 않았어요. 연결 후 다시 시도해 주세요.',
     'garden-owner-mismatch' => '이 기기 정원은 다른 백업 계정에 연결되어 있어요. 원래 계정으로 로그인해 주세요.',
     'account-changed' => '작업 중 계정이 바뀌었어요. 다시 시도해 주세요.',
     'account-busy' => '이 계정의 다른 작업이 진행 중이에요. 잠시 후 다시 시도해 주세요.',
@@ -525,12 +651,19 @@ class CloudException implements Exception {
     'rate-limit' => '잠시 후 다시 시도해 주세요.',
     'recent-login-required' => '계정 삭제 전 다시 로그인해 주세요.',
     'cheer-already-sent-today' => '이 정원에는 오늘 이미 응원을 보냈어요. 내일 다시 전해주세요.',
+    'shared-tree-not-found' => '이 나무에 접근할 수 없어요. 초대나 이웃 연결이 바뀌었을 수 있어요.',
+    'shared-tree-invitation-required' => '이웃이 초대를 수락한 뒤 함께 가꿀 수 있어요.',
+    'shared-tree-note-limit' => '메모 100개가 모였어요. 내 메모를 정리한 뒤 다시 남겨 주세요.',
+    'invalid-shared-tree' => '나무 이름과 기념일을 다시 확인해 주세요.',
+    'invalid-shared-tree-note' => '공유 메모는 1자부터 300자까지 남길 수 있어요.',
     'garden-not-found' => '정원을 찾을 수 없어요. 방금 전 다른 분이 공개를 멈췄을 수 있어요.',
     'cannot-cheer-self' => '내 정원에는 응원을 보낼 수 없어요.',
     'invalid-invite-code' => '초대 코드를 다시 확인해 주세요.',
+    'unknown-action' => '서버 업데이트가 필요한 기능이에요. 기존 친구 코드로는 계속 방문할 수 있어요.',
+    'favorites-limit' => '즐겨찾기는 200곳까지 저장할 수 있어요.',
     'invalid-profile' => '정원 이름과 공개 설정을 다시 확인해 주세요.',
     'neighbor-request-not-found' => '이웃 신청이 달라졌어요. 목록을 새로고침해 주세요.',
-    'neighbor-required' => '서로 이웃이 된 뒤 꽃을 선물할 수 있어요.',
+    'neighbor-required' => '서로 이웃인지, 차단된 상태가 아닌지 확인해주세요.',
     'already-neighbors' => '이미 연결된 이웃이에요.',
     'request-already-sent' => '이미 이웃 신청을 보냈어요. 잠시 기다려 주세요.',
     'cannot-neighbor-self' => '내 초대 코드예요. 이웃의 코드를 입력해 주세요.',
@@ -544,9 +677,25 @@ class CloudException implements Exception {
     'invalid-bloom' => '이 꽃의 심기 정보를 확인하지 못했어요. 목록을 새로고침해 주세요.',
     'request-conflict' => '이 선물의 전송 정보가 달라졌어요. 목록을 다시 열어 주세요.',
     'invalid-target' => '연결할 이웃을 다시 선택해 주세요.',
+    'community-consent-required' => '공개·공유 전에 커뮤니티 이용약관 동의가 필요해요.',
+    'community-suspended' => '공유 기능 이용이 제한되어 있어요. 운영자에게 문의해 주세요.',
     'invalid-message' => '응원 문구를 다시 선택해 주세요.',
     'invalid-report' => '신고 사유를 다시 선택해 주세요.',
-    'unknown-action' => '냥이 마을 서버 업데이트가 필요해요. 잠시 후 다시 이용해 주세요.',
+    'invalid-card' => '카드 선택을 다시 확인해주세요.',
+    'card-stock' => '교환할 중복 카드가 부족해요. 새로고침해주세요.',
+    'card-trade-limit' => '대기 중인 교환을 정리한 뒤 다시 제안해주세요.',
+    'card-trade-missing' => '교환 제안을 찾지 못했어요.',
+    'card-trade-expired' => '7일이 지난 제안이에요. 취소·거절 후 새로 제안해주세요.',
+    'invalid-orchard' => '나무와 수량을 다시 확인해 주세요.',
+    'orchard-owned' => '이미 우리 정원에 있는 나무예요.',
+    'orchard-coins' => '정원 코인이 부족해요. 열매를 판매해 모아 주세요.',
+    'orchard-watered' => '오늘 물을 주었거나 이번 열매의 돌봄이 가득 찼어요.',
+    'orchard-not-ready' => '열매가 아직 자라고 있어요.',
+    'orchard-stock' => '창고의 수량이 부족해요.',
+    'orchard-full' => '창고가 가득 찼어요. 조금 사용한 뒤 다시 시도해 주세요.',
+    'cat-visit-unavailable' => '초대가 만료됐거나 이웃 정원에 방문할 수 없어요.',
+    'cat-invite-daily-limit' => '오늘은 이미 초대했어요. 내일 다시 초대할 수 있어요.',
+    'invalid-cat-visit' => '고양이 초대 정보를 다시 확인해 주세요.',
     'invalid-snapshot' => '정원 정보를 공개하는 데 문제가 있었어요. 잠시 후 다시 시도해 주세요.',
     'admin-required' => '관리자 계정만 할 수 있어요.',
     'invalid-news' => '소식 내용을 다시 확인해 주세요.',

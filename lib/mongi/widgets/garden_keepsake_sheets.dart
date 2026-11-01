@@ -1,4 +1,8 @@
+import '../../screens/keepsake_forest_screen.dart';
 import '../integration/mongi_garden_store.dart';
+import '../integration/plant_memory_store.dart';
+import '../integration/plant_memory_editor.dart';
+import '../models/seed.dart';
 import '../../utils/garden_record_progress.dart';
 import '../integration/garden_bloom_sync.dart';
 import '../screens/garden_bloom_news_screen.dart';
@@ -18,7 +22,9 @@ import '../l10n/public_cheer_l10n.dart';
 String? currentGardenOwner() =>
     Firebase.apps.isEmpty ? null : FirebaseAuth.instance.currentUser?.uid;
 
-Future<void> showMemoryTree(BuildContext context) async {
+Future<void> showMemoryTree(BuildContext context) => Navigator.of(context).push<void>(MaterialPageRoute(builder: (_) => const KeepsakeForestScreen()));
+
+Future<void> showLegacyGardenLetters(BuildContext context) async {
   // Deleted originals disappear; private growth receipts remain.
   final letters = StorageService.getAllLetters();
   final days = gardenMemoryDays(letters);
@@ -39,7 +45,12 @@ Future<void> showMemoryTree(BuildContext context) async {
               padding: const EdgeInsets.all(20),
               child: Column(
                 children: [
-                  const Text('기억의 나무', style: TextStyle(fontSize: 22)),
+                  const Text('지난 편지 기록', style: TextStyle(fontSize: 22)),
+                  OutlinedButton.icon(
+                    onPressed: () => showPlantMemoryManager(sheetContext),
+                    icon: const Icon(Icons.edit_outlined),
+                    label: const Text('내 나무 · 글 수정·삭제'),
+                  ),
                   const SizedBox(height: 6),
                   Text(gardenRecordMessage(growthDays)),
                   const Text(
@@ -82,6 +93,77 @@ Future<void> showMemoryTree(BuildContext context) async {
       ),
     ),
   );
+}
+
+/// A visible management entrance, including tiny trees that are hard to tap.
+Future<void> showPlantMemoryManager(BuildContext context) async {
+  try {
+    await PlantMemoryStore.instance.reload();
+    await MongiGardenStore.instance.reload();
+    if (!context.mounted) return;
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheet) => SafeArea(
+        child: SizedBox(
+          height: MediaQuery.sizeOf(sheet).height * .7,
+          child: ValueListenableBuilder<MongiGardenData>(
+            valueListenable: MongiGardenStore.instance,
+            builder: (_, data, _) =>
+                ValueListenableBuilder<Map<String, PlantMemory>>(
+                  valueListenable: PlantMemoryStore.instance,
+                  builder: (_, memories, _) {
+                    final plants = SeedType.all
+                        .where((s) => (data.seeds[s.id] ?? 0) > 0)
+                        .toList();
+                    return ListView(
+                      padding: const EdgeInsets.all(20),
+                      children: [
+                        const Text(
+                          '내 나무와 추억 관리',
+                          style: TextStyle(fontSize: 22),
+                        ),
+                        const SizedBox(height: 8),
+                        const Text('식물을 골라 이름·기념일·글을 수정하거나 삭제할 수 있어요.'),
+                        if (plants.isEmpty)
+                          const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 24),
+                            child: Text('아직 심은 식물이 없어요.'),
+                          ),
+                        for (final plant in plants)
+                          ListTile(
+                            leading: Text(
+                              plant.emojiForCount(data.seeds[plant.id]!),
+                            ),
+                            title: Text(
+                              memories[plant.id]?.name.isNotEmpty == true
+                                  ? memories[plant.id]!.name
+                                  : plant.label,
+                            ),
+                            subtitle: Text(
+                              '${plant.label} · 추억 ${memories[plant.id]?.timeline.length ?? 0}개',
+                            ),
+                            trailing: const Icon(Icons.edit_outlined),
+                            onTap: () => showDialog<void>(
+                              context: sheet,
+                              barrierDismissible: false,
+                              builder: (_) => PlantMemoryEditor(plant: plant),
+                            ),
+                          ),
+                      ],
+                    );
+                  },
+                ),
+          ),
+        ),
+      ),
+    );
+  } catch (_) {
+    if (context.mounted)
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('나무와 추억을 불러오지 못했어요. 다시 시도해 주세요.')),
+      );
+  }
 }
 
 Future<void> _readLetters(BuildContext context, List<LetterEntry> letters) =>

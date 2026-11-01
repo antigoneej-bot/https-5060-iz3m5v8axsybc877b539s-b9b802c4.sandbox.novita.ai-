@@ -18,6 +18,7 @@ void main() {
   late List<MethodCall> calls;
   late bool granted;
   late bool failSchedule;
+  var failCancel = false;
   Completer<bool>? permissionResponse;
 
   List<Map<dynamic, dynamic>> schedules(int id) => calls
@@ -34,6 +35,7 @@ void main() {
     calls = [];
     granted = true;
     failSchedule = false;
+    failCancel = false;
     permissionResponse = null;
     binding.defaultBinaryMessenger.setMockMethodCallHandler(channel, (
       call,
@@ -46,6 +48,9 @@ void main() {
           return {'notificationLaunchedApp': false};
         case 'requestNotificationsPermission':
           return permissionResponse?.future ?? Future.value(granted);
+        case 'cancel':
+          if (failCancel) throw PlatformException(code: 'cancel-unavailable');
+          return null;
         case 'zonedSchedule':
           if (failSchedule) {
             throw PlatformException(code: 'schedule-unavailable');
@@ -76,6 +81,63 @@ void main() {
     debugDefaultTargetPlatformOverride = null;
   });
 
+  for (final morning in [true, false]) {
+    test(
+      '${morning ? 'morning' : 'evening'} native failure does not enable; failed time and cancel preserve old settings',
+      () async {
+        Future<bool> enable() =>
+            morning ? service.enableMorning() : service.enableEvening();
+        Future<bool> enabled() =>
+            morning ? service.isMorningEnabled() : service.isEveningEnabled();
+        Future<(int, int)> time() =>
+            morning ? service.getMorningTime() : service.getEveningTime();
+        failSchedule = true;
+        expect(await enable(), isFalse);
+        expect(await enabled(), isFalse);
+        failSchedule = false;
+        expect(await enable(), isTrue);
+        final before = await time();
+        failSchedule = true;
+        expect(
+          await (morning
+              ? service.updateMorningTime(7, 25)
+              : service.updateEveningTime(22, 15)),
+          isFalse,
+        );
+        expect(await time(), before);
+        expect(await enabled(), isTrue);
+        failSchedule = false;
+        failCancel = true;
+        expect(
+          await (morning ? service.disableMorning() : service.disableEvening()),
+          isFalse,
+        );
+        expect(await enabled(), isTrue);
+        failCancel = false;
+        expect(
+          await (morning ? service.disableMorning() : service.disableEvening()),
+          isTrue,
+        );
+        expect(await enabled(), isFalse);
+      },
+    );
+  }
+
+  test(
+    'rapid daily enable then disable stays disabled after permission resolves',
+    () async {
+      permissionResponse = Completer<bool>();
+      final enabling = service.enableMorning();
+      final disabling = service.disableMorning();
+      await pumpEventQueue();
+      permissionResponse!.complete(true);
+      expect(await enabling, isTrue);
+      expect(await disabling, isTrue);
+      expect(await service.isMorningEnabled(), isFalse);
+      expect(calls.last.method, 'cancel');
+    },
+  );
+
   test(
     'new installation starts opted out and preserves explicit old opt-in',
     () async {
@@ -85,6 +147,65 @@ void main() {
       await StorageService.setStreakEnabled(true);
       expect(await service.isCrisisEnabled(), isTrue);
       expect(await service.isStreakEnabled(), isTrue);
+    },
+  );
+
+  test(
+    'startup removes only legacy and retired reply notification IDs',
+    () async {
+      service.dispose();
+      service = NotificationService.forTesting(now: () => now);
+      await service.init();
+      expect(
+        calls
+            .where((call) => call.method == 'cancel')
+            .map((call) => call.arguments['id']),
+        [1001, 1006, 1007],
+      );
+      expect(calls.where((call) => call.method == 'cancelAll'), isEmpty);
+      expect(
+        calls.where((call) => call.method == 'requestNotificationsPermission'),
+        isEmpty,
+      );
+    },
+  );
+
+  test(
+    'retired reply schedules are canceled without changing other reminders',
+    () async {
+      await StorageService.setStreakEnabled(true);
+      await service.restoreReplyNotification();
+      expect(
+        calls.where((c) => c.method == 'cancel').map((c) => c.arguments['id']),
+        [1006, 1007],
+      );
+      expect(await service.isStreakEnabled(), isTrue);
+      expect(calls.where((c) => c.method == 'zonedSchedule'), isEmpty);
+      expect(
+        calls.where((c) => c.method == 'requestNotificationsPermission'),
+        isEmpty,
+      );
+    },
+  );
+
+  test(
+    'legacy callers cannot reenable or schedule automatic answer notifications',
+    () async {
+      expect(await service.setReplyNotificationsEnabled(true), isFalse);
+      expect(await service.replyNotificationsEnabled(), isFalse);
+      await service.scheduleCatReplyNotification(
+        catName: '고양이',
+        scheduledAt: now,
+      );
+      await service.scheduleHeartLetterReplyNotification(
+        typeLabel: '감사 편지',
+        scheduledAt: now,
+      );
+      expect(calls.where((c) => c.method == 'zonedSchedule'), isEmpty);
+      expect(
+        calls.where((c) => c.method == 'requestNotificationsPermission'),
+        isEmpty,
+      );
     },
   );
 

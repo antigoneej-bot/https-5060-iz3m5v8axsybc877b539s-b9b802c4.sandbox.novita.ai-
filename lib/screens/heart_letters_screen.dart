@@ -1,6 +1,8 @@
+import '../widgets/calm_letter_receipt.dart';
+import '../widgets/letter_care_closing_card.dart';
+import '../mongi/screens/garden_world_screen.dart';
 import '../widgets/reply_support_actions.dart';
 import '../models/reply_style.dart';
-import '../widgets/reply_style_picker.dart';
 import '../services/draft_service.dart';
 import 'package:flutter/material.dart';
 import '../models/special_letter_entry.dart';
@@ -10,9 +12,8 @@ import 'heart_letter_history_screen.dart';
 
 /// "마음편지" — 감사·용서·미안함·사랑, 네 가지 짧은 마음편지를 쓰는 화면.
 ///
-/// 그림자 고양이에게 쓰는 편지와 동일한 컨셉으로, 답장은 그 자리에서
-/// 바로 오지 않고 다음날 아침에 도착합니다. 네 가지 편지 종류를 짧고
-/// 예쁜 카드 형태로 나열해 보여줍니다.
+/// 상대에게 전송하지 않는 개인 기록입니다. 자동 답장을 기다리지 않고
+/// 사용자가 원하는 시점에 편지를 마무리할 수 있습니다.
 class HeartLettersScreen extends StatelessWidget {
   const HeartLettersScreen({super.key});
 
@@ -61,7 +62,7 @@ class HeartLettersScreen extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         Text(
-          '짧게 적어보세요. 답장은 내일 아침에 도착해요',
+          '누구에게도 보내지 않는 편지예요. 지금 마음을 그대로 남겨요.',
           textAlign: TextAlign.center,
           style: bodyFont(fontSize: 12.5, color: AppColors.inkSoft),
         ),
@@ -234,10 +235,8 @@ class _HeartLetterTileState extends State<_HeartLetterTile> {
   }
 }
 
-/// 편지 쓰기 → 전송 완료 안내를 하나의 짧은 바텀시트로 보여줍니다.
-/// 답장은 다음날 아침에 도착하므로, 전송 즉시 답장을 보여주지 않고
-/// "내일 아침에 도착해요"라는 안내만 표시합니다. 긴 화면 전환 없이,
-/// 가볍게 열고 닫을 수 있도록 바텀시트 형태를 사용했습니다.
+/// 편지를 저장한 뒤 바로 마무리하거나, 원할 때만 돌아볼 수 있습니다.
+/// 상대에게 전송하거나 자동 답장을 예약하지 않습니다.
 class _WriteHeartLetterSheet extends StatefulWidget {
   final SpecialLetterType type;
   final Color accent;
@@ -260,7 +259,7 @@ class _WriteHeartLetterSheetState extends State<_WriteHeartLetterSheet> {
     _controller = DraftTextController('heart_${widget.type.storageKey}');
   }
 
-  ReplyStyle _replyStyle = ReplyStyle.listen;
+  final ReplyStyle _replyStyle = ReplyStyle.listen;
   bool _sending = false;
   SpecialLetterEntry? _result;
   String? _submissionId;
@@ -399,12 +398,6 @@ class _WriteHeartLetterSheetState extends State<_WriteHeartLetterSheet> {
                         ReplySupportActions(letterText: value.text),
                   ),
                   const SizedBox(height: 16),
-                  ReplyStylePicker(
-                    value: _replyStyle,
-                    enabled: !_sending,
-                    onChanged: (value) => setState(() => _replyStyle = value),
-                  ),
-                  const SizedBox(height: 16),
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
@@ -428,7 +421,7 @@ class _WriteHeartLetterSheetState extends State<_WriteHeartLetterSheet> {
                               ),
                             )
                           : Text(
-                              '편지 보내기',
+                              '편지 남기기',
                               style: pathLabelFont(
                                 fontSize: 15,
                                 color: Colors.white,
@@ -460,10 +453,8 @@ class _WriteHeartLetterSheetState extends State<_WriteHeartLetterSheet> {
   }
 }
 
-/// 편지를 보낸 뒤, 답장은 내일 아침에 온다는 것을 알려주는 안내 카드.
-/// 편지가 접혀 봉투에 담기는 듯한 느낌을 주기 위해 살짝 스케일
-/// 애니메이션을 넣었습니다.
-class _SentConfirmationView extends StatefulWidget {
+/// A saved letter can end here without any further question or purchase.
+class _SentConfirmationView extends StatelessWidget {
   final SpecialLetterType type;
   final Color accent;
   final SpecialLetterEntry entry;
@@ -478,122 +469,24 @@ class _SentConfirmationView extends StatefulWidget {
   });
 
   @override
-  State<_SentConfirmationView> createState() => _SentConfirmationViewState();
-}
-
-class _SentConfirmationViewState extends State<_SentConfirmationView>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 500),
-    )..forward();
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return ScaleTransition(
-      scale: CurvedAnimation(parent: _controller, curve: Curves.easeOutBack),
-      child: FadeTransition(
-        opacity: _controller,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            ReplySupportActions(letterText: widget.entry.letterText),
-            Container(
-              padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(22),
-                color: Colors.white.withValues(alpha: 0.75),
-                border: Border.all(
-                  color: widget.accent.withValues(alpha: 0.35),
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const Text('🌙', style: TextStyle(fontSize: 16)),
-                      const SizedBox(width: 6),
-                      Text(
-                        '편지가 전해졌어요',
-                        style: pathLabelFont(
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w700,
-                          color: widget.accent,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    '답장은 내일 아침에 도착해요.\n"지난 편지 보기"에서 답장이 오면 열어볼 수 있어요.',
-                    style: bodyFont(
-                      fontSize: 13.5,
-                      color: AppColors.moon,
-                      height: 1.7,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: widget.onHistory,
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: widget.accent,
-                      side: BorderSide(
-                        color: widget.accent.withValues(alpha: 0.5),
-                      ),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                    ),
-                    child: Text(
-                      '지난 편지 보기',
-                      style: pathLabelFont(fontSize: 13, color: widget.accent),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: widget.onClose,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: widget.accent,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      elevation: 0,
-                    ),
-                    child: Text(
-                      '닫기',
-                      style: pathLabelFont(fontSize: 13, color: Colors.white),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      ReplySupportActions(letterText: entry.letterText),
+      const CalmLetterReceipt(),
+      const SizedBox(height: 20),
+      FilledButton(onPressed: onClose, child: const Text('오늘은 여기까지')),
+      const SizedBox(height: 8),
+      OutlinedButton.icon(
+        onPressed: () => Navigator.of(context).push(
+          MaterialPageRoute<void>(builder: (_) => const GardenWorldScreen.owned()),
         ),
+        icon: const Icon(Icons.park_outlined),
+        label: const Text('정원에서 잠깐 쉬기'),
       ),
-    );
-  }
+      const SizedBox(height: 12),
+      LetterCareClosingCard.heart(letter: entry),
+      TextButton(onPressed: onHistory, child: const Text('지난 마음편지 보기')),
+    ],
+  );
 }

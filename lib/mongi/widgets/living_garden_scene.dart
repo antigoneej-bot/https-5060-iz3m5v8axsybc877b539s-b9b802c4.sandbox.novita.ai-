@@ -6,6 +6,9 @@ import 'garden_gift_art.dart';
 import 'garden_grounded_art.dart';
 import '../models/seed.dart';
 import 'garden_ambient.dart';
+import 'garden_cat_shadow.dart';
+import 'garden_cat_pose.dart';
+import '../../widgets/companion_presence.dart';
 
 /// Rendered 3D layers, not a rotatable mesh. No economy or mood is mutated here.
 class LivingGardenScene extends StatefulWidget {
@@ -13,6 +16,10 @@ class LivingGardenScene extends StatefulWidget {
   final Map<String, int> seeds;
   final bool motionEnabled;
   final bool compact;
+  final double companionScale;
+  final int companionBondStage;
+  final bool companionAutomaticBehavior;
+  final VoidCallback? onCompanionCare;
   final VoidCallback? onWrite, onGarden, onNeighbors;
   final ValueChanged<SeedType>? onPlant;
   const LivingGardenScene({
@@ -21,6 +28,10 @@ class LivingGardenScene extends StatefulWidget {
     this.seeds = const {},
     this.motionEnabled = true,
     this.compact = false,
+    this.companionScale = 1,
+    this.companionBondStage = 0,
+    this.companionAutomaticBehavior = true,
+    this.onCompanionCare,
     this.onWrite,
     this.onGarden,
     this.onNeighbors,
@@ -39,10 +50,6 @@ class _LivingGardenSceneState extends State<LivingGardenScene>
   late final AnimationController _pet = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 1300),
-  );
-  late final AnimationController _blink = AnimationController(
-    vsync: this,
-    duration: const Duration(seconds: 24),
   );
   bool _canBlink = false;
   Timer? _clock;
@@ -95,11 +102,6 @@ class _LivingGardenSceneState extends State<LivingGardenScene>
         !MediaQuery.disableAnimationsOf(context) &&
         TickerMode.of(context) &&
         (ModalRoute.of(context)?.isCurrent ?? true);
-    if (_canBlink) {
-      if (!_blink.isAnimating) _blink.repeat();
-    } else {
-      _blink.stop();
-    }
     _animate =
         widget.motionEnabled &&
         !_paused &&
@@ -116,6 +118,10 @@ class _LivingGardenSceneState extends State<LivingGardenScene>
   }
 
   void _touchCat() {
+    if (widget.onCompanionCare != null) {
+      widget.onCompanionCare!();
+      return;
+    }
     if (_animate) {
       _pet.forward(from: 0);
     } else {
@@ -135,7 +141,6 @@ class _LivingGardenSceneState extends State<LivingGardenScene>
     WidgetsBinding.instance.removeObserver(this);
     _clock?.cancel();
     _air.dispose();
-    _blink.dispose();
     _pet.dispose();
     super.dispose();
   }
@@ -221,62 +226,59 @@ class _LivingGardenSceneState extends State<LivingGardenScene>
                           for (final seed in planted)
                             _plant(seed, w, h, t, night),
                           Positioned(
-                            left: w * (widget.compact ? .39 : .31),
-                            top: h * (widget.compact ? .766 : .795),
-                            width: w * (widget.compact ? .24 : .39),
-                            height: h * .032,
-                            child: DecoratedBox(
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(100),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withValues(
-                                      alpha: night ? .4 : .23,
-                                    ),
-                                    blurRadius: 15,
-                                    spreadRadius: 3,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          Positioned(
-                            // 배경(정원 씬)에 비해 고양이가 지나치게 크고
-                            // 움직임도 부담스럽다는 피드백에 따라, 비율을
-                            // 약 35%로 줄이고 흔들림 폭도 함께 낮췄습니다.
-                            left:
-                                w * (widget.compact ? .37 : .34) + _look.dx * 3,
-                            top:
-                                h * (widget.compact ? .55 : .577) +
-                                math.sin(t * 6) * .7 -
-                                pet * 5,
+                            left: w * (widget.compact ? .37 : .34),
+                            top: h * (widget.compact ? .55 : .577),
                             width: w * (widget.compact ? .28 : .35),
                             height: w * (widget.compact ? .28 : .35),
-                            child: Transform.rotate(
-                              angle: pet * -.03,
-                              child: Transform.scale(
-                                scale: 1 + pet * .025,
-                                alignment: Alignment.bottomCenter,
-                                child: Semantics(
-                                  label:
-                                      '${companionDisplayName(widget.companionName)} 쓰다듬기',
-                                  button: true,
-                                  child: Tooltip(
-                                    message: companionCopy(
-                                      '몽이를 쓰다듬어 보세요',
-                                      widget.companionName,
-                                    ),
-                                    child: InkWell(
-                                      key: const Key('living-cat'),
-                                      onTap: _touchCat,
-                                      borderRadius: BorderRadius.circular(100),
-                                      child: GardenNightLight(
-                                        night: night,
-                                        child: GardenCatArt(
-                                          animation: _blink,
-                                          blinking: _canBlink,
+                            child: Transform.scale(
+                              scale: widget.companionScale.clamp(.82, 1.0),
+                              alignment: Alignment.bottomCenter,
+                              child: Semantics(
+                                label:
+                                    '${companionDisplayName(widget.companionName)} ${widget.onCompanionCare == null ? '쓰다듬기' : '돌보기'}',
+                                button: true,
+                                child: Tooltip(
+                                  message: widget.onCompanionCare == null
+                                      ? companionCopy(
+                                          '몽이를 쓰다듬어 보세요',
+                                          widget.companionName,
+                                        )
+                                      : '${companionDisplayName(widget.companionName)} 돌보기',
+                                  child: InkWell(
+                                    key: const Key('living-cat'),
+                                    onTap: _touchCat,
+                                    borderRadius: BorderRadius.circular(100),
+                                    child: Stack(
+                                      clipBehavior: Clip.none,
+                                      children: [
+                                        Positioned.fill(
+                                          child: IgnorePointer(
+                                            child: CustomPaint(
+                                              painter: GardenCatShadowPainter(
+                                                walking: false,
+                                                faceLeft: false,
+                                                night: night,
+                                                lift: 0,
+                                              ),
+                                            ),
+                                          ),
                                         ),
-                                      ),
+                                        GardenCatPose(
+                                          child: GardenNightLight(
+                                            night: night,
+                                            child: CompanionPresence(
+                                              enabled:
+                                                  _canBlink &&
+                                                  widget
+                                                      .companionAutomaticBehavior,
+                                              bondStage:
+                                                  widget.companionBondStage,
+                                              night: night,
+                                              resting: pet > .15,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
                                 ),
@@ -615,16 +617,18 @@ class _Waterwheel extends CustomPainter {
 }
 
 /// The atlas contains six species, each with three genuinely different stages.
-/// Stage four keeps the mature plant and adds a soft halo.
+/// Later care grows the mature plant's world-space size without a new atlas.
 class GardenPlantArt extends StatelessWidget {
   final SeedType seed;
   final int count;
   final bool night;
+  final bool animateGrowth;
   const GardenPlantArt({
     super.key,
     required this.seed,
     required this.count,
     this.night = false,
+    this.animateGrowth = false,
   });
   @override
   Widget build(BuildContext context) {
@@ -642,12 +646,16 @@ class GardenPlantArt extends StatelessWidget {
             height: side,
             child: GardenGroundedArt(
               night: night,
-              child: GardenAtlasArt(
-                asset: 'assets/living_garden/plants.webp',
-                column: column,
-                row: row,
-                columns: 6,
-                rows: 3,
+              child: AnimatedSwitcher(
+                duration: Duration(milliseconds: animateGrowth ? 500 : 0),
+                child: GardenAtlasArt(
+                  key: ValueKey('${seed.id}-$row'),
+                  asset: 'assets/living_garden/plants.webp',
+                  column: column,
+                  row: row,
+                  columns: 6,
+                  rows: 3,
+                ),
               ),
             ),
           ),
