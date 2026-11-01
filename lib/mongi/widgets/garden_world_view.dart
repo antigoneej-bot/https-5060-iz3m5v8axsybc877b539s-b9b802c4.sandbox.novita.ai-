@@ -34,6 +34,7 @@ class GardenWorldView extends StatefulWidget {
   final int companionBondStage;
   final bool companionAutomaticBehavior;
   final bool readOnly;
+
   /// Original open lawn is the saved, cultivatable garden. The illustrated
   /// landscape is used only by the separate, non-mutating resting space.
   final bool originalScenery;
@@ -379,7 +380,9 @@ class _GardenWorldViewState extends State<GardenWorldView>
     });
     super.didUpdateWidget(oldWidget);
     if (widget.nightOverride != oldWidget.nightOverride) {
-      _night = widget.nightOverride ?? (DateTime.now().hour < 6 || DateTime.now().hour >= 19);
+      _night =
+          widget.nightOverride ??
+          (DateTime.now().hour < 6 || DateTime.now().hour >= 19);
     }
     if (widget.cultivationMode &&
         widget.placementSeed != null &&
@@ -1244,7 +1247,11 @@ class _GardenWorldViewState extends State<GardenWorldView>
                         child: RepaintBoundary(
                           child: CustomPaint(
                             painter: widget.originalScenery
-                                ? GardenAtmosphere.animated(_air, _night, daylight: _daylight)
+                                ? GardenAtmosphere.animated(
+                                    _air,
+                                    _night,
+                                    daylight: _daylight,
+                                  )
                                 : StorybookAtmosphere(_air, _night),
                           ),
                         ),
@@ -1342,13 +1349,14 @@ class _GardenWorldViewState extends State<GardenWorldView>
                           ),
                         ),
                       ),
-                    if (!widget.originalScenery) Positioned.fill(
-                      child: StorybookForeground(
-                        clock: _air,
-                        camera: _camera,
-                        night: _night,
+                    if (!widget.originalScenery)
+                      Positioned.fill(
+                        child: StorybookForeground(
+                          clock: _air,
+                          camera: _camera,
+                          night: _night,
+                        ),
                       ),
-                    ),
                     ..._reactionSprites(),
                     if (_waterTarget != null && _items.contains(_waterTarget))
                       Positioned(

@@ -175,6 +175,32 @@ void main() {
     await tester.pump();
   }
 
+  Future<void> captureSpace(WidgetTester t, String name) async {
+    final out = Platform.environment['DIRECT_GARDEN_REVIEW_DIR'];
+    if (out == null) return;
+    await t.runAsync(() async {
+      for (final asset in [
+        'assets/living_garden/world_day.webp',
+        'assets/living_garden/world_night.webp',
+        'assets/storybook_garden/panorama.png',
+        'assets/storybook_garden/foreground.png',
+        'assets/living_garden/plants.webp',
+      ]) {
+        await precacheImage(AssetImage(asset), screenshot.currentContext!);
+      }
+    });
+    await t.pump();
+    await t.runAsync(() async {
+      final image =
+          await (screenshot.currentContext!.findRenderObject()
+                  as RenderRepaintBoundary)
+              .toImage();
+      final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+      await File('$out/$name.png').writeAsBytes(bytes!.buffer.asUint8List());
+      image.dispose();
+    });
+  }
+
   for (final size in [
     const Size(320, 640),
     const Size(390, 844),
@@ -217,6 +243,25 @@ void main() {
           await t.pumpAndSettle();
           await t.tap(choose);
           await t.pumpAndSettle();
+          if (size.height < 500) {
+            expect(
+              t
+                  .widget<PopupMenuButton<bool>>(
+                    find.byKey(const Key('compact-garden-switch')),
+                  )
+                  .enabled,
+              false,
+            );
+          } else {
+            expect(
+              t
+                  .widget<ChoiceChip>(
+                    find.byKey(const ValueKey('rest-garden-tab')),
+                  )
+                  .onSelected,
+              isNull,
+            );
+          }
           expect(
             t.getSize(find.byKey(const ValueKey('cultivation-canvas'))).height,
             greaterThan(25),
@@ -263,12 +308,47 @@ void main() {
               lessThanOrEqualTo(size.height),
             );
           }
-          await t.ensureVisible(find.byKey(const Key('focused-plant-water')));
+          final waterControl = find.byKey(const Key('focused-plant-water'));
+          if (waterControl.hitTestable().evaluate().isEmpty) {
+            // Scroll only the detail card, not the surrounding horizontal PageView.
+            final scroll = Scrollable.of(t.element(waterControl));
+            await scroll.position.ensureVisible(t.renderObject(waterControl));
+          }
           await t.pump();
           expect(
             find.byKey(const Key('focused-plant-water')).hitTestable(),
             findsOneWidget,
           );
+          Future<void> switchSpace(bool rest) async {
+            if (size.height < 500) {
+              await t.tap(find.byKey(const Key('compact-garden-switch')));
+              await t.pumpAndSettle();
+              await t.tap(find.text(rest ? '쉬어가는 정원' : '내가 가꾸는 정원').last);
+            } else {
+              final tab = find.byKey(
+                ValueKey(rest ? 'rest-garden-tab' : 'cultivate-garden-tab'),
+              );
+              await Scrollable.of(
+                t.element(tab),
+              ).position.ensureVisible(t.renderObject(tab));
+              await t.pump();
+              await t.tap(tab);
+            }
+            await t.pumpAndSettle();
+          }
+
+          await switchSpace(true);
+          expect(find.byKey(const Key('resting-garden-space')), findsOneWidget);
+          expect(
+            find.byKey(const ValueKey('cultivation-tool-0')),
+            findsNothing,
+          );
+          expect(
+            find.byKey(const Key('rest-garden-overview')).hitTestable(),
+            findsOneWidget,
+          );
+          await switchSpace(false);
+          expect(find.byKey(const Key('focused-plant-name')), findsOneWidget);
           expect(t.takeException(), isNull);
           await t.pumpWidget(const SizedBox());
           if (garden.requests.isNotEmpty)
@@ -279,55 +359,109 @@ void main() {
     }
   }
 
-  testWidgets('two garden spaces keep cultivation data and camera while rest has no editing', (t) async {
-    final store = MongiGardenStore.instance;
-    final layouts = GardenLayoutStore.instance;
-    final initial = MongiGardenData(seedTokens: 3,
-      seeds: const {'pine': 4}, owned: const {'bench'}, placed: const {'bench'});
-    await t.runAsync(() async {
-      await (await SharedPreferences.getInstance()).setString(
-        MongiGardenStore.storageKey, jsonEncode(initial.toJson()));
-      await layouts.update((_) => GardenLayout(spaces: 3,
-        positions: const {'seed:pine': Offset(.36, .55), 'decor:bench': Offset(.51, .8)}));
-    });
-    await openGarden(t, _Garden(), cultivation: true);
-    await t.pumpAndSettle();
-    final beforeData = jsonEncode(store.value.toJson());
-    final beforeLayout = jsonEncode(layouts.value.toJson());
-    expect(find.byKey(const Key('original-garden-backdrop')), findsOneWidget);
-    expect(find.byKey(const Key('storybook-backdrop')), findsNothing);
-    final camera = t.widget<InteractiveViewer>(find.byKey(const Key('garden-world-camera')))
-      .transformationController!;
-    final cameraBefore = camera.value.clone();
-    final gardenState = t.state(find.byType(GardenWorldView));
-    await t.ensureVisible(find.byKey(const ValueKey('rest-garden-tab')));
-    await t.tap(find.byKey(const ValueKey('rest-garden-tab')));
-    await t.pumpAndSettle();
-    expect(find.byKey(const Key('storybook-backdrop')), findsOneWidget);
-    expect(find.byKey(const Key('original-garden-backdrop')), findsNothing);
-    expect(find.byKey(const ValueKey('cultivation-tool-0')), findsNothing);
-    final resting = t.widget<GardenWorldView>(find.byType(GardenWorldView));
-    expect(resting.readOnly, isTrue);
-    expect(resting.originalScenery, isFalse);
-    expect(resting.seeds, isEmpty);
-    expect(resting.decorations, isEmpty);
-    expect(resting.onWater, isNull);
-    expect(resting.onInspectPlant, isNull);
-    await t.tap(find.byKey(const Key('rest-garden-overview')));
-    await t.pumpAndSettle();
-    expect(jsonEncode(store.value.toJson()), beforeData);
-    expect(jsonEncode(layouts.value.toJson()), beforeLayout);
-    await t.ensureVisible(find.byKey(const ValueKey('cultivate-garden-tab')));
-    await t.tap(find.byKey(const ValueKey('cultivate-garden-tab')));
-    await t.pumpAndSettle();
-    expect(identical(t.state(find.byType(GardenWorldView)), gardenState), isTrue);
-    expect(camera.value, cameraBefore);
-    expect(find.byKey(const ValueKey('world-item-seed:pine')), findsOneWidget);
-    expect(jsonEncode(store.value.toJson()), beforeData);
-    expect(jsonEncode(layouts.value.toJson()), beforeLayout);
-    expect(t.takeException(), isNull);
-    await t.pumpWidget(const SizedBox());
-  });
+  testWidgets(
+    'two garden spaces keep cultivation data and camera while rest has no editing',
+    (t) async {
+      final store = MongiGardenStore.instance;
+      final layouts = GardenLayoutStore.instance;
+      final initial = MongiGardenData(
+        seedTokens: 3,
+        seeds: const {'pine': 4},
+        owned: const {'bench'},
+        placed: const {'bench'},
+      );
+      await t.runAsync(() async {
+        await (await SharedPreferences.getInstance()).setString(
+          MongiGardenStore.storageKey,
+          jsonEncode(initial.toJson()),
+        );
+        await layouts.update(
+          (_) => GardenLayout(
+            spaces: 3,
+            positions: const {
+              'seed:pine': Offset(.36, .55),
+              'decor:bench': Offset(.51, .8),
+            },
+          ),
+        );
+      });
+      await openGarden(t, _Garden(), cultivation: true);
+      await t.pumpAndSettle();
+      final beforeData = jsonEncode(store.value.toJson());
+      final beforeLayout = jsonEncode(layouts.value.toJson());
+      expect(find.byKey(const Key('original-garden-backdrop')), findsOneWidget);
+      expect(find.byKey(const Key('storybook-backdrop')), findsNothing);
+      await t.tap(find.byTooltip('정원 보조 메뉴'));
+      await t.pumpAndSettle();
+      await t.tap(find.text('햇살 정원 보기'));
+      await t.pumpAndSettle();
+      expect(
+        t.widget<GardenWorldView>(find.byType(GardenWorldView)).nightOverride,
+        false,
+      );
+      await captureSpace(t, '07-cultivation-day');
+      await t.tap(find.byTooltip('정원 보조 메뉴'));
+      await t.pumpAndSettle();
+      await t.tap(find.text('반딧불이 정원 보기'));
+      await t.pumpAndSettle();
+      expect(
+        t.widget<GardenWorldView>(find.byType(GardenWorldView)).nightOverride,
+        true,
+      );
+      await captureSpace(t, '09-cultivation-night');
+      final camera = t
+          .widget<InteractiveViewer>(
+            find.byKey(const Key('garden-world-camera')),
+          )
+          .transformationController!;
+      final cameraBefore = camera.value.clone();
+      final gardenState = t.state(find.byType(GardenWorldView));
+      await t.ensureVisible(find.byKey(const ValueKey('rest-garden-tab')));
+      await t.tap(find.byKey(const ValueKey('rest-garden-tab')));
+      await t.pumpAndSettle();
+      expect(find.byKey(const Key('storybook-backdrop')), findsOneWidget);
+      expect(find.byKey(const Key('original-garden-backdrop')), findsNothing);
+      expect(find.byKey(const ValueKey('cultivation-tool-0')), findsNothing);
+      final resting = t.widget<GardenWorldView>(find.byType(GardenWorldView));
+      expect(resting.readOnly, isTrue);
+      expect(resting.originalScenery, isFalse);
+      expect(resting.seeds, isEmpty);
+      expect(resting.decorations, isEmpty);
+      expect(resting.onWater, isNull);
+      expect(resting.onInspectPlant, isNull);
+      await captureSpace(t, '08-resting-garden');
+      await t.tap(find.byTooltip('쉬어가는 정원 낮·밤'));
+      await t.pumpAndSettle();
+      await t.tap(find.text('햇살 풍경'));
+      await t.pumpAndSettle();
+      await captureSpace(t, '10-resting-day');
+      await t.tap(find.byTooltip('쉬어가는 정원 낮·밤'));
+      await t.pumpAndSettle();
+      await t.tap(find.text('별빛 풍경'));
+      await t.pumpAndSettle();
+      await captureSpace(t, '11-resting-night');
+      await t.tap(find.byKey(const Key('rest-garden-overview')));
+      await t.pumpAndSettle();
+      expect(jsonEncode(store.value.toJson()), beforeData);
+      expect(jsonEncode(layouts.value.toJson()), beforeLayout);
+      await t.ensureVisible(find.byKey(const ValueKey('cultivate-garden-tab')));
+      await t.tap(find.byKey(const ValueKey('cultivate-garden-tab')));
+      await t.pumpAndSettle();
+      expect(
+        identical(t.state(find.byType(GardenWorldView)), gardenState),
+        isTrue,
+      );
+      expect(camera.value, cameraBefore);
+      expect(
+        find.byKey(const ValueKey('world-item-seed:pine')),
+        findsOneWidget,
+      );
+      expect(jsonEncode(store.value.toJson()), beforeData);
+      expect(jsonEncode(layouts.value.toJson()), beforeLayout);
+      expect(t.takeException(), isNull);
+      await t.pumpWidget(const SizedBox());
+    },
+  );
 
   testWidgets(
     'direct garden preserves old plants; placement cancels, retries and locates saved trees',
@@ -414,7 +548,12 @@ void main() {
       }
 
       await chooseCherry();
-      expect(t.widget<ChoiceChip>(find.byKey(const ValueKey('rest-garden-tab'))).onSelected, isNull);
+      expect(
+        t
+            .widget<ChoiceChip>(find.byKey(const ValueKey('rest-garden-tab')))
+            .onSelected,
+        isNull,
+      );
       await chooseGround();
       expect(find.byKey(const Key('plant-location-preview')), findsOneWidget);
       expect(store.value.seedTokens, 2);
