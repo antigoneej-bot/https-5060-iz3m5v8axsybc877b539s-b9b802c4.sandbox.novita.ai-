@@ -1,5 +1,5 @@
+import 'emotion_archive_screen.dart';
 import '../mongi/screens/garden_discovery_screen.dart';
-import '../mongi/screens/emotion_calendar_screen.dart';
 import '../services/cat_care_service.dart';
 import 'garden_memory_book_screen.dart';
 import 'data_safety_screen.dart';
@@ -352,7 +352,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         _open(const GardenDiscoveryScreen(favorites: true));
         break;
       case PastelAction.calendar:
-        _open(const EmotionCalendarScreen());
+        _open(const EmotionArchiveScreen());
+        break;
+      case PastelAction.emotionArchive:
+        _open(const EmotionArchiveScreen(calendar: false));
         break;
       case PastelAction.memoryBook:
         _open(const GardenMemoryBookScreen());

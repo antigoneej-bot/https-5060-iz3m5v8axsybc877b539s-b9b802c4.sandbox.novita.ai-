@@ -166,5 +166,49 @@ class GardenDecoration {
       sceneAnchor: Alignment(0.78, -0.62),
       sceneScale: 1.0,
     ),
+
+    // Basic decorations: the existing atomic 60-essence purchase flow.
+    GardenDecoration(
+      id: 'daisy_pot',
+      label: '데이지 화분',
+      emoji: '🌼',
+      isPremium: false,
+      unlockHint: '빛의 정수 60개로 얻을 수 있어요',
+    ),
+    GardenDecoration(
+      id: 'tulip_pot',
+      label: '튤립 화분',
+      emoji: '🌷',
+      isPremium: false,
+      unlockHint: '빛의 정수 60개로 얻을 수 있어요',
+    ),
+    GardenDecoration(
+      id: 'sunflower_pot',
+      label: '해바라기 화분',
+      emoji: '🌻',
+      isPremium: false,
+      unlockHint: '빛의 정수 60개로 얻을 수 있어요',
+    ),
+    GardenDecoration(
+      id: 'cat_cushion',
+      label: '고양이 방석',
+      emoji: '🛏️',
+      isPremium: false,
+      unlockHint: '빛의 정수 60개로 얻을 수 있어요',
+    ),
+    GardenDecoration(
+      id: 'moon_lamp',
+      label: '초승달 조명',
+      emoji: '🌙',
+      isPremium: false,
+      unlockHint: '빛의 정수 60개로 얻을 수 있어요',
+    ),
+    GardenDecoration(
+      id: 'bird_house',
+      label: '작은 새집',
+      emoji: '🐦',
+      isPremium: false,
+      unlockHint: '빛의 정수 60개로 얻을 수 있어요',
+    ),
   ];
 }

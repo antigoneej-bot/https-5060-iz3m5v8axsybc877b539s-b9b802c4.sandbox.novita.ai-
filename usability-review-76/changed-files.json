@@ -1,0 +1,32 @@
+{
+  "changed": [
+    "flutter_app/assets/cat_walk.html",
+    "flutter_app/backend/policy.js",
+    "flutter_app/lib/mongi/integration/garden_activity_menu.dart",
+    "flutter_app/lib/mongi/models/garden_decoration.dart",
+    "flutter_app/lib/mongi/models/garden_layout.dart",
+    "flutter_app/lib/mongi/providers/garden_provider.dart",
+    "flutter_app/lib/mongi/screens/garden_world_screen.dart",
+    "flutter_app/lib/mongi/screens/mind_report_screen.dart",
+    "flutter_app/lib/mongi/widgets/garden_cultivation_tools.dart",
+    "flutter_app/lib/mongi/widgets/garden_world_view.dart",
+    "flutter_app/lib/mongi/widgets/resting_garden_view.dart",
+    "flutter_app/lib/screens/all_features_screen.dart",
+    "flutter_app/lib/screens/coloring_healing_screen.dart",
+    "flutter_app/lib/screens/home_screen.dart",
+    "flutter_app/lib/widgets/pastel_garden_shell.dart",
+    "flutter_app/test/brush_coloring_test.dart",
+    "flutter_app/test/garden_fullscreen_test.dart",
+    "flutter_app/test/mongi_session_transaction_test.dart",
+    "flutter_app/tool/test_cat_walk.cjs"
+  ],
+  "missing": [],
+  "new": [
+    "flutter_app/test/usability_patch_test.dart",
+    "flutter_app/backend/test/new_garden_items.test.js",
+    "flutter_app/lib/screens/emotion_archive_screen.dart",
+    "flutter_app/lib/mongi/widgets/garden_basic_item_art.dart"
+  ],
+  "syntax_count": 646,
+  "syntax_errors": []
+}

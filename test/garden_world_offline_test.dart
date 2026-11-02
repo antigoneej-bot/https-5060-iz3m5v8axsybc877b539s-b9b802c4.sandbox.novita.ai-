@@ -103,10 +103,15 @@ void main() {
     _Garden garden, {
     bool cultivation = false,
     bool ownerRoute = false,
+    bool fullscreen = false,
+    bool resting = false,
     Size size = const Size(390, 844),
     double textScale = 1,
   }) async {
     final cat = CatCareProvider();
+    // This suite checks layout and storage. The companion has an independent
+    // repeating animation setting; background-motion=false does not stop it.
+    await tester.runAsync(() => cat.setAutomaticBehavior(false));
     addTearDown(garden.dispose);
     addTearDown(cat.dispose);
     tester.view.physicalSize = size;
@@ -131,7 +136,13 @@ void main() {
                 child: child!,
               ),
               theme: appTheme,
-              home: cultivation
+              home: fullscreen
+                  ? GardenWorldScreen(
+                      cultivation: true,
+                      initialLandscape: true,
+                      initialResting: resting,
+                    )
+                  : cultivation
                   ? PastelGardenShell(
                       actualGarden: const GardenWorldScreen.owned(
                         embedded: true,
@@ -173,6 +184,34 @@ void main() {
       () => Future<void>.delayed(const Duration(milliseconds: 1)),
     );
     await tester.pump();
+  }
+
+  Future<void> openFullscreen(WidgetTester t, Finder trigger) async {
+    // A new route opens the encrypted stores. Let real file I/O complete before
+    // settling fake-clock animations; otherwise its loading spinner never ends.
+    await t.runAsync(() async {
+      await t.tap(trigger);
+      await t.pump();
+      final route = ModalRoute.of(
+        t.element(find.byType(GardenWorldScreen, skipOffstage: false).last),
+      )!;
+      for (
+        var frame = 0;
+        frame < 120 && route.animation!.status != AnimationStatus.completed;
+        frame++
+      ) {
+        await t.pump(const Duration(milliseconds: 16));
+      }
+      expect(route.animation!.status, AnimationStatus.completed);
+      final deadline = DateTime.now().add(const Duration(seconds: 30));
+      while (find.byType(CircularProgressIndicator).evaluate().isNotEmpty) {
+        if (DateTime.now().isAfter(deadline))
+          fail('Fullscreen garden local load did not finish');
+        await Future<void>.delayed(const Duration(milliseconds: 5));
+        await t.pump();
+      }
+    });
+    await t.pumpAndSettle();
   }
 
   Future<void> captureSpace(WidgetTester t, String name) async {
@@ -440,10 +479,29 @@ void main() {
       await t.tap(find.text('별빛 풍경'));
       await t.pumpAndSettle();
       await captureSpace(t, '11-resting-night');
-      await t.tap(find.byKey(const Key('rest-garden-overview')));
-      await t.pumpAndSettle();
+      await openFullscreen(t, find.byKey(const Key('rest-garden-overview')));
+      final fullscreen = t.widget<GardenWorldScreen>(
+        find.byType(GardenWorldScreen).last,
+      );
+      expect(fullscreen.initialLandscape, isTrue);
+      expect(fullscreen.initialResting, isTrue);
+      expect(
+        t.widget<GardenWorldView>(find.byType(GardenWorldView)).cameraGestures,
+        isTrue,
+      );
+      expect(
+        t.widget<GardenWorldView>(find.byType(GardenWorldView)).readOnly,
+        isTrue,
+      );
+      expect(rotations.last, [
+        'DeviceOrientation.landscapeLeft',
+        'DeviceOrientation.landscapeRight',
+      ]);
       expect(jsonEncode(store.value.toJson()), beforeData);
       expect(jsonEncode(layouts.value.toJson()), beforeLayout);
+      await t.pageBack();
+      await t.pumpAndSettle();
+      expect(rotations.last, ['DeviceOrientation.portraitUp']);
       await t.ensureVisible(find.byKey(const ValueKey('cultivate-garden-tab')));
       await t.tap(find.byKey(const ValueKey('cultivate-garden-tab')));
       await t.pumpAndSettle();
@@ -458,6 +516,189 @@ void main() {
       );
       expect(jsonEncode(store.value.toJson()), beforeData);
       expect(jsonEncode(layouts.value.toJson()), beforeLayout);
+      expect(t.takeException(), isNull);
+      await t.pumpWidget(const SizedBox());
+    },
+  );
+
+  for (final resting in [false, true]) {
+    testWidgets(
+      'full landscape keeps camera and folding tools resting=$resting with large text',
+      (t) async {
+        await t.runAsync(() async {
+          await (await SharedPreferences.getInstance()).setString(
+            MongiGardenStore.storageKey,
+            jsonEncode(
+              MongiGardenData(seeds: {'pine': 7}, seedTokens: 3).toJson(),
+            ),
+          );
+          await MongiGardenStore.instance.reload();
+          await GardenLayoutStore.instance.reload();
+        });
+        await openGarden(
+          t,
+          _Garden(),
+          fullscreen: true,
+          resting: resting,
+          size: const Size(844, 390),
+          textScale: 2,
+        );
+        await t.pumpAndSettle();
+        final camera = t.widget<InteractiveViewer>(
+          find.byKey(const Key('garden-world-camera')),
+        );
+        expect(camera.panEnabled, isTrue);
+        expect(camera.scaleEnabled, isTrue);
+        expect(
+          t.getSize(find.byKey(const Key('garden-world-camera'))).height,
+          greaterThan(40),
+        );
+        expect(rotations.last, [
+          'DeviceOrientation.landscapeLeft',
+          'DeviceOrientation.landscapeRight',
+        ]);
+        await captureSpace(
+          t,
+          resting ? '23-resting-landscape' : '23-cultivation-landscape',
+        );
+        await t.tap(find.text('도구 접기'));
+        await t.pumpAndSettle();
+        expect(find.text('도구 펼치기'), findsOneWidget);
+        if (!resting)
+          expect(
+            find.byKey(const ValueKey('cultivation-tool-0')),
+            findsNothing,
+          );
+        await t.tap(find.text('도구 펼치기'));
+        await t.pumpAndSettle();
+        if (resting) {
+          expect(
+            t.widget<GardenWorldView>(find.byType(GardenWorldView)).readOnly,
+            isTrue,
+          );
+          expect(
+            find.byKey(const ValueKey('cultivation-tool-0')),
+            findsNothing,
+          );
+        } else {
+          for (var i = 0; i < 4; i++)
+            expect(
+              find.byKey(ValueKey('cultivation-tool-$i')).hitTestable(),
+              findsOneWidget,
+            );
+        }
+        expect(t.takeException(), isNull);
+        await t.pumpWidget(const SizedBox());
+        expect(rotations.last, ['DeviceOrientation.portraitUp']);
+      },
+    );
+  }
+
+  testWidgets(
+    'moving an existing plant cancels, rejects invalid land and survives reload without charging',
+    (t) async {
+      final store = MongiGardenStore.instance,
+          layouts = GardenLayoutStore.instance;
+      await t.runAsync(() async {
+        await (await SharedPreferences.getInstance()).setString(
+          MongiGardenStore.storageKey,
+          jsonEncode(
+            MongiGardenData(
+              seedTokens: 5,
+              seeds: {'pine': 7},
+              wateredOn: {'pine': MongiGardenData.dayKey(DateTime.now())},
+            ).toJson(),
+          ),
+        );
+        await store.reload();
+        await layouts.update(
+          (_) => GardenLayout(
+            spaces: 3,
+            positions: {
+              'seed:pine': const Offset(.44, .7),
+              'decor:bench': const Offset(.51, .8),
+            },
+          ),
+        );
+      });
+      await openGarden(t, _Garden(), cultivation: true);
+      await t.pumpAndSettle();
+      final before = jsonEncode(store.value.toJson()),
+          initial = layouts.value.positions['seed:pine'];
+      Future<void> startMove() async {
+        await t.tap(find.byKey(const ValueKey('cultivation-tool-2')));
+        await t.pumpAndSettle();
+        final action = find.byKey(const ValueKey('move-button-pine'));
+        await t.ensureVisible(action);
+        await t.tap(action);
+        await t.pumpAndSettle();
+        expect(
+          t
+              .widget<GardenWorldView>(find.byType(GardenWorldView))
+              .placementCount,
+          7,
+        );
+      }
+
+      await startMove();
+      await t.tap(find.byKey(const Key('cancel-plant-location')));
+      await t.pumpAndSettle();
+      expect(layouts.value.positions['seed:pine'], initial);
+      expect(jsonEncode(store.value.toJson()), before);
+      await startMove();
+      var world = t.widget<GardenWorldView>(find.byType(GardenWorldView));
+      world.onPlacementPoint!(const Offset(.15, .4));
+      await t.pumpAndSettle();
+      expect(
+        t
+            .widget<FilledButton>(
+              find.byKey(const Key('confirm-plant-location')),
+            )
+            .onPressed,
+        isNull,
+      );
+      expect(layouts.value.positions['seed:pine'], initial);
+      world = t.widget<GardenWorldView>(find.byType(GardenWorldView));
+      world.onPlacementPoint!(const Offset(.62, .6));
+      await t.pumpAndSettle();
+      await captureSpace(t, '24-moving-plant');
+      await t.runAsync(() async {
+        await t.tap(find.byKey(const Key('confirm-plant-location')));
+        await t.tap(find.byKey(const Key('confirm-plant-location')));
+        final deadline = DateTime.now().add(const Duration(seconds: 30));
+        while (layouts.value.positions['seed:pine'] != const Offset(.62, .6)) {
+          if (DateTime.now().isAfter(deadline))
+            fail('Move did not commit its coordinate');
+          await Future<void>.delayed(const Duration(milliseconds: 5));
+          await t.pump();
+        }
+      });
+      await t.pumpAndSettle();
+      expect(jsonEncode(store.value.toJson()), before);
+      expect(layouts.value.positions['decor:bench'], const Offset(.51, .8));
+      expect(find.byKey(const Key('focused-plant-name')), findsOneWidget);
+      await captureSpace(t, '25-moved-plant');
+      await t.pumpWidget(const SizedBox());
+      await t.runAsync(() async {
+        // Reopen the cached user handles as a restarted process would; never
+        // delete records or keep StorageService pointing at a closed Hive box.
+        await StorageService.clearCurrentUser();
+        await Hive.close();
+        await StorageService.setCurrentUser('local_user');
+        await layouts.reload();
+        await store.reload();
+      });
+      expect(layouts.value.positions['seed:pine'], const Offset(.62, .6));
+      expect(jsonEncode(store.value.toJson()), before);
+      await openGarden(t, _Garden(), cultivation: true);
+      await t.pumpAndSettle();
+      expect(
+        t
+            .widget<GardenWorldView>(find.byType(GardenWorldView))
+            .layout
+            .position('seed:pine'),
+        const Offset(.62, .6),
+      );
       expect(t.takeException(), isNull);
       await t.pumpWidget(const SizedBox());
     },
@@ -716,15 +957,25 @@ void main() {
       );
       expect(point.dx, inInclusiveRange(0, t.getSize(camera).width));
       await capture('06-locate-saved-maple');
-      await t.tap(find.byKey(const ValueKey('cultivation-tool-3')));
-      await t.pumpAndSettle();
+      await openFullscreen(t, find.byKey(const ValueKey('cultivation-tool-3')));
+      expect(
+        t
+            .widget<GardenWorldScreen>(find.byType(GardenWorldScreen).last)
+            .initialLandscape,
+        isTrue,
+      );
       expect(find.text('원래 보기'), findsOneWidget);
       await t.tap(find.byKey(const ValueKey('cultivation-tool-3')));
       await t.pumpAndSettle();
       expect(find.text('전체보기'), findsOneWidget);
+      await t.pageBack();
+      await t.pumpAndSettle();
+      expect(rotations.last, ['DeviceOrientation.portraitUp']);
+      expect(find.byKey(const Key('focused-plant-name')), findsOneWidget);
       await t.pumpWidget(const SizedBox());
-      if (garden.requests.isNotEmpty)
-        garden.requests.single.complete(<ReceivedCheer>[]);
+      for (final request in garden.requests) {
+        if (!request.isCompleted) request.complete(<ReceivedCheer>[]);
+      }
       await flushNetworkFuture(t);
     },
   );
@@ -837,7 +1088,7 @@ void main() {
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox.shrink());
 
-      expect(rotations.last, isEmpty);
+      expect(rotations.last, ['DeviceOrientation.portraitUp']);
 
       // All scenarios share one fake-clock zone, matching the app lifetime of
       // the serialized local stores instead of abandoning their future queues.

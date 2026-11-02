@@ -36,6 +36,45 @@ Future<void> waitForPainting(WidgetTester tester) async {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUp(() => SharedPreferences.setMockInitialValues({}));
+  testWidgets('two fingers cancel paint and move mode never paints', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(430, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    CatCareService.setCurrentUser('gesture-regression');
+    await tester.pumpWidget(
+      MaterialApp(theme: appTheme, home: const ColoringHealingScreen()),
+    );
+    await waitForPainting(tester);
+    final canvas = find.byKey(const Key('brush-canvas'));
+    final rect = tester.getRect(canvas);
+    final point = Offset(
+      rect.left + rect.width * .5,
+      rect.top + rect.height * .58,
+    );
+    final one = await tester.startGesture(point, pointer: 1);
+    final two = await tester.startGesture(
+      point + const Offset(25, 0),
+      pointer: 2,
+    );
+    await one.moveBy(const Offset(-10, 0));
+    await two.moveBy(const Offset(10, 0));
+    await one.up();
+    await two.up();
+    await tester.pumpAndSettle();
+    final store = BrushColoringStore('gesture-regression');
+    expect(await store.load(), isEmpty);
+    await tester.tap(find.byKey(const Key('coloring-move-mode')));
+    await tester.pumpAndSettle();
+    await tester.dragFrom(point, const Offset(35, 20));
+    await tester.pumpAndSettle();
+    expect(await store.load(), isEmpty);
+    expect(find.text('이동 모드 · 색칠 멈춤'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
   test(
     '48 distinct colors, three widths and account-isolated persisted strokes',
     () async {

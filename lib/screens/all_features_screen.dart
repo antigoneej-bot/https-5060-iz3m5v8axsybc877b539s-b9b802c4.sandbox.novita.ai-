@@ -24,7 +24,7 @@ import 'day_close_screen.dart';
 import 'bubble_garden_screen.dart';
 import 'emotion_statistics_screen.dart';
 import '../mongi/screens/mind_report_screen.dart';
-import '../mongi/screens/emotion_calendar_screen.dart';
+import 'emotion_archive_screen.dart';
 import '../mongi/screens/diary_screen.dart';
 import 'garden_memory_book_screen.dart';
 import 'care_journal_screen.dart';
@@ -240,7 +240,7 @@ class _AllFeaturesScreenState extends State<AllFeaturesScreen> {
       '감정 캘린더',
       '날짜별로 기록한 감정을 확인해요.',
       '기록과 돌아보기',
-      builder: (_) => const EmotionCalendarScreen(),
+      builder: (_) => const EmotionArchiveScreen(),
     ),
     _Feature(
       '감정 다이어리',

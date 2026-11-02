@@ -89,8 +89,9 @@ void main() {
           tester,
           find.byKey(const Key('garden-world-camera')),
         );
-        expect(ground.width, closeTo(overview.width, 1));
-        expect(ground.height, closeTo(overview.height, 1));
+        expect(ground.width, lessThanOrEqualTo(overview.width + 1));
+        expect(ground.height, lessThanOrEqualTo(overview.height + 1));
+        expect(ground.width / ground.height, closeTo(3, .01));
         expect(viewer.minScale, greaterThan(0));
         await tester.tap(find.byKey(const Key('garden-show-cat')));
         await tester.pumpAndSettle();
@@ -197,7 +198,9 @@ void main() {
       const Rect.fromLTWH(0, 0, 844, 390),
     );
     expect(find.byTooltip('보기 설정'), findsOneWidget);
-    final compactButton = tester.getSize(find.byKey(const ValueKey('storybook-plant')));
+    final compactButton = tester.getSize(
+      find.byKey(const ValueKey('storybook-plant')),
+    );
     expect(compactButton.height, inInclusiveRange(48, 58));
     expect(compactButton.width, lessThanOrEqualTo(90));
     await tester.tap(find.byKey(const ValueKey('storybook-decorate')));
@@ -218,9 +221,14 @@ void main() {
     await tester.pumpAndSettle();
     const dest = String.fromEnvironment('GARDEN57_CAPTURE');
     if (dest.isNotEmpty) {
-      final providers = tester.widgetList<Image>(find.byType(Image)).map((w) => w.image).toList();
+      final providers = tester
+          .widgetList<Image>(find.byType(Image))
+          .map((w) => w.image)
+          .toList();
       await tester.runAsync(() async {
-        for (final provider in providers) { await precacheImage(provider, boundary.currentContext!); }
+        for (final provider in providers) {
+          await precacheImage(provider, boundary.currentContext!);
+        }
       });
       await tester.pumpAndSettle();
       for (final family in ['GowunDodum', 'GamjaFlower']) {

@@ -13,6 +13,16 @@ class GardenLayout {
     ...GardenDecoration.all.map((d) => 'decor:${d.id}'),
   ];
   static Offset defaultPosition(String id) {
+    const added = <String, Offset>{
+      'decor:daisy_pot': Offset(0.45, 0.52),
+      'decor:tulip_pot': Offset(0.5, 0.52),
+      'decor:sunflower_pot': Offset(0.55, 0.52),
+      'decor:cat_cushion': Offset(0.44, 0.59),
+      'decor:moon_lamp': Offset(0.5, 0.59),
+      'decor:bird_house': Offset(0.56, 0.59),
+    };
+    if (added.containsKey(id)) return added[id]!;
+
     final index = itemIds.indexOf(id);
     if (index < 0) throw ArgumentError.value(id);
     // Keep the companion's home (x=.5, y=395/800) visible behind mature crowns.

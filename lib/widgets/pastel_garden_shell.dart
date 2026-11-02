@@ -39,6 +39,7 @@ enum PastelAction {
   bath,
   clean,
   calendar,
+  emotionArchive,
   memoryBook,
   dataSafety,
 }
@@ -138,9 +139,7 @@ class _PastelGardenShellState extends State<PastelGardenShell> {
     coat: widget.coat,
     growthStage: widget.companionStage,
     child: CompanionPresence(
-      enabled:
-          widget.companionAutomaticBehavior &&
-          _index == 2,
+      enabled: widget.companionAutomaticBehavior && _index == 2,
       resting: resting,
     ),
   );
@@ -824,6 +823,7 @@ class _PastelGardenShellState extends State<PastelGardenShell> {
         _StoryEntry('편지 기록', 20, PastelAction.records),
         _StoryEntry('감정 통계', 21, PastelAction.comic),
         _StoryEntry('감정 캘린더', 22, PastelAction.calendar),
+        _StoryEntry('감정 고양이 보관함', 20, PastelAction.emotionArchive),
       ],
       '수집·보관': [
         _StoryEntry('정원 기록집', 18, PastelAction.memoryBook),
@@ -867,7 +867,7 @@ class _PastelGardenShellState extends State<PastelGardenShell> {
         if (group.key == '지난 기록' && _query.isEmpty && !large) ...[
           _recordPair(group.value.take(2).toList()),
           const SizedBox(height: 8),
-          _row(group.value.last),
+          for (final entry in group.value.skip(2)) _row(entry),
         ] else
           for (final entry in group.value.where(
             (entry) => entry.label.contains(_query),
@@ -927,9 +927,7 @@ class _PastelGardenShellState extends State<PastelGardenShell> {
             child: PageView.builder(
               key: const Key('main-pastel-pager'),
               controller: _pages,
-              physics: _index == 1 && widget.actualGarden != null
-                  ? const NeverScrollableScrollPhysics()
-                  : null,
+              physics: const PageScrollPhysics(),
               onPageChanged: (index) {
                 FocusManager.instance.primaryFocus?.unfocus();
                 setState(() => _index = index);

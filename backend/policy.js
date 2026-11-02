@@ -16,6 +16,7 @@ export const KNOWN_DECORATION_IDS = new Set([
   'bench', 'path', 'fountain', 'lantern', 'rainbow_fence', 'star_light',
   'wind_chime', 'butterfly_garden', 'gazebo', 'lotus_pond', 'jangdokdae',
   'ginkgo_path', 'hanok_lantern',
+  'daisy_pot', 'tulip_pot', 'sunflower_pot', 'cat_cushion', 'moon_lamp', 'bird_house',
 ]);
 
 // 응원을 보낼 때 고를 수 있는 큐레이션된 문구 개수. 실제 문구는 Flutter

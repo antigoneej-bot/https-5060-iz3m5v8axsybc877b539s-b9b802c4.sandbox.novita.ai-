@@ -96,9 +96,11 @@ class GardenPlantList extends StatefulWidget {
     required this.onLocate,
     required this.onWater,
     required this.onMemory,
+    this.onMove,
   });
   final MongiGardenData data;
   final ValueChanged<SeedType> onLocate, onMemory;
+  final ValueChanged<SeedType>? onMove;
   final Future<bool> Function(String) onWater;
   @override
   State<GardenPlantList> createState() => _GardenPlantListState();
@@ -181,6 +183,15 @@ class _GardenPlantListState extends State<GardenPlantList> {
                             icon: const Icon(Icons.my_location),
                             label: const Text('위치 보기'),
                           ),
+                          if (widget.onMove != null)
+                            TextButton.icon(
+                              key: ValueKey('move-button-${seed.id}'),
+                              onPressed: _busy.contains(seed.id)
+                                  ? null
+                                  : () => widget.onMove!(seed),
+                              icon: const Icon(Icons.open_with),
+                              label: const Text('위치 옮기기'),
+                            ),
                           TextButton.icon(
                             key: ValueKey('water-${seed.id}'),
                             onPressed:

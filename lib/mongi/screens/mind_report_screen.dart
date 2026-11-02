@@ -16,7 +16,7 @@ import '../providers/garden_provider.dart';
 import '../services/emotion_insight_service.dart';
 import '../services/mind_reflection_service.dart';
 import 'diary_screen.dart';
-import 'emotion_calendar_screen.dart';
+import '../../screens/emotion_archive_screen.dart';
 import '../../screens/memory_cards_screen.dart';
 import 'gratitude_log_screen.dart';
 import 'mental_health_support_screen.dart';
@@ -421,8 +421,7 @@ class _MoodTrendSummaryCard extends StatelessWidget {
   }
 }
 
-/// 요일별 마음 패턴 요약 카드 - [EmotionCalendarScreen]의 "요일별 마음 흐름"
-/// 섹션 미리보기. 탭하면 감정 캘린더로 이동해 전체 차트를 볼 수 있다.
+/// 요일별 마음 패턴 요약. 탭하면 감정 고양이 캘린더에서 원래 기록을 확인한다.
 class _WeekdayPatternCard extends StatelessWidget {
   final WeekdayEmotionPattern pattern;
 
@@ -433,9 +432,9 @@ class _WeekdayPatternCard extends StatelessWidget {
     final l10n = AppLocalizations.of(context);
     return _ReportCardShell(
       onTap: () {
-        Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const EmotionCalendarScreen()),
-        );
+        Navigator.of(
+          context,
+        ).push(MaterialPageRoute(builder: (_) => const EmotionArchiveScreen()));
       },
       accentColor: const Color(0xFF8CA88C),
       emoji: '📅',
@@ -641,8 +640,12 @@ class _CollectionSummaryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _MiniCardShell(
-      onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const MemoryCardsScreen())),
-      accentColor: const Color(0xFF8B6BB5), emoji: '🃏', title: '마음냥 추억 카드',
+      onTap: () => Navigator.of(
+        context,
+      ).push(MaterialPageRoute(builder: (_) => const MemoryCardsScreen())),
+      accentColor: const Color(0xFF8B6BB5),
+      emoji: '🃏',
+      title: '마음냥 추억 카드',
       child: const Text('특별한 장면을 모으고\n이웃과 교환·자랑해요.'),
     );
   }

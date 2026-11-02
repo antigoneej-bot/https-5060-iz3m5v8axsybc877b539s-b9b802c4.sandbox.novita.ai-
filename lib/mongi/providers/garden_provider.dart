@@ -1953,31 +1953,43 @@ class GardenProvider extends ChangeNotifier {
   /// [mission] 보상을 수령한다. 아직 목표를 달성하지 못했거나 이미 수령했으면
   /// false를 반환하고 아무 것도 지급하지 않는다.
   Future<bool> claimDailyMission(DailyMissionDef mission) async {
-    if (!isDailyMissionAchieved(mission)) return false;
-    final claimed = await _storage.claimDailyMission(mission.id);
-    if (!claimed) return false;
-    dailyMissionClaimed = _storage.dailyMissionClaimed;
-    if (mission.rewardLightEssence > 0) {
-      await _storage.addLightEssence(mission.rewardLightEssence);
-      lightEssence = _storage.lightEssence;
-    }
+    final canonical = DailyMission.all.firstWhere((m) => m.id == mission.id);
+    final result = await MongiGardenStore.instance.commitSession(
+      SessionTransaction.newId(),
+      () async {
+        await _storage.refreshDailyMissionsIfNeeded();
+        if ((_storage.dailyMissionProgress[canonical.id] ?? 0) <
+                canonical.target ||
+            !await _storage.claimDailyMission(canonical.id))
+          return {'claimed': false};
+        await _storage.addLightEssence(canonical.rewardLightEssence);
+        return {'claimed': true};
+      },
+    );
+    _loadFromStorage();
     notifyListeners();
-    return true;
+    return result['claimed'] == true;
   }
 
-  /// 오늘의 올클리어 보너스(빛의 정수 + 별조각)를 수령한다. 3개 미션을 모두
-  /// 수령하지 않았거나 이미 받았으면 false를 반환한다.
+  /// Receipt and all currencies are committed together, including retry recovery.
   Future<bool> claimDailyMissionAllClearBonus() async {
-    if (!_canClaimAllClearBonus) return false;
-    final claimed = await _storage.claimDailyMissionAllClearBonus();
-    if (!claimed) return false;
-    dailyMissionAllClearClaimed = true;
-    await _storage.addLightEssence(DailyMission.allClearBonusLightEssence);
-    await _storage.addStarShard(DailyMission.allClearBonusStarShard);
-    lightEssence = _storage.lightEssence;
-    starShard = _storage.starShard;
+    final result = await MongiGardenStore.instance.commitSession(
+      SessionTransaction.newId(),
+      () async {
+        await _storage.refreshDailyMissionsIfNeeded();
+        if (!DailyMission.all.every(
+              (m) => _storage.dailyMissionClaimed.contains(m.id),
+            ) ||
+            !await _storage.claimDailyMissionAllClearBonus())
+          return {'claimed': false};
+        await _storage.addLightEssence(DailyMission.allClearBonusLightEssence);
+        await _storage.addStarShard(DailyMission.allClearBonusStarShard);
+        return {'claimed': true};
+      },
+    );
+    _loadFromStorage();
     notifyListeners();
-    return true;
+    return result['claimed'] == true;
   }
 
   /// 몽이의 성장나무가 마지막 단계(열매)에 도달했을 때 나오는 "성장 마일스톤

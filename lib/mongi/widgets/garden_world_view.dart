@@ -1,3 +1,4 @@
+import 'garden_basic_item_art.dart';
 import 'garden_planting_hints.dart';
 import 'storybook_garden.dart';
 import '../../models/cat_visit.dart';
@@ -60,6 +61,7 @@ class GardenWorldView extends StatefulWidget {
   final VoidCallback onPlant, onDecorate;
   final Future<bool> Function(String id)? onWater;
   final bool preview;
+  final bool cameraGestures;
 
   /// Fill the available phone canvas; hide optional chrome until requested.
   final bool fillViewport;
@@ -71,11 +73,13 @@ class GardenWorldView extends StatefulWidget {
   final Map<String, String> wateredOn;
   final bool cultivationMode, wateringRequested;
   final SeedType? placementSeed;
+  final int placementCount;
   final Offset? placementPoint;
   final ValueChanged<Offset>? onPlacementPoint;
   const GardenWorldView({
     super.key,
     this.preview = false,
+    this.cameraGestures = true,
     this.fillViewport = false,
     this.overviewRequested = false,
     this.immersive = false,
@@ -86,6 +90,7 @@ class GardenWorldView extends StatefulWidget {
     this.cultivationMode = false,
     this.wateringRequested = false,
     this.placementSeed,
+    this.placementCount = 1,
     this.placementPoint,
     this.onPlacementPoint,
     this.onWater,
@@ -166,6 +171,7 @@ class _GardenWorldViewState extends State<GardenWorldView>
                           setState(() {
                             _zone = zone;
                             _overview = false;
+                            _viewport = Size.zero;
                           });
                           _jump((zone + .5) / 3);
                         }
@@ -391,6 +397,7 @@ class _GardenWorldViewState extends State<GardenWorldView>
       // Begin choosing on the original central lawn; preserve all saved positions.
       _focusX = .5;
       _overview = false;
+      _viewport = Size.zero;
       _wateringMode = false;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _jump(.5, scale: _minScale);
@@ -403,6 +410,7 @@ class _GardenWorldViewState extends State<GardenWorldView>
         final point = widget.layout.position(id);
         _focusX = point.dx;
         _overview = false;
+        _viewport = Size.zero;
         _highlightPlant = id;
         _highlightTimer?.cancel();
         _highlightTimer = Timer(const Duration(seconds: 3), () {
@@ -428,6 +436,7 @@ class _GardenWorldViewState extends State<GardenWorldView>
     }
     if (widget.overviewRequested != oldWidget.overviewRequested) {
       _overview = widget.overviewRequested;
+      _viewport = Size.zero;
     }
     if (widget.wateringRequested != oldWidget.wateringRequested) {
       _wateringMode = widget.wateringRequested;
@@ -452,14 +461,18 @@ class _GardenWorldViewState extends State<GardenWorldView>
       _minScale,
       _minScale * 2.5,
     );
-    final dx = (_viewport.width / 2 - x * 2400 * s).clamp(
-      math.min(0.0, _viewport.width - 2400 * s),
-      0.0,
-    );
-    final dy = (_viewport.height / 2 - y * 800 * s).clamp(
-      math.min(0.0, _viewport.height - 800 * s),
-      0.0,
-    );
+    final dx = 2400 * s < _viewport.width
+        ? (_viewport.width - 2400 * s) / 2
+        : (_viewport.width / 2 - x * 2400 * s).clamp(
+            math.min(0.0, _viewport.width - 2400 * s),
+            0.0,
+          );
+    final dy = 800 * s < _viewport.height
+        ? (_viewport.height - 800 * s) / 2
+        : (_viewport.height / 2 - y * 800 * s).clamp(
+            math.min(0.0, _viewport.height - 800 * s),
+            0.0,
+          );
     _camera.value = Matrix4.diagonal3Values(s, s, s)
       ..setTranslationRaw(dx.toDouble(), dy.toDouble(), 0);
   }
@@ -631,7 +644,10 @@ class _GardenWorldViewState extends State<GardenWorldView>
                     ),
                     TextButton.icon(
                       key: const Key('garden-show-all'),
-                      onPressed: () => setState(() => _overview = true),
+                      onPressed: () => setState(() {
+                        _overview = true;
+                        _viewport = Size.zero;
+                      }),
                       icon: const Icon(Icons.panorama_outlined),
                       label: const Text('정원 전체'),
                     ),
@@ -782,7 +798,10 @@ class _GardenWorldViewState extends State<GardenWorldView>
               Icons.panorama_outlined,
               const Color(0xFFE8EDD7),
               () {
-                setState(() => _overview = !_overview);
+                setState(() {
+                  _overview = !_overview;
+                  _viewport = Size.zero;
+                });
                 _jump(.5, scale: _minScale);
               },
             ),
@@ -1168,7 +1187,7 @@ class _GardenWorldViewState extends State<GardenWorldView>
   );
 
   Widget _canvas(BuildContext context) => _GardenViewportFrame(
-    fill: (widget.immersive || widget.fillViewport) && !_overview,
+    fill: widget.immersive || widget.fillViewport,
     aspectRatio: widget.preview ? 2.35 : (_overview ? 3 : 1.25),
     child: LayoutBuilder(
       key: const Key('garden-canvas'),
@@ -1176,7 +1195,9 @@ class _GardenWorldViewState extends State<GardenWorldView>
         final size = box.biggest;
         if (size != _viewport) {
           _viewport = size;
-          _minScale = math.max(size.width / 2400, size.height / 800);
+          _minScale = _overview
+              ? math.min(size.width / 2400, size.height / 800)
+              : math.max(size.width / 2400, size.height / 800);
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (mounted) {
               _jump(
@@ -1201,6 +1222,8 @@ class _GardenWorldViewState extends State<GardenWorldView>
         return ClipRect(
           child: InteractiveViewer(
             key: const Key('garden-world-camera'),
+            panEnabled: widget.cameraGestures,
+            scaleEnabled: widget.cameraGestures,
             transformationController: _camera,
             constrained: false,
             alignment: Alignment.topLeft,
@@ -1908,7 +1931,9 @@ class _GardenWorldViewState extends State<GardenWorldView>
   Widget _placementPreview() {
     final point = widget.placementPoint!;
     final seed = widget.placementSeed!;
-    final width = seed.worldArtSize(1) * GardenLayout.depthAt(point.dy);
+    final width =
+        seed.worldArtSize(widget.placementCount.toDouble()) *
+        GardenLayout.depthAt(point.dy);
     return Positioned(
       key: const Key('plant-location-preview'),
       left: point.dx * 2400 - width / 2,
@@ -1918,7 +1943,11 @@ class _GardenWorldViewState extends State<GardenWorldView>
       child: IgnorePointer(
         child: Opacity(
           opacity: .6,
-          child: GardenPlantArt(seed: seed, count: 1, night: _night),
+          child: GardenPlantArt(
+            seed: seed,
+            count: widget.placementCount,
+            night: _night,
+          ),
         ),
       ),
     );
@@ -2009,6 +2038,11 @@ class _GardenWorldViewState extends State<GardenWorldView>
                                   fit: BoxFit.fill,
                                   excludeFromSemantics: true,
                                 ),
+                              )
+                            : GardenBasicItemArt.ids.contains(decoration.id)
+                            ? GardenBasicItemArt(
+                                id: decoration.id,
+                                night: _night,
                               )
                             : Icon(
                                 _decorationIcon(decoration.id),
@@ -2121,6 +2155,12 @@ IconData _decorationIcon(String id) => switch (id) {
   'lantern' || 'hanok_lantern' => Icons.light_outlined,
   'rainbow_fence' => Icons.fence,
   'star_light' => Icons.auto_awesome,
+  'daisy_pot' => Icons.local_florist,
+  'tulip_pot' => Icons.local_florist_outlined,
+  'sunflower_pot' => Icons.wb_sunny,
+  'cat_cushion' => Icons.bed,
+  'moon_lamp' => Icons.nightlight_round,
+  'bird_house' => Icons.cottage_outlined,
   'wind_chime' => Icons.notifications_none,
   'butterfly_garden' => Icons.flutter_dash,
   'gazebo' => Icons.holiday_village_outlined,

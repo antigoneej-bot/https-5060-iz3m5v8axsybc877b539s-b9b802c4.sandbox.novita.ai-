@@ -2,7 +2,7 @@ name: flutter_app
 description: "마음냥 정원 - 고양이와 함께하는 마음 기록"
 publish_to: 'none'
 
-version: 1.0.73+76
+version: 1.0.74+77
 
 environment:
   sdk: ^3.9.2

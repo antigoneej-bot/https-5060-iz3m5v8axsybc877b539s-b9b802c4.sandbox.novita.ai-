@@ -5,7 +5,7 @@ import '../../theme.dart' show AppColors;
 import '../providers/garden_provider.dart';
 import '../widgets/garden_growth_share_sheet.dart';
 import '../screens/diary_screen.dart';
-import '../screens/emotion_calendar_screen.dart';
+import '../../screens/emotion_archive_screen.dart';
 import '../../screens/memory_cards_screen.dart';
 import '../screens/growth_milestone_screen.dart';
 import '../screens/mind_report_screen.dart';
@@ -116,7 +116,15 @@ class _GardenActivitySheet extends StatelessWidget {
               ),
             ),
             const Divider(height: 1),
-            _tile(context, emoji: '🌱', title: '기억의 나무', subtitle: '사랑·용서·평화의 씨앗에 날짜와 이야기를 심어요', onTap: () => Navigator.of(navigationContext).push(MaterialPageRoute(builder: (_) => const KeepsakeForestScreen()))),
+            _tile(
+              context,
+              emoji: '🌱',
+              title: '기억의 나무',
+              subtitle: '사랑·용서·평화의 씨앗에 날짜와 이야기를 심어요',
+              onTap: () => Navigator.of(navigationContext).push(
+                MaterialPageRoute(builder: (_) => const KeepsakeForestScreen()),
+              ),
+            ),
             _tile(
               context,
               emoji: '📚',
@@ -163,9 +171,7 @@ class _GardenActivitySheet extends StatelessWidget {
               title: '추억 카드',
               subtitle: '특별한 고양이 카드를 수집·교환하고 자랑해요',
               onTap: () => Navigator.of(navigationContext).push(
-                MaterialPageRoute(
-                  builder: (_) => const MemoryCardsScreen(),
-                ),
+                MaterialPageRoute(builder: (_) => const MemoryCardsScreen()),
               ),
             ),
             if (garden.isTreeFullyGrown)
@@ -199,9 +205,7 @@ class _GardenActivitySheet extends StatelessWidget {
               title: '감정 캘린더',
               subtitle: '한 달간 마주한 감정을 히트맵으로 보기',
               onTap: () => Navigator.of(navigationContext).push(
-                MaterialPageRoute(
-                  builder: (_) => const EmotionCalendarScreen(),
-                ),
+                MaterialPageRoute(builder: (_) => const EmotionArchiveScreen()),
               ),
             ),
             _tile(

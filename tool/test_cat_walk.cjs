@@ -32,3 +32,16 @@ console.log('PASS: hidden treasure claim; food consumption; double-click guard; 
 console.log('PASS: pickup totals, duplicate guard, special pause/release, result, reset, 60-second walk with no emotions');
 console.log('PASS: all 37 emotion mappings; mood-aware varied lines; nickname/polite/blank; dialogue cooldown; uninterrupted walking;');
 console.log('PASS: uninterrupted emotion pickup and jumping; special discovery pause; 3 emotion reactions; pause/resume; 3 discoveries; postcard with/without emotions; reset');`,sandbox)});
+
+vm.runInContext(`
+for(let lane=0;lane<4;lane++){
+ const b=makeTreasure('joyful',lane), start=b.x;
+ if(lane===0 && b.y!==ground-240)throw Error('upper entry missing');
+ if(lane===1 && b.y!==ground+50)throw Error('lower entry missing');
+ moveTreasure(b,.1);
+ if(Math.abs(start-b.x-32)>1e-6)throw Error('new speed incorrect');
+ b.x=catX+25;moveTreasure(b,0);
+ if(b.y!==b.targetY || b.y<ground-140 || b.y>ground-50)throw Error('unreachable treasure');
+}
+console.log('PASS: four treasure paths, increased speed, reachable pickup height');
+`,sandbox);

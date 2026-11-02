@@ -30,6 +30,8 @@ class _ColoringHealingScreenState extends State<ColoringHealingScreen> {
   List<ColoringStroke> strokes = [], redo = [];
   ColoringStroke? active;
   int? pointer;
+  final _touches = <int>{};
+  bool _multiTouch = false;
   Color selected = coloringPalette.first;
   final recent = <Color>[];
   int brush = 1;
@@ -88,6 +90,12 @@ class _ColoringHealingScreenState extends State<ColoringHealingScreen> {
     if (mounted)
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
   }
+
+  void setMoving(bool value) => setState(() {
+    active = null;
+    pointer = null;
+    moving = value;
+  });
 
   void choose(Color color) => setState(() {
     selected = color;
@@ -355,7 +363,7 @@ class _ColoringHealingScreenState extends State<ColoringHealingScreen> {
           constrained: false,
           transformationController: transform,
           panEnabled: moving,
-          scaleEnabled: moving,
+          scaleEnabled: true,
           minScale: minimum,
           maxScale: math.max(3, minimum * 8),
           boundaryMargin: const EdgeInsets.all(1536),
@@ -363,33 +371,39 @@ class _ColoringHealingScreenState extends State<ColoringHealingScreen> {
             width: 1024,
             height: 1536,
             child: Listener(
-              onPointerDown: !moving
-                  ? (e) {
-                      if (pointer != null) return;
-                      pointer = e.pointer;
-                      begin(e.localPosition, const Size(1024, 1536));
-                    }
-                  : null,
-              onPointerMove: !moving
-                  ? (e) {
-                      if (pointer == e.pointer)
-                        move(e.localPosition, const Size(1024, 1536));
-                    }
-                  : null,
-              onPointerUp: !moving
-                  ? (e) {
-                      if (pointer == e.pointer) {
-                        pointer = null;
-                        end();
-                      }
-                    }
-                  : null,
-              onPointerCancel: (e) {
-                if (pointer == e.pointer)
+              onPointerDown: (e) {
+                _touches.add(e.pointer);
+                if (_touches.length > 1) {
                   setState(() {
+                    _multiTouch = true;
                     active = null;
                     pointer = null;
                   });
+                  return;
+                }
+                if (moving || _multiTouch) return;
+                pointer = e.pointer;
+                begin(e.localPosition, const Size(1024, 1536));
+              },
+              onPointerMove: (e) {
+                if (!moving && !_multiTouch && pointer == e.pointer)
+                  move(e.localPosition, const Size(1024, 1536));
+              },
+              onPointerUp: (e) {
+                _touches.remove(e.pointer);
+                if (!moving && !_multiTouch && pointer == e.pointer) {
+                  pointer = null;
+                  end();
+                }
+                if (_touches.isEmpty) setState(() => _multiTouch = false);
+              },
+              onPointerCancel: (e) {
+                _touches.remove(e.pointer);
+                setState(() {
+                  active = null;
+                  pointer = null;
+                  if (_touches.isEmpty) _multiTouch = false;
+                });
               },
               child: GestureDetector(
                 onPanStart: !moving ? (_) {} : null,
@@ -578,16 +592,16 @@ class _ColoringHealingScreenState extends State<ColoringHealingScreen> {
         icon: const Icon(Icons.fit_screen),
       ),
       FilterChip(
-        label: Text(moving ? '이동 중' : '확대·이동'),
+        key: const Key('coloring-move-mode'),
+        label: Text(moving ? '이동 모드 · 색칠 멈춤' : '색칠 중 · 이동으로 전환'),
         selected: moving,
-        onSelected: editable ? (v) => setState(() => moving = v) : null,
+        onSelected: editable ? setMoving : null,
       ),
-      if (fullscreen)
-        IconButton(
-          tooltip: toolsOpen ? '색칠 도구 접기' : '색칠 도구 펼치기',
-          onPressed: () => setState(() => toolsOpen = !toolsOpen),
-          icon: const Icon(Icons.palette_outlined),
-        ),
+      IconButton(
+        tooltip: toolsOpen ? '색칠 도구 접기' : '색칠 도구 펼치기',
+        onPressed: () => setState(() => toolsOpen = !toolsOpen),
+        icon: const Icon(Icons.palette_outlined),
+      ),
     ],
   );
   @override
@@ -671,17 +685,19 @@ class _ColoringHealingScreenState extends State<ColoringHealingScreen> {
                           ? Row(
                               children: [
                                 Expanded(child: canvas),
-                                SizedBox(width: 280, child: paintTools()),
+                                if (toolsOpen)
+                                  SizedBox(width: 280, child: paintTools()),
                               ],
                             )
                           : Column(
                               children: [
                                 Expanded(child: canvas),
-                                SizedBox(
-                                  height:
-                                      MediaQuery.sizeOf(context).height * .32,
-                                  child: paintTools(),
-                                ),
+                                if (toolsOpen)
+                                  SizedBox(
+                                    height:
+                                        MediaQuery.sizeOf(context).height * .32,
+                                    child: paintTools(),
+                                  ),
                               ],
                             ),
                     ),
