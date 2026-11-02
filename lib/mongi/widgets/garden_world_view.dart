@@ -1,3 +1,4 @@
+import 'garden_planting_hints.dart';
 import 'storybook_garden.dart';
 import '../../models/cat_visit.dart';
 import '../../models/companion_coat.dart';
@@ -1226,7 +1227,7 @@ class _GardenWorldViewState extends State<GardenWorldView>
                     Positioned.fill(
                       child: widget.originalScenery
                           ? Image.asset(
-                              'assets/living_garden/${_night ? 'world_night' : 'world_day'}.webp',
+                              'assets/living_garden/cultivation_${_night ? 'night' : 'day'}.png',
                               key: const Key('original-garden-backdrop'),
                               fit: BoxFit.fill,
                               excludeFromSemantics: true,
@@ -1251,6 +1252,7 @@ class _GardenWorldViewState extends State<GardenWorldView>
                                     _air,
                                     _night,
                                     daylight: _daylight,
+                                    openLawn: true,
                                   )
                                 : StorybookAtmosphere(_air, _night),
                           ),
@@ -1263,11 +1265,27 @@ class _GardenWorldViewState extends State<GardenWorldView>
                           child: CustomPaint(painter: _GroundGrid()),
                         ),
                       ),
-                    if (widget.placementSeed != null)
+                    if (widget.placementSeed != null && !widget.readOnly)
                       Positioned.fill(
                         child: IgnorePointer(
                           child: CustomPaint(
-                            painter: _PlantingGround(widget.layout),
+                            key: const Key('planting-available-hints'),
+                            painter: GardenPlantingHints(
+                              points: widget.layout.plantingHints(
+                                'seed:${widget.placementSeed!.id}',
+                                _items,
+                              ),
+                              selected: widget.placementPoint,
+                              validSelection:
+                                  widget.placementPoint != null &&
+                                  widget.layout.placementError(
+                                        'seed:${widget.placementSeed!.id}',
+                                        widget.placementPoint!,
+                                        _items,
+                                      ) ==
+                                      null,
+                              night: _night,
+                            ),
                           ),
                         ),
                       ),
@@ -1332,23 +1350,15 @@ class _GardenWorldViewState extends State<GardenWorldView>
                       ),
                     _sceneLayer(sorted),
                     if (widget.placementSeed != null &&
-                        widget.placementPoint != null)
-                      Positioned(
-                        key: const Key('plant-location-preview'),
-                        left: widget.placementPoint!.dx * 2400 - 60,
-                        top: widget.placementPoint!.dy * 800 - 108,
-                        width: 120,
-                        height: 120,
-                        child: IgnorePointer(
-                          child: Opacity(
-                            opacity: .55,
-                            child: GardenPlantArt(
-                              seed: widget.placementSeed!,
-                              count: 1,
-                            ),
-                          ),
-                        ),
-                      ),
+                        widget.placementPoint != null &&
+                        !widget.readOnly &&
+                        widget.layout.placementError(
+                              'seed:${widget.placementSeed!.id}',
+                              widget.placementPoint!,
+                              _items,
+                            ) ==
+                            null)
+                      _placementPreview(),
                     if (!widget.originalScenery)
                       Positioned.fill(
                         child: StorybookForeground(
@@ -1895,6 +1905,25 @@ class _GardenWorldViewState extends State<GardenWorldView>
     );
   }
 
+  Widget _placementPreview() {
+    final point = widget.placementPoint!;
+    final seed = widget.placementSeed!;
+    final width = seed.worldArtSize(1) * GardenLayout.depthAt(point.dy);
+    return Positioned(
+      key: const Key('plant-location-preview'),
+      left: point.dx * 2400 - width / 2,
+      top: point.dy * 800 - width * .90,
+      width: width,
+      height: width,
+      child: IgnorePointer(
+        child: Opacity(
+          opacity: .6,
+          child: GardenPlantArt(seed: seed, count: 1, night: _night),
+        ),
+      ),
+    );
+  }
+
   Widget _item(String id) {
     final p = widget.layout.position(id);
     final seed = id.startsWith('seed:') ? SeedType.byId(id.substring(5)) : null;
@@ -2115,39 +2144,4 @@ class _GardenViewportFrame extends StatelessWidget {
   Widget build(BuildContext context) => fill
       ? SizedBox.expand(child: child)
       : AspectRatio(aspectRatio: aspectRatio, child: child);
-}
-
-class _PlantingGround extends CustomPainter {
-  const _PlantingGround(this.layout);
-  final GardenLayout layout;
-  @override
-  void paint(Canvas canvas, Size size) {
-    for (var zone = 0; zone < 3; zone++) {
-      if (!layout.isOpen(zone)) continue;
-      final left = math.max(84.0, zone * 800.0);
-      final right = math.min(2316.0, (zone + 1) * 800.0);
-      final rect = Rect.fromLTRB(left, 416, right, 728);
-      canvas.drawRect(rect, Paint()..color = const Color(0x334CA56B));
-      canvas.drawRect(
-        rect,
-        Paint()
-          ..color = const Color(0xCCF8FFE6)
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 3,
-      );
-      for (var x = left + 80; x < right; x += 80) {
-        canvas.drawLine(
-          Offset(x, 416),
-          Offset(x, 728),
-          Paint()
-            ..color = const Color(0x55FFFFFF)
-            ..strokeWidth = 1,
-        );
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _PlantingGround old) =>
-      old.layout.spaces != layout.spaces;
 }

@@ -180,8 +180,8 @@ void main() {
     if (out == null) return;
     await t.runAsync(() async {
       for (final asset in [
-        'assets/living_garden/world_day.webp',
-        'assets/living_garden/world_night.webp',
+        'assets/living_garden/cultivation_day.png',
+        'assets/living_garden/cultivation_night.png',
         'assets/storybook_garden/panorama.png',
         'assets/storybook_garden/foreground.png',
         'assets/living_garden/plants.webp',
@@ -503,8 +503,8 @@ void main() {
         if (out == null) return;
         await t.runAsync(() async {
           for (final path in [
-            'assets/living_garden/world_day.webp',
-            'assets/living_garden/world_night.webp',
+            'assets/living_garden/cultivation_day.png',
+            'assets/living_garden/cultivation_night.png',
             'assets/storybook_garden/panorama.png',
             'assets/storybook_garden/foreground.png',
             'assets/living_garden/plants.webp',

@@ -85,8 +85,31 @@ class GardenLayout {
       p.dx <= .965 &&
       p.dy >= .52 &&
       p.dy <= .91;
+
+  /// The new background's pond is above the plantable lawn. This bound only
+  /// provides a specific message; saved placement validation is unchanged.
+  static const pondBounds = Rect.fromLTRB(.07, .30, .25, .49);
+
+  /// Sparse hints, not mandatory slots. Use the SAME validator as plantAt/move.
+  /// Arbitrary valid lawn positions remain available between these hints.
+  List<Offset> plantingHints(String id, Iterable<String> visible) {
+    final occupied = visible.toList(growable: false);
+    return [
+      for (var row = 0; row < 5; row++)
+        for (var col = 0; col < 16; col++)
+          if (placementError(
+                id,
+                Offset((120 + col * 144) / 2400, (438 + row * 66) / 800),
+                occupied,
+              ) ==
+              null)
+            Offset((120 + col * 144) / 2400, (438 + row * 66) / 800),
+    ];
+  }
+
   String? placementError(String id, Offset p, Iterable<String> visible) {
     if (!itemIds.contains(id)) return '알 수 없는 아이템이에요.';
+    if (pondBounds.contains(p)) return '연못에는 심을 수 없어요. 잔디를 골라 주세요.';
     if (!onGround(p) || visiblePosition(id, p) != p)
       return '다 자랄 공간이 있도록 잔디 안쪽을 골라 주세요.';
     if (!isOpen(spaceFor(p.dx))) return '아직 열리지 않은 공간이에요.';

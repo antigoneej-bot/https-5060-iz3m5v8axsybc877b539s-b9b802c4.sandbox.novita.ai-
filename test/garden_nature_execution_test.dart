@@ -65,7 +65,7 @@ void main() {
         );
         await t.runAsync(
           () => precacheImage(
-            AssetImage('assets/living_garden/world_${name}.webp'),
+            AssetImage('assets/living_garden/cultivation_$name.png'),
             key.currentContext!,
           ),
         );
@@ -78,6 +78,7 @@ void main() {
         final clock = atmosphere.animation! as AnimationController;
         expect(clock.isAnimating, true);
         expect(atmosphere.night, night);
+        expect(atmosphere.openLawn, isTrue);
         final start = clock.value;
         for (var i = 0; i < (output.isEmpty ? 2 : 75); i++) {
           await t.pump(const Duration(microseconds: 66667));

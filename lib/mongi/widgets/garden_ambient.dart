@@ -51,14 +51,19 @@ class GardenAtmosphere extends CustomPainter {
   final double phase;
   final Animation<double>? animation;
   final Animation<double>? daylight;
-  final bool night, panoramic;
-  GardenAtmosphere(this.phase, this.night, {this.panoramic = true})
-    : animation = null,
-      daylight = null;
+  final bool night, panoramic, openLawn;
+  GardenAtmosphere(
+    this.phase,
+    this.night, {
+    this.panoramic = true,
+    this.openLawn = false,
+  }) : animation = null,
+       daylight = null;
   GardenAtmosphere.animated(
     Animation<double> clock,
     this.night, {
     this.panoramic = true,
+    this.openLawn = false,
     this.daylight,
   }) : animation = clock,
        phase = 0,
@@ -81,7 +86,11 @@ class GardenAtmosphere extends CustomPainter {
       w,
       daylight == null ? t / (math.pi * 2) * 24 : daylight!.value * 10,
     );
-    _water(canvas, t);
+    if (openLawn && panoramic) {
+      _pond(canvas, t);
+    } else {
+      _water(canvas, t);
+    }
     _leaves(canvas, w, t);
     _sparkles(canvas, w, t);
     _visitors(canvas, w, t);
@@ -209,6 +218,30 @@ class GardenAtmosphere extends CustomPainter {
             ],
             stops: const [0, .25, .5, .75, 1],
           ).createShader(rect),
+      );
+    }
+    c.restore();
+  }
+
+  void _pond(Canvas c, double t) {
+    // Quiet ripples inside the new pond, not the old waterfall on the lawn.
+    c.save();
+    const bounds = Rect.fromLTWH(210, 283, 275, 45);
+    c.clipPath(Path()..addOval(bounds));
+    for (var i = 0; i < 7; i++) {
+      final q = (t / (math.pi * 2) + i / 7) % 1;
+      c.drawOval(
+        Rect.fromCenter(
+          center: const Offset(345, 306),
+          width: 30 + q * 250,
+          height: 4 + q * 38,
+        ),
+        Paint()
+          ..color = Colors.white.withValues(
+            alpha: math.sin(q * math.pi) * (night ? .15 : .26),
+          )
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.2,
       );
     }
     c.restore();
@@ -419,6 +452,7 @@ class GardenAtmosphere extends CustomPainter {
   @override
   bool shouldRepaint(covariant GardenAtmosphere old) =>
       old.phase != phase ||
+      old.openLawn != openLawn ||
       old.night != night ||
       old.panoramic != panoramic ||
       old.animation != animation;
@@ -502,7 +536,11 @@ class GardenCatArt extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final coat = selectedCompanionCoat(context);
-    if (resting) return CompanionLoafArt(coatIndex: coat?.index ?? 0, motionEnabled: loafMotion);
+    if (resting)
+      return CompanionLoafArt(
+        coatIndex: coat?.index ?? 0,
+        motionEnabled: loafMotion,
+      );
     if (coat != null) {
       return AnimatedBuilder(
         animation: animation,

@@ -351,7 +351,7 @@ class _GardenWorldScreenState extends State<GardenWorldScreen>
 
   String? get _placementError {
     if (_pendingSeed == null || _plantPoint == null)
-      return '정원의 빈 땅을 눌러 자리를 골라주세요.';
+      return '점선 자리나 주변의 빈 잔디를 눌러 심을 위치를 골라주세요.';
     final data = MongiGardenStore.instance.value;
     return _layout.value
         .placementError('seed:${_pendingSeed!.id}', _plantPoint!, [
