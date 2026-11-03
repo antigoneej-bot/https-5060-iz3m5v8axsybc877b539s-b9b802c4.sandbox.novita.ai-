@@ -187,7 +187,10 @@ void main() {
           currentAccount: () => 'alice',
         ),
       );
-      expect(service.calls, ['profile']);
+      // getProfile() and listNeighbors() are fetched concurrently (not
+      // sequentially), so both calls start immediately; only the still-
+      // pending profile future keeps the screen on its loading state.
+      expect(service.calls, ['profile', 'neighbors']);
       service.pendingProfile!.complete(profile);
       service.pendingProfile = null;
       await tester.pumpAndSettle();

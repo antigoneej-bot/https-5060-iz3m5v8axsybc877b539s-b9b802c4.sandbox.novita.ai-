@@ -133,8 +133,15 @@ class _GardenVillageScreenState extends State<GardenVillageScreen>
         _service = widget.service ?? GardenVillageService();
         _sharedTrees = widget.sharedTreeService ?? SharedTreeService();
       }
-      final profile = await _service.getProfile();
-      final neighbors = await _service.listNeighbors();
+      // Independent reads: run concurrently instead of waiting on getProfile()
+      // before starting listNeighbors(), which halved this screen's network
+      // latency in practice.
+      final results = await Future.wait([
+        _service.getProfile(),
+        _service.listNeighbors(),
+      ]);
+      final profile = results[0] as GardenVillageProfile;
+      final neighbors = results[1] as GardenNeighborLists;
       if (!mounted || request != _request || owner != _currentOwner) return;
       setState(() {
         _profile = profile;

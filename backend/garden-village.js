@@ -291,8 +291,12 @@ export async function removeNeighbor(db, uid, body) {
 export async function listNeighbors(db, uid) {
   const [links, blocks] = await Promise.all([db.collection(`users/${uid}/neighbors`).limit(200).get(), db.collection(`users/${uid}/blockedNeighbors`).limit(200).get()]);
   const result = {neighbors: [], incoming: [], outgoing: [], blocked: []};
-  for (const doc of links.docs) {
-    const card = await neighborCard(db, uid, doc.id);
+  // Each neighbor's card is an independent read (6 docs via readVillageAccess).
+  // Fetching them concurrently instead of one-by-one keeps this screen's
+  // latency roughly constant instead of scaling with the neighbor count.
+  // Promise.all preserves links.docs order, so result ordering is unchanged.
+  const cards = await Promise.all(links.docs.map(doc => neighborCard(db, uid, doc.id)));
+  for (const card of cards) {
     if (!card) continue;
     const key = {accepted: 'neighbors', incoming: 'incoming', outgoing: 'outgoing'}[card.status];
     if (key) result[key].push(card);
