@@ -42,7 +42,13 @@ class GardenVillageScreen extends StatefulWidget {
 }
 
 class _GardenVillageScreenState extends State<GardenVillageScreen>
-    with WidgetsBindingObserver {
+    with WidgetsBindingObserver, AutomaticKeepAliveClientMixin {
+  // Keeps this screen's State (and its cached _profile/_neighbors) alive
+  // while the parent PageView scrolls this tab off-screen, instead of
+  // disposing it on every tab switch and forcing a full reload on return.
+  @override
+  bool get wantKeepAlive => true;
+
   late GardenVillageService _service;
   late SharedTreeService _sharedTrees;
   bool _hasTreeActivity = false;
@@ -52,6 +58,10 @@ class _GardenVillageScreenState extends State<GardenVillageScreen>
   bool _loading = true, _needsAccount = false, _busy = false;
   String? _error, _owner;
   int _request = 0, _tab = 0;
+  // Tracks TickerMode transitions so a return visit (inactive -> active)
+  // with cached data already present can refresh quietly in the background
+  // instead of showing a loading spinner again.
+  bool? _tickerActive;
 
   String? get _currentOwner => widget.currentAccount != null
       ? widget.currentAccount!()
@@ -100,22 +110,47 @@ class _GardenVillageScreenState extends State<GardenVillageScreen>
   }
 
   @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed && _tab != 2) _load();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final active = TickerMode.of(context);
+    final wasActive = _tickerActive;
+    _tickerActive = active;
+    // Only react to an inactive -> active transition (tab re-entry), and
+    // only when we already have cached data to show while refreshing.
+    if (active && wasActive == false && _profile != null && _tab != 2) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _load(silent: true));
+    }
   }
 
-  Future<void> _load() async {
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && _tab != 2) {
+      _load(silent: _profile != null);
+    }
+  }
+
+  // [silent]: when true and cached data already exists, refresh in the
+  // background without clearing _profile/_neighbors or showing the
+  // full-screen spinner (stale-while-revalidate), so re-entering an
+  // already-loaded tab doesn't flash a reload every time.
+  Future<void> _load({bool silent = false}) async {
     if (!mounted) return;
+    final hadData = _profile != null;
+    silent = silent && hadData;
     final request = ++_request;
     final owner = _currentOwner;
-    setState(() {
-      _loading = true;
-      _needsAccount = false;
-      _error = null;
-      _profile = null;
-      _neighbors = null;
-      _hasTreeActivity = false;
-    });
+    if (silent) {
+      setState(() => _error = null);
+    } else {
+      setState(() {
+        _loading = true;
+        _needsAccount = false;
+        _error = null;
+        _profile = null;
+        _neighbors = null;
+        _hasTreeActivity = false;
+      });
+    }
     try {
       final ready =
           await (widget.accountReady?.call() ??
@@ -153,6 +188,12 @@ class _GardenVillageScreenState extends State<GardenVillageScreen>
       unawaited(_loadTreeBadge(request, owner));
     } catch (error) {
       if (!mounted || request != _request || owner != _currentOwner) return;
+      if (silent) {
+        // Keep showing the already-loaded (stale) content rather than
+        // replacing it with an error screen over a failed background
+        // refresh; the next pull-to-refresh or foreground event can retry.
+        return;
+      }
       setState(() {
         _error = error.toString();
         _loading = false;
@@ -299,56 +340,59 @@ class _GardenVillageScreenState extends State<GardenVillageScreen>
       name?.trim().isNotEmpty == true ? name!.trim() : '이웃';
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    backgroundColor: AppColors.bg0,
-    appBar: AppBar(
-      title: const Text('이웃'),
+  Widget build(BuildContext context) {
+    super.build(context);
+    return Scaffold(
       backgroundColor: AppColors.bg0,
-      actions: [
-        IconButton(
-          tooltip: '정원 공개와 받기 설정',
-          onPressed: _settings,
-          icon: const Icon(Icons.tune),
-        ),
-      ],
-      bottom: PreferredSize(
-        preferredSize: const Size.fromHeight(52),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
-          child: SizedBox(
-            width: double.infinity,
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: SegmentedButton<int>(
-                segments: const [
-                  ButtonSegment(value: 0, label: Text('내 이웃')),
-                  ButtonSegment(value: 3, label: Text('신청')),
-                  ButtonSegment(value: 2, label: Text('선물함')),
-                  ButtonSegment(value: 1, label: Text('찾기')),
-                ],
-                selected: {_tab},
-                showSelectedIcon: false,
-                onSelectionChanged: (value) {
-                  setState(() => _tab = value.first);
-                  if (_tab == 0 || _tab == 3 || _tab == 1) _load();
-                },
+      appBar: AppBar(
+        title: const Text('이웃'),
+        backgroundColor: AppColors.bg0,
+        actions: [
+          IconButton(
+            tooltip: '정원 공개와 받기 설정',
+            onPressed: _settings,
+            icon: const Icon(Icons.tune),
+          ),
+        ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(52),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+            child: SizedBox(
+              width: double.infinity,
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: SegmentedButton<int>(
+                  segments: const [
+                    ButtonSegment(value: 0, label: Text('내 이웃')),
+                    ButtonSegment(value: 3, label: Text('신청')),
+                    ButtonSegment(value: 2, label: Text('선물함')),
+                    ButtonSegment(value: 1, label: Text('찾기')),
+                  ],
+                  selected: {_tab},
+                  showSelectedIcon: false,
+                  onSelectionChanged: (value) {
+                    setState(() => _tab = value.first);
+                    if (_tab == 0 || _tab == 3 || _tab == 1) _load();
+                  },
+                ),
               ),
             ),
           ),
         ),
       ),
-    ),
-    body: _tab == 2
-        ? PublicGardenInboxScreen(
-            key: ValueKey('inbox:$_owner'),
-            embedded: true,
-            initialFilter: widget.inboxFilter,
-            service: widget.service,
-            accountReady: widget.accountReady,
-            currentAccount: widget.currentAccount,
-          )
-        : RefreshIndicator(onRefresh: _load, child: _body()),
-  );
+      body: _tab == 2
+          ? PublicGardenInboxScreen(
+              key: ValueKey('inbox:$_owner'),
+              embedded: true,
+              initialFilter: widget.inboxFilter,
+              service: widget.service,
+              accountReady: widget.accountReady,
+              currentAccount: widget.currentAccount,
+            )
+          : RefreshIndicator(onRefresh: _load, child: _body()),
+    );
+  }
 
   Widget _body() {
     if (_loading) return const Center(child: CircularProgressIndicator());

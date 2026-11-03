@@ -129,6 +129,37 @@ class _Garden extends GardenProvider {
   }
 }
 
+/// Lets a test flip [TickerMode.enabled] above a child, simulating a
+/// PageView-hosted tab becoming inactive (scrolled away) and active again
+/// (scrolled back / re-entered) without rebuilding the whole widget tree.
+class _TickerToggle extends StatefulWidget {
+  const _TickerToggle({required this.enabled, required this.child});
+  final ValueNotifier<bool> enabled;
+  final Widget child;
+  @override
+  State<_TickerToggle> createState() => _TickerToggleState();
+}
+
+class _TickerToggleState extends State<_TickerToggle> {
+  @override
+  void initState() {
+    super.initState();
+    widget.enabled.addListener(_onChange);
+  }
+
+  void _onChange() => setState(() {});
+
+  @override
+  void dispose() {
+    widget.enabled.removeListener(_onChange);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) =>
+      TickerMode(enabled: widget.enabled.value, child: widget.child);
+}
+
 Future<void> _app(WidgetTester tester, Widget child, {_Garden? garden}) async {
   tester.view.physicalSize = const Size(360, 800);
   tester.view.devicePixelRatio = 1;
@@ -277,6 +308,45 @@ void main() {
     expect(find.text('간편 로그인'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets(
+    'returning to an already-loaded tab refreshes silently without a spinner',
+    (tester) async {
+      final service = _Village();
+      final active = ValueNotifier<bool>(true);
+      addTearDown(active.dispose);
+      await _app(
+        tester,
+        _TickerToggle(
+          enabled: active,
+          child: GardenVillageScreen(
+            service: service,
+            accountReady: () async => true,
+            currentAccount: () => 'alice',
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(service.calls, ['profile', 'neighbors']);
+      expect(find.text('ABCD12345678'), findsNothing); // tab 0, no code card
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+
+      // Simulate the tab scrolling off-screen (PageView disables TickerMode)
+      // and back on-screen again (re-entry) while cached data is present.
+      active.value = false;
+      await tester.pump();
+      active.value = true;
+      await tester.pump();
+
+      // The silent reload must not clear cached data or show the spinner...
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      // ...but it does fetch fresh data in the background.
+      await tester.pumpAndSettle();
+      expect(service.calls, ['profile', 'neighbors', 'profile', 'neighbors']);
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets('discovery connection failure is not an empty village', (
     tester,
