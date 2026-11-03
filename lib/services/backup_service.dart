@@ -1,3 +1,6 @@
+import '../mongi/integration/plant_memory_store.dart';
+import 'garden_style_store.dart';
+import 'garden_personal_gallery_store.dart';
 import '../models/keepsake_tree.dart';
 import 'meditation_checkin_store.dart';
 import '../models/companion_journey.dart';
@@ -53,6 +56,8 @@ class BackupService {
     'personal_replies',
     'reply_feedback',
     'garden_memories',
+    'garden_personal_gallery',
+    'garden_styles',
     'garden_cheer_flowers',
     'garden_layout',
     'mongi_progress',
@@ -65,6 +70,7 @@ class BackupService {
     'bgm_enabled',
     'sfx_enabled',
     'bgm_volume',
+    'garden_nature_enabled', 'garden_birds_volume', 'garden_water_volume',
   };
   // Explicitly listed personal records only. Never broaden this to an entire
   // prefix: billing, login and OS permission state must not be imported.
@@ -77,6 +83,7 @@ class BackupService {
   static String? prefType(String key) {
     if (_meditationTypes.containsKey(key)) return _meditationTypes[key];
     const globalTypes = {
+      'garden_nature_enabled': 'bool', 'garden_birds_volume': 'double', 'garden_water_volume': 'double',
       'mongi_last_emotions': 'strings',
       'mongi_last_intensity': 'double',
       'companion_name': 'string',
@@ -314,6 +321,7 @@ class BackupService {
 
   static Future<Map<String, dynamic>> _snapshotCommitted() async {
     await SessionTransaction.recover();
+    if (await _existing('garden_memories') != null) await PlantMemoryStore.instance.reload();
     final data = <String, dynamic>{};
     for (final name in boxes) {
       final box = await _existing(name);
@@ -382,6 +390,11 @@ class BackupService {
             !seen.add(row['key'] as Object))
           throw const FormatException('잘못된 기록 항목이에요.');
         final value = row['value'];
+        if (entry.key == 'garden_styles') { GardenStyleStore.validate(row['key'], value); continue; }
+        if (entry.key == 'garden_personal_gallery') {
+          GardenPersonalGalleryStore.validate(row['key'], value);
+          continue;
+        }
         if (entry.key == 'mongi_progress') {
           MongiBackupSchema.validate(row['key'] as Object, value);
           continue;

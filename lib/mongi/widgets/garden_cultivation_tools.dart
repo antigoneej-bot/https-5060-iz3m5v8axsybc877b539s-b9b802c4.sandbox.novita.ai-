@@ -30,7 +30,7 @@ class GardenCoreTools extends StatelessWidget {
         '씨앗 심기',
         watering ? '물주기 마치기' : '물주기',
         '내 식물',
-        overview ? '원래 보기' : '전체보기',
+        '가로 전체화면',
       ];
       final icons = [
         Icons.spa_outlined,
@@ -169,7 +169,8 @@ class _GardenPlantListState extends State<GardenPlantList> {
                         ),
                         title: Text(seed.label),
                         subtitle: Text(
-                          '${seed.growthLabel(widget.data.seeds[seed.id]!)} · ${widget.data.wateredOn[seed.id] == today ? '오늘 물주기 완료' : '오늘 물주기 전'}',
+                          '${seed.growthLabel(widget.data.seeds[seed.id]!)} · ${widget.data.wateredOn[seed.id] == today ? '오늘 물주기 완료' : '오늘 물주기 전'}\n'
+                          '${seed.careUntilNextTier(widget.data.seeds[seed.id]!) > 0 ? '물주기만 할 경우 다음 성장까지 ${seed.careUntilNextTier(widget.data.seeds[seed.id]!)}회' : '다 자랐어요. 편하게 감상해 주세요.'}',
                         ),
                         trailing: const Icon(Icons.my_location),
                       ),

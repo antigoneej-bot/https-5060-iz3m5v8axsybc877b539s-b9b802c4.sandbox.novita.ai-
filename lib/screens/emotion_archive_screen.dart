@@ -1,3 +1,8 @@
+import '../widgets/emotion_cat_thumbnail.dart';
+import '../services/cat_care_service.dart';
+import '../services/garden_personal_gallery_store.dart';
+import '../widgets/private_memory_links.dart';
+import '../mongi/widgets/garden_keepsake_sheets.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../data/shadow_cats_data.dart';
@@ -51,11 +56,105 @@ class _EmotionArchiveScreenState extends State<EmotionArchiveScreen> {
   DateTime month = DateTime(DateTime.now().year, DateTime.now().month);
   bool loading = true;
   bool failed = false;
+  final owner = CatCareService.localOwner;
+  Set<String> favorites = {};
+  bool favoritesOnly = false, favoriteBusy = false, favoritesReady = false;
+  bool favoritesFailed = false;
+  String query = '';
+  Future<void> loadFavorites({bool showError = false}) async {
+    try {
+      final data = await GardenPersonalGalleryStore.read(owner);
+      if (mounted && owner == CatCareService.localOwner)
+        setState(() {
+          favorites = Set<String>.from(data['favorites'] as List);
+          favoritesReady = true;
+          favoritesFailed = false;
+        });
+    } catch (_) {
+      if (mounted) {
+        setState(() => favoritesFailed = true);
+        if (showError)
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('간직한 카드 목록을 불러오지 못했어요.'),
+              action: SnackBarAction(
+                label: '재시도',
+                onPressed: () => loadFavorites(showError: true),
+              ),
+            ),
+          );
+      }
+    }
+  }
+
+  Future<void> toggleFavorite(UnifiedEmotionRecord record) async {
+    if (favoriteBusy || !favoritesReady || owner != CatCareService.localOwner)
+      return;
+    setState(() => favoriteBusy = true);
+    try {
+      await GardenPersonalGalleryStore.favorite(
+        owner,
+        record.id,
+        !favorites.contains(record.id),
+      );
+      await loadFavorites();
+    } catch (_) {
+      if (mounted)
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('간직하기를 저장하지 못했어요.')));
+    } finally {
+      if (mounted) setState(() => favoriteBusy = false);
+    }
+  }
+
+  Future<void> search() async {
+    final controller = TextEditingController(text: query);
+    final route = DialogRoute<String>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: const Text('감정 카드 찾기'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLength: 100,
+          decoration: const InputDecoration(
+            labelText: '기록 내용·감정·날짜',
+            hintText: '예: 산책, 기쁨, 2026-11',
+          ),
+          onSubmitted: (v) => Navigator.pop(c, v),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(c, ''),
+            child: const Text('검색 지우기'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(c, controller.text),
+            child: const Text('찾기'),
+          ),
+        ],
+      ),
+    );
+    final value = await Navigator.of(context).push(route);
+    await route.completed;
+    controller.dispose();
+    if (value != null && mounted)
+      setState(() {
+        query = value.trim();
+        calendar = false;
+        allMonths = true;
+      });
+  }
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) loadGarden();
+      if (mounted) {
+        loadGarden();
+        loadFavorites();
+      }
     });
   }
 
@@ -99,37 +198,105 @@ class _EmotionArchiveScreenState extends State<EmotionArchiveScreen> {
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      builder: (context) => SizedBox(
-        height: MediaQuery.sizeOf(context).height * .75,
-        child: ListView(
-          padding: const EdgeInsets.all(20),
-          children: [
-            const Text('이날의 감정 고양이', style: TextStyle(fontSize: 20)),
-            for (final record in records)
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Center(child: cat(record, 140)),
-                      Text(
-                        record.displayLabel,
-                        style: const TextStyle(fontSize: 18),
-                      ),
-                      Text(
-                        '${record.date.year}.${record.date.month}.${record.date.day}'
-                        '${record.hasTime ? ' · ${record.date.hour.toString().padLeft(2, '0')}:${record.date.minute.toString().padLeft(2, '0')}' : ' · 시간 미기록'}',
-                      ),
-                      const SizedBox(height: 12),
-                      SelectableText(
-                        record.note.isEmpty ? '감정을 남겼어요.' : record.note,
-                      ),
-                    ],
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (context, update) => SizedBox(
+          height: MediaQuery.sizeOf(context).height * .75,
+          child: ListView(
+            key: const Key('emotion-day-record-list'),
+            padding: const EdgeInsets.all(20),
+            children: [
+              const Text('이날의 감정 고양이', style: TextStyle(fontSize: 20)),
+              for (final record in records)
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Center(
+                          child: cat(
+                            record,
+                            (MediaQuery.sizeOf(context).width - 80).clamp(
+                              120,
+                              260,
+                            ),
+                          ),
+                        ),
+                        Text(
+                          record.displayLabel,
+                          style: const TextStyle(fontSize: 18),
+                        ),
+                        Text(
+                          '${record.date.year}.${record.date.month}.${record.date.day}'
+                          '${record.hasTime ? ' · ${record.date.hour.toString().padLeft(2, '0')}:${record.date.minute.toString().padLeft(2, '0')}' : ' · 시간 미기록'}',
+                        ),
+                        const SizedBox(height: 12),
+                        SelectableText(
+                          record.note.isEmpty ? '감정을 남겼어요.' : record.note,
+                        ),
+                        Wrap(
+                          spacing: 8,
+                          children: [
+                            if (GardenPersonalGalleryStore.stableRecord(
+                              record.id,
+                            ))
+                              TextButton.icon(
+                                onPressed: !favoritesReady || favoriteBusy
+                                    ? null
+                                    : () async {
+                                        final pending = toggleFavorite(record);
+                                        update(() {});
+                                        await pending;
+                                        if (context.mounted) update(() {});
+                                      },
+                                icon: Icon(
+                                  favorites.contains(record.id)
+                                      ? Icons.favorite
+                                      : Icons.favorite_border,
+                                ),
+                                label: Text(
+                                  favorites.contains(record.id)
+                                      ? '간직하기 해제'
+                                      : '간직하기',
+                                ),
+                              ),
+                            if ((record.id.startsWith('letter:saved:') ||
+                                    record.id.startsWith('garden:saved:')) &&
+                                record.note.trim().isNotEmpty)
+                              TextButton.icon(
+                                onPressed: () async {
+                                  if (owner != CatCareService.localOwner)
+                                    return;
+                                  await attachLetterQuoteToPlant(
+                                    context,
+                                    sourceLetterId:
+                                        record.id.startsWith('garden:saved:')
+                                        ? 'garden-diary:${record.id.substring('garden:saved:'.length)}'
+                                        : record.id.substring(
+                                            'letter:saved:'.length,
+                                          ),
+                                    quote: record.note,
+                                  );
+                                },
+                                icon: const Icon(Icons.park_outlined),
+                                label: const Text('나무에 연결'),
+                              )
+                            else
+                              TextButton.icon(
+                                onPressed: () => showMemoryTree(context),
+                                icon: const Icon(Icons.park_outlined),
+                                label: const Text('기억의 나무 열기'),
+                              ),
+                          ],
+                        ),
+                        if (!GardenPersonalGalleryStore.stableRecord(record.id))
+                          const Text('이전 형식의 기록은 간직하기를 지원하지 않아요.'),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -150,6 +317,13 @@ class _EmotionArchiveScreenState extends State<EmotionArchiveScreen> {
         history
             .where(
               (r) =>
+                  (!favoritesOnly ||
+                      favorites.contains(r.id) &&
+                          owner == CatCareService.localOwner) &&
+                  (query.isEmpty ||
+                      ('${r.note} ${r.displayLabel} ${r.date.toIso8601String().substring(0, 10)} ${r.date.year}.${r.date.month}.${r.date.day}')
+                          .toLowerCase()
+                          .contains(query.toLowerCase())) &&
                   (filter == null || r.categoryKey == filter) &&
                   (!calendar && allMonths ||
                       r.date.year == month.year && r.date.month == month.month),
@@ -166,6 +340,28 @@ class _EmotionArchiveScreenState extends State<EmotionArchiveScreen> {
       appBar: AppBar(
         title: const Text('나의 마음 보관함'),
         actions: [
+          IconButton(
+            tooltip: query.isEmpty ? '감정 카드 검색' : '검색 중: $query',
+            onPressed: search,
+            icon: Icon(query.isEmpty ? Icons.search : Icons.manage_search),
+          ),
+          IconButton(
+            tooltip: favoritesFailed
+                ? '간직한 카드 불러오기 재시도'
+                : favoritesOnly
+                ? '모든 카드 보기'
+                : '간직한 카드만 보기',
+            onPressed: favoritesReady
+                ? () => setState(() => favoritesOnly = !favoritesOnly)
+                : () => loadFavorites(showError: true),
+            icon: Icon(
+              favoritesFailed
+                  ? Icons.error_outline
+                  : favoritesOnly
+                  ? Icons.favorite
+                  : Icons.favorite_border,
+            ),
+          ),
           IconButton(
             tooltip: '주간·월간 만화책',
             icon: const Icon(Icons.menu_book_outlined),
@@ -185,6 +381,24 @@ class _EmotionArchiveScreenState extends State<EmotionArchiveScreen> {
               TextButton(
                 onPressed: loadGarden,
                 child: const Text('정원 기록 불러오기 재시도'),
+              ),
+            if (query.isNotEmpty || favoritesOnly)
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    if (query.isNotEmpty)
+                      InputChip(
+                        label: Text('검색: $query'),
+                        onDeleted: () => setState(() => query = ''),
+                      ),
+                    if (favoritesOnly)
+                      InputChip(
+                        label: const Text('간직한 카드'),
+                        onDeleted: () => setState(() => favoritesOnly = false),
+                      ),
+                  ],
+                ),
               ),
             Wrap(
               spacing: 8,
@@ -271,11 +485,14 @@ class _EmotionArchiveScreenState extends State<EmotionArchiveScreen> {
                           itemCount: offset + count,
                           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                             crossAxisCount: 7,
-                            // Day/count labels keep their system text scale. A height
-                            // based only on column width overflows on narrow screens and
-                            // makes date targets needlessly tall in landscape.
+                            // Reserve a full column-width square for the cat. Count is
+                            // an overlay, so extra records no longer shrink the artwork.
                             mainAxisExtent:
-                                52 + MediaQuery.textScalerOf(context).scale(22),
+                                ((MediaQuery.sizeOf(context).width - 16) / 7)
+                                    .clamp(40.0, 96.0)
+                                    .toDouble() +
+                                MediaQuery.textScalerOf(context).scale(16) +
+                                12,
                           ),
                           itemBuilder: (context, i) {
                             if (i < offset) return const SizedBox.shrink();
@@ -289,31 +506,95 @@ class _EmotionArchiveScreenState extends State<EmotionArchiveScreen> {
                                 : entries.isEmpty
                                 ? null
                                 : entries.first;
-                            return InkWell(
-                              key: ValueKey('emotion-calendar-day-$day'),
-                              onTap: entries.isEmpty
-                                  ? null
-                                  : () => detail(entries),
-                              child: Column(
-                                children: [
-                                  Text(
-                                    '$day',
-                                    style: const TextStyle(fontSize: 12),
+                            return Semantics(
+                              label:
+                                  '${month.month}월 $day일, ${entries.isEmpty ? '기록 없음' : '${representative!.label}, ${entries.length}개 기록'}',
+                              button: entries.isNotEmpty,
+                              child: InkWell(
+                                key: ValueKey('emotion-calendar-day-$day'),
+                                onTap: entries.isEmpty
+                                    ? null
+                                    : () => detail(entries),
+                                borderRadius: BorderRadius.circular(10),
+                                child: Container(
+                                  margin: const EdgeInsets.all(1),
+                                  decoration: BoxDecoration(
+                                    color: representative == null
+                                        ? null
+                                        : representative.background.withValues(
+                                            alpha: .35,
+                                          ),
+                                    borderRadius: BorderRadius.circular(10),
                                   ),
-                                  if (representative != null)
-                                    Expanded(
-                                      child: FittedBox(
-                                        child: cat(representative, 48),
+                                  child: Column(
+                                    children: [
+                                      Text(
+                                        '$day',
+                                        style: const TextStyle(fontSize: 12),
                                       ),
-                                    )
-                                  else
-                                    const Spacer(),
-                                  if (entries.length > 1)
-                                    Text(
-                                      '+${entries.length - 1}',
-                                      style: const TextStyle(fontSize: 10),
-                                    ),
-                                ],
+                                      Expanded(
+                                        child: representative == null
+                                            ? const SizedBox.expand()
+                                            : Stack(
+                                                fit: StackFit.expand,
+                                                children: [
+                                                  Padding(
+                                                    padding:
+                                                        const EdgeInsets.all(1),
+                                                    child:
+                                                        emotionRecordCatAsset(
+                                                              representative,
+                                                            ) ==
+                                                            null
+                                                        ? cat(
+                                                            representative,
+                                                            96,
+                                                          )
+                                                        : EmotionCatThumbnail(
+                                                            asset:
+                                                                emotionRecordCatAsset(
+                                                                  representative,
+                                                                )!,
+                                                            label:
+                                                                representative
+                                                                    .label,
+                                                          ),
+                                                  ),
+                                                  if (entries.length > 1)
+                                                    Positioned(
+                                                      right: 1,
+                                                      bottom: 1,
+                                                      child: DecoratedBox(
+                                                        decoration: BoxDecoration(
+                                                          color: const Color(
+                                                            0xF5FCF9F3,
+                                                          ),
+                                                          borderRadius:
+                                                              BorderRadius.circular(
+                                                                6,
+                                                              ),
+                                                        ),
+                                                        child: Padding(
+                                                          padding:
+                                                              const EdgeInsets.symmetric(
+                                                                horizontal: 3,
+                                                              ),
+                                                          child: Text(
+                                                            '+${entries.length - 1}',
+                                                            style:
+                                                                const TextStyle(
+                                                                  fontSize: 10,
+                                                                ),
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                ],
+                                              ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
                               ),
                             );
                           },
@@ -329,7 +610,13 @@ class _EmotionArchiveScreenState extends State<EmotionArchiveScreen> {
                       ],
                     )
                   : records.isEmpty
-                  ? const Center(child: Text('아직 보관된 감정 카드가 없어요.'))
+                  ? Center(
+                      child: Text(
+                        query.isNotEmpty || favoritesOnly
+                            ? '조건에 맞는 카드가 없어요. 검색·간직하기 필터를 바꿔 보세요.'
+                            : '아직 보관된 감정 카드가 없어요.',
+                      ),
+                    )
                   : GridView.builder(
                       padding: const EdgeInsets.all(12),
                       itemCount: records.length,
@@ -353,7 +640,7 @@ class _EmotionArchiveScreenState extends State<EmotionArchiveScreen> {
                                     child: FittedBox(child: cat(r, 140)),
                                   ),
                                   Text(
-                                    r.label,
+                                    '${favorites.contains(r.id) ? '♥ ' : ''}${r.label}',
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                   ),

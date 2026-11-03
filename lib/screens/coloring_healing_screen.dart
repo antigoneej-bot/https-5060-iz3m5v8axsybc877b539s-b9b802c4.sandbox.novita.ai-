@@ -1,3 +1,5 @@
+import '../services/garden_personal_gallery_store.dart';
+import '../utils/private_gallery_png.dart';
 import 'dart:ui' as ui;
 import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
@@ -227,6 +229,28 @@ class _ColoringHealingScreenState extends State<ColoringHealingScreen> {
     }
   }
 
+  Future<void> exhibitSaved(List<ColoringStroke> saved) async {
+    if (!editable || art == null || saved.isEmpty) return;
+    final yes = await showDialog<bool>(context: context, builder: (c) => AlertDialog(
+      title: const Text('정원에 전시할까요?'),
+      content: const Text('완성한 작품을 나만 보는 정원 액자에 걸어요. 이미 전시 중인 작품은 이 그림으로 바뀌고 색칠 원본은 유지돼요.'),
+      actions: [TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('취소')),
+        FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('전시하기'))]));
+    if (yes != true || !mounted || !editable || art == null) return;
+    setState(() => busy = true);
+    try {
+      final recorder = ui.PictureRecorder();
+      BrushColoringPainter(art, saved, boundaries: boundaries).paint(Canvas(recorder), const Size(512, 768));
+      final picture = recorder.endRecording();
+      final image = await picture.toImage(512, 768);
+      picture.dispose();
+      try { await GardenPersonalGalleryStore.exhibit(owner, await privateGalleryPng(image)); }
+      finally { image.dispose(); }
+      message('내 정원의 액자에 전시했어요. 사진첩에서 내릴 수 있어요.');
+    } catch (_) { message('전시하지 못했어요. 다시 시도해 주세요.'); }
+    finally { if (mounted) setState(() => busy = false); }
+  }
+
   Future<void> gallery() async {
     if (!editable) return;
     try {
@@ -257,6 +281,9 @@ class _ColoringHealingScreenState extends State<ColoringHealingScreen> {
                           ),
                         ),
                 ),
+                if (saved.isNotEmpty) TextButton.icon(
+                  onPressed: () { Navigator.pop(ctx); exhibitSaved(saved); },
+                  icon: const Icon(Icons.park_outlined), label: const Text('정원에 전시')),
                 TextButton(
                   onPressed: () => Navigator.pop(ctx),
                   child: const Text('닫기'),

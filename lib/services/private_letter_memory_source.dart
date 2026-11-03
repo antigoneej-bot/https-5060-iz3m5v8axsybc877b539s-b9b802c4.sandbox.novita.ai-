@@ -19,6 +19,20 @@ class PrivateLetterMemorySource {
       LocalRecordTransaction.run(() => _find(sourceId));
 
   static Future<PrivateLetterMemorySource?> _find(String sourceId) async {
+    if (sourceId.startsWith('garden-diary:')) {
+      final id = sourceId.substring('garden-diary:'.length);
+      if (id.isEmpty || sourceId.length > 160) return null;
+      final box = await HiveEncryption.openBox('mongi_progress_local_user');
+      final raw = box.get('diary_entries', defaultValue: const []);
+      if (raw is! List) throw const FormatException('정원 일지를 읽지 못했어요.');
+      final matches = raw.whereType<Map>().where((e) => e['id'] == id).toList();
+      if (matches.length != 1) return null;
+      final entry = matches.single;
+      final date = DateTime.tryParse(entry['date']?.toString() ?? '');
+      if (date == null || entry['note'] is! String) return null;
+      return PrivateLetterMemorySource(id: sourceId, text: entry['note'] as String,
+        label: '정원에 남긴 마음 일지', writtenAt: date);
+    }
     final heart = sourceId.startsWith('heart:');
     final id = heart ? sourceId.substring(6) : sourceId;
     if (id.isEmpty || sourceId.length > 160) return null;

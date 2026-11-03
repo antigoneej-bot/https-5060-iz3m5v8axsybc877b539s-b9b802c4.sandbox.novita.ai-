@@ -149,7 +149,7 @@ class _PlantQuotePickerState extends State<_PlantQuotePicker> {
       if (mounted) {
         setState(() {
           _saving = false;
-          _error = '나무에 문장을 저장하지 못했어요. 편지와 간직한 문장은 그대로 있어요.';
+          _error = '나무에 문장을 저장하지 못했어요. 원본 기록과 간직한 문장은 그대로 있어요.';
         });
       }
     }
@@ -167,7 +167,7 @@ class _PlantQuotePickerState extends State<_PlantQuotePicker> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text('내가 쓴 문장과 편지 날짜를 나무의 추억에 남겨요. 이웃에게는 공개되지 않아요.'),
+              const Text('내가 쓴 문장과 기록 날짜를 나무의 추억에 남겨요. 이웃에게는 공개되지 않아요.'),
               const SizedBox(height: 12),
               Text(widget.quote),
               const SizedBox(height: 12),
@@ -201,7 +201,7 @@ class _PlantQuotePickerState extends State<_PlantQuotePicker> {
                   ),
               const SizedBox(height: 8),
               const Text(
-                '원본 편지를 지우면 나무에 연결한 이 문장도 함께 지워져요.',
+                '원본 기록이 삭제되거나 보관 기간을 지나면 연결한 문장도 정리돼요.',
                 style: TextStyle(fontSize: 12),
               ),
               if (_error != null) ...[

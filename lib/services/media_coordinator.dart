@@ -1,3 +1,4 @@
+import '../mongi/services/sound_manager.dart';
 import 'dart:async';
 import 'local_record_transaction.dart';
 import 'sound_service.dart';
@@ -23,6 +24,9 @@ class MediaCoordinator {
     _owner = owner;
     _stop = stop;
     _sound.narrationPlaying = true;
+    final nature = SoundManager.instance;
+    nature.narrationSuspended = true;
+    await nature.suspendAmbientNature();
     await _sound.stopAll();
   }
 
@@ -31,7 +35,11 @@ class MediaCoordinator {
     _owner = null;
     _stop = null;
     _sound.narrationPlaying = false;
+    SoundManager.instance.narrationSuspended = false;
     unawaited(_sound.tryStartBgm());
+    if (SoundManager.instance.ambientRequested && !SoundManager.instance.sleepStopped) {
+      unawaited(SoundManager.instance.startAmbientNature());
+    }
   }
 
   Future<void> stopAll() => run(() async {
@@ -40,5 +48,6 @@ class MediaCoordinator {
     _stop = null;
     if (stop != null) await stop();
     _sound.narrationPlaying = false;
+    SoundManager.instance.narrationSuspended = false;
   });
 }

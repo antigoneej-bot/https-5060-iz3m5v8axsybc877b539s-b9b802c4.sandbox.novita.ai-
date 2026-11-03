@@ -335,7 +335,7 @@ void main() {
       await tester.tap(find.text('배경 음악'));
       await flush(tester);
       expect(sound.bgmEnabled, isTrue);
-      final slider = find.byType(Slider);
+      final slider = find.byKey(const Key('sound-bgm-volume'));
       await tester.ensureVisible(slider);
       await tester.tapAt(tester.getCenter(slider) + const Offset(60, 0));
       await flush(tester);

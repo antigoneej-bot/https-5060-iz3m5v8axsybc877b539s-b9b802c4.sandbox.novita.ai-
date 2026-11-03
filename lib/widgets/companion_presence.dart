@@ -38,6 +38,7 @@ class _CompanionPresenceState extends State<CompanionPresence>
   }
 
   void _sync() {
+    final previouslyAllowed = _allowed;
     _allowed =
         widget.enabled &&
         !widget.resting &&
@@ -47,6 +48,7 @@ class _CompanionPresenceState extends State<CompanionPresence>
         TickerMode.of(context) &&
         (ModalRoute.of(context)?.isCurrent ?? true);
     if (_allowed) {
+      if (!previouslyAllowed && widget.interaction == null) _clock.value = 0;
       if (!_clock.isAnimating) _clock.repeat();
     } else {
       _clock.stop();

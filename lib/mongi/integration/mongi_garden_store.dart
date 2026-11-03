@@ -246,7 +246,35 @@ class MongiGardenStore extends ValueNotifier<MongiGardenData> {
   }
 
   /// Premium decorations are subscriber gifts; already received gifts stay owned.
+  Future<void> _placeExtra(String id, {required bool purchase}) => _serial(() async {
+    await SessionTransaction.initialize();
+    final current = await _read(await SharedPreferences.getInstance());
+    if (purchase && current.owned.contains(id)) return;
+    if (!purchase && !current.owned.contains(id)) return;
+    if (purchase && current.essence < 60) throw StateError('빛의 정수 60개가 필요해요.');
+    final layouts = GardenLayoutStore.instance;
+    await layouts.reload();
+    final visible = [...current.seeds.entries.where((e) => e.value > 0).map((e) => 'seed:${e.key}'),
+      ...current.placed.map((d) => 'decor:$d')];
+    final item = 'decor:$id';
+    var point = layouts.value.position(item);
+    if (layouts.value.placementError(item, point, visible) != null) {
+      final free = layouts.value.plantingHints(item, visible);
+      if (free.isEmpty) throw StateError('빈 땅이 부족해요. 장식을 옮기거나 보관한 뒤 다시 골라 주세요.');
+      point = free.first;
+    }
+    final next = current.copy(essence: current.essence - (purchase ? 60 : 0),
+      owned: {...current.owned, id}, placed: {...current.placed, id});
+    final layout = GardenLayout(spaces: layouts.value.spaces, positions: {...layouts.value.positions, item: point});
+    final box = await HiveEncryption.openBox(SessionTransaction.boxName);
+    await SessionTransaction.commit(DraftBox(box), next.toJson(), layout: layout.toJson());
+    await layouts.reload(); value = next;
+  });
+
   Future<void> obtain(GardenDecoration item) async {
+    if (GardenDecoration.newPlacementIds.contains(item.id)) {
+      await _placeExtra(item.id, purchase: true); return;
+    }
     final premium = item.isPremium && await SubscriptionService().isPremium();
     await _change((data) {
       if (data.owned.contains(item.id)) return data;
@@ -262,12 +290,18 @@ class MongiGardenStore extends ValueNotifier<MongiGardenData> {
     });
   }
 
-  Future<void> toggle(String id) => _change((data) {
+  Future<void> toggle(String id) async {
+    if (GardenDecoration.newPlacementIds.contains(id)) {
+      await reload();
+      if (!value.placed.contains(id)) { await _placeExtra(id, purchase: false); return; }
+    }
+    await _change((data) {
     if (!data.owned.contains(id)) return data;
     final placed = {...data.placed};
     if (!placed.remove(id)) placed.add(id);
     return data.copy(placed: placed);
-  });
+    });
+  }
 
   Future<void> advanceOriginalStage() =>
       _change((data) => data.copy(stage: data.stage + 1));

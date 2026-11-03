@@ -40,10 +40,10 @@ void main() {
     await directory.delete(recursive: true);
   });
   test(
-    'six new basic decorations purchase once, store and reload without changing plants',
+    'all basic additions purchase once, store and reload without changing plants',
     () async {
       final old = shared.value;
-      await shared.addOriginalEssence(360);
+      await shared.addOriginalEssence(GardenBasicItemArt.ids.length * 60);
       for (final id in GardenBasicItemArt.ids) {
         final item = GardenDecoration.byId(id);
         final balance = shared.value.essence;

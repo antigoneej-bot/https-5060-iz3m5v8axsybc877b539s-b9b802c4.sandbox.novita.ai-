@@ -18,6 +18,11 @@ class GardenLayout {
       'decor:tulip_pot': Offset(0.5, 0.52),
       'decor:sunflower_pot': Offset(0.55, 0.52),
       'decor:cat_cushion': Offset(0.44, 0.59),
+      'decor:cat_basket': Offset(.437, .845),
+      'decor:spring_wreath': Offset(.14, .58),
+      'decor:summer_parasol': Offset(.21, .58),
+      'decor:autumn_leaf_pile': Offset(.14, .72),
+      'decor:winter_snowman': Offset(.21, .72),
       'decor:moon_lamp': Offset(0.5, 0.59),
       'decor:bird_house': Offset(0.56, 0.59),
     };

@@ -224,6 +224,19 @@ class GardenStorage {
     _liveBox = await HiveEncryption.openBox(_boxName);
     await MongiGardenStore.instance.reload();
     await _ensureSeasonFresh();
+    if (diaryEntries.any((e) => e['id'] is! String || (e['id'] as String).isEmpty)) {
+      await MongiGardenStore.instance.commitSession(SessionTransaction.newId(), () async {
+        final entries = diaryEntries;
+        final used = <String>{};
+        for (final e in entries) {
+          if (e['id'] is! String || (e['id'] as String).isEmpty || !used.add(e['id'] as String)) {
+            e['id'] = SessionTransaction.newId(); used.add(e['id'] as String);
+          }
+        }
+        await _box.put(_keyDiary, entries);
+        return <String, dynamic>{'diaryIdsAssigned': true};
+      });
+    }
   }
 
   /// 지금 시즌이 아직 시작되지 않았거나(최초 실행) 이미 기간이 끝났으면,
@@ -418,6 +431,7 @@ class GardenStorage {
   }) async {
     final entries = diaryEntries;
     entries.insert(0, {
+      'id': SessionTransaction.newId(),
       'date': _todayString,
       'emotionType': emotionTypeName,
       'targetName': targetName,

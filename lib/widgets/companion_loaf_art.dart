@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import '../services/sound_service.dart';
 
@@ -18,6 +19,7 @@ class _CompanionLoafArtState extends State<CompanionLoafArt>
     with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   static _CompanionLoafArtState? _audioOwner;
   static Future<ui.Image>? _image;
+  static ui.Image? _decoded;
   late final _breath = AnimationController(vsync: this,
       duration: const Duration(milliseconds: 2200));
   final _sound = SoundService();
@@ -31,7 +33,7 @@ class _CompanionLoafArtState extends State<CompanionLoafArt>
           data.offsetInBytes, data.lengthInBytes));
       final image = (await codec.getNextFrame()).image;
       codec.dispose();
-      return image;
+      return _decoded = image;
     } catch (_) { _image = null; rethrow; }
   }
 
@@ -107,7 +109,7 @@ class _CompanionLoafArtState extends State<CompanionLoafArt>
     label: '앞발을 접고 식빵 자세로 골골거리며 쉬는 고양이',
     image: true,
     child: FutureBuilder<ui.Image>(
-      future: _image ??= _load(),
+      future: _decoded != null ? SynchronousFuture(_decoded!) : (_image ??= _load()),
       builder: (context, snapshot) => snapshot.hasData
           ? AnimatedBuilder(animation: _breath, builder: (context, _) =>
               CustomPaint(painter: CompanionLoafPainter(snapshot.data!,

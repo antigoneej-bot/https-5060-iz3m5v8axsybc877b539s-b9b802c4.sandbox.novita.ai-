@@ -62,12 +62,31 @@ void main() {
     );
   });
   test('all default catalog items fit and overlap is rejected', () {
-    final layout = GardenLayout();
+    final initial = GardenLayout();
+    final originalIds = GardenLayout.itemIds.where((id) => !const {
+      'decor:cat_basket', 'decor:spring_wreath', 'decor:summer_parasol',
+      'decor:autumn_leaf_pile', 'decor:winter_snowman',
+    }.contains(id)).toList();
+    // Keep the original initial-land invariant for every pre-patch item.
+    for (final id in originalIds) {
+      expect(initial.placementError(id, initial.position(id), originalIds),
+          isNull, reason: id);
+    }
+    // New seasonal defaults use the expanded land; purchases already find an
+    // unlocked, unoccupied position before charging/equipping (covered by
+    // remaining_proposals_test). Do not move users' existing coordinates.
+    final layout = GardenLayout(spaces: 3);
     for (final id in GardenLayout.itemIds) {
       expect(
         layout.placementError(id, layout.position(id), GardenLayout.itemIds),
-        isNull,
+        isNull, reason: id,
       );
+    }
+    for (final id in const ['spring_wreath', 'summer_parasol',
+      'autumn_leaf_pile', 'winter_snowman']) {
+      final item = 'decor:$id';
+      expect(initial.placementError(item, initial.position(item), [item]),
+          '아직 열리지 않은 공간이에요.', reason: item);
     }
     expect(
       () => layout.move('seed:love', layout.position('seed:pine'), [

@@ -20,7 +20,7 @@ void main() {
   });
   for (final night in [false, true]) {
     testWidgets(
-      'six additions render in the actual saved garden at night=$night without writes',
+      'eleven additions render in the actual saved garden at night=$night without writes',
       (t) async {
         t.view.physicalSize = const Size(1080, 480);
         t.view.devicePixelRatio = 1;
@@ -65,7 +65,7 @@ void main() {
         for (final id in GardenBasicItemArt.ids) {
           expect(find.byKey(ValueKey('world-item-decor:$id')), findsOneWidget);
         }
-        expect(find.byType(GardenBasicItemArt), findsNWidgets(6));
+        expect(find.byType(GardenBasicItemArt), findsNWidgets(11));
         expect(writes, 0);
         expect(t.takeException(), isNull);
         const dest = String.fromEnvironment('USABILITY_CAPTURE');

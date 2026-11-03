@@ -10,7 +10,7 @@ class GardenBasicItemArt extends StatelessWidget {
     'daisy_pot',
     'tulip_pot',
     'sunflower_pot',
-    'cat_cushion',
+    'cat_cushion', 'cat_basket', 'spring_wreath', 'summer_parasol', 'autumn_leaf_pile', 'winter_snowman',
     'moon_lamp',
     'bird_house',
   };
@@ -30,7 +30,28 @@ class _ItemPainter extends CustomPainter {
     Paint color(int value) => Paint()..color = Color(value);
     final shadow = Paint()..color = const Color(0x353A503A);
     c.drawOval(const Rect.fromLTWH(17, 86, 70, 12), shadow);
-    if (id.endsWith('_pot')) {
+    if (id == 'cat_basket') {
+      c.drawOval(const Rect.fromLTWH(12, 46, 80, 45), color(0xFFBD9264));
+      c.drawOval(const Rect.fromLTWH(17, 44, 70, 27), color(0xFF876449));
+      c.drawOval(const Rect.fromLTWH(24, 51, 56, 19), color(0xFFE4C5BA));
+      for (var y = 70.0; y < 89; y += 6) c.drawLine(Offset(22, y), Offset(82, y), color(0xFFE2BC86)..strokeWidth = 2);
+    } else if (id == 'spring_wreath') {
+      c.drawCircle(const Offset(52, 53), 27, color(0xFF89A879)..style = PaintingStyle.stroke..strokeWidth = 8);
+      for (var i = 0; i < 9; i++) { final a = i * math.pi * 2 / 9;
+        c.drawCircle(Offset(52 + math.cos(a) * 27, 53 + math.sin(a) * 27), 7, color(i.isEven ? 0xFFEAAFC3 : 0xFFFFE4B6)); }
+    } else if (id == 'summer_parasol') {
+      c.drawLine(const Offset(52, 30), const Offset(52, 91), color(0xFFB89F79)..strokeWidth = 5);
+      c.drawPath(Path()..moveTo(10, 47)..quadraticBezierTo(52, -7, 94, 47)..close(), color(0xFFA8C9C1));
+      c.drawLine(const Offset(52, 18), const Offset(52, 47), color(0xFFF4E8CD)..strokeWidth = 3);
+    } else if (id == 'autumn_leaf_pile') {
+      for (var i = 0; i < 17; i++) c.drawOval(Rect.fromCenter(center: Offset(25.0 + i * 19 % 56, 64.0 + i * 13 % 25), width: 23, height: 12), color(i.isEven ? 0xFFCCA064 : 0xFFD68E74));
+    } else if (id == 'winter_snowman') {
+      c.drawCircle(const Offset(52, 70), 24, color(0xFFF1F6F4));
+      c.drawCircle(const Offset(52, 35), 18, color(0xFFF9FCFA));
+      c.drawCircle(const Offset(46, 32), 2, color(0xFF6F7776)); c.drawCircle(const Offset(58, 32), 2, color(0xFF6F7776));
+      c.drawLine(const Offset(36, 51), const Offset(68, 51), color(0xFFCA9FA4)..strokeWidth = 7);
+      c.drawPath(Path()..moveTo(51, 37)..lineTo(67, 40)..lineTo(51, 42)..close(), color(0xFFD5A06D));
+    } else if (id.endsWith('_pot')) {
       final stalk = color(0xFF658B64)
         ..strokeWidth = 4
         ..strokeCap = StrokeCap.round;

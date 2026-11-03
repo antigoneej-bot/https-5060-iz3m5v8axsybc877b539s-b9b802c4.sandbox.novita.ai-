@@ -128,7 +128,7 @@ void main() {
     },
   );
   testWidgets(
-    'background and a covering route pause; returning resumes with no catch-up',
+    'background and a covering route pause; returning starts a fresh greeting',
     (tester) async {
       final nav = GlobalKey<NavigatorState>();
       await tester.pumpWidget(
@@ -150,8 +150,10 @@ void main() {
       expect(clock.value, paused);
       tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
       await tester.pump();
-      await tester.pump(const Duration(seconds: 1));
-      expect(clock.value, isNot(paused));
+      expect(clock.value, closeTo(0, .002));
+      await tester.pump(const Duration(seconds: 2));
+      expect(clock.value, closeTo(2 / 72, .002));
+      expect(tester.widget<GardenCatArt>(find.byType(GardenCatArt)).eyeClosure, greaterThan(.9));
       nav.currentState!.push(
         MaterialPageRoute<void>(
           builder: (_) => const Scaffold(body: Text('다른 화면')),
@@ -166,7 +168,8 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 400));
       await tester.pump(const Duration(seconds: 1));
-      expect(clock.value, isNot(covered));
+      expect(clock.value, lessThan(5 / 72), reason: 'Returning begins the greeting instead of resuming an old pose');
+      expect(clock.value, greaterThan(0));
       await tester.pumpWidget(const SizedBox());
       expect(tester.binding.transientCallbackCount, 0);
       expect(tester.takeException(), isNull);

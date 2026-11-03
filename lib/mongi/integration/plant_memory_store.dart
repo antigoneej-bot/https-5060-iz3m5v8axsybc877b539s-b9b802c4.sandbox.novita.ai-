@@ -34,7 +34,21 @@ class PlantMemoryStore extends ValueNotifier<Map<String, PlantMemory>> {
     value = Map.unmodifiable(memories);
   }
 
-  Future<void> reload() => _serial(_refresh);
+  Future<void> reload() => _serial(() async { await _pruneDiaryLinks(); await _refresh(); });
+
+  Future<void> _pruneDiaryLinks() async {
+    await _refresh();
+    final ids = <String>{for (final memory in value.values) for (final entry in memory.timeline)
+      if (entry.sourceLetterId?.startsWith('garden-diary:') == true) entry.sourceLetterId!};
+    for (final id in ids) {
+      final source = await PrivateLetterMemorySource.find(id);
+      final linked = value.values.expand((m) => m.timeline).where((e) => e.sourceLetterId == id);
+      if (source == null || linked.any((e) => !source.text.contains(e.note) || !source.writtenAt.isAtSameMomentAs(e.sourceWrittenAt!))) {
+        await GardenMemoryBookStore.instance.removeForLetter(id);
+        await _scrubLetter(id);
+      }
+    }
+  }
 
   /// Compatibility entry point for older callers. A new scene appends to the
   /// timeline instead of silently replacing the earlier memory.

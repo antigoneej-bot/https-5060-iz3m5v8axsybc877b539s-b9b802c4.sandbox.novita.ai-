@@ -1,3 +1,5 @@
+import 'seasonal_garden_layer.dart';
+import 'dart:typed_data';
 import 'garden_basic_item_art.dart';
 import 'garden_planting_hints.dart';
 import 'storybook_garden.dart';
@@ -26,6 +28,9 @@ import 'garden_ambient.dart';
 
 /// The camera moves; positions stay in world coordinates and survive resizing.
 class GardenWorldView extends StatefulWidget {
+  final String? requestedRestItem;
+  final int restRequest;
+  final Uint8List? personalArtwork;
   final String companionName;
   final VisitingCat? visitingHost, visitingGuest;
   final String visitActivity;
@@ -78,6 +83,9 @@ class GardenWorldView extends StatefulWidget {
   final ValueChanged<Offset>? onPlacementPoint;
   const GardenWorldView({
     super.key,
+    this.personalArtwork,
+    this.requestedRestItem,
+    this.restRequest = 0,
     this.preview = false,
     this.cameraGestures = true,
     this.fillViewport = false,
@@ -220,12 +228,93 @@ class _GardenWorldViewState extends State<GardenWorldView>
 
   double _catSeconds = 0, _lastCatAir = 0;
   Offset? _catAnchor;
+  String _restItem = 'decor:cat_cushion';
+  String get _restName => _restItem.startsWith('seed:')
+      ? '나무 그늘'
+      : _restItem == 'decor:cat_basket'
+      ? '바구니'
+      : '방석';
+  bool _onCushion = false;
+  int? _appliedRestRequest;
+  void _applyRequestedRest() {
+    final target = widget.requestedRestItem;
+    if (!mounted ||
+        target == null ||
+        widget.readOnly ||
+        widget.placementSeed != null ||
+        _appliedRestRequest == widget.restRequest ||
+        !_items.contains(target))
+      return;
+    if (target.startsWith('seed:') &&
+        (!SeedType.byId(target.substring(5)).isTree ||
+            SeedType.byId(
+                  target.substring(5),
+                ).tierForCount(widget.seeds[target.substring(5)] ?? 0) <
+                3))
+      return;
+    _appliedRestRequest = widget.restRequest;
+    if (!_onCushion || _restItem != target) _toggleCushion(target: target);
+    _jump(widget.layout.position(target).dx);
+  }
+
+  Offset _cushionFrom = const Offset(1200, 600);
+  late final _cushion = AnimationController(
+    vsync: this,
+    duration: const Duration(seconds: 4),
+  );
+  void _toggleCushion({String? target}) {
+    final selected = target ?? _restItem;
+    if (!_items.contains(selected) || widget.readOnly) return;
+    setState(() {
+      _onCushion = !_onCushion || _restItem != selected;
+      _restItem = selected;
+      _catWanders = false;
+      _responseKind = null;
+      _response.stop();
+      if (_onCushion) {
+        _cushionFrom = _displayedMoment?.feet ?? const Offset(1200, 600);
+        final p = widget.layout.position(_restItem);
+        final distance =
+            (_cushionFrom - Offset(p.dx * 2400, p.dy * 800 - 12)).distance;
+        _cushion.duration = Duration(
+          milliseconds: (distance / 65 * 1000)
+              .round()
+              .clamp(800, 20000)
+              .toInt(),
+        );
+        if (_air.isAnimating) {
+          _cushion.forward(from: 0);
+        } else {
+          _cushion.value = 1;
+        }
+      } else {
+        _cushion.stop();
+        final feet = _displayedMoment?.feet ?? _cushionFrom;
+        _catAnchor = Offset(
+          feet.dx + (feet.dx > 2200 ? -120 : 120),
+          (feet.dy + 30).clamp(40.0, 760.0).toDouble(),
+        );
+        _displayedMoment = GardenCatMoment(
+          _catAnchor!,
+          false,
+          0,
+          GardenCatMoment.depthSize(_catAnchor!.dy) * 1.25,
+          '방석 옆에서 쉬는 고양이',
+        );
+      }
+    });
+    _message(
+      _onCushion ? '$_restName에서 쉬어요. 고양이를 누르면 일어나요.' : '$_restName에서 일어났어요.',
+    );
+  }
+
   Timer? _expiryTimer;
   final _seenReactions = <String>{};
   String? _responseKind;
   DateTime? _responseDeadline;
   bool get _hasResponse =>
       _responseKind != null &&
+      !_onCushion &&
       !_quiet &&
       (_responseDeadline?.isAfter(DateTime.now()) ?? false);
   GardenCatMoment? _responseAnchor, _displayedMoment;
@@ -252,6 +341,10 @@ class _GardenWorldViewState extends State<GardenWorldView>
     setState(() {
       _quiet = value;
       if (value) {
+        if (_onCushion && _cushion.value < 1) {
+          _onCushion = false;
+          _cushion.stop();
+        }
         _response.stop();
         _responseKind = null;
       }
@@ -304,7 +397,10 @@ class _GardenWorldViewState extends State<GardenWorldView>
         setState(() => _responseKind = null);
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _considerReactions();
+      if (mounted) {
+        _considerReactions();
+        _applyRequestedRest();
+      }
     });
   }
 
@@ -330,6 +426,10 @@ class _GardenWorldViewState extends State<GardenWorldView>
         TickerMode.of(context) &&
         (ModalRoute.of(context)?.isCurrent ?? true);
     if (!enabled) {
+      _cushion.stop();
+      if (_onCushion &&
+          (!widget.motionEnabled || MediaQuery.disableAnimationsOf(context)))
+        _cushion.value = 1;
       _response.stop();
     } else if (_responseKind != null &&
         !_response.isAnimating &&
@@ -337,6 +437,8 @@ class _GardenWorldViewState extends State<GardenWorldView>
       _response.forward();
     }
     if (enabled) {
+      if (_onCushion && _cushion.value < 1 && !_cushion.isAnimating)
+        _cushion.forward();
       if (!_air.isAnimating) _air.repeat();
       if (!_daylight.isAnimating) _daylight.repeat();
     } else {
@@ -350,6 +452,12 @@ class _GardenWorldViewState extends State<GardenWorldView>
   final _camera = TransformationController();
   Size _viewport = Size.zero;
   double _minScale = .5;
+  Matrix4? _cameraBeforeMap;
+  Size? _viewportBeforeMap;
+  bool _restoreMapCamera = false;
+  final Map<int, Offset> _pointerOrigins = {};
+  bool _cameraGesture = false;
+
   int _zone = 1;
   String? _highlightPlant;
   String? get _inspectedPlant =>
@@ -386,6 +494,27 @@ class _GardenWorldViewState extends State<GardenWorldView>
       if (mounted) _considerReactions();
     });
     super.didUpdateWidget(oldWidget);
+    if (widget.restRequest != oldWidget.restRequest &&
+        widget.requestedRestItem != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _applyRequestedRest();
+      });
+    }
+    if (_onCushion &&
+        (widget.readOnly ||
+            !_items.contains(_restItem) ||
+            (_restItem.startsWith('seed:') &&
+                SeedType.byId(
+                      _restItem.substring(5),
+                    ).tierForCount(widget.seeds[_restItem.substring(5)] ?? 0) <
+                    3) ||
+            widget.layout.position(_restItem) !=
+                oldWidget.layout.position(_restItem))) {
+      _onCushion = false;
+      _cushion.stop();
+      _catAnchor = null;
+      _displayedMoment = null;
+    }
     if (widget.nightOverride != oldWidget.nightOverride) {
       _night =
           widget.nightOverride ??
@@ -435,6 +564,15 @@ class _GardenWorldViewState extends State<GardenWorldView>
       _closeFullTools();
     }
     if (widget.overviewRequested != oldWidget.overviewRequested) {
+      if (widget.overviewRequested) {
+        _cameraBeforeMap = Matrix4.copy(_camera.value);
+        _viewportBeforeMap = _viewport;
+      } else {
+        _restoreMapCamera =
+            _cameraBeforeMap != null &&
+            widget.plantFocusRequest == oldWidget.plantFocusRequest &&
+            widget.placementSeed == oldWidget.placementSeed;
+      }
       _overview = widget.overviewRequested;
       _viewport = Size.zero;
     }
@@ -444,6 +582,27 @@ class _GardenWorldViewState extends State<GardenWorldView>
     _syncMotion();
     if (!_items.contains(_selected)) _selected = null;
     if (_undo != null && !_items.contains(_undo!.key)) _undo = null;
+  }
+
+  void _restoreCamera(Matrix4 saved, Size from, Size to) {
+    if (from == to) {
+      _camera.value = saved.clone();
+      return;
+    }
+    // Preserve the world point under the old viewport centre and zoom relative
+    // to cover, rather than interpreting old screen pixels in the new aspect.
+    final inverse = Matrix4.inverted(saved);
+    final center = MatrixUtils.transformPoint(
+      inverse,
+      from.center(Offset.zero),
+    );
+    final oldCover = math.max(from.width / 2400, from.height / 800);
+    final newCover = math.max(to.width / 2400, to.height / 800);
+    _jump(
+      center.dx / 2400,
+      y: center.dy / 800,
+      scale: newCover * saved.getMaxScaleOnAxis() / oldCover,
+    );
   }
 
   ButtonStyle _chipStyle(Color bg, Color fg, {bool active = false}) =>
@@ -457,10 +616,15 @@ class _GardenWorldViewState extends State<GardenWorldView>
       );
 
   void _jump(double x, {double? scale, double y = .5}) {
-    final s = (scale ?? _camera.value.getMaxScaleOnAxis()).clamp(
-      _minScale,
-      _minScale * 2.5,
-    );
+    final s = (scale ?? _camera.value.getMaxScaleOnAxis())
+        .clamp(
+          _minScale,
+          math.max(
+            _minScale,
+            math.max(_viewport.width / 2400, _viewport.height / 800) * 4,
+          ),
+        )
+        .toDouble();
     final dx = 2400 * s < _viewport.width
         ? (_viewport.width - 2400 * s) / 2
         : (_viewport.width / 2 - x * 2400 * s).clamp(
@@ -534,6 +698,7 @@ class _GardenWorldViewState extends State<GardenWorldView>
   void dispose() {
     _highlightTimer?.cancel();
     _expiryTimer?.cancel();
+    _cushion.dispose();
     _response.dispose();
     WidgetsBinding.instance.removeObserver(this);
     _air.dispose();
@@ -604,7 +769,13 @@ class _GardenWorldViewState extends State<GardenWorldView>
                           size: 18,
                         ),
                         label: Text(_catWanders ? '산책 켜짐' : '산책 꺼짐'),
-                        onSelected: (v) => setState(() => _catWanders = v),
+                        onSelected: (v) => setState(() {
+                          _catWanders = v;
+                          if (v) {
+                            _onCushion = false;
+                            _cushion.stop();
+                          }
+                        }),
                       ),
                     ),
                     Tooltip(
@@ -934,7 +1105,13 @@ class _GardenWorldViewState extends State<GardenWorldView>
               } else if (value == 'light') {
                 setState(() => _night = !_night);
               } else if (value == 'cat') {
-                setState(() => _catWanders = !_catWanders);
+                setState(() {
+                  _catWanders = !_catWanders;
+                  if (_catWanders) {
+                    _onCushion = false;
+                    _cushion.stop();
+                  }
+                });
               } else if (value == 'motion') {
                 setState(() => _paused = !_paused);
                 _syncMotion();
@@ -1194,18 +1371,35 @@ class _GardenWorldViewState extends State<GardenWorldView>
       builder: (context, box) {
         final size = box.biggest;
         if (size != _viewport) {
+          final previousSize = _viewport;
+          final previousCamera = _camera.value.clone();
           _viewport = size;
           _minScale = _overview
               ? math.min(size.width / 2400, size.height / 800)
               : math.max(size.width / 2400, size.height / 800);
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (mounted) {
+              if (_restoreMapCamera &&
+                  _cameraBeforeMap != null &&
+                  _viewportBeforeMap != null &&
+                  !_viewportBeforeMap!.isEmpty) {
+                _restoreMapCamera = false;
+                _restoreCamera(_cameraBeforeMap!, _viewportBeforeMap!, size);
+                return;
+              }
+              _restoreMapCamera = false;
+              if (!_overview && !previousSize.isEmpty) {
+                _restoreCamera(previousCamera, previousSize, size);
+                return;
+              }
               _jump(
                 _quiet && widget.decorations.contains('bench')
                     ? widget.layout.position('decor:bench').dx
                     : (_overview ? .5 : _focusX),
-                scale: _inspectedPlant == null ? _minScale : _minScale * 1.25,
-                y: _inspectedPlant == null
+                scale: _overview || _inspectedPlant == null
+                    ? _minScale
+                    : _minScale * 1.25,
+                y: _overview || _inspectedPlant == null
                     ? .5
                     : widget.layout.position(_inspectedPlant!).dy - .12,
               );
@@ -1219,289 +1413,322 @@ class _GardenWorldViewState extends State<GardenWorldView>
                 .dy
                 .compareTo(widget.layout.position(b).dy),
           );
-        return ClipRect(
-          child: InteractiveViewer(
-            key: const Key('garden-world-camera'),
-            panEnabled: widget.cameraGestures,
-            scaleEnabled: widget.cameraGestures,
-            transformationController: _camera,
-            constrained: false,
-            alignment: Alignment.topLeft,
-            minScale: _minScale,
-            maxScale: _minScale * 2.5,
-            child: GestureDetector(
-              onTapUp: (e) {
-                if (widget.placementSeed != null && !widget.readOnly) {
-                  widget.onPlacementPoint?.call(
-                    Offset(e.localPosition.dx / 2400, e.localPosition.dy / 800),
-                  );
-                } else {
-                  _place(e.localPosition);
-                }
-              },
-              behavior: HitTestBehavior.opaque,
-              child: SizedBox(
-                key: const Key('garden-world-ground'),
-                width: 2400,
-                height: 800,
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    Positioned.fill(
-                      child: widget.originalScenery
-                          ? Image.asset(
-                              'assets/living_garden/cultivation_${_night ? 'night' : 'day'}.png',
-                              key: const Key('original-garden-backdrop'),
-                              fit: BoxFit.fill,
-                              excludeFromSemantics: true,
-                            )
-                          : StorybookBackdrop(night: _night),
-                    ),
-                    if (_inspectedPlant != null)
-                      const Positioned.fill(
-                        child: IgnorePointer(
-                          child: ColoredBox(
-                            key: Key('plant-focus-backdrop'),
-                            color: Color(0x24000000),
+        return Listener(
+          onPointerDown: (e) {
+            if (_pointerOrigins.isEmpty) _cameraGesture = false;
+            _pointerOrigins[e.pointer] = e.position;
+            if (_pointerOrigins.length > 1) _cameraGesture = true;
+          },
+          onPointerMove: (e) {
+            final origin = _pointerOrigins[e.pointer];
+            if (origin != null && (e.position - origin).distance > 8)
+              _cameraGesture = true;
+          },
+          onPointerUp: (e) => _pointerOrigins.remove(e.pointer),
+          onPointerCancel: (e) {
+            _pointerOrigins.remove(e.pointer);
+            _cameraGesture = true;
+          },
+          child: ClipRect(
+            child: InteractiveViewer(
+              key: const Key('garden-world-camera'),
+              panEnabled: widget.cameraGestures,
+              scaleEnabled: widget.cameraGestures,
+              transformationController: _camera,
+              constrained: false,
+              alignment: Alignment.topLeft,
+              minScale: _minScale,
+              maxScale: math.max(size.width / 2400, size.height / 800) * 4,
+              child: GestureDetector(
+                onTapUp: (e) {
+                  if (_cameraGesture) return;
+                  if (widget.placementSeed != null && !widget.readOnly) {
+                    widget.onPlacementPoint?.call(
+                      Offset(
+                        e.localPosition.dx / 2400,
+                        e.localPosition.dy / 800,
+                      ),
+                    );
+                  } else {
+                    _place(e.localPosition);
+                  }
+                },
+                behavior: HitTestBehavior.opaque,
+                child: SizedBox(
+                  key: const Key('garden-world-ground'),
+                  width: 2400,
+                  height: 800,
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Positioned.fill(
+                        child: widget.originalScenery
+                            ? Image.asset(
+                                'assets/living_garden/cultivation_${_night ? 'night' : 'day'}.png',
+                                key: const Key('original-garden-backdrop'),
+                                fit: BoxFit.fill,
+                                excludeFromSemantics: true,
+                              )
+                            : StorybookBackdrop(night: _night),
+                      ),
+                      if (_inspectedPlant != null)
+                        const Positioned.fill(
+                          child: IgnorePointer(
+                            child: ColoredBox(
+                              key: Key('plant-focus-backdrop'),
+                              color: Color(0x24000000),
+                            ),
                           ),
                         ),
-                      ),
-                    Positioned.fill(
-                      child: IgnorePointer(
-                        child: RepaintBoundary(
-                          child: CustomPaint(
-                            painter: widget.originalScenery
-                                ? GardenAtmosphere.animated(
-                                    _air,
-                                    _night,
-                                    daylight: _daylight,
-                                    openLawn: true,
-                                  )
-                                : StorybookAtmosphere(_air, _night),
-                          ),
-                        ),
-                      ),
-                    ),
-                    if (_editing)
                       Positioned.fill(
                         child: IgnorePointer(
-                          child: CustomPaint(painter: _GroundGrid()),
-                        ),
-                      ),
-                    if (widget.placementSeed != null && !widget.readOnly)
-                      Positioned.fill(
-                        child: IgnorePointer(
-                          child: CustomPaint(
-                            key: const Key('planting-available-hints'),
-                            painter: GardenPlantingHints(
-                              points: widget.layout.plantingHints(
-                                'seed:${widget.placementSeed!.id}',
-                                _items,
-                              ),
-                              selected: widget.placementPoint,
-                              validSelection:
-                                  widget.placementPoint != null &&
-                                  widget.layout.placementError(
-                                        'seed:${widget.placementSeed!.id}',
-                                        widget.placementPoint!,
-                                        _items,
-                                      ) ==
-                                      null,
-                              night: _night,
+                          child: RepaintBoundary(
+                            child: CustomPaint(
+                              painter: widget.originalScenery
+                                  ? GardenAtmosphere.animated(
+                                      _air,
+                                      _night,
+                                      daylight: _daylight,
+                                      openLawn: true,
+                                    )
+                                  : StorybookAtmosphere(_air, _night),
                             ),
                           ),
                         ),
                       ),
-                    if (!widget.readOnly)
-                      for (final id in sorted.where(
-                        (id) => id.startsWith('seed:'),
-                      ))
+                      if (_editing)
+                        Positioned.fill(
+                          child: IgnorePointer(
+                            child: CustomPaint(painter: _GroundGrid()),
+                          ),
+                        ),
+                      if (widget.placementSeed != null && !widget.readOnly)
+                        Positioned.fill(
+                          child: IgnorePointer(
+                            child: CustomPaint(
+                              key: const Key('planting-available-hints'),
+                              painter: GardenPlantingHints(
+                                points: widget.layout.plantingHints(
+                                  'seed:${widget.placementSeed!.id}',
+                                  _items,
+                                ),
+                                selected: widget.placementPoint,
+                                validSelection:
+                                    widget.placementPoint != null &&
+                                    widget.layout.placementError(
+                                          'seed:${widget.placementSeed!.id}',
+                                          widget.placementPoint!,
+                                          _items,
+                                        ) ==
+                                        null,
+                                night: _night,
+                              ),
+                            ),
+                          ),
+                        ),
+                      if (!widget.readOnly)
+                        for (final id in sorted.where(
+                          (id) => id.startsWith('seed:'),
+                        ))
+                          Positioned(
+                            left: widget.layout.position(id).dx * 2400 - 38,
+                            top: widget.layout.position(id).dy * 800 - 9,
+                            width: 76,
+                            height: 20,
+                            child: IgnorePointer(
+                              child: DecoratedBox(
+                                key: ValueKey('plant-soil-$id'),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xBBA88B65),
+                                  border: Border.all(
+                                    color: const Color(0xCCDCC8A1),
+                                    width: 2,
+                                  ),
+                                  borderRadius: BorderRadius.circular(40),
+                                ),
+                              ),
+                            ),
+                          ),
+                      if (!widget.readOnly &&
+                          (_inspectedPlant ?? _highlightPlant) != null &&
+                          _items.contains(_inspectedPlant ?? _highlightPlant))
                         Positioned(
-                          left: widget.layout.position(id).dx * 2400 - 38,
-                          top: widget.layout.position(id).dy * 800 - 9,
-                          width: 76,
-                          height: 20,
+                          key: const Key('located-plant-highlight'),
+                          left:
+                              widget.layout
+                                      .position(
+                                        (_inspectedPlant ?? _highlightPlant)!,
+                                      )
+                                      .dx *
+                                  2400 -
+                              78,
+                          top:
+                              widget.layout
+                                      .position(
+                                        (_inspectedPlant ?? _highlightPlant)!,
+                                      )
+                                      .dy *
+                                  800 -
+                              28,
+                          width: 156,
+                          height: 56,
                           child: IgnorePointer(
                             child: DecoratedBox(
-                              key: ValueKey('plant-soil-$id'),
                               decoration: BoxDecoration(
-                                color: const Color(0xBBA88B65),
+                                shape: BoxShape.circle,
                                 border: Border.all(
-                                  color: const Color(0xCCDCC8A1),
-                                  width: 2,
+                                  color: const Color(0xFFFFE7A1),
+                                  width: 4,
                                 ),
-                                borderRadius: BorderRadius.circular(40),
+                                color: const Color(0x33FFF0AB),
                               ),
                             ),
                           ),
                         ),
-                    if (!widget.readOnly &&
-                        (_inspectedPlant ?? _highlightPlant) != null &&
-                        _items.contains(_inspectedPlant ?? _highlightPlant))
-                      Positioned(
-                        key: const Key('located-plant-highlight'),
-                        left:
-                            widget.layout
-                                    .position(
-                                      (_inspectedPlant ?? _highlightPlant)!,
-                                    )
-                                    .dx *
-                                2400 -
-                            78,
-                        top:
-                            widget.layout
-                                    .position(
-                                      (_inspectedPlant ?? _highlightPlant)!,
-                                    )
-                                    .dy *
-                                800 -
-                            28,
-                        width: 156,
-                        height: 56,
-                        child: IgnorePointer(
-                          child: DecoratedBox(
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: const Color(0xFFFFE7A1),
-                                width: 4,
-                              ),
-                              color: const Color(0x33FFF0AB),
-                            ),
+                      if (!widget.readOnly || !widget.originalScenery)
+                        const Positioned.fill(child: SeasonalGardenLayer()),
+                      _sceneLayer(sorted),
+                      if (widget.placementSeed != null &&
+                          widget.placementPoint != null &&
+                          !widget.readOnly &&
+                          widget.layout.placementError(
+                                'seed:${widget.placementSeed!.id}',
+                                widget.placementPoint!,
+                                _items,
+                              ) ==
+                              null)
+                        _placementPreview(),
+                      if (!widget.originalScenery)
+                        Positioned.fill(
+                          child: StorybookForeground(
+                            clock: _air,
+                            camera: _camera,
+                            night: _night,
                           ),
                         ),
-                      ),
-                    _sceneLayer(sorted),
-                    if (widget.placementSeed != null &&
-                        widget.placementPoint != null &&
-                        !widget.readOnly &&
-                        widget.layout.placementError(
-                              'seed:${widget.placementSeed!.id}',
-                              widget.placementPoint!,
-                              _items,
-                            ) ==
-                            null)
-                      _placementPreview(),
-                    if (!widget.originalScenery)
-                      Positioned.fill(
-                        child: StorybookForeground(
-                          clock: _air,
-                          camera: _camera,
-                          night: _night,
-                        ),
-                      ),
-                    ..._reactionSprites(),
-                    if (_waterTarget != null && _items.contains(_waterTarget))
-                      Positioned(
-                        left:
-                            widget.layout.position(_waterTarget!).dx * 2400 -
-                            70,
-                        top:
-                            widget.layout.position(_waterTarget!).dy * 800 -
-                            160,
-                        width: 140,
-                        height: 170,
-                        child: IgnorePointer(
-                          child: CustomPaint(painter: GardenWaterDrops(_water)),
-                        ),
-                      ),
-                    for (final zone in [0, 2])
-                      if (!widget.layout.isOpen(zone))
+                      ..._reactionSprites(),
+                      if (_waterTarget != null && _items.contains(_waterTarget))
                         Positioned(
-                          left: zone * 800.0,
-                          top: 0,
-                          width: 800,
-                          height: 800,
-                          child: widget.immersive
-                              ? Align(
-                                  alignment: Alignment.bottomCenter,
-                                  child: Padding(
-                                    padding: const EdgeInsets.only(bottom: 30),
-                                    child: Material(
-                                      color: const Color(0xDDFBFAF4),
-                                      borderRadius: BorderRadius.circular(24),
-                                      child: TextButton.icon(
-                                        onPressed: widget.readOnly
-                                            ? null
-                                            : _showGardenGoals,
-                                        icon: const Icon(
-                                          Icons.lock_outline,
-                                          size: 18,
-                                        ),
-                                        label: Text(
-                                          zone == 0
-                                              ? '꽃밭 · 성장하면 열려요'
-                                              : '나무 뜰 · 성장하면 열려요',
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                )
-                              : ColoredBox(
-                                  color: const Color(0x806D816C),
-                                  child: Center(
-                                    child: Container(
-                                      padding: const EdgeInsets.all(24),
-                                      decoration: BoxDecoration(
-                                        color: AppColors.bg1,
-                                        borderRadius: BorderRadius.circular(24),
-                                        border: Border.all(
-                                          color: AppColors.sageLine,
-                                        ),
-                                      ),
-                                      child: Column(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          const Icon(
-                                            Icons.spa_outlined,
-                                            size: 38,
-                                            color: AppColors.catSage,
-                                          ),
-                                          Text(
-                                            zone == 0
-                                                ? '조금씩 열리는 꽃밭'
-                                                : '나무를 위한 넓은 뜰',
-                                            style: titleFont(
-                                              fontSize: 22,
-                                              color: AppColors.titlePastelGreen,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 8),
-                                          Text(
-                                            '씨앗을 심거나 가꾼 횟수 ${zone == 0 ? 3 : 8}회에 열려요',
-                                            textAlign: TextAlign.center,
-                                            style: bodyFont(
-                                              fontSize: 15,
-                                              color: AppColors.ink,
-                                            ),
-                                          ),
-                                          Text(
-                                            '한 번 열린 공간은 그대로 남아요',
-                                            style: bodyFont(
-                                              fontSize: 13,
-                                              color: AppColors.inkSoft,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                        ),
-                    if (widget.placementSeed != null && !widget.readOnly)
-                      Positioned.fill(
-                        child: GestureDetector(
-                          behavior: HitTestBehavior.opaque,
-                          onTapUp: (e) => widget.onPlacementPoint?.call(
-                            Offset(
-                              e.localPosition.dx / 2400,
-                              e.localPosition.dy / 800,
+                          left:
+                              widget.layout.position(_waterTarget!).dx * 2400 -
+                              70,
+                          top:
+                              widget.layout.position(_waterTarget!).dy * 800 -
+                              160,
+                          width: 140,
+                          height: 170,
+                          child: IgnorePointer(
+                            child: CustomPaint(
+                              painter: GardenWaterDrops(_water),
                             ),
                           ),
-                          child: const ColoredBox(color: Colors.transparent),
                         ),
-                      ),
-                  ],
+                      for (final zone in [0, 2])
+                        if (!widget.layout.isOpen(zone))
+                          Positioned(
+                            left: zone * 800.0,
+                            top: 0,
+                            width: 800,
+                            height: 800,
+                            child: widget.immersive
+                                ? Align(
+                                    alignment: Alignment.bottomCenter,
+                                    child: Padding(
+                                      padding: const EdgeInsets.only(
+                                        bottom: 30,
+                                      ),
+                                      child: Material(
+                                        color: const Color(0xDDFBFAF4),
+                                        borderRadius: BorderRadius.circular(24),
+                                        child: TextButton.icon(
+                                          onPressed: widget.readOnly
+                                              ? null
+                                              : _showGardenGoals,
+                                          icon: const Icon(
+                                            Icons.lock_outline,
+                                            size: 18,
+                                          ),
+                                          label: Text(
+                                            zone == 0
+                                                ? '꽃밭 · 성장하면 열려요'
+                                                : '나무 뜰 · 성장하면 열려요',
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  )
+                                : ColoredBox(
+                                    color: const Color(0x806D816C),
+                                    child: Center(
+                                      child: Container(
+                                        padding: const EdgeInsets.all(24),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.bg1,
+                                          borderRadius: BorderRadius.circular(
+                                            24,
+                                          ),
+                                          border: Border.all(
+                                            color: AppColors.sageLine,
+                                          ),
+                                        ),
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            const Icon(
+                                              Icons.spa_outlined,
+                                              size: 38,
+                                              color: AppColors.catSage,
+                                            ),
+                                            Text(
+                                              zone == 0
+                                                  ? '조금씩 열리는 꽃밭'
+                                                  : '나무를 위한 넓은 뜰',
+                                              style: titleFont(
+                                                fontSize: 22,
+                                                color:
+                                                    AppColors.titlePastelGreen,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 8),
+                                            Text(
+                                              '씨앗을 심거나 가꾼 횟수 ${zone == 0 ? 3 : 8}회에 열려요',
+                                              textAlign: TextAlign.center,
+                                              style: bodyFont(
+                                                fontSize: 15,
+                                                color: AppColors.ink,
+                                              ),
+                                            ),
+                                            Text(
+                                              '한 번 열린 공간은 그대로 남아요',
+                                              style: bodyFont(
+                                                fontSize: 13,
+                                                color: AppColors.inkSoft,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                          ),
+                      if (widget.placementSeed != null && !widget.readOnly)
+                        Positioned.fill(
+                          child: GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTapUp: (e) {
+                              if (!_cameraGesture)
+                                widget.onPlacementPoint?.call(
+                                  Offset(
+                                    e.localPosition.dx / 2400,
+                                    e.localPosition.dy / 800,
+                                  ),
+                                );
+                            },
+                            child: const ColoredBox(color: Colors.transparent),
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -1602,7 +1829,7 @@ class _GardenWorldViewState extends State<GardenWorldView>
   Widget _sceneLayer(List<String> sorted) => Positioned.fill(
     key: const Key('garden-item-layer'),
     child: AnimatedBuilder(
-      animation: Listenable.merge([_air, _response]),
+      animation: Listenable.merge([_air, _response, _cushion]),
       builder: (context, _) {
         final delta = (_air.value - _lastCatAir + 1) % 1;
         if (_air.isAnimating &&
@@ -1660,7 +1887,33 @@ class _GardenWorldViewState extends State<GardenWorldView>
                   groundDy: previous.contactDy,
                 );
         }
-        if (_hasResponse) {
+        if (_onCushion && !widget.readOnly && _items.contains(_restItem)) {
+          final p = widget.layout.position(_restItem);
+          final seat = Offset(p.dx * 2400, p.dy * 800 - 12);
+          final obstacles = _items
+              .where((id) => id != _restItem)
+              .map(world)
+              .toList();
+          final resting = GardenCatMoment.cushion(
+            _cushionFrom,
+            seat,
+            _cushion.value,
+            obstacles,
+          );
+          moment = GardenCatMoment(
+            resting.feet,
+            resting.resting,
+            resting.tilt,
+            resting.size * 1.25,
+            resting.label,
+            walking: resting.walking,
+            faceLeft: resting.faceLeft,
+            frame: resting.frame,
+            facing: resting.facing,
+            groundDy: resting.resting ? p.dy * 800 + 1 : resting.contactDy,
+          );
+        }
+        if (_hasResponse && !_onCushion) {
           final anchor = _responseAnchor ?? moment;
           moment = GardenCatMoment(
             anchor.feet,
@@ -1686,11 +1939,15 @@ class _GardenWorldViewState extends State<GardenWorldView>
           child: Semantics(
             key: const Key('garden-companion'),
             button: true,
-            label: !widget.readOnly && widget.onCompanionCare != null
+            label: _onCushion && !widget.readOnly
+                ? '${widget.companionName} $_restName에서 일어나기'
+                : !widget.readOnly && widget.onCompanionCare != null
                 ? '${widget.companionName} 돌보기'
                 : companionCopy(moment.label, widget.companionName),
             child: GestureDetector(
-              onTap: !widget.readOnly && widget.onCompanionCare != null
+              onTap: _onCushion && !widget.readOnly
+                  ? _toggleCushion
+                  : !widget.readOnly && widget.onCompanionCare != null
                   ? widget.onCompanionCare
                   : () => _message(
                       companionCopy(moment.label, widget.companionName),
@@ -1802,6 +2059,41 @@ class _GardenWorldViewState extends State<GardenWorldView>
                             ),
                           ),
                       ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          if (!widget.readOnly && widget.personalArtwork != null)
+            (
+              520.0,
+              Positioned(
+                left: 1300,
+                top: 370,
+                width: 100,
+                height: 150,
+                child: Semantics(
+                  label: '내가 색칠한 작품 액자',
+                  image: true,
+                  child: IgnorePointer(
+                    child: Container(
+                      padding: const EdgeInsets.all(7),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF9F0DF),
+                        border: Border.all(
+                          color: const Color(0xFF8C664B),
+                          width: 7,
+                        ),
+                        boxShadow: const [
+                          BoxShadow(color: Color(0x33000000), blurRadius: 5),
+                        ],
+                      ),
+                      child: Image.memory(
+                        widget.personalArtwork!,
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) =>
+                            const Icon(Icons.image_not_supported_outlined),
+                      ),
                     ),
                   ),
                 ),
@@ -1976,7 +2268,7 @@ class _GardenWorldViewState extends State<GardenWorldView>
         onTap: _saving
             ? null
             : () {
-                if (_quiet) {
+                if (_quiet || _cameraGesture) {
                   return;
                 } else if (widget.placementSeed != null && !widget.readOnly) {
                   _message('기존 식물이 없는 빈 땅을 골라 주세요.');
@@ -1996,6 +2288,9 @@ class _GardenWorldViewState extends State<GardenWorldView>
                   } else {
                     widget.onMemory(seed);
                   }
+                } else if (id == 'decor:cat_cushion' ||
+                    id == 'decor:cat_basket') {
+                  _toggleCushion(target: id);
                 } else if (id == 'decor:bench') {
                   _setQuiet(true);
                 } else {
@@ -2159,6 +2454,7 @@ IconData _decorationIcon(String id) => switch (id) {
   'tulip_pot' => Icons.local_florist_outlined,
   'sunflower_pot' => Icons.wb_sunny,
   'cat_cushion' => Icons.bed,
+  'cat_basket' => Icons.shopping_basket_outlined,
   'moon_lamp' => Icons.nightlight_round,
   'bird_house' => Icons.cottage_outlined,
   'wind_chime' => Icons.notifications_none,

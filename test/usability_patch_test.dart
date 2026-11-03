@@ -40,10 +40,10 @@ void main() {
     );
   });
   test(
-    'all decoration defaults fit opened central land without overlapping',
+    'all decoration defaults fit expanded land without overlapping',
     () {
-      final layout = GardenLayout();
-      expect(GardenDecoration.all.length, 19);
+      final layout = GardenLayout(spaces: 3);
+      expect(GardenDecoration.all.length, 24);
       for (final id in GardenLayout.itemIds) {
         expect(
           layout.placementError(id, layout.position(id), GardenLayout.itemIds),

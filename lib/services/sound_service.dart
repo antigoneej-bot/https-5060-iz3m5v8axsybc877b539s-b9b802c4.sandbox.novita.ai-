@@ -1,3 +1,4 @@
+import '../mongi/services/sound_manager.dart';
 import 'dart:async';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
@@ -17,6 +18,7 @@ class SoundService extends ChangeNotifier {
   final AudioPlayer _purrPlayer = AudioPlayer();
   final AudioPlayer _bubblePlayer = AudioPlayer();
 
+  bool sleepStopped = false;
   bool narrationPlaying = false;
   bool gardenSuspended = false;
   final _bgmQueue = LocalRecordQueue();
@@ -43,12 +45,18 @@ class SoundService extends ChangeNotifier {
   }
 
   bool get _canPlayBgm =>
-      bgmEnabled && _appAudible && !narrationPlaying && !gardenSuspended;
+      !sleepStopped && bgmEnabled && _appAudible && !narrationPlaying && !gardenSuspended;
 
   /// App visibility is updated synchronously, so a late decoder completion
   /// cannot start music after the app is hidden or locked.
   Future<void> setAppAudible(bool value, {bool autoplay = true}) {
     _appAudible = value;
+    SoundManager.instance.appAudible = value;
+    if (!value) { unawaited(SoundManager.instance.pauseAmbientNature()); }
+    else if (SoundManager.instance.ambientRequested && !sleepStopped && !narrationPlaying) {
+      unawaited(SoundManager.instance.ambientNaturePlaying
+        ? SoundManager.instance.resumeAmbientNatureIfNeeded() : SoundManager.instance.startAmbientNature());
+    }
     if (value) return autoplay ? tryStartBgm() : Future<void>.value();
     return _bgmAction(() async {
       if (_appAudible) return;
@@ -85,6 +93,7 @@ class SoundService extends ChangeNotifier {
   bool _bgmStarted = false;
 
   Future<void> init() async {
+    await SoundManager.instance.loadNatureSettings();
     sfxEnabled = await StorageService.getSfxEnabled();
     bgmEnabled = await StorageService.getBgmEnabled();
     bgmVolume = _validVolume(await StorageService.getBgmVolume());
@@ -183,7 +192,7 @@ class SoundService extends ChangeNotifier {
   }
 
   bool get _canPlayEffect =>
-      sfxEnabled && _appAudible && !gardenSuspended && !narrationPlaying;
+      !sleepStopped && sfxEnabled && _appAudible && !gardenSuspended && !narrationPlaying;
 
   Future<void> _playEffect(AudioPlayer player, String asset) {
     if (!_canPlayEffect) return Future<void>.value();

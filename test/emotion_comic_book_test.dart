@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -6,6 +7,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_app/mongi/integration/mongi_garden_store.dart';
 import 'package:flutter_app/services/draft_service.dart';
 import 'package:flutter_app/services/unified_emotion_summary_service.dart';
 import 'package:flutter_app/widgets/emotion_comic_book.dart';
@@ -49,11 +52,17 @@ void main() {
   late Directory dir;
   setUpAll(() async {
     FlutterSecureStorage.setMockInitialValues({});
+    SharedPreferences.setMockInitialValues({
+      MongiGardenStore.storageKey: jsonEncode(MongiGardenData(seedTokens: 1)
+          .plant('pine', now: DateTime(2026, 10, 5)).toJson()),
+    });
     dir = await Directory.systemTemp.createTemp('comic53');
     Hive.init(dir.path);
     await DraftService.box();
+    await MongiGardenStore.instance.reload();
   });
   tearDownAll(() async {
+    await Hive.close();
     await dir.delete(recursive: true);
   });
   test('pagination preserves every record and chronology', () {
@@ -127,8 +136,15 @@ void main() {
         });
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);
+        expect(find.textContaining('정원 이야기를 불러오지 못했어요.'), findsNothing);
         Future<void> capture(String name) async {
           if (dest.isNotEmpty && size.width == 390) {
+            await tester.runAsync(() async {
+              for (final element in find.byType(Image).evaluate().toList()) {
+                await precacheImage((element.widget as Image).image, element);
+              }
+            });
+            await tester.pump();
             await tester.runAsync(() async {
               final img =
                   await (key.currentContext!.findRenderObject()
@@ -151,6 +167,13 @@ void main() {
         expect(find.text('오늘은 잠깐 나를 위한 시간을 가졌어요.'), findsWidgets);
         await tester.tap(find.text('닫기'));
         await tester.pumpAndSettle();
+        for (var page = 0; page < 2; page++) {
+          await tester.ensureVisible(find.byTooltip('다음 장'));
+          await tester.tap(find.byTooltip('다음 장'));
+          await tester.pumpAndSettle();
+        }
+        expect(find.text('내 정원이 자란 날'), findsOneWidget);
+        await capture('79-comic-saved-planting.png');
         await tester.ensureVisible(find.text('마지막 장 · 마음 모아 보기'));
         await tester.tap(find.text('마지막 장 · 마음 모아 보기'));
         await tester.pumpAndSettle();

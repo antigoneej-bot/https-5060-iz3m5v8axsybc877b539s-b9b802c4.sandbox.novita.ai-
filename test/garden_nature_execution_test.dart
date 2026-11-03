@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_app/widgets/companion_cat_mesh.dart';
 import 'package:audioplayers_platform_interface/audioplayers_platform_interface.dart';
 import 'package:flutter_app/mongi/widgets/garden_ambient.dart';
 import 'package:flutter_app/mongi/widgets/garden_world_view.dart';
@@ -70,6 +71,21 @@ void main() {
           ),
         );
         await t.pump();
+        if (output.isNotEmpty) {
+          await t.runAsync(() async {
+            final deadline = DateTime.now().add(const Duration(seconds: 30));
+            // This fixture is read-only without a host identity, so it uses
+            // the original mesh cat rather than a visitor's selected coat.
+            while (find.byWidgetPredicate((w) => w is CustomPaint &&
+                w.painter is CompanionCatMeshPainter &&
+                (w.painter as CompanionCatMeshPainter).closed != null)
+                .evaluate().isEmpty) {
+              if (DateTime.now().isAfter(deadline)) fail('Companion art did not decode');
+              await Future<void>.delayed(const Duration(milliseconds: 5));
+              await t.pump();
+            }
+          });
+        }
         final atmosphere = t
             .widgetList<CustomPaint>(find.byType(CustomPaint))
             .map((w) => w.painter)

@@ -1,3 +1,5 @@
+import '../mongi/integration/mongi_garden_store.dart';
+import '../mongi/models/seed.dart';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -53,6 +55,8 @@ class EmotionComicBook extends StatefulWidget {
 
 class _EmotionComicBookState extends State<EmotionComicBook> {
   int _page = 0;
+  List<Map<String, dynamic>> _events = [];
+  String? _eventError;
   bool _sharing = false;
   final _capture = GlobalKey();
   late final DraftTextController _title;
@@ -61,10 +65,36 @@ class _EmotionComicBookState extends State<EmotionComicBook> {
   @override
   void initState() {
     super.initState();
+    _loadEvents();
     _title = DraftTextController(
       'comic_title_${widget.monthly ? 'month' : 'week'}_${widget.start.toIso8601String()}',
     );
   }
+
+  Future<void> _loadEvents() async {
+    try {
+      await MongiGardenStore.instance.reload();
+      final data = MongiGardenStore.instance.value;
+      final events = [...data.lifeEvents];
+      // A saved planting date is evidence; never infer growth dates from today's size.
+      for (final e in data.plantedOn.entries) {
+        if (!events.any((v) => v['kind'] == 'plant' && v['plant'] == e.key && v['at'] == e.value)) {
+          events.add({'kind': 'plant', 'plant': e.key, 'at': e.value, 'level': 1});
+        }
+      }
+      events.sort((a, b) => (a['at'] as String).compareTo(b['at'] as String));
+      if (mounted) setState(() { _events = events; _eventError = null; });
+    } catch (_) { if (mounted) setState(() => _eventError = '정원 이야기를 불러오지 못했어요.'); }
+  }
+  Widget _gardenScenes(List<Map<String, dynamic>> events, {Key? key}) => Column(key: key, children: [
+    heading('내 정원이 자란 날'),
+    for (final event in events) Card(child: Padding(padding: const EdgeInsets.all(16), child: Column(children: [
+      Icon(event['kind'] == 'plant' ? Icons.spa_outlined : Icons.park_outlined, size: 64, color: const Color(0xFF82A58A)),
+      Text('${event['at']} · ${SeedType.byId(event['plant'] as String).label}'),
+      Text(event['kind'] == 'plant' ? '이날 내 정원에 심었어요.' : '${event['level']}단계로 자랐어요.'),
+    ]))),
+    note('실제로 저장된 심기·성장 기록이에요. 최근 1,000건의 사건을 보관해요.'),
+  ]);
 
   @override
   void dispose() {
@@ -194,11 +224,20 @@ class _EmotionComicBookState extends State<EmotionComicBook> {
   @override
   Widget build(BuildContext context) {
     final pages = comicPages(widget.summary.records);
-    final page = _page.clamp(0, pages.length);
-    final last = page == pages.length;
+    final events = _events.where((e) {
+      final day = DateTime.parse(e['at'] as String);
+      return !day.isBefore(DateUtils.dateOnly(widget.start)) && !day.isAfter(DateUtils.dateOnly(widget.end));
+    }).toList();
+    final gardenPages = <List<Map<String, dynamic>>>[
+      for (var i = 0; i < events.length; i += 4) events.sublist(i, (i + 4).clamp(0, events.length).toInt()),
+    ];
+    final totalScenes = pages.length + gardenPages.length;
+    final page = _page.clamp(0, totalScenes);
+    final last = page == totalScenes;
     final reduced = MediaQuery.disableAnimationsOf(context);
     return Column(
       children: [
+        if (_eventError != null) TextButton(onPressed: _loadEvents, child: Text('$_eventError 다시 시도')),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -212,8 +251,8 @@ class _EmotionComicBookState extends State<EmotionComicBook> {
             Expanded(
               child: note(
                 last
-                    ? '마지막 장 · ${page + 1} / ${pages.length + 1}'
-                    : '${page + 1} / ${pages.length + 1} · 나의 이야기',
+                    ? '마지막 장 · ${page + 1} / ${totalScenes + 1}'
+                    : '${page + 1} / ${totalScenes + 1} · 나의 이야기',
               ),
             ),
             IconButton(
@@ -262,7 +301,8 @@ class _EmotionComicBookState extends State<EmotionComicBook> {
                     duration: Duration(milliseconds: reduced ? 0 : 220),
                     child: last
                         ? _summary(key: const ValueKey('summary'))
-                        : _scenes(pages[page], key: ValueKey(page)),
+                        : page < pages.length ? _scenes(pages[page], key: ValueKey(page))
+                        : _gardenScenes(gardenPages[page - pages.length], key: ValueKey(page)),
                   ),
                   const SizedBox(height: 12),
                   note('내가 남긴 기록으로 엮은 이야기'),
@@ -274,7 +314,7 @@ class _EmotionComicBookState extends State<EmotionComicBook> {
         const SizedBox(height: 14),
         if (!last)
           TextButton(
-            onPressed: () => setState(() => _page = pages.length),
+            onPressed: () => setState(() => _page = totalScenes),
             child: const Text('마지막 장 · 마음 모아 보기'),
           ),
         FilledButton.icon(

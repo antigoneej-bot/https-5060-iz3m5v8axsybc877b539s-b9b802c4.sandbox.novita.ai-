@@ -4,6 +4,7 @@ import '../models/garden_decoration.dart';
 
 /// One snapshot keeps stage progression and its reward in the same write.
 class MongiGardenData {
+  final List<Map<String, dynamic>> lifeEvents;
   final int stage;
   final int seedTokens;
   final int essence;
@@ -27,6 +28,7 @@ class MongiGardenData {
 
   MongiGardenData({
     this.stage = 1,
+    List<Map<String, dynamic>> lifeEvents = const [],
     this.seedTokens = 0,
     this.essence = 0,
     Map<String, int> walkStock = const {},
@@ -43,7 +45,8 @@ class MongiGardenData {
     Set<String>? careDays,
     Set<String> meditationDays = const {},
     Map<String, int> storyProgress = const {},
-  }) : walkStock = Map.unmodifiable(walkStock),
+  }) : lifeEvents = List.unmodifiable(lifeEvents.map((e) => Map<String, dynamic>.unmodifiable(e))),
+       walkStock = Map.unmodifiable(walkStock),
        claimedGiftReceipts = Set.unmodifiable(claimedGiftReceipts),
        seeds = Map.unmodifiable(seeds),
        plantedOn = Map.unmodifiable(plantedOn),
@@ -60,6 +63,7 @@ class MongiGardenData {
 
   Map<String, dynamic> toJson() => {
     'version': 3,
+    'lifeEvents': lifeEvents,
     'stage': stage,
     'seedTokens': seedTokens,
     'essence': essence,
@@ -206,7 +210,19 @@ class MongiGardenData {
       }
       walk[entry.key as String] = entry.value as int;
     }
+    final rawEvents = json['lifeEvents'] ?? const [];
+    if (rawEvents is! List || rawEvents.length > 1000) throw const FormatException('정원 사건 기록을 확인해 주세요.');
+    final events = <Map<String, dynamic>>[];
+    for (final e in rawEvents) {
+      if (e is! Map || e.length != 4 || !['plant', 'growth'].contains(e['kind']) ||
+          !SeedType.all.any((s) => s.id == e['plant']) || e['at'] is! String ||
+          (DateTime.tryParse(e['at'] as String) == null || dayKey(DateTime.parse(e['at'] as String)) != e['at']) || e['level'] is! int || e['level'] < 1 || e['level'] > 10) {
+        throw const FormatException('정원 사건 기록이 올바르지 않아요.');
+      }
+      events.add(Map<String, dynamic>.from(e));
+    }
     return MongiGardenData(
+      lifeEvents: events,
       walkStock: walk,
       stage: count('stage', 1),
       seedTokens: count('seedTokens', 0),
@@ -228,6 +244,7 @@ class MongiGardenData {
   }
 
   MongiGardenData copy({
+    List<Map<String, dynamic>>? lifeEvents,
     int? stage,
     int? seedTokens,
     int? essence,
@@ -246,6 +263,7 @@ class MongiGardenData {
     Set<String>? meditationDays,
     Map<String, int>? storyProgress,
   }) => MongiGardenData(
+    lifeEvents: lifeEvents ?? this.lifeEvents,
     stage: stage ?? this.stage,
     seedTokens: seedTokens ?? this.seedTokens,
     essence: essence ?? this.essence,
@@ -300,12 +318,18 @@ class MongiGardenData {
         );
 
   /// A seed starts one plant; replanting never consumes a second token.
+  List<Map<String, dynamic>> _event(String kind, String id, DateTime date, int level) {
+    final next = [...lifeEvents, <String, dynamic>{'kind': kind, 'plant': id, 'at': dayKey(date), 'level': level}];
+    return next.length <= 1000 ? next : next.sublist(next.length - 1000);
+  }
+
   MongiGardenData plant(String id, {DateTime? now}) {
     if (seedTokens < 1 ||
         !SeedType.all.any((s) => s.id == id) ||
         (seeds[id] ?? 0) > 0)
       return this;
     return copy(
+      lifeEvents: _event('plant', id, now ?? DateTime.now(), 1),
       seedTokens: seedTokens - 1,
       seeds: {...seeds, id: 1},
       plantedOn: {...plantedOn, id: dayKey(now ?? DateTime.now())},
@@ -334,6 +358,7 @@ class MongiGardenData {
     if (!SeedType.all.any((s) => s.id == id)) throw ArgumentError.value(id);
     if ((seeds[id] ?? 0) > 0) return copy(seedTokens: seedTokens + 1);
     return copy(
+      lifeEvents: _event('plant', id, now ?? DateTime.now(), 1),
       seeds: {...seeds, id: 1},
       plantedOn: {...plantedOn, id: dayKey(now ?? DateTime.now())},
     );
@@ -384,6 +409,7 @@ class MongiGardenData {
     final points = (careRemainders[id] ?? 0) + care.growthPoints;
     final grown = count >= 10 ? count : (count + points ~/ 3).clamp(1, 10);
     return copy(
+      lifeEvents: grown > count ? _event('growth', id, today, grown) : lifeEvents,
       seeds: {...seeds, id: grown},
       careRemainders: {...careRemainders, id: grown >= 10 ? 0 : points % 3},
       wateredOn: care == PlantCare.water ? {...wateredOn, id: day} : wateredOn,

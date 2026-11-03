@@ -58,6 +58,14 @@ class GardenCatMoment {
   /// The cat sits a little smaller toward the back of the lawn and a little
   /// larger near the front - smooth and identical for day and night, since
   /// this never looks at the time of day, only the ground position.
+  /// User-directed cushion approach reuses the garden obstacle-aware walk.
+  static GardenCatMoment cushion(Offset from, Offset seat, double progress,
+      List<Offset> obstacles) {
+    if (progress >= 1) return GardenCatMoment(seat, true, 0,
+      depthSize(seat.dy), '방석에서 쉬는 고양이');
+    return _walking(from, seat, obstacles, progress, 1, '방석으로 가는 고양이');
+  }
+
   static double depthSize(double feetDy) {
     final norm = (feetDy / 800).clamp(.50, .92);
     final depth = (.82 + (norm - .52) * .82).clamp(.78, 1.16);

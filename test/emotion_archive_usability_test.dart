@@ -180,12 +180,7 @@ void main() {
           expect(today.hitTestable(), findsOneWidget);
           await t.tap(today);
           await t.pumpAndSettle();
-          final detailList = find
-              .ancestor(
-                of: find.text('이날의 감정 고양이'),
-                matching: find.byType(ListView),
-              )
-              .first;
+          final detailList = find.byKey(const Key('emotion-day-record-list'));
           final detailScroll = find
               .descendant(of: detailList, matching: find.byType(Scrollable))
               .first;

@@ -39,6 +39,8 @@ class GardenDecoration {
     this.sceneScale = 1.0,
   });
 
+  static const newPlacementIds = {'cat_basket', 'spring_wreath', 'summer_parasol', 'autumn_leaf_pile', 'winter_snowman'};
+
   static GardenDecoration byId(String id) {
     return all.firstWhere((d) => d.id == id, orElse: () => all.first);
   }
@@ -210,5 +212,10 @@ class GardenDecoration {
       isPremium: false,
       unlockHint: '빛의 정수 60개로 얻을 수 있어요',
     ),
+    GardenDecoration(id: 'cat_basket', label: '고양이 바구니', emoji: '🧺', isPremium: false, unlockHint: '빛의 정수 60개로 얻을 수 있어요'),
+    GardenDecoration(id: 'spring_wreath', label: '봄 꽃장식', emoji: '🌸', isPremium: false, unlockHint: '빛의 정수 60개로 얻을 수 있어요'),
+    GardenDecoration(id: 'summer_parasol', label: '여름 파라솔', emoji: '⛱️', isPremium: false, unlockHint: '빛의 정수 60개로 얻을 수 있어요'),
+    GardenDecoration(id: 'autumn_leaf_pile', label: '가을 낙엽 더미', emoji: '🍂', isPremium: false, unlockHint: '빛의 정수 60개로 얻을 수 있어요'),
+    GardenDecoration(id: 'winter_snowman', label: '겨울 눈사람', emoji: '⛄', isPremium: false, unlockHint: '빛의 정수 60개로 얻을 수 있어요'),
   ];
 }

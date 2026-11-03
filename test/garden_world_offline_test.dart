@@ -1,3 +1,10 @@
+import 'package:flutter_app/services/sound_service.dart';
+import 'package:flutter_app/services/garden_personal_gallery_store.dart';
+import 'package:flutter_app/services/cat_care_service.dart';
+import 'package:flutter_app/services/local_record_transaction.dart';
+import 'package:flutter_app/screens/garden_gallery_screen.dart';
+import 'package:flutter_app/services/garden_style_store.dart';
+import 'package:flutter_app/widgets/sound_panel.dart';
 import 'package:flutter_app/screens/my_garden_screen.dart';
 import 'package:flutter_app/widgets/feature_scaffold.dart';
 import 'package:flutter_app/theme.dart';
@@ -89,11 +96,25 @@ void main() {
     await StorageService.setCurrentUser('local_user');
   });
   tearDown(() async {
+    await LocalRecordTransaction.run(() async {});
+    // A route transition may have queued an optional gallery read in the
+    // widget's zone. Await that store's own open/read before closing Hive;
+    // a generic queue barrier alone did not release its Windows file handle.
+    await GardenPersonalGalleryStore.read(CatCareService.localOwner);
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(SystemChannels.platform, null);
     await StorageService.clearCurrentUser();
     await Hive.close();
-    await directory.delete(recursive: true);
+    // Finish directory enumeration before deleting files on Windows. Keep each
+    // close/delete awaited, and let any locked file or unexpected entry fail
+    // with its own path instead of recursively deleting an enumerated folder.
+    final remaining = await directory.list(followLinks: false).toList();
+    for (final entry in remaining) {
+      expect(entry, isA<File>(), reason: 'Unexpected fixture entry: ${entry.path}');
+      await entry.delete();
+    }
+    await directory.delete();
+    expect(await directory.exists(), isFalse);
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, null);
   });
@@ -217,6 +238,16 @@ void main() {
   Future<void> captureSpace(WidgetTester t, String name) async {
     final out = Platform.environment['DIRECT_GARDEN_REVIEW_DIR'];
     if (out == null) return;
+    // Show the persistent selected-plant controls after dismissing the temporary
+    // success message through the same swipe available to the user.
+    if (name.contains('moved-plant') ||
+        (name.startsWith('79-') && !name.contains('before-undo'))) {
+      final message = find.byType(SnackBar).hitTestable();
+      if (message.evaluate().isNotEmpty) {
+        await t.drag(message, const Offset(0, 120));
+        await t.pumpAndSettle();
+      }
+    }
     await t.runAsync(() async {
       for (final asset in [
         'assets/living_garden/cultivation_day.png',
@@ -226,6 +257,13 @@ void main() {
         'assets/living_garden/plants.webp',
       ]) {
         await precacheImage(AssetImage(asset), screenshot.currentContext!);
+      }
+      // Decode the very providers used by mounted Image widgets. MemoryImage
+      // cache keys include byte-list identity, so decoding another copy of the
+      // same PNG does not prove that the album's image is ready to paint.
+      for (final element in find.byType(Image).evaluate().toList()) {
+        final image = element.widget as Image;
+        await precacheImage(image.image, element);
       }
     });
     await t.pump();
@@ -362,7 +400,7 @@ void main() {
             if (size.height < 500) {
               await t.tap(find.byKey(const Key('compact-garden-switch')));
               await t.pumpAndSettle();
-              await t.tap(find.text(rest ? '쉬어가는 정원' : '내가 가꾸는 정원').last);
+              await t.tap(find.text(rest ? '쉬어가는 정원' : '가꾸는 정원').last);
             } else {
               final tab = find.byKey(
                 ValueKey(rest ? 'rest-garden-tab' : 'cultivate-garden-tab'),
@@ -499,7 +537,7 @@ void main() {
       ]);
       expect(jsonEncode(store.value.toJson()), beforeData);
       expect(jsonEncode(layouts.value.toJson()), beforeLayout);
-      await t.pageBack();
+      await t.binding.handlePopRoute();
       await t.pumpAndSettle();
       expect(rotations.last, ['DeviceOrientation.portraitUp']);
       await t.ensureVisible(find.byKey(const ValueKey('cultivate-garden-tab')));
@@ -521,189 +559,275 @@ void main() {
     },
   );
 
-  for (final resting in [false, true]) {
+  for (final size in [
+    const Size(320, 640),
+    const Size(390, 844),
+    const Size(640, 320),
+    const Size(844, 390),
+  ]) {
+    for (final scale in [1.0, 2.0]) {
+      for (final resting in [false, true]) {
+        testWidgets(
+          'full landscape fills viewport, map restores camera and tools never resize resting=$resting $size font=$scale',
+          (t) async {
+            await t.runAsync(() async {
+              await (await SharedPreferences.getInstance()).setString(
+                MongiGardenStore.storageKey,
+                jsonEncode(
+                  MongiGardenData(seeds: {'pine': 7}, seedTokens: 3).toJson(),
+                ),
+              );
+              await MongiGardenStore.instance.reload();
+              await GardenLayoutStore.instance.reload();
+            });
+            await openGarden(
+              t,
+              _Garden(),
+              fullscreen: true,
+              resting: resting,
+              size: size,
+              textScale: scale,
+            );
+            await t.pumpAndSettle();
+            final camera = t.widget<InteractiveViewer>(
+              find.byKey(const Key('garden-world-camera')),
+            );
+            expect(camera.panEnabled, isTrue);
+            expect(camera.scaleEnabled, isTrue);
+            expect(
+              t.getSize(find.byKey(const Key('garden-world-camera'))).height,
+              equals(size.height),
+            );
+            expect(
+              t.getSize(find.byKey(const Key('fullscreen-garden-canvas'))),
+              size,
+            );
+            final controller = camera.transformationController!;
+            final cover = controller.value.getMaxScaleOnAxis();
+            expect(cover * 2400, greaterThanOrEqualTo(size.width));
+            expect(cover * 800, greaterThanOrEqualTo(size.height));
+            final cameraBeforeFold = controller.value.clone();
+            expect(rotations.last, [
+              'DeviceOrientation.landscapeLeft',
+              'DeviceOrientation.landscapeRight',
+            ]);
+            await captureSpace(
+              t,
+              '78-${resting ? 'resting' : 'cultivation'}-${size.width.toInt()}x${size.height.toInt()}-$scale-open',
+            );
+            await t.tap(find.text('도구 접기'));
+            await t.pumpAndSettle();
+            expect(find.text('도구 펼치기'), findsOneWidget);
+            expect(
+              t.getSize(find.byKey(const Key('fullscreen-garden-canvas'))),
+              size,
+            );
+            expect(controller.value, cameraBeforeFold);
+            await captureSpace(
+              t,
+              '78-${resting ? 'resting' : 'cultivation'}-${size.width.toInt()}x${size.height.toInt()}-$scale-folded',
+            );
+            await t.ensureVisible(
+              find.byKey(const Key('fullscreen-map-toggle')),
+            );
+            await t.tap(find.byKey(const Key('fullscreen-map-toggle')));
+            await t.pumpAndSettle();
+            expect(
+              controller.value.getMaxScaleOnAxis() * 2400,
+              lessThanOrEqualTo(size.width + .001),
+            );
+            expect(
+              controller.value.getMaxScaleOnAxis() * 800,
+              lessThanOrEqualTo(size.height + .001),
+            );
+            await captureSpace(
+              t,
+              '78-${resting ? 'resting' : 'cultivation'}-${size.width.toInt()}x${size.height.toInt()}-$scale-map',
+            );
+            await t.tap(find.byKey(const Key('fullscreen-map-toggle')));
+            await t.pumpAndSettle();
+            expect(controller.value, cameraBeforeFold);
+            await t.ensureVisible(
+              find.byKey(const Key('fullscreen-tools-toggle')),
+            );
+            if (!resting)
+              expect(
+                find.byKey(const ValueKey('cultivation-tool-0')),
+                findsNothing,
+              );
+            await t.tap(find.text('도구 펼치기'));
+            await t.pumpAndSettle();
+            if (resting) {
+              expect(
+                t
+                    .widget<GardenWorldView>(find.byType(GardenWorldView))
+                    .readOnly,
+                isTrue,
+              );
+              expect(
+                find.byKey(const ValueKey('cultivation-tool-0')),
+                findsNothing,
+              );
+            } else {
+              for (final id in [
+                'fullscreen-plant',
+                'fullscreen-water',
+                'fullscreen-plants',
+                'fullscreen-decorate',
+              ]) {
+                final button = find.byKey(ValueKey(id));
+                await t.ensureVisible(button);
+                await t.pumpAndSettle();
+                expect(button.hitTestable(), findsOneWidget);
+                expect(t.getSize(button).height, greaterThanOrEqualTo(48));
+              }
+            }
+            expect(controller.value, cameraBeforeFold);
+            expect(t.takeException(), isNull);
+            await t.pumpWidget(const SizedBox());
+            expect(rotations.last, ['DeviceOrientation.portraitUp']);
+          },
+        );
+      }
+    }
+  }
+  for (final fullscreen in [false, true]) {
     testWidgets(
-      'full landscape keeps camera and folding tools resting=$resting with large text',
+      'moving an existing plant cancels, rejects invalid land and survives reload without charging fullscreen=$fullscreen',
       (t) async {
+        final store = MongiGardenStore.instance,
+            layouts = GardenLayoutStore.instance;
         await t.runAsync(() async {
           await (await SharedPreferences.getInstance()).setString(
             MongiGardenStore.storageKey,
             jsonEncode(
-              MongiGardenData(seeds: {'pine': 7}, seedTokens: 3).toJson(),
+              MongiGardenData(
+                seedTokens: 5,
+                seeds: {'pine': 7},
+                wateredOn: {'pine': MongiGardenData.dayKey(DateTime.now())},
+              ).toJson(),
             ),
           );
-          await MongiGardenStore.instance.reload();
-          await GardenLayoutStore.instance.reload();
+          await store.reload();
+          await layouts.update(
+            (_) => GardenLayout(
+              spaces: 3,
+              positions: {
+                'seed:pine': const Offset(.44, .7),
+                'decor:bench': const Offset(.51, .8),
+              },
+            ),
+          );
         });
         await openGarden(
           t,
           _Garden(),
-          fullscreen: true,
-          resting: resting,
-          size: const Size(844, 390),
-          textScale: 2,
+          cultivation: !fullscreen,
+          fullscreen: fullscreen,
+          size: fullscreen ? const Size(844, 390) : const Size(390, 844),
         );
         await t.pumpAndSettle();
-        final camera = t.widget<InteractiveViewer>(
-          find.byKey(const Key('garden-world-camera')),
-        );
-        expect(camera.panEnabled, isTrue);
-        expect(camera.scaleEnabled, isTrue);
+        final before = jsonEncode(store.value.toJson()),
+            initial = layouts.value.positions['seed:pine'];
+        Future<void> startMove() async {
+          final plantsButton = find.byKey(
+            ValueKey(fullscreen ? 'fullscreen-plants' : 'cultivation-tool-2'),
+          );
+          // Only the fullscreen floating panel scrolls. ensureVisible on the
+          // embedded page also scrolls its horizontal parent PageView away.
+          if (fullscreen) await t.ensureVisible(plantsButton);
+          expect(plantsButton.hitTestable(), findsOneWidget);
+          await t.tap(plantsButton);
+          await t.pumpAndSettle();
+          final action = find.byKey(const ValueKey('move-button-pine'));
+          await t.ensureVisible(action);
+          await t.tap(action);
+          await t.pumpAndSettle();
+          expect(
+            t
+                .widget<GardenWorldView>(find.byType(GardenWorldView))
+                .placementCount,
+            7,
+          );
+        }
+
+        await startMove();
+        await t.tap(find.byKey(const Key('cancel-plant-location')));
+        await t.pumpAndSettle();
+        expect(layouts.value.positions['seed:pine'], initial);
+        expect(jsonEncode(store.value.toJson()), before);
+        await startMove();
+        var world = t.widget<GardenWorldView>(find.byType(GardenWorldView));
+        world.onPlacementPoint!(const Offset(.15, .4));
+        await t.pumpAndSettle();
         expect(
-          t.getSize(find.byKey(const Key('garden-world-camera'))).height,
-          greaterThan(40),
+          t
+              .widget<FilledButton>(
+                find.byKey(const Key('confirm-plant-location')),
+              )
+              .onPressed,
+          isNull,
         );
-        expect(rotations.last, [
-          'DeviceOrientation.landscapeLeft',
-          'DeviceOrientation.landscapeRight',
-        ]);
+        expect(layouts.value.positions['seed:pine'], initial);
+        world = t.widget<GardenWorldView>(find.byType(GardenWorldView));
+        world.onPlacementPoint!(const Offset(.62, .6));
+        await t.pumpAndSettle();
         await captureSpace(
           t,
-          resting ? '23-resting-landscape' : '23-cultivation-landscape',
+          fullscreen ? '78-fullscreen-moving-plant' : '24-moving-plant',
         );
-        await t.tap(find.text('도구 접기'));
+        await t.runAsync(() async {
+          await t.tap(find.byKey(const Key('confirm-plant-location')));
+          await t.tap(find.byKey(const Key('confirm-plant-location')));
+          final deadline = DateTime.now().add(const Duration(seconds: 30));
+          while (layouts.value.positions['seed:pine'] !=
+              const Offset(.62, .6)) {
+            if (DateTime.now().isAfter(deadline))
+              fail('Move did not commit its coordinate');
+            await Future<void>.delayed(const Duration(milliseconds: 5));
+            await t.pump();
+          }
+        });
         await t.pumpAndSettle();
-        expect(find.text('도구 펼치기'), findsOneWidget);
-        if (!resting)
-          expect(
-            find.byKey(const ValueKey('cultivation-tool-0')),
-            findsNothing,
-          );
-        await t.tap(find.text('도구 펼치기'));
-        await t.pumpAndSettle();
-        if (resting) {
-          expect(
-            t.widget<GardenWorldView>(find.byType(GardenWorldView)).readOnly,
-            isTrue,
-          );
-          expect(
-            find.byKey(const ValueKey('cultivation-tool-0')),
-            findsNothing,
-          );
-        } else {
-          for (var i = 0; i < 4; i++)
-            expect(
-              find.byKey(ValueKey('cultivation-tool-$i')).hitTestable(),
-              findsOneWidget,
-            );
-        }
-        expect(t.takeException(), isNull);
+        expect(jsonEncode(store.value.toJson()), before);
+        expect(layouts.value.positions['decor:bench'], const Offset(.51, .8));
+        expect(find.byKey(const Key('focused-plant-name')), findsOneWidget);
+        await captureSpace(
+          t,
+          fullscreen ? '78-fullscreen-moved-plant' : '25-moved-plant',
+        );
         await t.pumpWidget(const SizedBox());
-        expect(rotations.last, ['DeviceOrientation.portraitUp']);
-      },
-    );
-  }
-
-  testWidgets(
-    'moving an existing plant cancels, rejects invalid land and survives reload without charging',
-    (t) async {
-      final store = MongiGardenStore.instance,
-          layouts = GardenLayoutStore.instance;
-      await t.runAsync(() async {
-        await (await SharedPreferences.getInstance()).setString(
-          MongiGardenStore.storageKey,
-          jsonEncode(
-            MongiGardenData(
-              seedTokens: 5,
-              seeds: {'pine': 7},
-              wateredOn: {'pine': MongiGardenData.dayKey(DateTime.now())},
-            ).toJson(),
-          ),
+        await t.runAsync(() async {
+          // Reopen the cached user handles as a restarted process would; never
+          // delete records or keep StorageService pointing at a closed Hive box.
+          await StorageService.clearCurrentUser();
+          await Hive.close();
+          await StorageService.setCurrentUser('local_user');
+          await layouts.reload();
+          await store.reload();
+        });
+        expect(layouts.value.positions['seed:pine'], const Offset(.62, .6));
+        expect(jsonEncode(store.value.toJson()), before);
+        await openGarden(
+          t,
+          _Garden(),
+          cultivation: !fullscreen,
+          fullscreen: fullscreen,
+          size: fullscreen ? const Size(844, 390) : const Size(390, 844),
         );
-        await store.reload();
-        await layouts.update(
-          (_) => GardenLayout(
-            spaces: 3,
-            positions: {
-              'seed:pine': const Offset(.44, .7),
-              'decor:bench': const Offset(.51, .8),
-            },
-          ),
-        );
-      });
-      await openGarden(t, _Garden(), cultivation: true);
-      await t.pumpAndSettle();
-      final before = jsonEncode(store.value.toJson()),
-          initial = layouts.value.positions['seed:pine'];
-      Future<void> startMove() async {
-        await t.tap(find.byKey(const ValueKey('cultivation-tool-2')));
-        await t.pumpAndSettle();
-        final action = find.byKey(const ValueKey('move-button-pine'));
-        await t.ensureVisible(action);
-        await t.tap(action);
         await t.pumpAndSettle();
         expect(
           t
               .widget<GardenWorldView>(find.byType(GardenWorldView))
-              .placementCount,
-          7,
+              .layout
+              .position('seed:pine'),
+          const Offset(.62, .6),
         );
-      }
-
-      await startMove();
-      await t.tap(find.byKey(const Key('cancel-plant-location')));
-      await t.pumpAndSettle();
-      expect(layouts.value.positions['seed:pine'], initial);
-      expect(jsonEncode(store.value.toJson()), before);
-      await startMove();
-      var world = t.widget<GardenWorldView>(find.byType(GardenWorldView));
-      world.onPlacementPoint!(const Offset(.15, .4));
-      await t.pumpAndSettle();
-      expect(
-        t
-            .widget<FilledButton>(
-              find.byKey(const Key('confirm-plant-location')),
-            )
-            .onPressed,
-        isNull,
-      );
-      expect(layouts.value.positions['seed:pine'], initial);
-      world = t.widget<GardenWorldView>(find.byType(GardenWorldView));
-      world.onPlacementPoint!(const Offset(.62, .6));
-      await t.pumpAndSettle();
-      await captureSpace(t, '24-moving-plant');
-      await t.runAsync(() async {
-        await t.tap(find.byKey(const Key('confirm-plant-location')));
-        await t.tap(find.byKey(const Key('confirm-plant-location')));
-        final deadline = DateTime.now().add(const Duration(seconds: 30));
-        while (layouts.value.positions['seed:pine'] != const Offset(.62, .6)) {
-          if (DateTime.now().isAfter(deadline))
-            fail('Move did not commit its coordinate');
-          await Future<void>.delayed(const Duration(milliseconds: 5));
-          await t.pump();
-        }
-      });
-      await t.pumpAndSettle();
-      expect(jsonEncode(store.value.toJson()), before);
-      expect(layouts.value.positions['decor:bench'], const Offset(.51, .8));
-      expect(find.byKey(const Key('focused-plant-name')), findsOneWidget);
-      await captureSpace(t, '25-moved-plant');
-      await t.pumpWidget(const SizedBox());
-      await t.runAsync(() async {
-        // Reopen the cached user handles as a restarted process would; never
-        // delete records or keep StorageService pointing at a closed Hive box.
-        await StorageService.clearCurrentUser();
-        await Hive.close();
-        await StorageService.setCurrentUser('local_user');
-        await layouts.reload();
-        await store.reload();
-      });
-      expect(layouts.value.positions['seed:pine'], const Offset(.62, .6));
-      expect(jsonEncode(store.value.toJson()), before);
-      await openGarden(t, _Garden(), cultivation: true);
-      await t.pumpAndSettle();
-      expect(
-        t
-            .widget<GardenWorldView>(find.byType(GardenWorldView))
-            .layout
-            .position('seed:pine'),
-        const Offset(.62, .6),
-      );
-      expect(t.takeException(), isNull);
-      await t.pumpWidget(const SizedBox());
-    },
-  );
-
+        expect(t.takeException(), isNull);
+        await t.pumpWidget(const SizedBox());
+      },
+    );
+  }
   testWidgets(
     'direct garden preserves old plants; placement cancels, retries and locates saved trees',
     (t) async {
@@ -964,12 +1088,10 @@ void main() {
             .initialLandscape,
         isTrue,
       );
-      expect(find.text('원래 보기'), findsOneWidget);
-      await t.tap(find.byKey(const ValueKey('cultivation-tool-3')));
+      expect(find.text('정원 전체 지도'), findsOneWidget);
+      await t.tap(find.byKey(const Key('fullscreen-exit')));
       await t.pumpAndSettle();
-      expect(find.text('전체보기'), findsOneWidget);
-      await t.pageBack();
-      await t.pumpAndSettle();
+      expect(find.text('가로 전체화면'), findsOneWidget);
       expect(rotations.last, ['DeviceOrientation.portraitUp']);
       expect(find.byKey(const Key('focused-plant-name')), findsOneWidget);
       await t.pumpWidget(const SizedBox());
@@ -1146,7 +1268,7 @@ void main() {
       final garden = _Garden();
       await openGarden(tester, garden, ownerRoute: true);
       expect(tester.takeException(), isNull);
-      for (final title in ['씨앗 심기', '물주기', '내 식물', '전체보기']) {
+      for (final title in ['씨앗 심기', '물주기', '내 식물', '가로 전체화면']) {
         expect(find.text(title), findsWidgets);
       }
       final screen = tester.widget<GardenWorldScreen>(
@@ -1160,6 +1282,304 @@ void main() {
       await tester.tapAt(const Offset(8, 350));
       await tester.pumpAndSettle();
       await tester.pumpWidget(const SizedBox());
+    },
+  );
+  testWidgets(
+    'incoming movement undo restores only coordinates and can move again',
+    (t) async {
+      final store = MongiGardenStore.instance,
+          layouts = GardenLayoutStore.instance;
+      await t.runAsync(() async {
+        await (await SharedPreferences.getInstance()).setString(
+          MongiGardenStore.storageKey,
+          jsonEncode(
+            MongiGardenData(
+              seedTokens: 5,
+              seeds: {'pine': 7},
+              wateredOn: {'pine': MongiGardenData.dayKey(DateTime.now())},
+            ).toJson(),
+          ),
+        );
+        await store.reload();
+        await layouts.update(
+          (_) => GardenLayout(
+            spaces: 3,
+            positions: {
+              'seed:pine': const Offset(.44, .7),
+              'decor:bench': const Offset(.51, .8),
+            },
+          ),
+        );
+      });
+      await openGarden(t, _Garden(), cultivation: true);
+      await t.pumpAndSettle();
+      final before = jsonEncode(store.value.toJson()),
+          initial = layouts.value.positions['seed:pine'];
+      Future<void> startMove() async {
+        await t.tap(find.byKey(const ValueKey('cultivation-tool-2')));
+        await t.pumpAndSettle();
+        final action = find.byKey(const ValueKey('move-button-pine'));
+        await t.ensureVisible(action);
+        await t.tap(action);
+        await t.pumpAndSettle();
+        expect(
+          t
+              .widget<GardenWorldView>(find.byType(GardenWorldView))
+              .placementCount,
+          7,
+        );
+      }
+
+      await startMove();
+      await t.tap(find.byKey(const Key('cancel-plant-location')));
+      await t.pumpAndSettle();
+      expect(layouts.value.positions['seed:pine'], initial);
+      expect(jsonEncode(store.value.toJson()), before);
+      await startMove();
+      var world = t.widget<GardenWorldView>(find.byType(GardenWorldView));
+      world.onPlacementPoint!(const Offset(.15, .4));
+      await t.pumpAndSettle();
+      expect(
+        t
+            .widget<FilledButton>(
+              find.byKey(const Key('confirm-plant-location')),
+            )
+            .onPressed,
+        isNull,
+      );
+      expect(layouts.value.positions['seed:pine'], initial);
+      world = t.widget<GardenWorldView>(find.byType(GardenWorldView));
+      world.onPlacementPoint!(const Offset(.62, .6));
+      await t.pumpAndSettle();
+      await captureSpace(t, '24-moving-plant');
+      await t.runAsync(() async {
+        await t.tap(find.byKey(const Key('confirm-plant-location')));
+        await t.tap(find.byKey(const Key('confirm-plant-location')));
+        final deadline = DateTime.now().add(const Duration(seconds: 30));
+        while (layouts.value.positions['seed:pine'] != const Offset(.62, .6)) {
+          if (DateTime.now().isAfter(deadline))
+            fail('Move did not commit its coordinate');
+          await Future<void>.delayed(const Duration(milliseconds: 5));
+          await t.pump();
+        }
+      });
+      await t.pumpAndSettle();
+      expect(jsonEncode(store.value.toJson()), before);
+      expect(layouts.value.positions['decor:bench'], const Offset(.51, .8));
+      expect(find.byKey(const Key('focused-plant-name')), findsOneWidget);
+      await captureSpace(t, '79-moved-before-undo');
+      // Revert via the actual user action, then redo before the existing restart check.
+      final undo = find.widgetWithText(SnackBarAction, '되돌리기');
+      expect(undo, findsOneWidget);
+      await t.runAsync(() async {
+        await t.tap(undo);
+        final deadline = DateTime.now().add(const Duration(seconds: 10));
+        while (layouts.value.positions['seed:pine'] != initial) {
+          if (DateTime.now().isAfter(deadline)) fail('Undo did not persist');
+          await Future<void>.delayed(const Duration(milliseconds: 10));
+        }
+      });
+      await t.pumpAndSettle();
+      expect(jsonEncode(store.value.toJson()), before);
+      await startMove();
+      t.widget<GardenWorldView>(find.byType(GardenWorldView)).onPlacementPoint!(
+        const Offset(.62, .6),
+      );
+      await t.pumpAndSettle();
+      await t.runAsync(() async {
+        await t.tap(find.byKey(const Key('confirm-plant-location')));
+        final deadline = DateTime.now().add(const Duration(seconds: 10));
+        while (layouts.value.positions['seed:pine'] != const Offset(.62, .6)) {
+          if (DateTime.now().isAfter(deadline))
+            fail('Move after undo did not persist');
+          await Future<void>.delayed(const Duration(milliseconds: 10));
+        }
+      });
+      await t.pumpAndSettle();
+      expect(jsonEncode(store.value.toJson()), before);
+      await t.pumpWidget(const SizedBox());
+      await t.runAsync(() async {
+        // Reopen the cached user handles as a restarted process would; never
+        // delete records or keep StorageService pointing at a closed Hive box.
+        await StorageService.clearCurrentUser();
+        await Hive.close();
+        await StorageService.setCurrentUser('local_user');
+        await layouts.reload();
+        await store.reload();
+      });
+      expect(layouts.value.positions['seed:pine'], const Offset(.62, .6));
+      expect(jsonEncode(store.value.toJson()), before);
+      await openGarden(t, _Garden(), cultivation: true);
+      await t.pumpAndSettle();
+      expect(
+        t
+            .widget<GardenWorldView>(find.byType(GardenWorldView))
+            .layout
+            .position('seed:pine'),
+        const Offset(.62, .6),
+      );
+      expect(t.takeException(), isNull);
+      await t.pumpWidget(const SizedBox());
+    },
+  );
+  testWidgets(
+    'integrated shelter, seasonal layout and sound panels use actual garden routes',
+    (t) async {
+      await t.runAsync(() async {
+        await (await SharedPreferences.getInstance()).setString(
+          MongiGardenStore.storageKey,
+          jsonEncode(
+            MongiGardenData(
+              seedTokens: 3,
+              essence: 500,
+              seeds: {'pine': 6},
+              owned: {'cat_cushion', 'cat_basket'},
+              placed: {'cat_cushion', 'cat_basket'},
+            ).toJson(),
+          ),
+        );
+        await MongiGardenStore.instance.reload();
+        await GardenLayoutStore.instance.update((_) => GardenLayout(spaces: 3));
+      });
+      final garden = _Garden()
+        ..equippedDecorationIds = ['cat_cushion', 'cat_basket'];
+      await openGarden(t, garden, cultivation: true);
+      await t.pumpAndSettle();
+      expect(
+        t.widget<GardenWorldView>(find.byType(GardenWorldView)).decorations,
+        containsAll(['cat_cushion', 'cat_basket']),
+      );
+      Future<void> localReady({Type? destination}) async {
+        await t.runAsync(() async {
+          final deadline = DateTime.now().add(const Duration(seconds: 30));
+          await t.pump();
+          if (destination != null) {
+            for (
+              var frame = 0;
+              frame < 120 && find.byType(destination).evaluate().isEmpty;
+              frame++
+            ) {
+              await t.pump(const Duration(milliseconds: 16));
+            }
+            expect(find.byType(destination), findsOneWidget);
+          }
+          final route = ModalRoute.of(
+            t.element(
+              destination == null
+                  ? find.byType(Scaffold).last
+                  : find.byType(destination),
+            ),
+          );
+          for (
+            var frame = 0;
+            frame < 120 &&
+                route?.animation?.status != AnimationStatus.completed &&
+                (destination != null ||
+                    route?.animation?.status != AnimationStatus.dismissed);
+            frame++
+          ) {
+            await t.pump(const Duration(milliseconds: 16));
+          }
+          if (route?.animation != null && destination != null)
+            expect(route!.animation!.status, AnimationStatus.completed);
+          while (find.byType(LinearProgressIndicator).evaluate().isNotEmpty ||
+              find.byType(CircularProgressIndicator).evaluate().isNotEmpty) {
+            if (DateTime.now().isAfter(deadline))
+              fail('Local panel did not finish loading');
+            await Future<void>.delayed(const Duration(milliseconds: 5));
+            await t.pump(const Duration(milliseconds: 16));
+          }
+        });
+        await t.pumpAndSettle();
+      }
+
+      await t.tap(find.byTooltip('정원 보조 메뉴'));
+      await t.pumpAndSettle();
+      await t.tap(find.text('고양이 쉼터'));
+      await t.pumpAndSettle();
+      expect(find.text('방석에서 쉬기'), findsOneWidget);
+      expect(find.text('바구니에서 쉬기'), findsOneWidget);
+      expect(find.text('소나무 그늘에서 쉬기'), findsOneWidget);
+      await captureSpace(t, '79-shelter-options');
+      await t.tap(find.text('바구니에서 쉬기'));
+      await t.pumpAndSettle();
+      expect(
+        t
+            .widget<GardenWorldView>(find.byType(GardenWorldView))
+            .requestedRestItem,
+        'decor:cat_basket',
+      );
+      expect(
+        t
+            .widget<Semantics>(find.byKey(const Key('garden-companion')))
+            .properties
+            .label,
+        contains('바구니에서 일어나기'),
+      );
+      await captureSpace(t, '79-cat-basket');
+      await t.tap(find.byTooltip('정원 보조 메뉴'));
+      await t.pumpAndSettle();
+      await t.tap(find.text('계절·배치 저장'));
+      await localReady();
+      await t.runAsync(() async {
+        await t.tap(find.text('봄'));
+        await t.pump();
+      });
+      await localReady();
+      expect(GardenStyleStore.instance.season, 'spring');
+      await captureSpace(t, '79-season-layout-panel');
+      await t.binding.handlePopRoute();
+      await t.pumpAndSettle();
+      await captureSpace(t, '79-spring-garden');
+      final revision = GardenPersonalGalleryStore.changes.value;
+      await t.runAsync(() async {
+        await t.tap(find.byTooltip('정원 사진 찍기'));
+        await t.pump();
+        final deadline = DateTime.now().add(const Duration(seconds: 30));
+        while (GardenPersonalGalleryStore.changes.value == revision) {
+          if (DateTime.now().isAfter(deadline))
+            fail('Garden photo did not save');
+          await Future<void>.delayed(const Duration(milliseconds: 5));
+          await t.pump(const Duration(milliseconds: 16));
+        }
+      });
+      await localReady();
+      final gallery = await t.runAsync(
+        () => GardenPersonalGalleryStore.read(CatCareService.localOwner),
+      );
+      expect(gallery!['photos'], hasLength(1));
+      await t.runAsync(() async {
+        final png = base64Decode((gallery['photos'] as List).single['png'] as String);
+        await precacheImage(MemoryImage(png), screenshot.currentContext!);
+        final out = Platform.environment['DIRECT_GARDEN_REVIEW_DIR'];
+        if (out != null) await File('$out/79-saved-garden-photo.png').writeAsBytes(png);
+      });
+      await t.tap(find.byTooltip('정원 사진첩·전시 관리'));
+      await localReady(destination: GardenGalleryScreen);
+      expect(find.textContaining('나만 보는 사진 1/8'), findsOneWidget);
+      await captureSpace(t, '79-private-garden-album');
+      await t.binding.handlePopRoute();
+      await localReady();
+      final c = t.element(find.byType(GardenWorldScreen));
+      Navigator.of(c).push(
+        MaterialPageRoute<void>(
+          builder: (_) => Scaffold(
+            body: SafeArea(
+              child: SingleChildScrollView(
+                child: Padding(
+                  padding: EdgeInsets.all(16),
+                  child: SoundSettingsControls(sound: SoundService()),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await localReady(destination: SoundSettingsControls);
+      expect(find.text('정원 자연음'), findsOneWidget);
+      await captureSpace(t, '79-sound-settings');
+      expect(t.takeException(), isNull);
+      await t.pumpWidget(const SizedBox());
     },
   );
 }
