@@ -192,6 +192,8 @@ void main() {
       service.pendingProfile = null;
       await tester.pumpAndSettle();
       expect(service.calls, ['profile', 'neighbors']);
+      await tester.tap(find.text('신청').first);
+      await tester.pumpAndSettle();
       await tester.ensureVisible(find.text('수락'));
       await tester.tap(find.text('수락'));
       await tester.pump();
@@ -217,23 +219,27 @@ void main() {
           currentAccount: () => 'alice',
         ),
       );
+      await tester.tap(find.text('찾기').first);
+      await tester.pumpAndSettle();
       await tester.tap(find.text('친구 코드로 찾기'));
       await tester.pumpAndSettle();
       await tester.enterText(
         find.byKey(const Key('village-friend-code')),
         'ABCD12345678',
       );
-      await tester.tap(find.text('찾기'));
+      await tester.tap(find.text('찾기').last);
       await tester.pumpAndSettle();
       expect(find.text('초롱님에게 이웃 신청'), findsOneWidget);
       expect(service.requests, 0);
       await tester.tap(find.text('이웃 신청'));
       await tester.pumpAndSettle();
       expect(service.requests, 1);
+      await tester.tap(find.text('신청').first);
+      await tester.pumpAndSettle();
       await tester.scrollUntilVisible(
         find.text('수락을 기다리는 이웃'),
         160,
-        scrollable: find.byType(Scrollable).first,
+        scrollable: find.byType(Scrollable).last,
       );
       expect(find.text('수락을 기다리는 이웃'), findsOneWidget);
       expect(tester.takeException(), isNull);

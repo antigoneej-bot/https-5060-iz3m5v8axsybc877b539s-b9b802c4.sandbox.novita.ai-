@@ -1,3 +1,4 @@
+import 'package:flutter_app/widgets/companion_motion_art.dart';
 import 'package:flutter_app/services/sound_service.dart';
 import 'package:flutter_app/services/garden_personal_gallery_store.dart';
 import 'package:flutter_app/services/cat_care_service.dart';
@@ -70,12 +71,14 @@ void main() {
     await icons.load();
   });
   late Directory directory;
+  var fixtureClosed = false;
   const channel = MethodChannel('plugins.it_nomads.com/flutter_secure_storage');
   final rotations = <List<dynamic>>[];
   final screenshot = GlobalKey();
   const offlineMessage = '내 정원은 사용할 수 있어요. 새로 받은 마음은 연결 후 다시 확인해 주세요.';
 
   setUp(() async {
+    fixtureClosed = false;
     rotations.clear();
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(SystemChannels.platform, (call) async {
@@ -95,7 +98,7 @@ void main() {
         );
     await StorageService.setCurrentUser('local_user');
   });
-  tearDown(() async {
+  Future<void> closeFixture() async {
     await LocalRecordTransaction.run(() async {});
     // A route transition may have queued an optional gallery read in the
     // widget's zone. Await that store's own open/read before closing Hive;
@@ -110,13 +113,22 @@ void main() {
     // with its own path instead of recursively deleting an enumerated folder.
     final remaining = await directory.list(followLinks: false).toList();
     for (final entry in remaining) {
-      expect(entry, isA<File>(), reason: 'Unexpected fixture entry: ${entry.path}');
+      expect(
+        entry,
+        isA<File>(),
+        reason: 'Unexpected fixture entry: ${entry.path}',
+      );
       await entry.delete();
     }
     await directory.delete();
     expect(await directory.exists(), isFalse);
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, null);
+    fixtureClosed = true;
+  }
+
+  tearDown(() async {
+    if (!fixtureClosed) await closeFixture();
   });
 
   Future<void> openGarden(
@@ -173,6 +185,7 @@ void main() {
                       coat: CompanionCoat.ginger,
                       gardenPreview: const SizedBox(),
                       motionEnabled: false,
+                      companionAutomaticBehavior: false,
                     )
                   : ownerRoute
                   ? FeatureScaffold(
@@ -185,7 +198,7 @@ void main() {
         ),
       );
       if (cultivation) {
-        await tester.tap(find.text('정원'));
+        await tester.tap(find.byKey(const ValueKey('main-tab-1')));
         await tester.pump();
       }
       // The real encrypted local stores use filesystem I/O, so let them finish
@@ -1549,10 +1562,13 @@ void main() {
       );
       expect(gallery!['photos'], hasLength(1));
       await t.runAsync(() async {
-        final png = base64Decode((gallery['photos'] as List).single['png'] as String);
+        final png = base64Decode(
+          (gallery['photos'] as List).single['png'] as String,
+        );
         await precacheImage(MemoryImage(png), screenshot.currentContext!);
         final out = Platform.environment['DIRECT_GARDEN_REVIEW_DIR'];
-        if (out != null) await File('$out/79-saved-garden-photo.png').writeAsBytes(png);
+        if (out != null)
+          await File('$out/79-saved-garden-photo.png').writeAsBytes(png);
       });
       await t.tap(find.byTooltip('정원 사진첩·전시 관리'));
       await localReady(destination: GardenGalleryScreen);
@@ -1582,4 +1598,157 @@ void main() {
       await t.pumpWidget(const SizedBox());
     },
   );
+  for (final size in [
+    const Size(320, 640),
+    const Size(390, 844),
+    const Size(844, 390),
+  ]) {
+    for (final scale in [1.0, 2.0]) {
+      testWidgets(
+        'actual five pages capture $size text $scale without changing garden',
+        (t) async {
+          debugPrint('five-pages: prepare stores');
+          await t.runAsync(() async {
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.setString(
+              MongiGardenStore.storageKey,
+              jsonEncode(
+                MongiGardenData(seedTokens: 2, seeds: {'pine': 6}).toJson(),
+              ),
+            );
+            await MongiGardenStore.instance.reload();
+            debugPrint('five-pages: garden loaded');
+            await GardenLayoutStore.instance.update(
+              (_) => GardenLayout(
+                spaces: 3,
+                positions: const {'seed:pine': Offset(.36, .55)},
+              ),
+            );
+            await CompanionSpriteAtlas.load(CompanionCoat.ginger);
+            debugPrint('five-pages: atlas loaded');
+          });
+          await openGarden(
+            t,
+            _Garden(),
+            cultivation: true,
+            size: size,
+            textScale: scale,
+          );
+          debugPrint('five-pages: route ready');
+          for (var page = 0; page < 5; page++) {
+            final tab = find.byKey(ValueKey('main-tab-$page'));
+            // The new route starts encrypted filesystem reads. Create those
+            // futures in the real-I/O zone, as openGarden does for first entry.
+            await t.runAsync(() async {
+              await t.ensureVisible(tab);
+              await t.tap(tab, warnIfMissed: true);
+              for (var frame = 0; frame < 35; frame++) {
+                await t.pump(const Duration(milliseconds: 16));
+              }
+            });
+            final pager = t.widget<PageView>(
+              find.byKey(const Key('main-pastel-pager')),
+            );
+            expect(pager.controller!.page, closeTo(page.toDouble(), .001));
+            if (page == 0) {
+              final cat = t.getRect(
+                find.byKey(const Key('home-companion-presence')),
+              );
+              final status = t.getRect(
+                find.byKey(const Key('home-greeting-status')),
+              );
+              expect(status.top, greaterThanOrEqualTo(cat.bottom));
+            }
+            if (page == 1) {
+              await t.runAsync(() async {
+                final deadline = DateTime.now().add(
+                  const Duration(seconds: 30),
+                );
+                bool ready() =>
+                    find.byType(GardenWorldView).evaluate().isNotEmpty &&
+                    t
+                            .widget<TextButton>(
+                              find.byKey(const ValueKey('cultivation-tool-0')),
+                            )
+                            .onPressed !=
+                        null;
+                while (!ready()) {
+                  if (DateTime.now().isAfter(deadline)) {
+                    fail('Actual saved garden did not finish loading');
+                  }
+                  await Future<void>.delayed(const Duration(milliseconds: 5));
+                  await t.pump();
+                }
+              });
+              expect(find.byType(GardenWorldView), findsOneWidget);
+              expect(
+                t
+                    .widget<TextButton>(
+                      find.byKey(const ValueKey('cultivation-tool-0')),
+                    )
+                    .onPressed,
+                isNotNull,
+              );
+              expect(
+                t
+                    .widget<GardenWorldView>(find.byType(GardenWorldView))
+                    .seeds['pine'],
+                6,
+              );
+              // Finish Material's disabled-to-enabled color transition after
+              // the actual I/O-ready condition; this is animation time only.
+              await t.pump(const Duration(milliseconds: 300));
+            }
+            await captureSpace(
+              t,
+              '80-main-page-' +
+                  (page + 1).toString() +
+                  '-' +
+                  size.width.toInt().toString() +
+                  'x' +
+                  size.height.toInt().toString() +
+                  '-$scale',
+            );
+            expect(t.takeException(), isNull);
+            debugPrint('five-pages: page $page done');
+          }
+          expect(MongiGardenStore.instance.value.seedTokens, 2);
+          expect(MongiGardenStore.instance.value.seeds['pine'], 6);
+          expect(
+            GardenLayoutStore.instance.value.positions['seed:pine'],
+            const Offset(.36, .55),
+          );
+          await t.pumpWidget(const SizedBox());
+          debugPrint('five-pages: widgets disposed');
+          // Visiting the record page queues private reads in this widget's
+          // FakeAsync zone. Finish them here, while its microtasks can still
+          // be pumped, rather than stranding fixture teardown outside the zone.
+          await t.runAsync(() async {
+            debugPrint('five-pages: drain start');
+            var complete = false;
+            Object? cleanupError;
+            StackTrace? cleanupStack;
+            closeFixture().then(
+              (_) => complete = true,
+              onError: (Object error, StackTrace stack) {
+                cleanupError = error;
+                cleanupStack = stack;
+                complete = true;
+              },
+            );
+            final deadline = DateTime.now().add(const Duration(seconds: 30));
+            while (!complete) {
+              if (DateTime.now().isAfter(deadline))
+                fail('Private page reads did not finish');
+              await Future<void>.delayed(const Duration(milliseconds: 5));
+              await t.pump();
+            }
+            if (cleanupError != null)
+              Error.throwWithStackTrace(cleanupError!, cleanupStack!);
+            debugPrint('five-pages: stores closed and owned files removed');
+          });
+        },
+      );
+    }
+  }
 }

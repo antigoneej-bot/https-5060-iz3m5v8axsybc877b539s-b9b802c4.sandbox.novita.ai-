@@ -1,3 +1,6 @@
+import 'package:audioplayers_platform_interface/audioplayers_platform_interface.dart';
+import 'support/fake_audioplayers_platform.dart';
+import 'support/fake_global_audioplayers_platform.dart';
 import 'dart:io';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
@@ -11,6 +14,9 @@ import 'package:flutter_app/widgets/storybook_art.dart';
 
 void main() {
   setUpAll(() async {
+    AudioplayersPlatformInterface.instance = FakeAudioplayersPlatform();
+    GlobalAudioplayersPlatformInterface.instance =
+        FakeGlobalAudioplayersPlatform();
     for (final e in {
       'GowunDodum': 'assets/fonts/GowunDodum-Regular.ttf',
       'GamjaFlower': 'assets/fonts/GamjaFlower-Regular.ttf',
@@ -19,13 +25,56 @@ void main() {
       await (FontLoader(e.key)..addFont(rootBundle.load(e.value))).load();
     }
   });
+
+  testWidgets('all five pages swipe forward and back', (t) async {
+    await t.pumpWidget(
+      MaterialApp(
+        home: PastelGardenShell(
+          onAction: (_) {},
+          onCoat: (_) {},
+          coat: CompanionCoat.ginger,
+          motionEnabled: false,
+          companionAutomaticBehavior: false,
+          gardenPreview: const SizedBox(),
+          actualGarden: const SizedBox(),
+        ),
+      ),
+    );
+    for (var frame = 0; frame < 24; frame++) {
+      await t.pump(const Duration(milliseconds: 50));
+    }
+    final pager = find.byType(PageView).first;
+    for (var page = 1; page < 5; page++) {
+      final rect = t.getRect(pager);
+      await t.dragFrom(
+        Offset(rect.right - 30, rect.top + 170),
+        Offset(-rect.width * .75, 0),
+      );
+      for (var frame = 0; frame < 24; frame++) {
+        await t.pump(const Duration(milliseconds: 50));
+      }
+      expect(t.widget<PageView>(pager).controller!.page, closeTo(page, .01));
+    }
+    for (var page = 3; page >= 0; page--) {
+      final rect = t.getRect(pager);
+      await t.dragFrom(
+        Offset(rect.left + 30, rect.top + 170),
+        Offset(rect.width * .75, 0),
+      );
+      for (var frame = 0; frame < 24; frame++) {
+        await t.pump(const Duration(milliseconds: 50));
+      }
+      expect(t.widget<PageView>(pager).controller!.page, closeTo(page, .01));
+    }
+    await t.pumpWidget(const SizedBox());
+  });
   for (final size in [
     const Size(390, 844),
     const Size(320, 640),
     const Size(844, 390),
   ]) {
     for (final scale in [1.0, 2.0]) {
-      testWidgets('approved four pages remain interactive $size $scale', (
+      testWidgets('approved five pages remain interactive $size $scale', (
         t,
       ) async {
         t.view.physicalSize = size;
@@ -131,7 +180,8 @@ void main() {
         await t.tap(find.text('좋아요'));
         expect(moods, [0]);
         await tap('마음 기록하기', 0, PastelAction.write);
-        await t.tap(find.text('정원').last);
+        await t.ensureVisible(find.byKey(const ValueKey('main-tab-1')));
+        await t.tap(find.byKey(const ValueKey('main-tab-1')));
         await t.pumpAndSettle();
         await capture(1);
         for (final e in [
@@ -144,9 +194,14 @@ void main() {
         ]) {
           await tap(e.$1, 1, e.$2);
         }
-        await t.tap(find.text('마음돌보기').last);
+        await t.ensureVisible(find.byKey(const ValueKey('main-tab-2')));
+        await t.tap(find.byKey(const ValueKey('main-tab-2')));
         await t.pumpAndSettle();
         await capture(2);
+        await t.ensureVisible(find.byKey(const ValueKey('main-tab-3')));
+        await t.tap(find.byKey(const ValueKey('main-tab-3')));
+        await t.pumpAndSettle();
+        await capture(3);
         for (final e in [
           ('고양이 선택', PastelAction.coats),
           ('밥 주기', PastelAction.feed),
@@ -157,11 +212,12 @@ void main() {
           ('색칠 힐링', PastelAction.coloring),
           ('돌봄 기록', PastelAction.care),
         ]) {
-          await tap(e.$1, 2, e.$2);
+          await tap(e.$1, 3, e.$2);
         }
-        await t.tap(find.text('모든 기능').last);
+        await t.ensureVisible(find.byKey(const ValueKey('main-tab-4')));
+        await t.tap(find.byKey(const ValueKey('main-tab-4')));
         await t.pumpAndSettle();
-        await capture(3);
+        await capture(4);
         for (final e in [
           ('편지 기록', PastelAction.records),
           ('감정 통계', PastelAction.comic),
@@ -173,7 +229,7 @@ void main() {
           ('구독·혜택', PastelAction.premium),
           ('전체 기능 둘러보기', PastelAction.all),
         ]) {
-          await tap(e.$1, 3, e.$2);
+          await tap(e.$1, 4, e.$2);
         }
         expect(t.takeException(), isNull);
         await t.pumpWidget(const SizedBox.shrink());
@@ -198,11 +254,11 @@ void main() {
         ),
       );
       await t.pump(const Duration(milliseconds: 300));
-      await t.tap(find.text('마음돌보기').last);
+      await t.tap(find.text('힐링').last);
       await t.pump(const Duration(milliseconds: 300));
       final scroll = find
           .descendant(
-            of: find.byKey(const PageStorageKey('pastel-page-2')),
+            of: find.byKey(const PageStorageKey('pastel-page-3')),
             matching: find.byType(Scrollable),
           )
           .first;
@@ -211,7 +267,7 @@ void main() {
       await t.tap(find.text('밥 주기'));
       await t.tap(find.text('물 주기'));
       expect(actions, isEmpty);
-      await t.tap(find.text('모든 기능').last);
+      await t.tap(find.text('기록').last);
       await t.pump(const Duration(milliseconds: 300));
       await t.enterText(find.byType(TextField), '백업');
       await t.pump(const Duration(milliseconds: 300));

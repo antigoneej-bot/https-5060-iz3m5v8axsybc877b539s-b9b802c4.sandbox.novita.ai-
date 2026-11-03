@@ -210,7 +210,10 @@ void main() {
         ..pages['older'] = (() async => throw StateError('이전 목록 연결 실패'));
       await app(
         tester,
-        PublicGardenInboxScreen(accountReady: () async => true),
+        PublicGardenInboxScreen(
+          initialFilter: 1,
+          accountReady: () async => true,
+        ),
         provider: pages,
       );
       expect(find.text('first님이 응원을 보냈어요'), findsOneWidget);
@@ -244,6 +247,7 @@ void main() {
       await app(
         tester,
         PublicGardenInboxScreen(
+          initialFilter: 1,
           accountReady: () async => true,
           currentAccount: () => owner,
           accountChanges: changes.stream,

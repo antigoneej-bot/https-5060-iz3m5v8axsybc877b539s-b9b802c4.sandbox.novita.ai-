@@ -1,3 +1,4 @@
+import '../../widgets/neighbor_news_bubble.dart';
 import 'seasonal_garden_layer.dart';
 import 'dart:typed_data';
 import 'garden_basic_item_art.dart';
@@ -2013,6 +2014,12 @@ class _GardenWorldViewState extends State<GardenWorldView>
                         ),
                       ),
                     ),
+                    if (!widget.readOnly)
+                      const Positioned(
+                        top: 0,
+                        right: 0,
+                        child: NeighborNewsBubble(),
+                      ),
                   ],
                 ),
               ),

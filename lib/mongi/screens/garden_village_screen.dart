@@ -14,7 +14,6 @@ import '../../theme.dart' show AppColors;
 import '../../widgets/account_entry_card.dart';
 import '../models/garden_village.dart';
 import 'garden_visit_screen.dart';
-import 'public_garden_browse_screen.dart';
 import 'public_garden_inbox_screen.dart';
 import 'public_garden_settings_screen.dart';
 import 'shared_trees_screen.dart';
@@ -28,6 +27,7 @@ class GardenVillageScreen extends StatefulWidget {
     this.currentAccount,
     this.accountChanges,
     this.initialTab = 0,
+    this.inboxFilter = 0,
     this.sharedTreeService,
   });
   final GardenVillageService? service;
@@ -35,7 +35,7 @@ class GardenVillageScreen extends StatefulWidget {
   final Future<bool> Function()? accountReady;
   final String? Function()? currentAccount;
   final Stream<String?>? accountChanges;
-  final int initialTab;
+  final int initialTab, inboxFilter;
 
   @override
   State<GardenVillageScreen> createState() => _GardenVillageScreenState();
@@ -62,7 +62,7 @@ class _GardenVillageScreenState extends State<GardenVillageScreen>
     super.initState();
     _service = widget.service ?? GardenVillageService();
     _sharedTrees = widget.sharedTreeService ?? SharedTreeService();
-    _tab = widget.initialTab.clamp(0, 2);
+    _tab = widget.initialTab.clamp(0, 3);
     _owner = _currentOwner;
     WidgetsBinding.instance.addObserver(this);
     final changes =
@@ -87,7 +87,7 @@ class _GardenVillageScreenState extends State<GardenVillageScreen>
       _load();
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_tab == 0) _load();
+      if (_tab == 0 || _tab == 3) _load();
     });
   }
 
@@ -101,7 +101,7 @@ class _GardenVillageScreenState extends State<GardenVillageScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed && _tab == 0) _load();
+    if (state == AppLifecycleState.resumed && _tab != 2) _load();
   }
 
   Future<void> _load() async {
@@ -295,7 +295,7 @@ class _GardenVillageScreenState extends State<GardenVillageScreen>
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: AppColors.bg0,
     appBar: AppBar(
-      title: const Text('냥이 마을'),
+      title: const Text('이웃'),
       backgroundColor: AppColors.bg0,
       actions: [
         IconButton(
@@ -310,35 +310,32 @@ class _GardenVillageScreenState extends State<GardenVillageScreen>
           padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
           child: SizedBox(
             width: double.infinity,
-            child: SegmentedButton<int>(
-              segments: const [
-                ButtonSegment(value: 0, label: Text('내 이웃')),
-                ButtonSegment(value: 1, label: Text('둘러보기')),
-                ButtonSegment(value: 2, label: Text('받은 마음')),
-              ],
-              selected: {_tab},
-              showSelectedIcon: false,
-              onSelectionChanged: (value) {
-                setState(() => _tab = value.first);
-                if (_tab == 0) _load();
-              },
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: SegmentedButton<int>(
+                segments: const [
+                  ButtonSegment(value: 0, label: Text('내 이웃')),
+                  ButtonSegment(value: 3, label: Text('신청')),
+                  ButtonSegment(value: 2, label: Text('선물함')),
+                  ButtonSegment(value: 1, label: Text('찾기')),
+                ],
+                selected: {_tab},
+                showSelectedIcon: false,
+                onSelectionChanged: (value) {
+                  setState(() => _tab = value.first);
+                  if (_tab == 0 || _tab == 3 || _tab == 1) _load();
+                },
+              ),
             ),
           ),
         ),
       ),
     ),
-    body: _tab == 1
-        ? PublicGardenBrowseScreen(
-            key: ValueKey('browse:$_owner'),
-            embedded: true,
-            service: widget.service,
-            accountReady: widget.accountReady,
-            currentAccount: widget.currentAccount,
-          )
-        : _tab == 2
+    body: _tab == 2
         ? PublicGardenInboxScreen(
             key: ValueKey('inbox:$_owner'),
             embedded: true,
+            initialFilter: widget.inboxFilter,
             service: widget.service,
             accountReady: widget.accountReady,
             currentAccount: widget.currentAccount,
@@ -381,120 +378,139 @@ class _GardenVillageScreenState extends State<GardenVillageScreen>
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
       children: [
-        const Text(
-          '정원을 오가며 작은 마음을 나눠요.',
-          style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+        Wrap(
+          spacing: 8,
+          children: [
+            ActionChip(
+              label: Text('받은 신청 ${people.incoming.length}'),
+              onPressed: () => setState(() => _tab = 3),
+            ),
+            ActionChip(
+              label: const Text('받은 선물·응원'),
+              onPressed: () => setState(() => _tab = 2),
+            ),
+          ],
         ),
-        const SizedBox(height: 6),
-        const Text(
-          '응원에 꼭 답례하지 않아도 괜찮아요. 편지와 감정 통계는 나만 볼 수 있어요.',
-          style: TextStyle(color: AppColors.inkSoft, height: 1.5),
-        ),
-        const SizedBox(height: 16),
-        FilledButton.icon(
-          key: const Key('village-random-browse'),
-          onPressed: () => Navigator.push<void>(
-            context,
-            MaterialPageRoute(
-              builder: (_) => GardenDiscoveryScreen(
-                service: _service,
-                accountReady: widget.accountReady,
+        if (_tab == 1) ...[
+          const Text(
+            '정원을 오가며 작은 마음을 나눠요.',
+            style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            '응원에 꼭 답례하지 않아도 괜찮아요. 편지와 감정 통계는 나만 볼 수 있어요.',
+            style: TextStyle(color: AppColors.inkSoft, height: 1.5),
+          ),
+          const SizedBox(height: 16),
+          FilledButton.icon(
+            key: const Key('village-random-browse'),
+            onPressed: () => Navigator.push<void>(
+              context,
+              MaterialPageRoute(
+                builder: (_) => GardenDiscoveryScreen(
+                  service: _service,
+                  accountReady: widget.accountReady,
+                ),
               ),
             ),
+            icon: const Icon(Icons.explore_outlined),
+            label: const Text('이웃 정원 둘러보기'),
           ),
-          icon: const Icon(Icons.explore_outlined),
-          label: const Text('이웃 정원 둘러보기'),
-        ),
-        OutlinedButton.icon(
-          onPressed: () => Navigator.push<void>(
-            context,
-            MaterialPageRoute(
-              builder: (_) => GardenDiscoveryScreen(
-                service: _service,
-                accountReady: widget.accountReady,
-                favorites: true,
+          OutlinedButton.icon(
+            onPressed: () => Navigator.push<void>(
+              context,
+              MaterialPageRoute(
+                builder: (_) => GardenDiscoveryScreen(
+                  service: _service,
+                  accountReady: widget.accountReady,
+                  favorites: true,
+                ),
               ),
             ),
+            icon: const Icon(Icons.star_border),
+            label: const Text('즐겨찾는 정원'),
           ),
-          icon: const Icon(Icons.star_border),
-          label: const Text('즐겨찾는 정원'),
-        ),
-        const SizedBox(height: 8),
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const Text(
-                  '내 친구 코드',
-                  style: TextStyle(fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 6),
-                SelectableText(
-                  profile.inviteCode,
-                  style: const TextStyle(fontSize: 24, letterSpacing: 2),
-                ),
-                Wrap(
-                  spacing: 8,
-                  children: [
-                    TextButton.icon(
-                      onPressed: () async {
-                        await Clipboard.setData(
-                          ClipboardData(text: profile.inviteCode),
-                        );
-                        _message('친구 코드를 복사했어요.');
-                      },
-                      icon: const Icon(Icons.copy, size: 18),
-                      label: const Text('복사'),
-                    ),
-                    TextButton.icon(
-                      onPressed: () async {
-                        try {
-                          await SharePlus.instance.share(
-                            ShareParams(
-                              text:
-                                  '마음냥 정원에서 이웃이 되어 주세요.\n친구 코드: ${profile.inviteCode}\n냥이 마을 → 내 이웃 → 친구 코드로 찾기에 입력해 주세요.',
-                            ),
+          const SizedBox(height: 8),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Text(
+                    '내 코드 공유',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 6),
+                  SelectableText(
+                    profile.inviteCode,
+                    style: const TextStyle(fontSize: 24, letterSpacing: 2),
+                  ),
+                  Wrap(
+                    spacing: 8,
+                    children: [
+                      TextButton.icon(
+                        onPressed: () async {
+                          await Clipboard.setData(
+                            ClipboardData(text: profile.inviteCode),
                           );
-                        } catch (_) {
-                          _message('공유 창을 열지 못했어요. 친구 코드를 복사해 주세요.');
-                        }
-                      },
-                      icon: const Icon(Icons.share_outlined, size: 18),
-                      label: const Text('코드 공유'),
-                    ),
-                  ],
-                ),
-                OutlinedButton.icon(
-                  onPressed: _busy ? null : _invite,
-                  icon: const Icon(Icons.person_add_alt_1),
-                  label: const Text('친구 코드로 찾기'),
-                ),
-              ],
+                          _message('친구 코드를 복사했어요.');
+                        },
+                        icon: const Icon(Icons.copy, size: 18),
+                        label: const Text('복사'),
+                      ),
+                      TextButton.icon(
+                        onPressed: () async {
+                          try {
+                            await SharePlus.instance.share(
+                              ShareParams(
+                                text:
+                                    '마음냥 정원에서 이웃이 되어 주세요.\n친구 코드: ${profile.inviteCode}\n이웃 → 찾기 → 친구 코드로 찾기에 입력해 주세요.',
+                              ),
+                            );
+                          } catch (_) {
+                            _message('공유 창을 열지 못했어요. 친구 코드를 복사해 주세요.');
+                          }
+                        },
+                        icon: const Icon(Icons.share_outlined, size: 18),
+                        label: const Text('코드 공유'),
+                      ),
+                    ],
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: _busy ? null : _invite,
+                    icon: const Icon(Icons.person_add_alt_1),
+                    label: const Text('친구 코드로 찾기'),
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
-        Card(
-          child: ListTile(
-            leading: const Icon(Icons.park_outlined, color: AppColors.catSage),
-            title: const Text('함께 가꾸는 나무'),
-            subtitle: const Text('이웃과 기념일을 남겨요 · 받은 초대는 무료 참여'),
-            trailing: Badge(
-              isLabelVisible: _hasTreeActivity,
-              label: const Text('새 소식'),
-              child: const Icon(Icons.chevron_right),
+        ],
+        if (_tab == 0)
+          Card(
+            child: ListTile(
+              leading: const Icon(
+                Icons.park_outlined,
+                color: AppColors.catSage,
+              ),
+              title: const Text('함께 가꾸는 나무'),
+              subtitle: const Text('이웃과 기념일을 남겨요 · 받은 초대는 무료 참여'),
+              trailing: Badge(
+                isLabelVisible: _hasTreeActivity,
+                label: const Text('새 소식'),
+                child: const Icon(Icons.chevron_right),
+              ),
+              onTap: () async {
+                await Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => SharedTreesScreen(service: _sharedTrees),
+                  ),
+                );
+                if (mounted) await _load();
+              },
             ),
-            onTap: () async {
-              await Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => SharedTreesScreen(service: _sharedTrees),
-                ),
-              );
-              if (mounted) await _load();
-            },
           ),
-        ),
         if (profile.visibility == GardenVisibility.private) ...[
           const SizedBox(height: 10),
           ListTile(
@@ -505,7 +521,7 @@ class _GardenVillageScreenState extends State<GardenVillageScreen>
             trailing: TextButton(onPressed: _settings, child: const Text('설정')),
           ),
         ],
-        if (people.incoming.isNotEmpty) ...[
+        if (_tab == 3 && people.incoming.isNotEmpty) ...[
           _heading('도착한 이웃 신청'),
           ...people.incoming.map(
             (p) => Card(
@@ -554,62 +570,76 @@ class _GardenVillageScreenState extends State<GardenVillageScreen>
             ),
           ),
         ],
-        Card(
-          child: ListTile(
-            leading: const Icon(Icons.pets),
-            title: const Text('고양이 초대와 방문'),
-            subtitle: const Text('우리 고양이와 이웃 정원에 놀러 가요'),
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute<void>(
-                builder: (_) => CatVisitInboxScreen(service: _service),
-              ),
-            ),
-          ),
-        ),
-        _heading('내 이웃'),
-        if (people.neighbors.isEmpty)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 20),
-            child: Text(
-              '아직 연결된 이웃이 없어요.\n친구 코드를 입력하거나 둘러보기에서 정원을 만나 보세요.',
-              style: TextStyle(height: 1.6, color: AppColors.inkSoft),
-            ),
-          ),
-        ...people.neighbors.map(
-          (p) => Card(
+        if (_tab == 0)
+          Card(
             child: ListTile(
-              leading: const CircleAvatar(child: Text('🌿')),
-              title: Text(_name(p.nickname)),
-              subtitle: Text(
-                p.canVisit == false ? '이웃이 정원을 비공개로 두고 있어요' : '정원 방문하기',
+              leading: const Icon(Icons.pets),
+              title: const Text('고양이 초대와 방문'),
+              subtitle: const Text('우리 고양이와 이웃 정원에 놀러 가요'),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute<void>(
+                  builder: (_) => CatVisitInboxScreen(service: _service),
+                ),
               ),
-              trailing: PopupMenuButton<String>(
-                enabled: !_busy,
-                tooltip: '이웃 관리',
-                onSelected: (action) => _manageNeighbor(p, action),
-                itemBuilder: (_) => const [
-                  PopupMenuItem(value: 'remove', child: Text('이웃 연결 해제')),
-                  PopupMenuItem(value: 'block', child: Text('차단')),
-                ],
-              ),
-              onTap: p.canVisit == false
-                  ? null
-                  : () async {
-                      await Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder: (_) => GardenVisitScreen(
-                            gardenId: p.gardenId,
-                            nickname: p.nickname,
-                          ),
-                        ),
-                      );
-                      if (mounted) _load();
-                    },
             ),
           ),
-        ),
-        if (people.outgoing.isNotEmpty) ...[
+        if (_tab == 0) ...[
+          _heading('내 이웃'),
+          if (people.neighbors.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 20),
+              child: Text(
+                '아직 연결된 이웃이 없어요.\n친구 코드를 입력하거나 둘러보기에서 정원을 만나 보세요.',
+                style: TextStyle(height: 1.6, color: AppColors.inkSoft),
+              ),
+            ),
+          ...people.neighbors.map(
+            (p) => Card(
+              child: ListTile(
+                leading: const CircleAvatar(child: Text('🌿')),
+                title: Text(_name(p.nickname)),
+                subtitle: Text(
+                  p.canVisit == false ? '이웃이 정원을 비공개로 두고 있어요' : '정원 방문하기',
+                ),
+                trailing: PopupMenuButton<String>(
+                  enabled: !_busy,
+                  tooltip: '이웃 관리',
+                  onSelected: (action) => _manageNeighbor(p, action),
+                  itemBuilder: (_) => const [
+                    PopupMenuItem(value: 'remove', child: Text('이웃 연결 해제')),
+                    PopupMenuItem(value: 'block', child: Text('차단')),
+                  ],
+                ),
+                onTap: p.canVisit == false
+                    ? null
+                    : () async {
+                        await Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => GardenVisitScreen(
+                              gardenId: p.gardenId,
+                              nickname: p.nickname,
+                            ),
+                          ),
+                        );
+                        if (mounted) _load();
+                      },
+              ),
+            ),
+          ),
+        ],
+        if (_tab == 3) ...[
+          _heading('신청 관리'),
+          Text(
+            '받은 신청 ${people.incoming.length} · 보낸 신청 ${people.outgoing.length}',
+          ),
+          if (people.incoming.isEmpty)
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Text('받은 신청이 없어요.'),
+            ),
+        ],
+        if (_tab == 3 && people.outgoing.isNotEmpty) ...[
           _heading('수락을 기다리는 이웃'),
           ...people.outgoing.map(
             (p) => ListTile(
@@ -628,7 +658,7 @@ class _GardenVillageScreenState extends State<GardenVillageScreen>
             ),
           ),
         ],
-        if (people.blocked.isNotEmpty)
+        if (_tab == 0 && people.blocked.isNotEmpty)
           ExpansionTile(
             title: const Text('차단한 이웃 관리'),
             children: people.blocked

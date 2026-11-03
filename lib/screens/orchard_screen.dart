@@ -15,7 +15,13 @@ import '../widgets/orchard_tree_art.dart';
 class OrchardScreen extends StatefulWidget {
   final OrchardService? service;
   final Stream<String?>? accountChanges;
-  const OrchardScreen({super.key, this.service, this.accountChanges});
+  const OrchardScreen({
+    super.key,
+    this.service,
+    this.accountChanges,
+    this.initialTab = 0,
+  });
+  final int initialTab;
   @override
   State<OrchardScreen> createState() => _OrchardScreenState();
 }
@@ -31,6 +37,7 @@ class _OrchardScreenState extends State<OrchardScreen>
   @override
   void initState() {
     super.initState();
+    tab = widget.initialTab.clamp(0, 1);
     service = widget.service ?? OrchardService();
     WidgetsBinding.instance.addObserver(this);
     final changes =

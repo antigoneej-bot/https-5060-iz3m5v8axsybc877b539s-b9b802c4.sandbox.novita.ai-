@@ -69,8 +69,12 @@ class BackupService {
     'cat_browse_favorites_v1',
     'bgm_enabled',
     'sfx_enabled',
+    'cat_sound_enabled',
+    'cat_sound_volume',
     'bgm_volume',
-    'garden_nature_enabled', 'garden_birds_volume', 'garden_water_volume',
+    'garden_nature_enabled',
+    'garden_birds_volume',
+    'garden_water_volume',
   };
   // Explicitly listed personal records only. Never broaden this to an entire
   // prefix: billing, login and OS permission state must not be imported.
@@ -83,7 +87,9 @@ class BackupService {
   static String? prefType(String key) {
     if (_meditationTypes.containsKey(key)) return _meditationTypes[key];
     const globalTypes = {
-      'garden_nature_enabled': 'bool', 'garden_birds_volume': 'double', 'garden_water_volume': 'double',
+      'garden_nature_enabled': 'bool',
+      'garden_birds_volume': 'double',
+      'garden_water_volume': 'double',
       'mongi_last_emotions': 'strings',
       'mongi_last_intensity': 'double',
       'companion_name': 'string',
@@ -92,6 +98,8 @@ class BackupService {
       'cat_browse_favorites_v1': 'strings',
       'bgm_enabled': 'bool',
       'sfx_enabled': 'bool',
+      'cat_sound_enabled': 'bool',
+      'cat_sound_volume': 'double',
       'bgm_volume': 'double',
     };
     if (globalTypes.containsKey(key)) return globalTypes[key];
@@ -321,7 +329,8 @@ class BackupService {
 
   static Future<Map<String, dynamic>> _snapshotCommitted() async {
     await SessionTransaction.recover();
-    if (await _existing('garden_memories') != null) await PlantMemoryStore.instance.reload();
+    if (await _existing('garden_memories') != null)
+      await PlantMemoryStore.instance.reload();
     final data = <String, dynamic>{};
     for (final name in boxes) {
       final box = await _existing(name);
@@ -390,7 +399,10 @@ class BackupService {
             !seen.add(row['key'] as Object))
           throw const FormatException('잘못된 기록 항목이에요.');
         final value = row['value'];
-        if (entry.key == 'garden_styles') { GardenStyleStore.validate(row['key'], value); continue; }
+        if (entry.key == 'garden_styles') {
+          GardenStyleStore.validate(row['key'], value);
+          continue;
+        }
         if (entry.key == 'garden_personal_gallery') {
           GardenPersonalGalleryStore.validate(row['key'], value);
           continue;
@@ -447,7 +459,8 @@ class BackupService {
         if (entry.key == 'keepsake_trees') {
           if (value is! Map) throw const FormatException('기억의 나무 형식이 달라요.');
           final tree = KeepsakeTree.fromJson(value);
-          if (row['key'] != tree.id) throw const FormatException('기억의 나무가 일치하지 않아요.');
+          if (row['key'] != tree.id)
+            throw const FormatException('기억의 나무가 일치하지 않아요.');
           continue;
         }
         if (entry.key == 'garden_memory_books') {

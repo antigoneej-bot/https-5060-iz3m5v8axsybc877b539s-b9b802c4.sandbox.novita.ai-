@@ -21,6 +21,8 @@ class GardenReturnStore extends ChangeNotifier {
     return result;
   }
 
+  bool isSeen(String owner, String id) => _messages[owner]?[id] == true;
+
   bool hasUnseen(String? owner) =>
       owner != null && (_messages[owner]?.values.any((seen) => !seen) ?? false);
 

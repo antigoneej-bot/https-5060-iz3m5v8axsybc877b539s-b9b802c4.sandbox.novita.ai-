@@ -112,7 +112,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     // 다시 호출되지 않기 때문).
     if (state == AppLifecycleState.resumed) {
       _handleDeepLink();
-      if (_activeStoryPage == 2) unawaited(_refreshCare());
+      if (_activeStoryPage == 3) unawaited(_refreshCare());
     }
   }
 
@@ -430,7 +430,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           onMoodSelected: (index) => _pendingMood = index,
           onPageSelected: (index) {
             _activeStoryPage = index;
-            if (index == 2) unawaited(_refreshCare());
+            if (index == 3) unawaited(_refreshCare());
           },
           careBusy: _careSaving || _careRefreshing,
           completedCare: {

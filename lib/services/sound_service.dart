@@ -1,3 +1,4 @@
+import 'package:shared_preferences/shared_preferences.dart';
 import '../mongi/services/sound_manager.dart';
 import 'dart:async';
 import 'package:audioplayers/audioplayers.dart';
@@ -45,17 +46,27 @@ class SoundService extends ChangeNotifier {
   }
 
   bool get _canPlayBgm =>
-      !sleepStopped && bgmEnabled && _appAudible && !narrationPlaying && !gardenSuspended;
+      !sleepStopped &&
+      bgmEnabled &&
+      _appAudible &&
+      !narrationPlaying &&
+      !gardenSuspended;
 
   /// App visibility is updated synchronously, so a late decoder completion
   /// cannot start music after the app is hidden or locked.
   Future<void> setAppAudible(bool value, {bool autoplay = true}) {
     _appAudible = value;
     SoundManager.instance.appAudible = value;
-    if (!value) { unawaited(SoundManager.instance.pauseAmbientNature()); }
-    else if (SoundManager.instance.ambientRequested && !sleepStopped && !narrationPlaying) {
-      unawaited(SoundManager.instance.ambientNaturePlaying
-        ? SoundManager.instance.resumeAmbientNatureIfNeeded() : SoundManager.instance.startAmbientNature());
+    if (!value) {
+      unawaited(SoundManager.instance.pauseAmbientNature());
+    } else if (SoundManager.instance.ambientRequested &&
+        !sleepStopped &&
+        !narrationPlaying) {
+      unawaited(
+        SoundManager.instance.ambientNaturePlaying
+            ? SoundManager.instance.resumeAmbientNatureIfNeeded()
+            : SoundManager.instance.startAmbientNature(),
+      );
     }
     if (value) return autoplay ? tryStartBgm() : Future<void>.value();
     return _bgmAction(() async {
@@ -87,12 +98,58 @@ class SoundService extends ChangeNotifier {
     }
   }
 
+  bool catSoundEnabled = true;
+  double catVolume = .6;
+  DateTime _lastCatSound = DateTime.fromMillisecondsSinceEpoch(0);
+  final _catQueue = LocalRecordQueue();
+  Future<void> setCatSound({bool? enabled, double? volume}) async {
+    catSoundEnabled = enabled ?? catSoundEnabled;
+    catVolume = (volume ?? catVolume).clamp(0.0, 1.0).toDouble();
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('cat_sound_enabled', catSoundEnabled);
+    await prefs.setDouble('cat_sound_volume', catVolume);
+    if (!catSoundEnabled || catVolume == 0) {
+      await _meowPlayer.stop();
+      await _purrPlayer.stop();
+    }
+  }
+
+  Future<void> _catSound(bool purr) async {
+    if (!catSoundEnabled ||
+        catVolume == 0 ||
+        !_canPlayEffect ||
+        DateTime.now().difference(_lastCatSound).inMilliseconds < 1800)
+      return;
+    _lastCatSound = DateTime.now();
+    try {
+      await _catQueue.run(() async {
+        if (!catSoundEnabled || !_canPlayEffect) return;
+        await _meowPlayer.stop();
+        await _purrPlayer.stop();
+        final player = purr ? _purrPlayer : _meowPlayer;
+        await player.setVolume(catVolume);
+        await _playEffect(
+          player,
+          purr ? 'audio/sfx_purr.mp3' : 'audio/sfx_meow.mp3',
+        );
+      });
+    } catch (_) {
+      /* Sound must not block greeting or care. */
+    }
+  }
+
   bool sfxEnabled = true;
   bool bgmEnabled = false;
   double bgmVolume = 0.35;
   bool _bgmStarted = false;
 
   Future<void> init() async {
+    final catPrefs = await SharedPreferences.getInstance();
+    catSoundEnabled = catPrefs.getBool('cat_sound_enabled') ?? true;
+    catVolume = (catPrefs.getDouble('cat_sound_volume') ?? .6)
+        .clamp(0.0, 1.0)
+        .toDouble();
     await SoundManager.instance.loadNatureSettings();
     sfxEnabled = await StorageService.getSfxEnabled();
     bgmEnabled = await StorageService.getBgmEnabled();
@@ -192,7 +249,11 @@ class SoundService extends ChangeNotifier {
   }
 
   bool get _canPlayEffect =>
-      !sleepStopped && sfxEnabled && _appAudible && !gardenSuspended && !narrationPlaying;
+      !sleepStopped &&
+      sfxEnabled &&
+      _appAudible &&
+      !gardenSuspended &&
+      !narrationPlaying;
 
   Future<void> _playEffect(AudioPlayer player, String asset) {
     if (!_canPlayEffect) return Future<void>.value();
@@ -205,7 +266,10 @@ class SoundService extends ChangeNotifier {
             _effectContexts.add(player);
           }
           await player.setSource(AssetSource(asset));
-          if (_canPlayEffect) await player.resume();
+          if (_canPlayEffect &&
+              (!(player == _meowPlayer || player == _purrPlayer) ||
+                  catSoundEnabled && catVolume > 0))
+            await player.resume();
         } catch (_) {
           // A missing effect must never prevent the user's care/record action.
         }
@@ -217,11 +281,16 @@ class SoundService extends ChangeNotifier {
       _playEffect(_sfxPlayer, 'audio/sfx_shuffle.mp3');
   Future<void> playFlip() => _playEffect(_sfxPlayer, 'audio/sfx_flip.mp3');
   Future<void> playChime() => _playEffect(_sfxPlayer, 'audio/sfx_chime.mp3');
-  Future<void> playMeow() => _playEffect(_meowPlayer, 'audio/sfx_meow.mp3');
-  Future<void> playPurr() => _playEffect(_purrPlayer, 'audio/sfx_purr.mp3');
+  Future<void> playMeow() => _catSound(false);
+  Future<void> playPurr() => _catSound(true);
   Future<void> stopPurr() => _effectQueues
-      .putIfAbsent(_purrPlayer, LocalRecordQueue.new).run(() async {
-        try { await _purrPlayer.stop(); } catch (_) { /* Safe during teardown. */ }
+      .putIfAbsent(_purrPlayer, LocalRecordQueue.new)
+      .run(() async {
+        try {
+          await _purrPlayer.stop();
+        } catch (_) {
+          /* Safe during teardown. */
+        }
       });
   Future<void> playBubblePop() =>
       _playEffect(_bubblePlayer, 'audio/sfx_bubble_pop.mp3');

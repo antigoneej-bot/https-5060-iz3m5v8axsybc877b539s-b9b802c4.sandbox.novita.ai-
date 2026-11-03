@@ -1,4 +1,11 @@
+import 'package:audioplayers_platform_interface/audioplayers_platform_interface.dart';
+import 'support/fake_audioplayers_platform.dart';
+import 'support/fake_global_audioplayers_platform.dart';
 import 'dart:convert';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:flutter_app/mongi/integration/mongi_garden_store.dart';
+import 'package:flutter_app/mongi/integration/session_transaction.dart';
+import 'package:flutter_app/services/hive_encryption.dart';
 import 'dart:async';
 import 'dart:io';
 import 'dart:ui' as ui;
@@ -49,9 +56,23 @@ Map<String, Object> snapshot(SharedPreferences prefs) => {
   for (final key in prefs.getKeys()) key: prefs.get(key)!,
 };
 
+Future<void> finishGreetingSave(WidgetTester tester) async {
+  final touch = find.byKey(const Key('home-companion-touch'));
+  await tester.pump();
+  final deadline = DateTime.now().add(const Duration(seconds: 30));
+  while (tester.widget<GestureDetector>(touch).onTap == null) {
+    if (DateTime.now().isAfter(deadline)) fail('Greeting save did not finish');
+    await Future<void>.delayed(const Duration(milliseconds: 5));
+    await tester.pump();
+  }
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUpAll(() async {
+    AudioplayersPlatformInterface.instance = FakeAudioplayersPlatform();
+    GlobalAudioplayersPlatformInterface.instance =
+        FakeGlobalAudioplayersPlatform();
     for (final e in {
       'GowunDodum': 'assets/fonts/GowunDodum-Regular.ttf',
       'GamjaFlower': 'assets/fonts/GamjaFlower-Regular.ttf',
@@ -64,9 +85,22 @@ void main() {
       expect(atlas.frames.length, 12);
     }
   });
-  setUp(() {
+  late Directory hiveDirectory;
+  setUp(() async {
+    hiveDirectory = await Directory.systemTemp.createTemp('home80-');
+    Hive.init(hiveDirectory.path);
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+          const MethodChannel('plugins.it_nomads.com/flutter_secure_storage'),
+          (_) async => null,
+        );
     SharedPreferences.setMockInitialValues({});
     CatCareService.setCurrentUser('local_user');
+    await MongiGardenStore.instance.reload();
+  });
+  tearDown(() async {
+    await Hive.close();
+    await hiveDirectory.delete(recursive: true);
   });
 
   Future<void> mount(
@@ -187,6 +221,7 @@ void main() {
         await StorageService.setCompanionName(name);
         final care = await reopen();
         final initial = snapshot(await SharedPreferences.getInstance());
+        final expectedSnapshot = Map<String, Object>.from(initial);
         final shot = GlobalKey();
         await mount(t, care, shot, []);
         expect(cat(t).coat, coat);
@@ -216,10 +251,64 @@ void main() {
               await capture(t, shot, 'home-${coat.name}-blink.png');
             }
             if (i == 51) {
+              expect(
+                snapshot(await SharedPreferences.getInstance()),
+                initial,
+                reason:
+                    'Viewing and blinking before an explicit greeting never saves a reward',
+              );
               for (var tap = 0; tap < 3; tap++) {
-                await t.tap(find.byKey(const Key('home-companion-touch')));
+                await t.runAsync(() async {
+                  await t.tap(find.byKey(const Key('home-companion-touch')));
+                  await finishGreetingSave(t);
+                });
               }
               await t.pump();
+              final receiptBox = await t.runAsync(
+                () => HiveEncryption.openBox(SessionTransaction.boxName),
+              );
+              final receipts = Map<String, dynamic>.from(
+                receiptBox!.get(SessionTransaction.receiptsKey) as Map,
+              );
+              final greetings = receipts.entries
+                  .where((e) => e.key.startsWith('companion_greeting_'))
+                  .toList();
+              expect(greetings, hasLength(1));
+              final reward = Map<String, dynamic>.from(
+                greetings.single.value as Map,
+              );
+              expect(reward['kind'], isIn(['heart', 'gold', 'churu']));
+              expect(reward['light'], reward['kind'] == 'gold' ? 15 : 5);
+              final beforeGarden = initial[MongiGardenStore.storageKey] == null
+                  ? MongiGardenData()
+                  : MongiGardenData.fromJson(
+                      Map<String, dynamic>.from(
+                        jsonDecode(
+                              initial[MongiGardenStore.storageKey] as String,
+                            )
+                            as Map,
+                      ),
+                    );
+              final expectedGarden = beforeGarden.copy(
+                essence: beforeGarden.essence + (reward['light'] as int),
+                claimedGiftReceipts: {
+                  ...beforeGarden.claimedGiftReceipts,
+                  'greeting_${reward['day']}',
+                },
+                walkStock: {
+                  ...beforeGarden.walkStock,
+                  if (reward['kind'] == 'churu')
+                    'churu_tuna':
+                        (beforeGarden.walkStock['churu_tuna'] ?? 0) + 1,
+                },
+              );
+              expect(
+                MongiGardenStore.instance.value.toJson(),
+                expectedGarden.toJson(),
+              );
+              expectedSnapshot[MongiGardenStore.storageKey] = jsonEncode(
+                expectedGarden.toJson(),
+              );
               expect(
                 find.byKey(const Key('home-petting-heart')),
                 findsOneWidget,
@@ -258,20 +347,35 @@ void main() {
         }
         expect(
           snapshot(await SharedPreferences.getInstance()),
-          initial,
+          expectedSnapshot,
           reason:
-              'Welcoming animation and viewing the home must not change stored records',
+              'Only the explicit daily greeting may add its exact reward and receipt; all other records stay unchanged',
         );
         await t.pumpWidget(const SizedBox());
         care.dispose();
         // Recreate the preferences cache and provider, not just the widget state.
-        SharedPreferences.setMockInitialValues(initial);
+        SharedPreferences.setMockInitialValues(expectedSnapshot);
         final restarted = await reopen();
         await mount(t, restarted, GlobalKey(), [], motion: false);
         expect(cat(t).coat, coat);
         expect(find.text(name), findsOneWidget);
         expect(restarted.journey.previousCareDays, 7);
-        expect(snapshot(await SharedPreferences.getInstance()), initial);
+        expect(
+          snapshot(await SharedPreferences.getInstance()),
+          expectedSnapshot,
+        );
+        if (exportVideo && output.isNotEmpty) {
+          await t.runAsync(() async {
+            await t.tap(find.byKey(const Key('home-companion-touch')));
+            await finishGreetingSave(t);
+          });
+          expect(
+            snapshot(await SharedPreferences.getInstance()),
+            expectedSnapshot,
+            reason:
+                'Greeting again after restarting cannot grant a second reward',
+          );
+        }
         await t.pumpWidget(const SizedBox());
         restarted.dispose();
         expect(t.takeException(), isNull);
@@ -299,11 +403,18 @@ void main() {
                   .animation
               as AnimationController;
       final touch = find.byKey(const Key('home-companion-touch'));
-      await t.tap(touch);
+      await t.runAsync(() async {
+        await t.tap(touch);
+        await finishGreetingSave(t);
+      });
       await t.pump();
       await t.pump(const Duration(milliseconds: 700));
       final progress = reaction().value;
-      for (var i = 0; i < 8; i++) await t.tap(touch);
+      for (var i = 0; i < 8; i++)
+        await t.runAsync(() async {
+          await t.tap(touch);
+          await finishGreetingSave(t);
+        });
       await t.pump();
       expect(reaction().value, progress);
       t.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
@@ -312,15 +423,29 @@ void main() {
       expect(find.byKey(const Key('home-petting-heart')), findsNothing);
       t.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
       await t.pump();
-      await t.tap(touch);
+      await t.runAsync(() async {
+        await t.tap(touch);
+        await finishGreetingSave(t);
+      });
       await t.pump();
       await care.selectCoat(CompanionCoat.white);
       await t.pump();
       expect(cat(t).coat, CompanionCoat.white);
       expect(reaction().isAnimating, false);
-      await t.tap(touch);
+      await t.runAsync(() async {
+        await t.tap(touch);
+        await finishGreetingSave(t);
+      });
       await t.pump();
-      await t.tap(find.text('정원').last);
+      final gardenTab = find.byKey(const ValueKey('main-tab-1'));
+      final notices = find.byType(SnackBar);
+      if (notices.evaluate().isNotEmpty) {
+        expect(
+          t.getRect(notices.last).bottom,
+          lessThanOrEqualTo(t.getRect(gardenTab).top),
+        );
+      }
+      await t.tap(gardenTab, warnIfMissed: true);
       for (var i = 0; i < 20; i++)
         await t.pump(const Duration(milliseconds: 50));
       expect(
@@ -332,13 +457,20 @@ void main() {
         await t.pump(const Duration(milliseconds: 50));
       await mount(t, care, GlobalKey(), [], reducedMotion: true);
       expect(cat(t).motion!.frame, 0);
-      await t.tap(touch);
+      await t.runAsync(() async {
+        await t.tap(touch);
+        await finishGreetingSave(t);
+      });
       await t.pump(const Duration(seconds: 2));
       expect(reaction().isAnimating, false);
       expect(cat(t).motion!.frame, 0);
-      // Only the explicit coat selection changed stored data; touching did not.
+      // Daily greeting writes its own garden receipt; unrelated preferences stay intact.
       final after = snapshot(await SharedPreferences.getInstance());
-      expect(after.keys, unorderedEquals(before.keys));
+      expect(
+        after.keys,
+        unorderedEquals({...before.keys, 'local_user_mongi_garden_v1'}),
+      );
+      expect(MongiGardenStore.instance.value.essence, greaterThanOrEqualTo(5));
       final stored = await CompanionJourneyStore.load('local_user');
       expect(stored.growthDays, care.journey.growthDays);
       expect(stored.firstMoments, isEmpty);
@@ -377,14 +509,29 @@ void main() {
       await revealHomeControl(t, find.byKey(const Key('home-garden')));
       await t.tap(find.byKey(const Key('home-garden')));
       expect(actions.last, PastelAction.garden);
-      await t.ensureVisible(find.byKey(const Key('home-companion-touch')));
+      final homeScroll = t.state<ScrollableState>(
+        find
+            .descendant(
+              of: find.byKey(const PageStorageKey('pastel-page-0')),
+              matching: find.byType(Scrollable),
+            )
+            .first,
+      );
+      homeScroll.position.jumpTo(0);
+      await t.pump();
       final actionCount = actions.length;
       final storedBeforePet = snapshot(await SharedPreferences.getInstance());
-      await t.tap(find.byKey(const Key('home-companion-touch')));
+      await t.runAsync(() async {
+        await t.tap(find.byKey(const Key('home-companion-touch')));
+        await finishGreetingSave(t);
+      });
       await t.pump();
       expect(actions.length, actionCount);
       expect(find.byKey(const Key('home-petting-heart')), findsOneWidget);
-      expect(snapshot(await SharedPreferences.getInstance()), storedBeforePet);
+      final afterGreeting = snapshot(await SharedPreferences.getInstance())
+        ..remove('local_user_mongi_garden_v1');
+      expect(afterGreeting, storedBeforePet);
+      expect(MongiGardenStore.instance.value.essence, greaterThanOrEqualTo(5));
       await t.pump(const Duration(milliseconds: 1700));
       expect(find.byKey(const Key('home-petting-heart')), findsNothing);
       await t.ensureVisible(find.byKey(const Key('home-companion-care')));
@@ -424,7 +571,7 @@ void main() {
       await t.pump();
       expect(clock().isAnimating, isTrue);
       final previousClock = clock();
-      await t.tap(find.text('정원').last);
+      await t.tap(find.text('내 정원').last);
       Future<void> finishPageScroll() async {
         await t.pump();
         final controller = t
@@ -521,7 +668,10 @@ void main() {
             .enabled,
         isFalse,
       );
-      await t.tap(find.byKey(const Key('home-companion-touch')));
+      await t.runAsync(() async {
+        await t.tap(find.byKey(const Key('home-companion-touch')));
+        await finishGreetingSave(t);
+      });
       await t.pump();
       expect(find.byKey(const Key('home-petting-heart')), findsNothing);
       expect(cat(t).coat, CompanionCoat.black);

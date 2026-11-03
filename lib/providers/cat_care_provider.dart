@@ -247,12 +247,11 @@ class CatCareProvider extends ChangeNotifier {
     // 회원가입(온보딩)을 아직 마치지 않았다면 출석 카운팅을 시작하지 않습니다.
     // 회원가입 + 아기고양이 이름짓기 + 로그인을 모두 마친 시점부터 비로소
     // '출석 1일차'가 기록되기 시작합니다.
-    final signedUp = await StorageService.isOnboardingCompleted();
     await loadJourney();
     state = await CatCareService.loadAndApplyDailyDecay(
       defaultCompanionCatId: shadowCats.first.id,
       isPremium: isPremium,
-      countAttendance: signedUp,
+      countAttendance: false,
     );
     companionName = await StorageService.getCompanionName();
     ownedAccessoryIds = await CatCareService.getOwnedAccessoryIds();
@@ -262,6 +261,22 @@ class CatCareProvider extends ChangeNotifier {
     isLoading = false;
     notifyListeners();
     await _notifications.refreshCompanionReminders();
+  }
+
+  Future<void> greetToday() async {
+    final owner = CatCareService.localOwner, epoch = _journeyEpoch;
+    bool current() =>
+        owner == CatCareService.localOwner && epoch == _journeyEpoch;
+    if (!await StorageService.isOnboardingCompleted() || !current()) return;
+    final greeted = await CatCareService.loadAndApplyDailyDecay(
+      defaultCompanionCatId: shadowCats.first.id,
+      isPremium: isPremium,
+      countAttendance: true,
+    );
+    if (!current()) return;
+    state = greeted;
+    await _refreshAchievements();
+    if (current()) notifyListeners();
   }
 
   /// 이름이 지어져 있으면 이름을, 없으면 기본 문구를 반환합니다.

@@ -1,6 +1,6 @@
 const fs=require('fs'),vm=require('vm'),assert=require('assert');
 const ctx=new Proxy({measureText:t=>({width:t.length*12})},{get:(o,k)=>o[k]||(()=>{})});
-function element(){return {value:'또리',checked:true,disabled:false,style:{},parentElement:{style:{}},classList:{add(){},remove(){},contains(){return true}},getBoundingClientRect:()=>({width:360,height:800}),getContext:()=>ctx,append(){},replaceChildren(){},setAttribute(){},blur(){},scrollIntoView(){},toBlob:f=>f({})}}
+function element(){return {value:'또리',checked:true,disabled:false,style:{},parentElement:{style:{}},classList:{add(){},remove(){},contains(){return true}},getBoundingClientRect:()=>({width:360,height:800}),getContext:()=>ctx,append(){},appendChild(){},replaceChildren(){},setAttribute(){},blur(){},scrollIntoView(){},toBlob:f=>f({})}}
 const els={};const sandbox={WalkHost:{postMessage(raw){const msg=JSON.parse(raw);if(msg.type==='walkReward') sandbox.window.walkRewardResult(true);if(msg.type==='walkFeed') sandbox.window.walkFeedResult(msg.kind,true);}},console,Promise,Set,Math,Date,document:{getElementById:id=>els[id]??=element(),createElement:()=>element(),createTextNode:t=>t,addEventListener(){}},localStorage:{getItem:()=>null,setItem(){},removeItem(){}},Image:class{set src(v){this.complete=true;this.naturalWidth=v.includes('companion_loaf')?1536:1672;this.naturalHeight=v.includes('companion_loaf')?1024:1448;queueMicrotask(()=>this.onload?.())}},requestAnimationFrame(){},performance:{now:()=>0},URL:{createObjectURL:()=> 'blob:test',revokeObjectURL(){}},window:{}};
 vm.createContext(sandbox);let html=fs.readFileSync('assets/cat_walk.html','utf8');vm.runInContext(fs.readFileSync('assets/cat_walk/assets/catalog.js','utf8')+fs.readFileSync('assets/cat_walk/assets/dialogue.js','utf8')+fs.readFileSync('assets/cat_walk/assets/rewards.js','utf8')+fs.readFileSync('assets/cat_walk/assets/music.js','utf8')+html.match(/<script>([\s\S]*)<\/script>/)[1],sandbox);
 vm.runInContext("window.applyWalkProfile({name:'또리',coat:0,emotions:['joyful','anxious']})",sandbox);
@@ -36,12 +36,12 @@ console.log('PASS: uninterrupted emotion pickup and jumping; special discovery p
 vm.runInContext(`
 for(let lane=0;lane<4;lane++){
  const b=makeTreasure('joyful',lane), start=b.x;
- if(lane===0 && b.y!==ground-240)throw Error('upper entry missing');
- if(lane===1 && b.y!==ground+50)throw Error('lower entry missing');
+ if(lane===0 && b.y!==90)throw Error('upper entry missing');
+ if(lane===1 && b.y!==625)throw Error('lower entry missing');
  moveTreasure(b,.1);
- if(Math.abs(start-b.x-32)>1e-6)throw Error('new speed incorrect');
+ if(Math.abs(start-b.x-32*walkPace)>1e-6)throw Error('new speed incorrect');
  b.x=catX+25;moveTreasure(b,0);
- if(b.y!==b.targetY || b.y<ground-140 || b.y>ground-50)throw Error('unreachable treasure');
+ if(b.y!==b.targetY || b.y<ground-210 || b.y>ground-50)throw Error('unreachable treasure');
 }
 console.log('PASS: four treasure paths, increased speed, reachable pickup height');
 `,sandbox);

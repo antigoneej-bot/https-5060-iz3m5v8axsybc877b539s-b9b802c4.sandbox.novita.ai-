@@ -114,6 +114,18 @@ class _SoundSettingsControlsState extends State<SoundSettingsControls> {
             value: sound.sfxEnabled,
             onChanged: (value) => _change(() => sound.setSfxEnabled(value)),
           ),
+          SwitchListTile.adaptive(
+            title: const Text('고양이 소리'),
+            subtitle: const Text('야옹·그릉그릉 · 전체 효과음 설정도 적용돼요'),
+            value: sound.catSoundEnabled,
+            onChanged: (v) => _change(() => sound.setCatSound(enabled: v)),
+          ),
+          Text('고양이 음량 ${(sound.catVolume * 100).round()}%'),
+          Slider(
+            key: const Key('sound-cat-volume'),
+            value: sound.catVolume,
+            onChanged: (v) => _change(() => sound.setCatSound(volume: v)),
+          ),
           const SizedBox(height: 4),
           Align(
             alignment: Alignment.centerLeft,
@@ -143,25 +155,56 @@ class _SoundSettingsControlsState extends State<SoundSettingsControls> {
             ),
           ),
           const Divider(),
-          SwitchListTile.adaptive(contentPadding: EdgeInsets.zero, title: const Text('정원 자연음'),
+          SwitchListTile.adaptive(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('정원 자연음'),
             subtitle: const Text('조용히 쉬는 동안 재생해요. 배경 음악과 따로 조절해요.'),
             value: SoundManager.instance.natureEnabled,
-            onChanged: (v) => _change(() => SoundManager.instance.setNature(enabled: v))),
+            onChanged: (v) =>
+                _change(() => SoundManager.instance.setNature(enabled: v)),
+          ),
           Text('새소리 ${(SoundManager.instance.birdsVolume * 100).round()}%'),
-          Slider(key: const Key('sound-birds-volume'), value: SoundManager.instance.birdsVolume,
-            onChanged: (v) => _change(() => SoundManager.instance.setNature(birds: v))),
+          Slider(
+            key: const Key('sound-birds-volume'),
+            value: SoundManager.instance.birdsVolume,
+            onChanged: (v) =>
+                _change(() => SoundManager.instance.setNature(birds: v)),
+          ),
           Text('물소리 ${(SoundManager.instance.waterVolume * 100).round()}%'),
-          Slider(key: const Key('sound-water-volume'), value: SoundManager.instance.waterVolume,
-            onChanged: (v) => _change(() => SoundManager.instance.setNature(water: v))),
+          Slider(
+            key: const Key('sound-water-volume'),
+            value: SoundManager.instance.waterVolume,
+            onChanged: (v) =>
+                _change(() => SoundManager.instance.setNature(water: v)),
+          ),
           const Divider(),
           const Text('소리 종료 타이머 · 음악·자연음·재생 중인 명상을 멈춰요'),
-          Wrap(spacing: 8, children: [for (final minutes in [5, 15, 30, 60])
-            TextButton(onPressed: GardenSoundTimer.instance.stopped ? null : () => GardenSoundTimer.instance.setMinutes(minutes), child: Text('$minutes분')),
-            TextButton(onPressed: () => GardenSoundTimer.instance.setMinutes(null), child: const Text('타이머 취소'))]),
+          Wrap(
+            spacing: 8,
+            children: [
+              for (final minutes in [5, 15, 30, 60])
+                TextButton(
+                  onPressed: GardenSoundTimer.instance.stopped
+                      ? null
+                      : () => GardenSoundTimer.instance.setMinutes(minutes),
+                  child: Text('$minutes분'),
+                ),
+              TextButton(
+                onPressed: () => GardenSoundTimer.instance.setMinutes(null),
+                child: const Text('타이머 취소'),
+              ),
+            ],
+          ),
           if (GardenSoundTimer.instance.deadline != null)
-            Text('종료까지 ${(GardenSoundTimer.instance.remaining.inSeconds.clamp(0, 3600) / 60).ceil()}분'),
-          if (GardenSoundTimer.instance.stopped) TextButton.icon(
-            onPressed: () => _change(GardenSoundTimer.instance.resumeSound), icon: const Icon(Icons.play_arrow), label: const Text('다시 듣기')),
+            Text(
+              '종료까지 ${(GardenSoundTimer.instance.remaining.inSeconds.clamp(0, 3600) / 60).ceil()}분',
+            ),
+          if (GardenSoundTimer.instance.stopped)
+            TextButton.icon(
+              onPressed: () => _change(GardenSoundTimer.instance.resumeSound),
+              icon: const Icon(Icons.play_arrow),
+              label: const Text('다시 듣기'),
+            ),
           if (_message != null) Text(_message!, style: bodyFont(fontSize: 13)),
         ],
       );

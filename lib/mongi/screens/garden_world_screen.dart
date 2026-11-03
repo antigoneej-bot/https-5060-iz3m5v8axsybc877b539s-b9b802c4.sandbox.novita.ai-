@@ -459,6 +459,7 @@ class _GardenWorldScreenState extends State<GardenWorldScreen>
   }
 
   void _startMovingPlant(SeedType seed) {
+    ScaffoldMessenger.maybeOf(context)?.removeCurrentSnackBar();
     if (!_canChangeGarden) return;
     _focusPlant(seed);
     setState(() {
@@ -1605,6 +1606,7 @@ class _GardenWorldScreenState extends State<GardenWorldScreen>
   }
 
   Future<void> _plant() async {
+    ScaffoldMessenger.maybeOf(context)?.removeCurrentSnackBar();
     if (_plantPickerOpen) return;
     if (!_cultivationEnabled) setState(() => _cultivationActivated = true);
     _plantPickerOpen = true;

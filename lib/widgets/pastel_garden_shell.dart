@@ -1,3 +1,9 @@
+import 'feature_scaffold.dart';
+import 'healing_activities.dart';
+import '../mongi/screens/garden_village_screen.dart';
+import '../screens/cat_walk_screen.dart';
+import '../screens/meditation_library_screen.dart';
+import 'neighbor_news_bubble.dart';
 import 'companion_welcome_home.dart';
 import 'companion_coat_art.dart';
 import 'companion_presence.dart';
@@ -102,14 +108,16 @@ class _PastelGardenShellState extends State<PastelGardenShell> {
       lavender = Color(0xFFF2EAF6),
       peach = Color(0xFFFCECDD),
       butter = Color(0xFFF9F3DE);
-  static const labels = ['홈', '정원', '마음돌보기', '모든 기능'];
+  static const labels = ['홈', '내 정원', '이웃', '힐링', '기록'];
   static const icons = [
     Icons.home_outlined,
     Icons.spa_outlined,
-    Icons.favorite_border_rounded,
-    Icons.grid_view_rounded,
+    Icons.people_outline,
+    Icons.self_improvement,
+    Icons.menu_book_outlined,
   ];
   final _pages = PageController();
+  final _tabKeys = List<GlobalKey>.generate(5, (_) => GlobalKey());
   final _search = TextEditingController();
   int _index = 0;
   int? _mood;
@@ -139,7 +147,7 @@ class _PastelGardenShellState extends State<PastelGardenShell> {
     coat: widget.coat,
     growthStage: widget.companionStage,
     child: CompanionPresence(
-      enabled: widget.companionAutomaticBehavior && _index == 2,
+      enabled: widget.companionAutomaticBehavior && _index == 3,
       resting: resting,
     ),
   );
@@ -236,7 +244,7 @@ class _PastelGardenShellState extends State<PastelGardenShell> {
             left: 24,
             right: page == 3 ? width * .35 : 20,
             child: heading(
-              const ['오늘의 마음', '나의 정원', '마음돌보기', '기록과 보관함'][page],
+              const ['오늘의 마음', '나의 정원', '명상·힐링', '마음 기록'][page],
               size: page == 0 ? 30 : 22,
               color: green,
             ),
@@ -344,7 +352,7 @@ class _PastelGardenShellState extends State<PastelGardenShell> {
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
           child: heading(
-            const ['오늘의 마음', '나의 정원', '마음돌보기', '기록과 보관함'][page],
+            const ['오늘의 마음', '나의 정원', '명상·힐링', '마음 기록'][page],
             size: 22,
             color: green,
           ),
@@ -655,7 +663,7 @@ class _PastelGardenShellState extends State<PastelGardenShell> {
     const SizedBox(height: 8),
     Center(
       child: TextButton(
-        onPressed: () => go(3),
+        onPressed: () => go(4),
         child: const Text('지난 기록 보기  ›'),
       ),
     ),
@@ -755,6 +763,42 @@ class _PastelGardenShellState extends State<PastelGardenShell> {
   ]);
 
   Widget _care() => _panel([
+    _section('명상·힐링'),
+    FilledButton.icon(
+      onPressed: () => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const CatWalkScreen()),
+      ),
+      icon: const Icon(Icons.pets),
+      label: const Text('마음냥 산책'),
+    ),
+    OutlinedButton.icon(
+      onPressed: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const FeatureScaffold(
+            title: '명상·호흡·자연음',
+            child: MeditationLibraryScreen(),
+          ),
+        ),
+      ),
+      icon: const Icon(Icons.self_improvement),
+      label: const Text('명상·호흡·자연음'),
+    ),
+
+    for (final activity in HealingActivity.values.where(
+      (a) => a != HealingActivity.walk,
+    ))
+      ListTile(
+        leading: Icon(activity.icon),
+        title: Text(activity.title),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => activity.screen()),
+        ),
+      ),
+    const Divider(color: Color(0xFFE4DECF)),
     _section('고양이 돌보기'),
     _grid(
       const [
@@ -773,7 +817,6 @@ class _PastelGardenShellState extends State<PastelGardenShell> {
       ),
     const SizedBox(height: 16),
     const Divider(color: Color(0xFFE4DECF)),
-    _section('나를 돌보기'),
     _grid(const [
       _StoryEntry('호흡·명상', 15, PastelAction.meditation),
       _StoryEntry('색칠 힐링', 16, PastelAction.coloring),
@@ -917,83 +960,132 @@ class _PastelGardenShellState extends State<PastelGardenShell> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    backgroundColor: cream,
-    body: SafeArea(
-      bottom: false,
-      child: Column(
-        children: [
-          Expanded(
-            child: PageView.builder(
-              key: const Key('main-pastel-pager'),
-              controller: _pages,
-              physics: const PageScrollPhysics(),
-              onPageChanged: (index) {
-                FocusManager.instance.primaryFocus?.unfocus();
-                setState(() => _index = index);
-                widget.onPageSelected?.call(index);
-              },
-              itemCount: 4,
-              itemBuilder: (context, index) => index == 0
-                  ? TickerMode(
-                      enabled: _index == 0,
-                      child: CompanionWelcomeHome(
-                        coat: widget.coat,
-                        name: widget.companionName,
-                        growthStage: widget.companionStage,
-                        motionEnabled: widget.motionEnabled && _index == 0,
-                        automaticBehavior: widget.companionAutomaticBehavior,
-                        bondStage: widget.companionBondStage,
-                        loading: widget.companionLoading,
-                        error: widget.companionError,
-                        onRetry: widget.onRetryCompanion,
-                        selecting: widget.selecting,
-                        selectedMood: _mood,
-                        onMoodSelected: (value) {
-                          setState(() => _mood = value);
-                          widget.onMoodSelected?.call(value);
-                        },
-                        onRecord: () => widget.onAction(PastelAction.write),
-                        onGarden: () => widget.onAction(PastelAction.garden),
-                        onChooseCat: () => widget.onAction(PastelAction.coats),
-                        onCompanionTap: () =>
-                            widget.onAction(PastelAction.companion),
-                        onNotices: () => widget.onAction(PastelAction.notices),
-                        footer: widget.footer,
-                      ),
-                    )
-                  : index == 1 && widget.actualGarden != null
-                  ? TickerMode(
-                      enabled: index == _index,
-                      child: widget.actualGarden!,
-                    )
-                  : TickerMode(
-                      enabled: index == _index,
-                      child: Center(
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 620),
-                          child: LayoutBuilder(
-                            builder: (context, box) => ListView(
-                              key: PageStorageKey('pastel-page-$index'),
-                              padding: EdgeInsets.zero,
-                              children: [
-                                _hero(index, box.maxWidth),
-                                switch (index) {
-                                  0 => _home(),
-                                  1 => _garden(),
-                                  2 => _care(),
-                                  _ => _all(),
-                                },
-                              ],
+  Widget build(BuildContext context) => Theme(
+    data: Theme.of(context).copyWith(
+      snackBarTheme: Theme.of(context).snackBarTheme.copyWith(
+        insetPadding: EdgeInsets.fromLTRB(16, 5, 16, _index == 1 ? 150 : 16),
+      ),
+    ),
+    child: Scaffold(
+      backgroundColor: cream,
+      bottomNavigationBar: _navigation(),
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            Expanded(
+              child: PageView.builder(
+                key: const Key('main-pastel-pager'),
+                controller: _pages,
+                physics: const PageScrollPhysics(),
+                onPageChanged: (index) {
+                  FocusManager.instance.primaryFocus?.unfocus();
+                  ScaffoldMessenger.maybeOf(context)?.removeCurrentSnackBar();
+                  setState(() => _index = index);
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (!mounted) return;
+                    final target = _tabKeys[index].currentContext;
+                    if (target != null &&
+                        target.mounted &&
+                        Scrollable.maybeOf(target) != null) {
+                      Scrollable.ensureVisible(
+                        target,
+                        alignment: .5,
+                        // Keep tab controls immediately tappable; an animated
+                        // scroll temporarily ignores child pointer events.
+                        duration: Duration.zero,
+                      );
+                    }
+                  });
+                  widget.onPageSelected?.call(index);
+                },
+                itemCount: 5,
+                itemBuilder: (context, index) => index == 0
+                    ? TickerMode(
+                        enabled: _index == 0,
+                        child: CompanionWelcomeHome(
+                          coat: widget.coat,
+                          name: widget.companionName,
+                          growthStage: widget.companionStage,
+                          motionEnabled: widget.motionEnabled && _index == 0,
+                          automaticBehavior: widget.companionAutomaticBehavior,
+                          bondStage: widget.companionBondStage,
+                          loading: widget.companionLoading,
+                          error: widget.companionError,
+                          onRetry: widget.onRetryCompanion,
+                          selecting: widget.selecting,
+                          selectedMood: _mood,
+                          onMoodSelected: (value) {
+                            setState(() => _mood = value);
+                            widget.onMoodSelected?.call(value);
+                          },
+                          onRecord: () => widget.onAction(PastelAction.write),
+                          onGarden: () => widget.onAction(PastelAction.garden),
+                          onChooseCat: () =>
+                              widget.onAction(PastelAction.coats),
+                          onCompanionTap: () =>
+                              widget.onAction(PastelAction.companion),
+                          onNotices: () =>
+                              widget.onAction(PastelAction.notices),
+                          onSettings: () =>
+                              widget.onAction(PastelAction.settings),
+                          footer: Column(
+                            children: [
+                              const NeighborNewsBubble(expanded: true),
+                              FilledButton.icon(
+                                onPressed: () => go(2),
+                                icon: const Icon(Icons.people_outline),
+                                label: const Text('이웃 만나러 가기'),
+                              ),
+                              widget.footer,
+                            ],
+                          ),
+                        ),
+                      )
+                    : index == 2
+                    ? TickerMode(
+                        enabled: _index == 2,
+                        child: const GardenVillageScreen(),
+                      )
+                    : index == 1 && widget.actualGarden != null
+                    ? TickerMode(
+                        enabled: index == _index,
+                        child: widget.actualGarden!,
+                      )
+                    : TickerMode(
+                        enabled: index == _index,
+                        child: Center(
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 620),
+                            child: LayoutBuilder(
+                              builder: (context, box) => ListView(
+                                key: PageStorageKey('pastel-page-$index'),
+                                padding: EdgeInsets.zero,
+                                children: [
+                                  _hero(
+                                    index == 3
+                                        ? 2
+                                        : index == 4
+                                        ? 3
+                                        : index,
+                                    box.maxWidth,
+                                  ),
+                                  switch (index) {
+                                    0 => _home(),
+                                    1 => _garden(),
+                                    3 => _care(),
+                                    _ => _all(),
+                                  },
+                                ],
+                              ),
                             ),
                           ),
                         ),
                       ),
-                    ),
+              ),
             ),
-          ),
-          _navigation(),
-        ],
+          ],
+        ),
       ),
     ),
   );
@@ -1003,10 +1095,12 @@ class _PastelGardenShellState extends State<PastelGardenShell> {
       final large =
           MediaQuery.textScalerOf(context).scale(14) > 20 && box.maxWidth < 600;
       Widget item(int i) => Semantics(
+        key: _tabKeys[i],
         selected: _index == i,
         button: true,
         label: '${labels[i]} 화면',
         child: InkWell(
+          key: ValueKey('main-tab-$i'),
           onTap: () => go(i),
           borderRadius: BorderRadius.circular(16),
           child: Padding(
@@ -1078,15 +1172,18 @@ class _PastelGardenShellState extends State<PastelGardenShell> {
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
             child: large
-                ? Wrap(
-                    children: [
-                      for (var i = 0; i < 4; i++)
-                        SizedBox(width: (box.maxWidth - 8) / 2, child: item(i)),
-                    ],
+                ? SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        for (var i = 0; i < 5; i++)
+                          SizedBox(width: 156, child: item(i)),
+                      ],
+                    ),
                   )
                 : Row(
                     children: [
-                      for (var i = 0; i < 4; i++) Expanded(child: item(i)),
+                      for (var i = 0; i < 5; i++) Expanded(child: item(i)),
                     ],
                   ),
           ),

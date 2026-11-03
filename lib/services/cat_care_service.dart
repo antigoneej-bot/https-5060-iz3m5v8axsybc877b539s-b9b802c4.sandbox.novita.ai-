@@ -12,25 +12,28 @@ import 'subscription_service.dart';
 /// 마음 온도 규칙(전면 개편):
 /// - 온도는 0도에서 시작해 100도까지 오를 수 있습니다.
 /// - 오늘 한 가지 이상 돌봄을 실천하면 그날 한 번 +1도.
-/// - 앱에 출석(방문)한 날마다 +1도, 누적 출석일수(growthDays)도 +1.
+/// - 홈 고양이에게 인사한 날마다 +1도, 누적 출석일수(growthDays)도 +1.
 /// - "오늘의 약속"을 하나 지킬 때마다 +1도.
 /// - 돌보지 않고 쉬었던 날에도 온도는 유지됩니다.
 /// - 100도에 도달하면(구독자 한정) 포인트가 1점 적립되고 온도는 다시 0도부터 시작합니다.
 ///   (구독자가 아니면 100도에서 더 오르지 않고 유지됩니다.)
 /// - growthDays(누적 출석일수) 30일마다 성장 단계가 하나씩 올라갑니다.
 class CatCareService {
-  static String _uid = 'guest';
-  static String get localOwner => _uid;
+  static String _currentUid = 'guest';
+  static final _operationOwner = Object();
+  static String get _uid =>
+      Zone.current[_operationOwner] as String? ?? _currentUid;
+  static String get localOwner => _currentUid;
   static const int maxTemperature = 100;
   static const int minTemperature = 0;
   static const int startTemperature = 0;
 
   static void setCurrentUser(String userId) {
-    _uid = userId;
+    _currentUid = userId;
   }
 
   static void clearCurrentUser() {
-    _uid = 'guest';
+    _currentUid = 'guest';
   }
 
   /// 온도·히스토리 prefs 쓰기를 직렬화합니다.
@@ -39,6 +42,7 @@ class CatCareService {
   static Future<void>? _tempOpTail;
 
   static Future<T> _serializedTempOp<T>(Future<T> Function() op) async {
+    final owner = _uid;
     final previous = _tempOpTail;
     final gate = Completer<void>();
     _tempOpTail = gate.future;
@@ -48,7 +52,7 @@ class CatCareService {
           await previous;
         } catch (_) {}
       }
-      return await op();
+      return await runZoned(op, zoneValues: {_operationOwner: owner});
     } finally {
       // Release an idle queue's caller zone; keep the tail when another
       // operation is already waiting so concurrent writes remain serialized.
@@ -206,6 +210,9 @@ class CatCareService {
     required int points,
     required bool isPremium,
   }) async {
+    // A queued operation keeps its owner's keys, but the current letter box
+    // may already belong to the account the user just switched to.
+    if (_uid != localOwner) return (temperature, points);
     try {
       final today = _dateOnlyString(DateTime.now());
       final claimedKey = '${_uid}_care_activity_bonus_claimed_$today';
@@ -294,8 +301,8 @@ class CatCareService {
   /// 쉬었던 날의 온도를 유지하고 오늘 체크리스트를 초기화합니다.
   /// [countAttendance]가 true이고 오늘 출석 보너스를 아직 받지 않았다면
   /// 출석 보너스(+1도, 누적 출석일수 +1)를 적용합니다. 회원가입(온보딩)을
-  /// 아직 마치지 않은 사용자는 [countAttendance]를 false로 넘겨, 가입을
-  /// 완료하는 순간부터 출석 카운팅이 시작되도록 합니다.
+  /// 아직 마치지 않은 사용자와 일반 화면 진입은 false를 넘깁니다.
+  /// 홈 고양이 인사에서만 true를 넘겨 하루 한 번 출석을 셉니다.
   static Future<CatCareState> loadAndApplyDailyDecay({
     required String defaultCompanionCatId,
     required bool isPremium,
@@ -318,7 +325,7 @@ class CatCareService {
       }
 
       if (lastDateStr == null) {
-        // 첫 방문: 오늘부터 출석 시작
+        // 첫 방문: 날짜 기준만 초기화, 출석은 아래 명시적 인사에서 처리
         await prefs.setString(_lastCareDateKey, todayStr);
       } else if (lastDateStr != todayStr && lastDate != null) {
         // 자정이 바뀌기 전 마지막 온도를 어제 칸에 확정해 둡니다.
@@ -361,15 +368,6 @@ class CatCareService {
           points = newPoints;
           await prefs.setInt(_growthDaysKey, growthDays);
           await prefs.setString(_attendanceCountedDateKey, todayStr);
-        }
-
-        // 「N일째 함께하는 중」(설치일)과 출석일수가 어긋난 경우 소급 맞춤.
-        // 온보딩 전에는 출석이 안 쌓여 1~2일 벌어지는 경우가 흔함.
-        // 긴 공백 결석 치팅을 막기 위해 최대 3일 차이만 보정한다.
-        final together = await StorageService.daysTogetherSinceInstall();
-        if (together > growthDays && together - growthDays <= 3) {
-          growthDays = together;
-          await prefs.setInt(_growthDaysKey, growthDays);
         }
       }
 
@@ -596,7 +594,9 @@ class CatCareService {
   }
 
   /// 소모품별로 지금 보관함에 몇 개씩 남아있는지 반환합니다.
-  static Future<Map<String, int>> getConsumableInventory({bool includeWalk = true}) async {
+  static Future<Map<String, int>> getConsumableInventory({
+    bool includeWalk = true,
+  }) async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getStringList(_consumableInventoryKey) ?? [];
     final map = <String, int>{};
@@ -691,8 +691,12 @@ class CatCareService {
     final temperature = prefs.getInt(_tempKey) ?? startTemperature;
     final points = prefs.getInt(_pointsKey) ?? 0;
     if (owner != _uid) throw StateError('계정이 바뀌었어요.');
-    final fromWalk = count <= 0 && await MongiGardenStore.instance.consumeWalkFood(
-      accessory.id, isCurrentOwner: () => owner == _uid);
+    final fromWalk =
+        count <= 0 &&
+        await MongiGardenStore.instance.consumeWalkFood(
+          accessory.id,
+          isCurrentOwner: () => owner == _uid,
+        );
     if (count <= 0 && !fromWalk) {
       return (false, temperature, points);
     }

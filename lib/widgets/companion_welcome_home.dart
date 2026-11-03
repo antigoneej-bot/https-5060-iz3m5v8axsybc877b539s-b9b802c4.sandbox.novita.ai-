@@ -17,6 +17,7 @@ class CompanionWelcomeHome extends StatelessWidget {
     required this.onChooseCat,
     required this.onCompanionTap,
     required this.onNotices,
+    this.onSettings,
     this.name,
     this.growthStage = 0,
     this.bondStage = 0,
@@ -37,7 +38,7 @@ class CompanionWelcomeHome extends StatelessWidget {
   final int? selectedMood;
   final ValueChanged<int>? onMoodSelected;
   final VoidCallback onRecord, onGarden, onChooseCat, onCompanionTap, onNotices;
-  final VoidCallback? onRetry;
+  final VoidCallback? onRetry, onSettings;
   final Widget footer;
 
   static const paper = Color(0xfffcf9f3);
@@ -134,6 +135,12 @@ class CompanionWelcomeHome extends StatelessWidget {
                                 style: text(23, weight: FontWeight.w800),
                               ),
                             ),
+                            if (onSettings != null)
+                              IconButton(
+                                tooltip: '설정·전체 기능',
+                                onPressed: onSettings,
+                                icon: const Icon(Icons.settings_outlined),
+                              ),
                             IconButton(
                               key: const Key('home-notices'),
                               tooltip: '정원 소식',
@@ -148,7 +155,10 @@ class CompanionWelcomeHome extends StatelessWidget {
                       ),
                       if (!largeText) _identity(displayName),
                       SizedBox(
-                        height: catHeight,
+                        height:
+                            catHeight +
+                            MediaQuery.textScalerOf(context).scale(12) * 2.7 +
+                            8,
                         width: double.infinity,
                         child: loading
                             ? const Center(
@@ -178,9 +188,13 @@ class CompanionWelcomeHome extends StatelessWidget {
                                 ),
                               )
                             : Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 22),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 22,
+                                ),
                                 child: CompanionCoatScope(
-                                  key: ValueKey('home-coat-${coat?.name ?? 'legacy'}'),
+                                  key: ValueKey(
+                                    'home-coat-${coat?.name ?? 'legacy'}',
+                                  ),
                                   useLocalChoice: true,
                                   coat: coat,
                                   growthStage: growthStage,
@@ -192,12 +206,16 @@ class CompanionWelcomeHome extends StatelessWidget {
                                 ),
                               ),
                       ),
-                      Center(child: TextButton.icon(
-                        key: const Key('home-companion-care'),
-                        onPressed: loading || error != null ? null : onCompanionTap,
-                        icon: const Icon(Icons.favorite_border, size: 18),
-                        label: const Text('돌봐주기'),
-                      )),
+                      Center(
+                        child: TextButton.icon(
+                          key: const Key('home-companion-care'),
+                          onPressed: loading || error != null
+                              ? null
+                              : onCompanionTap,
+                          icon: const Icon(Icons.favorite_border, size: 18),
+                          label: const Text('돌봐주기'),
+                        ),
+                      ),
                     ],
                   ),
                 ],

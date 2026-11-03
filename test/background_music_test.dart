@@ -104,6 +104,28 @@ void main() {
     );
   });
 
+  test('cat mute and volume persist; rapid calls do not overlap', () async {
+    await sound.init();
+    await sound.setCatSound(enabled: false, volume: .25);
+    platform.calls.clear();
+    await sound.playMeow();
+    expect(resumes(), 0);
+    await sound.setCatSound(enabled: true);
+    await sound.playMeow();
+    expect(resumes(), 1);
+    await sound.playPurr();
+    expect(resumes(), 1);
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getBool('cat_sound_enabled'), true);
+    expect(prefs.getDouble('cat_sound_volume'), .25);
+    await sound.setCatSound(enabled: false);
+    final restored = SoundService.forTesting();
+    await restored.init();
+    expect(restored.catSoundEnabled, false);
+    expect(restored.catVolume, .25);
+    await restored.stopAll();
+  });
+
   test(
     'startup prepares loop and saved volume without playing before visible',
     () async {

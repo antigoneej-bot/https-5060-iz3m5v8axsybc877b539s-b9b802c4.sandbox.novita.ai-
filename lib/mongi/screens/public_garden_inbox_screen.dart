@@ -1,3 +1,5 @@
+import '../../widgets/orchard_gift_inbox.dart';
+import '../../screens/orchard_screen.dart';
 import 'dart:async';
 
 import 'package:firebase_auth/firebase_auth.dart';
@@ -28,12 +30,14 @@ class PublicGardenInboxScreen extends StatefulWidget {
   const PublicGardenInboxScreen({
     super.key,
     this.embedded = false,
+    this.initialFilter = 0,
     this.accountReady,
     this.service,
     this.currentAccount,
     this.accountChanges,
   });
   final bool embedded;
+  final int initialFilter;
   final Future<bool> Function()? accountReady;
   final GardenVillageService? service;
   final String? Function()? currentAccount;
@@ -48,6 +52,14 @@ class _PublicGardenInboxScreenState extends State<PublicGardenInboxScreen>
   bool _loading = true, _needsAccount = false, _loadingMore = false;
   String? _error, _pageError, _owner, _nextCursor;
   int _request = 0;
+  int _filter = 0;
+  bool _matches(ReceivedCheer c) => _filter == 3
+      ? false
+      : _filter == 0
+      ? c.deliveryKind != 'cheer' && !c.claimed && !c.bloomConfirmed
+      : _filter == 1
+      ? c.deliveryKind == 'cheer'
+      : c.deliveryKind != 'cheer' && (c.claimed || c.bloomConfirmed);
   List<ReceivedCheer> _cheers = const [];
   final Set<String> _claiming = {},
       _planting = {},
@@ -62,6 +74,7 @@ class _PublicGardenInboxScreenState extends State<PublicGardenInboxScreen>
   @override
   void initState() {
     super.initState();
+    _filter = widget.initialFilter.clamp(0, 3);
     _owner = _currentOwner;
     WidgetsBinding.instance.addObserver(this);
     final changes =
@@ -147,7 +160,9 @@ class _PublicGardenInboxScreenState extends State<PublicGardenInboxScreen>
       try {
         await GardenReturnStore.instance.markSeen(
           owner,
-          page.cheers.map((c) => c.id),
+          page.cheers
+              .where((c) => _filter == 1 && c.deliveryKind == 'cheer')
+              .map((c) => c.id),
         );
       } catch (_) {
         // An unread-marker write failure must not hide a delivered message.
@@ -435,6 +450,54 @@ class _PublicGardenInboxScreenState extends State<PublicGardenInboxScreen>
             ),
           ],
         ),
+        OutlinedButton.icon(
+          onPressed: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const OrchardScreen(initialTab: 1),
+            ),
+          ),
+          icon: const Icon(Icons.inventory_2_outlined),
+          label: const Text('받은 과일·간식 · 창고에서 확인'),
+        ),
+        const Text('과일과 간식 선물은 창고에 자동 보관돼요.', style: TextStyle(fontSize: 12)),
+        Wrap(
+          spacing: 8,
+          children: [
+            for (final entry in const {
+              0: '받을 꽃',
+              1: '응원 메시지',
+              2: '받은 꽃 내역',
+              3: '과일·간식',
+            }.entries)
+              ChoiceChip(
+                label: Text(entry.value),
+                selected: _filter == entry.key,
+                onSelected: (_) {
+                  setState(() => _filter = entry.key);
+                  if (_filter == 1 && _currentOwner != null) {
+                    unawaited(
+                      GardenReturnStore.instance
+                          .markSeen(
+                            _currentOwner!,
+                            _cheers
+                                .where((c) => c.deliveryKind == 'cheer')
+                                .map((c) => c.id),
+                          )
+                          .catchError((Object _) {}),
+                    );
+                  }
+                },
+              ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        if (_filter == 3) const OrchardGiftInbox(),
+        if (_filter != 3 && !_cheers.any(_matches))
+          const Padding(
+            padding: EdgeInsets.all(16),
+            child: Text('이 항목의 소식이 없어요. 이전 소식도 확인할 수 있어요.'),
+          ),
         if (_cheers.isEmpty && _nextCursor == null)
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 40),
@@ -444,7 +507,7 @@ class _PublicGardenInboxScreenState extends State<PublicGardenInboxScreen>
               style: TextStyle(height: 1.6),
             ),
           ),
-        ..._cheers.map((cheer) {
+        ..._cheers.where(_matches).map((cheer) {
           final isPlanted = planted.contains(cheer.id) || cheer.bloomConfirmed;
           final sender = cheer.senderNickname?.trim().isNotEmpty == true
               ? cheer.senderNickname!
@@ -526,7 +589,11 @@ class _PublicGardenInboxScreenState extends State<PublicGardenInboxScreen>
                               ? null
                               : () => _claim(cheer),
                           child: Text(
-                            _claiming.contains(cheer.id) ? '확인 중…' : '마음 확인하기',
+                            _claiming.contains(cheer.id)
+                                ? '확인 중…'
+                                : cheer.deliveryKind == 'cheer'
+                                ? '응원 확인'
+                                : '선물 받기·보관',
                           ),
                         ),
                       TextButton.icon(
