@@ -1,0 +1,28 @@
+마음냥 정원 — Windows 노트북에서 이어서 작업하기
+기준: 1.0.96+99 / 2026-11-07
+
+1. 이 소스 ZIP을 노트북으로 옮기고 C:\dev\mindnyang99 같은 짧은 경로에 압축을 풉니다.
+   pubspec.yaml, lib, android가 함께 보이는 폴더를 프로젝트 폴더로 선택합니다.
+2. 노트북의 Codex/ChatGPT 데스크톱 앱에 현재 사용하는 계정으로 로그인합니다.
+   로컬 프로젝트에 위 폴더를 연결합니다. 채팅이 동기화되어도 PC 파일이 자동 이전되지는 않습니다.
+3. 기존 PC의 Downloads\mindnyang_garden_signing_key 폴더를 신뢰할 수 있는 USB 등으로 별도 전달합니다.
+   필요한 파일: release-key.jks, key.properties. 새 키를 만들지 않습니다.
+   이 폴더는 소스 ZIP/GitHub에 넣지 않았습니다. 비밀번호나 파일 내용을 채팅에 붙이지 않습니다.
+4. 아래 문장을 노트북 Codex에 붙여 주세요. 터미널 명령을 직접 실행할 필요는 없습니다.
+
+마음냥 정원 1.0.96+99 작업을 이어서 진행해 줘.
+먼저 START-NOTEBOOK-KO.txt와 docs/NOTEBOOK-HANDOFF-99-KO.txt를 읽고 소스 버전을 확인해 줘.
+Flutter 3.35.4, 기존 잠금 파일, Android 빌드 도구를 확인하고 없으면 공식 도구로 준비해 줘.
+서명 폴더는 내가 알려 줄 경로에 있으며 비밀값은 출력하지 마.
+설치된 도구와 새 경로만 점검하고, 기존 데이터·서명·구독·서버 설정은 보존해 줘.
+앱 빌드나 서버/스토어 변경은 이어서 요청할 때 진행해 줘.
+
+이번 PC에서 만드는 것은 내부 테스트용 AAB뿐입니다. APK는 만들지 않습니다.
+AAB는 휴대폰에서 직접 실행하는 파일이 아니라 기존 Play 앱 내부 테스트에 올리는 파일입니다.
+이번 요청에는 스토어 업로드·서버 재배포가 포함되지 않습니다.
+12월 초 출시 전 확인 순서는 docs/FINAL-TEST-ORDER-DEC2026-KO.txt를 참고합니다.
+최종 출시에서는 사용자 승인 후 테스트 전체 개방을 해제하고 유료 권한을 별도로 검증합니다.
+
+공식 앱/프로젝트 안내:
+https://learn.chatgpt.com/docs/quickstart
+https://learn.chatgpt.com/docs/projects

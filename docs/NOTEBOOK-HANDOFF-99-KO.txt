@@ -1,0 +1,78 @@
+마음냥 정원 99번 — 다음 작업자를 위한 인계
+작성: 2026-11-07 / 대상: Windows 노트북
+
+기준과 범위
+- 앱 버전 1.0.96+99, 패키지 com.mysticcat.journal.
+- 사용자가 99 이상 업로드한 적 없다고 확인하여 98 다음 코드 99를 사용.
+- 실제 Play Console 전체 목록을 이번에 직접 조회한 것은 아님. 업로드 직전에 충돌 여부 재확인.
+- 제품 코드 기준은 release-readiness-98의 4c6e69c05af0a9d1d0b7de96c96ea3f1544a364c.
+- 99에서는 버전 번호와 노트북 인계 문서를 추가. 제품 동작 코드를 추가 변경하지 않음.
+- 이전 버전 안내 문서는 이력이다. 최신 인계는 이 문서와 START-NOTEBOOK-KO.txt를 우선 읽는다.
+- 현재 작업은 AAB만 제작. APK, 스토어 업로드, 새 서버 배포, USB 재시도 없음.
+
+이미 수행한 검증과 한계
+- 위 기준 코드에서 Windows Flutter 전체 1,176개, 관련 부분집합 21개 통과.
+- GitHub Ubuntu에서도 Flutter 1,176개, backend 249개, 산책 하네스, Python 설정 검사 6개 통과.
+- 정적 분석 오류 0, 경고 0, 정보 651. 정보 항목을 전부 해결했다고 표시하지 않는다.
+- 수동 화면 검사 2개와 위젯 캡처는 실제 휴대폰 검증이 아니다.
+- 원격 검증 커밋 97d0e3384d037583dc3829b5bc27189b4a816210:
+  https://github.com/antigoneej-bot/https-5060-iz3m5v8axsybc877b539s-b9b802c4.sandbox.novita.ai-/actions/runs/42345154119
+- 99 AAB의 실제 빌드·서명·매니페스트·해시는 함께 전달하는 aab-final-verification.json을 확인한다.
+  빌드 성공만으로 실기기/구매/Crashlytics 수신이 검증된 것이 아니다.
+- 최종 점검표의 번호별로 버전·날짜·기기와 실제 결과를 남긴다. 과거 통과를 새 실행으로 재기록하지 않는다.
+
+새 PC에서 준비할 것 (작업자가 실행, 사용자에게 터미널 명령을 떠넘기지 않음)
+- Git, Flutter 3.35.4 stable과 포함된 Dart, 프로젝트 pubspec.lock 그대로.
+- JDK 21. 기존 PC는 Eclipse Temurin 21.0.13+9 사용.
+- Android SDK는 Gradle/Flutter가 요구하는 platform/build-tools/NDK 설치. 기존 android/gradle/wrapper와 Gradle 플러그인 버전 유지.
+- Node.js 22: backend/산책 테스트용. Python 3와 Git Bash: 보조 검사/기존 셸 스크립트용.
+- 노트북의 SDK 경로로 android/local.properties를 새로 생성한다. 옛 C:\Users\11251 경로를 복사하지 않는다.
+- pub get --enforce-lockfile로 의존성을 복원. .dart_tool, build, .gradle, pub-cache를 다른 PC에서 복사하지 않는다.
+- 소스 ZIP에는 Git 이력이 없다. GitHub를 사용할 때는 원본 main이 아니라 제공된 최신 99 브랜치/커밋을 확인한다.
+- 기존 PC는 8GB 메모리 때문에 파생 빌드 폴더에서 Gradle worker만 1로 제한했다. R8 최적화나 서명/안전 검사는 끄지 않았다.
+
+서명과 비밀값
+- 별도 전달한 release-key.jks와 key.properties를 사용. 키를 새로 생성하지 않는다.
+- key.properties의 storeFile만 노트북 키 파일 위치로 맞춘다. 비밀번호/별칭을 임의 변경하지 않는다.
+- 기존 업로드 인증서 SHA-256:
+  BE:BA:A5:9B:C1:C8:79:A0:A6:85:BA:3B:D6:99:A5:80:10:BC:5E:5F:52:BA:24:B5:F6:3F:0F:6C:CA:D7:81:9B
+- GitHub/소스 ZIP에 key.properties, .jks/.keystore, 서비스 계정 키, Firebase 로그인 토큰을 넣지 않는다.
+- 공개 앱 설정 google-services.json/firebase_options.dart는 기존 것을 보존한다. 새 Firebase 앱/프로젝트를 만들지 않는다.
+- Firebase CLI가 필요해지면 노트북에서 사용자가 공식 로그인 절차를 완료한다. 이 PC의 인증 세션을 복사하지 않는다.
+
+이번 AAB의 내부 테스트 설정 (출시 설정과 구분)
+GARDEN_BACKEND_URL=https://gardenapi-zk2q7ixdva-du.a.run.app
+SOCIAL_AUTH_URL=https://asia-northeast3-mycatapp-99bc8.cloudfunctions.net/socialAuth
+GOOGLE_WEB_CLIENT_ID=기존 android/app/google-services.json의 client_type=3 값 사용
+UNLOCK_ALL_PREMIUM=true
+APP_CHECK_DEBUG_PROVIDER=false
+TEST_SHOW_ONBOARDING=false
+RELEASE_ENV=internal
+- 광고 ID를 새로 넣거나 정책을 변경하지 않는다. 기존 98 빌드 설정을 유지한다.
+- tool/build_store_bundle.sh는 production/UNLOCK_ALL_PREMIUM=false이므로 이 내부 개방 빌드의 재현 명령으로 사용하지 않는다.
+- 내부 빌드 시 위 define과 --release --build-name=1.0.96 --build-number=99를 사용한다.
+- Crashlytics 심볼/매핑 업로드는 명시적 설정 없이는 꺼진 상태. 출시 전 필요한 업로드/실제 오류 수신을 따로 확인한다.
+
+서버 운영 상태
+- Firebase 프로젝트 mycatapp-99bc8, 서울 asia-northeast3.
+- 2026-11-07 gardenApi/gardenPush와 필요한 선물 인덱스가 배포됨. 노트북 이동 때문에 재배포할 이유 없음.
+- gardenApi revision gardenapi-00013-cuw, gardenPush revision gardenpush-00003-nop.
+- 원본 운영 설정/IAM/소스의 암호화 백업은 기존 PC에 있음. 이 공개 가능 소스 ZIP에는 비밀 설정·복호화 키를 포함하지 않음.
+- 서버 백업이 필요하면 원본 PC의 Mindnyang-98-Server-Deployment-Report.txt와 별도 보관 경로를 확인해 안전하게 이전.
+- 새 선물 원장과 맞지 않는 과거 gardenApi 소스로 단순 롤백하지 않는다. 호환 수정 배포가 필요할 수 있음.
+- 노트북 준비가 끝날 때까지 기존 PC의 원본·서명·서버 백업을 삭제하지 않는다.
+
+사용자 데이터/제품 정책
+- 개인 기록 삭제/앱 삭제/초기화로 업데이트 문제를 해결하지 않는다.
+- 기존 정원, 고양이 선택/이름, 기록, 구독 혜택, 내부 테스트 개방 유지.
+- 새 기능/디자인 추가가 아니라 12월 초 출시 전 실제 결함과 필수 확인을 마감.
+- 사용자 보고: 로그인·기본 테스트 결제/구독·이웃 공유 성공. 예외 경로까지 통과한 것으로 확대 해석하지 않는다.
+- 두 테스트 계정은 아직 없음. 이웃 A/B·복원·계정 전환은 개인 기록 없는 별도 환경에서만.
+- 현재 폰 Samsung Buddy3. USB 재시도는 중단 요청 상태이며 재시도하지 않는다.
+- 실제 사용자 데이터/운영 계정 삭제, 실제 과금, 공개 출시, 서버 변경은 별도 요청 없이 실행하지 않는다.
+
+인계용 소스 ZIP과 서명 폴더를 받은 뒤
+1. 최신 버전/커밋과 전달 파일 해시 확인.
+2. 설치된 도구·PATH·SDK와 기존 서명 인증서 확인. 비밀번호 출력 금지.
+3. 필요하면 노트북 의존성 복원 및 환경 검사.
+4. 사용자에게 준비 결과와 정확한 차단 사유만 보고. 기존 최신 AAB를 또 만들거나 배포하지 않는다.
