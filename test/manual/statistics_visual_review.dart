@@ -33,11 +33,19 @@ void main() {
             element,
             onError: (error, _) => failure = error,
           );
-          if (failure != null)
+          if (failure != null) {
             throw StateError('Review image failed: $failure');
+          }
         }
       });
       await tester.pump();
+      for (final element in find.byType(RawImage).evaluate()) {
+        expect(
+          (element.widget as RawImage).image,
+          isNotNull,
+          reason: 'The screenshot must contain decoded cat images.',
+        );
+      }
     }
 
     SharedPreferences.setMockInitialValues({});
@@ -123,12 +131,9 @@ void main() {
             ),
             home: RepaintBoundary(
               key: key,
-              child: TickerMode(
-                enabled: false,
-                child: EmotionStatisticsScreen(
-                  key: ValueKey(scenario),
-                  initialMonthly: scenario != 'weekly',
-                ),
+              child: EmotionStatisticsScreen(
+                key: ValueKey(scenario),
+                initialMonthly: scenario != 'weekly',
               ),
             ),
           ),

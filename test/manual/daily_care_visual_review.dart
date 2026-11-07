@@ -69,8 +69,9 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull, reason: scenario);
-      if (scenario == 'rewarded')
+      if (scenario == 'rewarded') {
         expect(find.text('오늘의 돌봄 완료 🌱'), findsOneWidget);
+      }
       await tester.runAsync(() async {
         final img =
             await (key.currentContext!.findRenderObject()!
