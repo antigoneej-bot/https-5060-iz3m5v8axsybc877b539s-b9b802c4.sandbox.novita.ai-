@@ -1,7 +1,5 @@
-// Manual screenshot review: flutter test tool/statistics_visual_review.dart
-// Emoji font for the review runner: /tmp/NotoColorEmoji.ttf
+// Manual screenshot review: flutter test test/manual/statistics_visual_review.dart
 import 'dart:io';
-import 'package:hive_flutter/hive_flutter.dart';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -13,39 +11,81 @@ import 'package:flutter_app/providers/app_state_provider.dart';
 import 'package:flutter_app/models/letter_entry.dart';
 import 'package:flutter_app/screens/emotion_statistics_screen.dart';
 import 'package:flutter_app/theme.dart';
+import 'package:flutter_app/mongi/providers/garden_provider.dart';
+import 'package:flutter_app/mongi/l10n/gen/app_localizations.dart';
+import 'package:flutter_app/services/subscription_service.dart';
+import 'visual_review_fonts.dart';
+
+class _ReviewGarden extends GardenProvider {
+  @override
+  bool get isInitialized => true;
+}
 
 void main() {
+  tearDown(() => SubscriptionService.debugIsPremiumOverride = null);
   testWidgets('statistics layouts and calendar navigation', (tester) async {
+    Future<void> finishImages() async {
+      await tester.runAsync(() async {
+        for (final element in find.byType(Image).evaluate().toList()) {
+          Object? failure;
+          await precacheImage(
+            (element.widget as Image).image,
+            element,
+            onError: (error, _) => failure = error,
+          );
+          if (failure != null) {
+            throw StateError('Review image failed: $failure');
+          }
+        }
+      });
+      await tester.pump();
+      for (final element in find.byType(RawImage).evaluate()) {
+        expect(
+          (element.widget as RawImage).image,
+          isNotNull,
+          reason: 'The screenshot must contain decoded cat images.',
+        );
+      }
+    }
+
     SharedPreferences.setMockInitialValues({});
-    Hive.init(Directory.systemTemp.createTempSync('stats-review-').path);
+    SubscriptionService.debugIsPremiumOverride = true;
     tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
       const MethodChannel('plugins.it_nomads.com/flutter_secure_storage'),
-      (call) async => null,
+      // This layout review does not edit private reflection drafts. Avoid real
+      // disk I/O in the widget test's fake clock, as in the navigation tests.
+      (call) async => throw PlatformException(
+        code: 'keystore-unavailable-in-layout-review',
+      ),
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        const MethodChannel('plugins.it_nomads.com/flutter_secure_storage'),
+        null,
+      ),
     );
     await tester.runAsync(() async {
-    await (FontLoader('NotoColorEmoji')..addFont(
-          File(
-            '/tmp/NotoColorEmoji.ttf',
-          ).readAsBytes().then((b) => ByteData.sublistView(b)),
-        ))
-        .load();
-    for (final font in {
-      'GowunDodum': 'GowunDodum-Regular.ttf',
-      'GamjaFlower': 'GamjaFlower-Regular.ttf',
-    }.entries) {
+      await loadReviewEmojiFont();
+      for (final font in {
+        'GowunDodum': 'GowunDodum-Regular.ttf',
+        'GamjaFlower': 'GamjaFlower-Regular.ttf',
+      }.entries) {
+        await (FontLoader(
+          font.key,
+        )..addFont(rootBundle.load('assets/fonts/${font.value}'))).load();
+      }
       await (FontLoader(
-        font.key,
-      )..addFont(rootBundle.load('assets/fonts/${font.value}'))).load();
-    }
-    await (FontLoader(
-      'MaterialIcons',
-    )..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'))).load();
+        'MaterialIcons',
+      )..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'))).load();
     });
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetDevicePixelRatio);
     addTearDown(tester.view.resetPhysicalSize);
     final now = DateTime.now();
     final app = AppStateProvider();
+    final garden = _ReviewGarden();
+    addTearDown(app.dispose);
+    addTearDown(garden.dispose);
     final key = GlobalKey();
     for (final scenario in [
       'weekly',
@@ -72,10 +112,15 @@ void main() {
             ];
       tester.view.physicalSize = Size(scenario == 'narrow' ? 320 : 390, 844);
       await tester.pumpWidget(
-        ChangeNotifierProvider.value(
-          value: app,
+        MultiProvider(
+          providers: [
+            ChangeNotifierProvider.value(value: app),
+            ChangeNotifierProvider<GardenProvider>.value(value: garden),
+          ],
           child: MaterialApp(
             theme: appTheme,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
             builder: (context, child) => MediaQuery(
               data: MediaQuery.of(context).copyWith(
                 textScaler: TextScaler.linear(
@@ -95,6 +140,7 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+      await finishImages();
       expect(tester.takeException(), isNull, reason: scenario);
       await tester.runAsync(() async {
         final boundary =
@@ -111,6 +157,7 @@ void main() {
       });
       await tester.drag(find.byType(ListView).first, const Offset(0, -650));
       await tester.pumpAndSettle();
+      await finishImages();
       expect(tester.takeException(), isNull, reason: '$scenario scrolled');
       await tester.runAsync(() async {
         final img =

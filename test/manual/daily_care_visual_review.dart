@@ -1,3 +1,4 @@
+// Manual screenshot review: flutter test test/manual/daily_care_visual_review.dart
 import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' as ui;
@@ -9,6 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_app/widgets/daily_care_card.dart';
 import 'package:flutter_app/mongi/integration/mongi_garden_store.dart';
 import 'package:flutter_app/theme.dart';
+import 'visual_review_fonts.dart';
 
 void main() {
   testWidgets('daily care layouts and actions', (tester) async {
@@ -22,12 +24,7 @@ void main() {
           font.key,
         )..addFont(rootBundle.load(font.value))).load();
       }
-      await (FontLoader('NotoColorEmoji')..addFont(
-            File(
-              '/tmp/NotoColorEmoji.ttf',
-            ).readAsBytes().then(ByteData.sublistView),
-          ))
-          .load();
+      await loadReviewEmojiFont();
     });
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetDevicePixelRatio);
@@ -63,6 +60,7 @@ void main() {
                   onWrite: () => tapped.add('write'),
                   onRest: () => tapped.add('rest'),
                   onGarden: () => tapped.add('garden'),
+                  onReview: () => tapped.add('review'),
                 ),
               ),
             ),
@@ -71,8 +69,9 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull, reason: scenario);
-      if (scenario == 'rewarded')
-        expect(find.text('오늘의 공통 돌봄 보상을 받았어요 🌱'), findsOneWidget);
+      if (scenario == 'rewarded') {
+        expect(find.text('오늘의 돌봄 완료 🌱'), findsOneWidget);
+      }
       await tester.runAsync(() async {
         final img =
             await (key.currentContext!.findRenderObject()!
@@ -86,12 +85,12 @@ void main() {
         img.dispose();
       });
       expect(find.text('몽이와 달리기'), findsNothing);
-      for (final label in ['편지 쓰기', '조용히 쉬기', '내 정원으로 가기']) {
+      for (final label in ['마음 남기기', '지금은 조용히 쉬기', '정원 가꾸기', '지난 마음 보기']) {
         await tester.ensureVisible(find.text(label));
         await tester.tap(find.text(label));
         await tester.pumpAndSettle();
       }
-      expect(tapped, ['write', 'rest', 'garden']);
+      expect(tapped, ['write', 'rest', 'garden', 'review']);
       expect(tester.takeException(), isNull, reason: '$scenario actions');
     }
     await tester.pumpWidget(const SizedBox());

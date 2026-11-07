@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_state_provider.dart';
 import '../services/reflection_service.dart';
-import '../services/subscription_service.dart';
 import '../services/weekly_shadow_map_service.dart';
 import '../theme.dart';
 import '../utils/cat_palette.dart';
@@ -22,31 +21,8 @@ import 'premium_screen.dart';
 ///
 /// 이 화면 전체는 '관찰'의 언어만 씁니다. 감정에 옳고 그름을 매기지 않고,
 /// 정원이 나빠졌다/좋아졌다는 판단형 문구는 절대 쓰지 않습니다.
-class WeeklyShadowMapScreen extends StatefulWidget {
+class WeeklyShadowMapScreen extends StatelessWidget {
   const WeeklyShadowMapScreen({super.key});
-
-  @override
-  State<WeeklyShadowMapScreen> createState() => _WeeklyShadowMapScreenState();
-}
-
-class _WeeklyShadowMapScreenState extends State<WeeklyShadowMapScreen> {
-  bool _loadingPremium = true;
-  bool _isPremium = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadPremium();
-  }
-
-  Future<void> _loadPremium() async {
-    final premium = await SubscriptionService().isPremium();
-    if (!mounted) return;
-    setState(() {
-      _isPremium = premium;
-      _loadingPremium = false;
-    });
-  }
 
   @override
   Widget build(BuildContext context) => SubscriptionGate(
