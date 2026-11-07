@@ -5,30 +5,88 @@
       "collectionGroup": "receivedCheers",
       "fieldPath": "senderId",
       "indexes": [
-        {"order": "ASCENDING", "queryScope": "COLLECTION"},
-        {"order": "DESCENDING", "queryScope": "COLLECTION"},
-        {"arrayConfig": "CONTAINS", "queryScope": "COLLECTION"},
-        {"order": "ASCENDING", "queryScope": "COLLECTION_GROUP"}
+        {
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION"
+        },
+        {
+          "order": "DESCENDING",
+          "queryScope": "COLLECTION"
+        },
+        {
+          "arrayConfig": "CONTAINS",
+          "queryScope": "COLLECTION"
+        },
+        {
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION_GROUP"
+        }
       ]
     },
     {
       "collectionGroup": "blockedNeighbors",
       "fieldPath": "targetId",
       "indexes": [
-        {"order": "ASCENDING", "queryScope": "COLLECTION"},
-        {"order": "DESCENDING", "queryScope": "COLLECTION"},
-        {"arrayConfig": "CONTAINS", "queryScope": "COLLECTION"},
-        {"order": "ASCENDING", "queryScope": "COLLECTION_GROUP"}
+        {
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION"
+        },
+        {
+          "order": "DESCENDING",
+          "queryScope": "COLLECTION"
+        },
+        {
+          "arrayConfig": "CONTAINS",
+          "queryScope": "COLLECTION"
+        },
+        {
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION_GROUP"
+        }
       ]
     },
     {
       "collectionGroup": "flowerBlooms",
       "fieldPath": "recipientId",
       "indexes": [
-        {"order": "ASCENDING", "queryScope": "COLLECTION"},
-        {"order": "DESCENDING", "queryScope": "COLLECTION"},
-        {"arrayConfig": "CONTAINS", "queryScope": "COLLECTION"},
-        {"order": "ASCENDING", "queryScope": "COLLECTION_GROUP"}
+        {
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION"
+        },
+        {
+          "order": "DESCENDING",
+          "queryScope": "COLLECTION"
+        },
+        {
+          "arrayConfig": "CONTAINS",
+          "queryScope": "COLLECTION"
+        },
+        {
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION_GROUP"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "sentGardenGifts",
+      "fieldPath": "recipientId",
+      "indexes": [
+        {
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION"
+        },
+        {
+          "order": "DESCENDING",
+          "queryScope": "COLLECTION"
+        },
+        {
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION_GROUP"
+        },
+        {
+          "arrayConfig": "CONTAINS",
+          "queryScope": "COLLECTION"
+        }
       ]
     }
   ]

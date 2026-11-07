@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import 'dart:async';
 import '../screens/companion_coat_screen.dart';
 import 'dart:math' as math;
@@ -108,13 +109,13 @@ class _CompanionCarePanelState extends State<CompanionCarePanel>
       if (!mounted) return;
       final familiar = care.journey.stage > 0;
       final reaction = switch (action) {
-        CompanionMoment.feed => '맛있게 먹고 나니 든든해. 밥 챙겨 줘서 고마워!',
-        CompanionMoment.play => '장난감을 눈으로 따라봐요. 같이 노니까 재밌어!',
+        CompanionMoment.feed => tr("맛있게 먹고 나니 든든해. 밥 챙겨 줘서 고마워!"),
+        CompanionMoment.play => tr("장난감을 눈으로 따라봐요. 같이 노니까 재밌어!"),
         CompanionMoment.pet =>
-          familiar ? '익숙한 손길에 눈을 감고 골골거려요.' : '손길을 느끼며 천천히 눈을 감아요.',
+          familiar ? tr("익숙한 손길에 눈을 감고 골골거려요.") : tr("손길을 느끼며 천천히 눈을 감아요."),
         CompanionMoment.brush =>
-          familiar ? '빗질을 받으며 편안하게 눈을 감아요.' : '살살 빗어 주니 털이 정돈되었어요.',
-        _ => '나란히 앉아 잠깐 쉬어요. 오늘은 이만큼이어도 괜찮아요.',
+          familiar ? tr("빗질을 받으며 편안하게 눈을 감아요.") : tr("살살 빗어 주니 털이 정돈되었어요."),
+        _ => tr("나란히 앉아 잠깐 쉬어요. 오늘은 이만큼이어도 괜찮아요."),
       };
       if ({
         CompanionMoment.pet,
@@ -126,7 +127,7 @@ class _CompanionCarePanelState extends State<CompanionCarePanel>
       setState(() {
         _action = action;
         _line =
-            '$reaction\n${care.journey.activeGrowthDays > before ? '함께 돌본 날이 하루 쌓였어요.' : '오늘의 돌봄은 이미 기억했어요. 더 함께 있어도 좋아요.'}';
+            '$reaction\n${care.journey.activeGrowthDays > before ? tr("함께 돌본 날이 하루 쌓였어요.") : tr("오늘의 돌봄은 이미 기억했어요. 더 함께 있어도 좋아요.")}';
       });
       if (!_reduceMotion && _foreground) {
         _response.forward(from: 0);
@@ -134,7 +135,7 @@ class _CompanionCarePanelState extends State<CompanionCarePanel>
         _response.value = 1;
       }
     } catch (_) {
-      if (mounted) setState(() => _error = '돌봄을 저장하지 못했어요. 다시 눌러 주세요.');
+      if (mounted) setState(() => _error = tr("돌봄을 저장하지 못했어요. 다시 눌러 주세요."));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -149,7 +150,7 @@ class _CompanionCarePanelState extends State<CompanionCarePanel>
     try {
       await context.read<CatCareProvider>().keepBabyAppearance(value);
     } catch (_) {
-      if (mounted) setState(() => _error = '모습 설정을 저장하지 못했어요. 다시 시도해 주세요.');
+      if (mounted) setState(() => _error = tr("모습 설정을 저장하지 못했어요. 다시 시도해 주세요."));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -164,28 +165,30 @@ class _CompanionCarePanelState extends State<CompanionCarePanel>
     try {
       await context.read<CatCareProvider>().setAutomaticBehavior(value);
     } catch (_) {
-      if (mounted) setState(() => _error = '움직임 설정을 저장하지 못했어요. 다시 시도해 주세요.');
+      if (mounted)
+        setState(() => _error = tr("움직임 설정을 저장하지 못했어요. 다시 시도해 주세요."));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
   }
 
-  static const _memoryLabels = {
-    CompanionMoment.feed: '처음 밥을 챙겨 준 날',
-    CompanionMoment.play: '처음 함께 장난감으로 논 날',
-    CompanionMoment.pet: '처음 쓰다듬은 날',
-    CompanionMoment.brush: '처음 빗질한 날',
-    CompanionMoment.rest: '처음 나란히 쉰 날',
-    CompanionMoment.care: '몸과 마음을 돌본 첫날',
-    CompanionMoment.letter: '함께 마음을 기록한 첫날',
-    CompanionMoment.meditation: '함께 명상한 첫날',
-    CompanionMoment.plant: '함께 식물을 심은 첫날',
-    CompanionMoment.water: '함께 물을 준 첫날',
-    CompanionMoment.garden: '거름과 햇볕으로 정원을 돌본 첫날',
+  static Map<CompanionMoment, String> get _memoryLabels => {
+    CompanionMoment.feed: tr("처음 밥을 챙겨 준 날"),
+    CompanionMoment.play: tr("처음 함께 장난감으로 논 날"),
+    CompanionMoment.pet: tr("처음 쓰다듬은 날"),
+    CompanionMoment.brush: tr("처음 빗질한 날"),
+    CompanionMoment.rest: tr("처음 나란히 쉰 날"),
+    CompanionMoment.care: tr("몸과 마음을 돌본 첫날"),
+    CompanionMoment.letter: tr("함께 마음을 기록한 첫날"),
+    CompanionMoment.meditation: tr("함께 명상한 첫날"),
+    CompanionMoment.plant: tr("함께 식물을 심은 첫날"),
+    CompanionMoment.water: tr("함께 물을 준 첫날"),
+    CompanionMoment.garden: tr("거름과 햇볕으로 정원을 돌본 첫날"),
   };
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     final care = context.watch<CatCareProvider>();
     final journey = care.journey;
     final memories = journey.firstMoments.entries.toList()
@@ -204,7 +207,7 @@ class _CompanionCarePanelState extends State<CompanionCarePanel>
               ),
             ),
             IconButton(
-              tooltip: '고양이 이름 변경',
+              tooltip: tr("고양이 이름 변경"),
               onPressed: () => editCompanionName(context),
               icon: const Icon(Icons.edit_outlined),
             ),
@@ -217,7 +220,7 @@ class _CompanionCarePanelState extends State<CompanionCarePanel>
         ),
         Semantics(
           label:
-              '${care.displayName}, ${journey.keepBaby ? '아기 모습 유지' : journey.stageLabel}',
+              '${care.displayName}, ${journey.keepBaby ? tr("아기 모습 유지") : journey.stageLabel}',
           button: true,
           child: GestureDetector(
             key: const Key('companion-portrait'),
@@ -347,9 +350,9 @@ class _CompanionCarePanelState extends State<CompanionCarePanel>
                 _line ??
                 (widget.invitation != null
                     ? journey.didToday(widget.invitation!, DateTime.now())
-                          ? '오늘도 함께해 줘서 고마워. 편하게 쉬어 가.'
+                          ? tr("오늘도 함께해 줘서 고마워. 편하게 쉬어 가.")
                           : CompanionInvitation.message(widget.invitation!)
-                    : '밥을 챙겨 주거나, 장난감으로 놀고, 손길을 건네 보세요.'),
+                    : tr("밥을 챙겨 주거나, 장난감으로 놀고, 손길을 건네 보세요.")),
             textAlign: TextAlign.center,
             style: TextStyle(
               color: _error != null
@@ -361,7 +364,7 @@ class _CompanionCarePanelState extends State<CompanionCarePanel>
         if (!care.journeyReady)
           TextButton(
             onPressed: care.loadJourney,
-            child: const Text('함께한 기록 불러오기'),
+            child: Text(tr("함께한 기록 불러오기")),
           ),
         const SizedBox(height: 12),
         Wrap(
@@ -369,12 +372,12 @@ class _CompanionCarePanelState extends State<CompanionCarePanel>
           spacing: 8,
           runSpacing: 8,
           children: [
-            for (final entry in const {
-              CompanionMoment.feed: '밥 주기',
-              CompanionMoment.play: '놀아주기',
-              CompanionMoment.pet: '쓰다듬기',
-              CompanionMoment.brush: '빗질하기',
-              CompanionMoment.rest: '같이 쉬기',
+            for (final entry in {
+              CompanionMoment.feed: tr("밥 주기"),
+              CompanionMoment.play: tr("놀아주기"),
+              CompanionMoment.pet: tr("쓰다듬기"),
+              CompanionMoment.brush: tr("빗질하기"),
+              CompanionMoment.rest: tr("같이 쉬기"),
             }.entries)
               OutlinedButton(
                 key: ValueKey('companion-${entry.key.name}'),
@@ -401,64 +404,66 @@ class _CompanionCarePanelState extends State<CompanionCarePanel>
         ),
         const SizedBox(height: 18),
         Text(
-          '함께 돌본 ${journey.activeGrowthDays}일',
+          tr("함께 돌본 {0}일", [journey.activeGrowthDays]),
           style: Theme.of(context).textTheme.titleMedium,
         ),
         const SizedBox(height: 8),
         LinearProgressIndicator(
           value: journey.progress,
-          semanticsLabel: '다음 성장까지 진행',
+          semanticsLabel: tr("다음 성장까지 진행"),
           minHeight: 6,
           borderRadius: BorderRadius.circular(8),
         ),
         const SizedBox(height: 8),
         Text(
           journey.daysToNext == null
-              ? '성장은 다 자라도, 함께한 기억은 계속 쌓여요.'
-              : '돌본 날이 ${journey.daysToNext}일 더 쌓이면 다음 모습이 돼요.',
+              ? tr("성장은 다 자라도, 함께한 기억은 계속 쌓여요.")
+              : tr("돌본 날이 {0}일 더 쌓이면 다음 모습이 돼요.", [journey.daysToNext]),
         ),
         const SizedBox(height: 6),
         Text(
-          '돌봄·기록·명상·정원 가꾸기 중 한 가지만 해도 하루가 쌓여요. 쉬는 날에도 줄어들지 않아요.',
+          tr("돌봄·기록·명상·정원 가꾸기 중 한 가지만 해도 하루가 쌓여요. 쉬는 날에도 줄어들지 않아요."),
           style: TextStyle(fontSize: 12, color: muted),
         ),
         SwitchListTile.adaptive(
           key: const Key('companion-automatic'),
           contentPadding: EdgeInsets.zero,
-          title: const Text('고양이의 작은 움직임'),
-          subtitle: const Text('홈에서 눈을 깜박이며 반겨줘요. 정원 배경 효과와 별도로 설정해요.'),
+          title: Text(tr("고양이의 작은 움직임")),
+          subtitle: Text(tr("홈에서 눈을 깜박이며 반겨줘요. 정원 배경 효과와 별도로 설정해요.")),
           value: journey.automaticBehavior,
           onChanged: _saving || !care.journeyReady ? null : _setAutomatic,
         ),
         SwitchListTile.adaptive(
           key: const Key('companion-keep-baby'),
           contentPadding: EdgeInsets.zero,
-          title: const Text('아기 모습으로 함께하기'),
-          subtitle: const Text('모습을 유지해도 함께한 날과 기억은 쌓여요.'),
+          title: Text(tr("아기 모습으로 함께하기")),
+          subtitle: Text(tr("모습을 유지해도 함께한 날과 기억은 쌓여요.")),
           value: journey.keepBaby,
           onChanged: _saving || !care.journeyReady ? null : _keepBaby,
         ),
         const CompanionReminderSettingsTile(),
         ExpansionTile(
           tilePadding: EdgeInsets.zero,
-          title: const Text('우리의 작은 기억'),
+          title: Text(tr("우리의 작은 기억")),
           subtitle: Text(
             memories.isEmpty
-                ? '오늘의 첫 손길부터 담아 둘게요.'
-                : '${memories.length}개의 첫 순간',
+                ? tr("오늘의 첫 손길부터 담아 둘게요.")
+                : tr("{0}개의 첫 순간", [memories.length]),
           ),
           children: [
             if (journey.previousCareDays > 0)
               ListTile(
-                title: Text('이전 돌봄 ${journey.previousCareDays}일도 이어받았어요.'),
-                subtitle: const Text('이전 기록의 정확한 날짜는 새로 만들지 않아요.'),
+                title: Text(
+                  tr("이전 돌봄 {0}일도 이어받았어요.", [journey.previousCareDays]),
+                ),
+                subtitle: Text(tr("이전 기록의 정확한 날짜는 새로 만들지 않아요.")),
               ),
             for (final milestone in journey.milestones.entries)
               ListTile(
                 dense: true,
                 contentPadding: EdgeInsets.zero,
                 leading: const Icon(Icons.auto_awesome_outlined),
-                title: Text('함께 돌본 ${milestone.key}일'),
+                title: Text(tr("함께 돌본 {0}일", [milestone.key])),
                 subtitle: Text(milestone.value),
               ),
             for (final memory in memories)
@@ -469,10 +474,10 @@ class _CompanionCarePanelState extends State<CompanionCarePanel>
                 title: Text(_memoryLabels[memory.key]!),
                 subtitle: Text(memory.value),
               ),
-            const Padding(
+            Padding(
               padding: EdgeInsets.symmetric(vertical: 12),
               child: Text(
-                '이 기억은 나만 볼 수 있어요. 기기를 바꿀 때는 기록 백업·복원으로 옮겨 주세요.',
+                tr("이 기억은 나만 볼 수 있어요. 기기를 바꿀 때는 기록 백업·복원으로 옮겨 주세요."),
                 style: TextStyle(fontSize: 12),
               ),
             ),

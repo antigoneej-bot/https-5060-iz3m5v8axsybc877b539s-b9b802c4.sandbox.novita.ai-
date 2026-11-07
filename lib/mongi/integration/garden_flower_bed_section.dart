@@ -134,7 +134,10 @@ class _GardenFlowerBedCard extends StatelessWidget {
               color: emotion.color.withValues(alpha: 0.15),
               shape: BoxShape.circle,
             ),
-            child: Text(emotion.gardenIcon, style: const TextStyle(fontSize: 20)),
+            child: Text(
+              emotion.gardenIcon,
+              style: const TextStyle(fontSize: 20),
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -144,7 +147,9 @@ class _GardenFlowerBedCard extends StatelessWidget {
                 Row(
                   children: [
                     Text(
-                      l10n.gardenFlowerBedTitle(emotionLabel(l10n, emotion.type)),
+                      l10n.gardenFlowerBedTitle(
+                        emotionLabel(l10n, emotion.type),
+                      ),
                       style: TextStyle(
                         fontWeight: FontWeight.w800,
                         fontSize: 13,

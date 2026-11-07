@@ -1,3 +1,4 @@
+import '../../l10n/app_language.dart';
 import '../../services/garden_sound_timer.dart';
 import 'dart:async';
 import '../services/sound_manager.dart';
@@ -192,10 +193,7 @@ class _RestingGardenViewState extends State<RestingGardenView>
               spacing: 8,
               children: [
                 if (!widget.fullscreen || _toolsOpen)
-                  const Text(
-                    '여기서는 고양이와 잠시 쉬어요.',
-                    style: TextStyle(fontSize: 12),
-                  ),
+                  Text(tr('여기서는 고양이와 잠시 쉬어요.'), style: TextStyle(fontSize: 12)),
                 TextButton.icon(
                   key: const Key('rest-garden-overview'),
                   onPressed: widget.fullscreen
@@ -208,23 +206,26 @@ class _RestingGardenViewState extends State<RestingGardenView>
                   ),
                   label: Text(
                     widget.fullscreen
-                        ? (overview ? '정원으로 돌아가기' : '정원 전체 지도')
-                        : '가로 전체화면',
+                        ? (overview ? tr('정원으로 돌아가기') : tr('정원 전체 지도'))
+                        : tr('가로 전체화면'),
                   ),
                 ),
                 if (!widget.fullscreen || _toolsOpen) _natureButton(),
                 if (!widget.fullscreen || _toolsOpen)
                   PopupMenuButton<String>(
-                    tooltip: '쉬어가는 정원 낮·밤',
+                    tooltip: tr('쉬어가는 정원 낮·밤'),
                     onSelected: (value) {
                       final night = value == 'auto' ? null : value == 'night';
                       setState(() => _night = night);
                       widget.onNightChanged?.call(night);
                     },
-                    itemBuilder: (_) => const [
-                      PopupMenuItem(value: 'day', child: Text('햇살 풍경')),
-                      PopupMenuItem(value: 'night', child: Text('별빛 풍경')),
-                      PopupMenuItem(value: 'auto', child: Text('현재 시간에 맞추기')),
+                    itemBuilder: (_) => [
+                      PopupMenuItem(value: 'day', child: Text(tr('햇살 풍경'))),
+                      PopupMenuItem(value: 'night', child: Text(tr('별빛 풍경'))),
+                      PopupMenuItem(
+                        value: 'auto',
+                        child: Text(tr('현재 시간에 맞추기')),
+                      ),
                     ],
                     icon: const Icon(Icons.brightness_6_outlined, size: 20),
                   ),
@@ -235,7 +236,7 @@ class _RestingGardenViewState extends State<RestingGardenView>
                     icon: Icon(
                       _toolsOpen ? Icons.expand_more : Icons.expand_less,
                     ),
-                    label: Text(_toolsOpen ? '도구 접기' : '도구 펼치기'),
+                    label: Text(_toolsOpen ? tr('도구 접기') : tr('도구 펼치기')),
                   ),
               ],
             ),
@@ -259,11 +260,11 @@ class _RestingGardenViewState extends State<RestingGardenView>
           setState(() => _listening = false);
           ScaffoldMessenger.of(
             context,
-          ).showSnackBar(const SnackBar(content: Text('자연음을 다시 켜 주세요.')));
+          ).showSnackBar(SnackBar(content: Text(tr('자연음을 다시 켜 주세요.'))));
         }
       }
     },
     icon: Icon(_listening ? Icons.volume_off : Icons.nature_people_outlined),
-    label: Text(_listening ? '자연음 끄기' : '자연음 듣기'),
+    label: Text(_listening ? tr('자연음 끄기') : tr('자연음 듣기')),
   );
 }

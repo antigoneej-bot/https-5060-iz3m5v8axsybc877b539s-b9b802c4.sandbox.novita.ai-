@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'package:cryptography/cryptography.dart';
@@ -41,6 +42,9 @@ class GardenPushService with WidgetsBindingObserver {
   Future<void> start() async {
     if (!supported || _started) return;
     _started = true;
+    AppLanguage.instance.addListener(() {
+      unawaited(sync().catchError((Object _) {}));
+    });
     WidgetsBinding.instance.addObserver(this);
     FirebaseAuth.instance.authStateChanges().listen((_) {
       unawaited(sync().catchError((Object _) {}));
@@ -102,6 +106,7 @@ class GardenPushService with WidgetsBindingObserver {
       'enabled': next.values.any((v) => v),
       ...next,
       'bellSound': await GardenBell.enabled(),
+      'language': AppLanguage.instance.code,
     }, uid);
     if (_uid != uid) throw const CloudException('account-changed');
     await prefs.setBool('push_${uid}_$kind', enabled);
@@ -135,6 +140,7 @@ class GardenPushService with WidgetsBindingObserver {
       'enabled': allowed && chosen.values.any((v) => v),
       ...chosen,
       'bellSound': await GardenBell.enabled(),
+      'language': AppLanguage.instance.code,
     }, uid);
     if (_uid != uid) return;
     await prefs.setString('push_device_owner', uid);

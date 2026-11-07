@@ -1,4 +1,5 @@
 import 'dart:convert';
+import '../l10n/app_language.dart';
 
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -172,16 +173,16 @@ class GardenReturnSummary {
   }
 
   bool get hasChanges => newPlants + grownPlants + newRecordDays > 0;
-  String get greeting => daysAway >= 3 ? '다시 만나 반가워요' : '정원에 남은 작은 소식';
+  String get greeting => tr(daysAway >= 3 ? '다시 만나 반가워요' : '정원에 남은 작은 소식');
   String get description {
-    if (previousVisit == null) return '오늘부터 정원의 변화를 함께 기억할게요.';
+    if (previousVisit == null) return tr('오늘부터 정원의 변화를 함께 기억할게요.');
     final parts = <String>[
-      if (newPlants > 0) '새로 심은 식물 $newPlants종',
-      if (grownPlants > 0) '한 뼘 자란 식물 $grownPlants종',
-      if (newRecordDays > 0) '새로 마음을 남긴 날 $newRecordDays일',
+      if (newPlants > 0) tr('새로 심은 식물 {0}종', [newPlants]),
+      if (grownPlants > 0) tr('한 뼘 자란 식물 {0}종', [grownPlants]),
+      if (newRecordDays > 0) tr('새로 마음을 남긴 날 {0}일', [newRecordDays]),
     ];
     return parts.isEmpty
-        ? '쉬어 간 날에도 정원에 남긴 시간은 그대로예요.'
-        : '지난 방문 이후 ${parts.join(' · ')}이 남았어요.';
+        ? tr('쉬어 간 날에도 정원에 남긴 시간은 그대로예요.')
+        : tr('지난 방문 이후 {0}이 남았어요.', [parts.join(' · ')]);
   }
 }

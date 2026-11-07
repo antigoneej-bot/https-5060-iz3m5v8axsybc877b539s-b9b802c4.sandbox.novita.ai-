@@ -9,13 +9,19 @@ class DraftService {
   static Future<Box> box() => _opening ??= _open();
   static Future<Box> _open() async {
     try {
-      return await HiveEncryption.openPreservingFile('drafts_local_user__enc',
-          cipher: await HiveEncryption.cipher());
-    } catch (_) { _opening = null; rethrow; }
+      return await HiveEncryption.openPreservingFile(
+        'drafts_local_user__enc',
+        cipher: await HiveEncryption.cipher(),
+      );
+    } catch (_) {
+      _opening = null;
+      rethrow;
+    }
   }
 }
 
-class DraftTextController extends TextEditingController with WidgetsBindingObserver {
+class DraftTextController extends TextEditingController
+    with WidgetsBindingObserver {
   static final Set<DraftTextController> _active = {};
   static final Set<Future<void>> _closing = {};
   static Future<void> flushAll() async {
@@ -25,6 +31,7 @@ class DraftTextController extends TextEditingController with WidgetsBindingObser
       if (controller._failed) throw StateError('임시저장을 완료하지 못했어요.');
     }
   }
+
   final String draftKey;
   final ValueNotifier<String> saveStatus = ValueNotifier('임시저장 확인 중');
   Timer? _timer;
@@ -43,7 +50,10 @@ class DraftTextController extends TextEditingController with WidgetsBindingObser
     WidgetsBinding.instance.addObserver(this);
     _ready = _hydrate();
   }
-  void _status(String value) { if (!_disposed) saveStatus.value = value; }
+  void _status(String value) {
+    if (!_disposed) saveStatus.value = value;
+  }
+
   Future<void> _hydrate() async {
     try {
       final box = await DraftService.box();
@@ -52,7 +62,10 @@ class DraftTextController extends TextEditingController with WidgetsBindingObser
         _lastText = saved;
         if (!_disposed) {
           _loadingText = true;
-          value = TextEditingValue(text: saved, selection: TextSelection.collapsed(offset: saved.length));
+          value = TextEditingValue(
+            text: saved,
+            selection: TextSelection.collapsed(offset: saved.length),
+          );
           _loadingText = false;
         }
       }
@@ -65,12 +78,16 @@ class DraftTextController extends TextEditingController with WidgetsBindingObser
       _status('임시저장 실패 · 내용을 복사해 보관해 주세요');
     }
   }
+
   void _schedule() {
     if (_disposed) return;
     _timer?.cancel();
     _status('저장 중');
-    _timer = Timer(const Duration(milliseconds: 300), () { unawaited(flush()); });
+    _timer = Timer(const Duration(milliseconds: 300), () {
+      unawaited(flush());
+    });
   }
+
   void _changed() {
     if (_loadingText || text == _lastText) return;
     _lastText = text;
@@ -78,10 +95,14 @@ class DraftTextController extends TextEditingController with WidgetsBindingObser
     _discarded = false;
     if (_hydrated) _schedule();
   }
+
   Future<void> flush() async {
     _timer?.cancel();
     await _ready;
-    if (_discarded) { await _tail; return; }
+    if (_discarded) {
+      await _tail;
+      return;
+    }
     // A failed read must never overwrite a previously saved draft with empty text.
     if (_failed && _revision == 0) return;
     final snapshot = _lastText;
@@ -92,10 +113,14 @@ class DraftTextController extends TextEditingController with WidgetsBindingObser
         await box.flush();
         _failed = false;
         _status('이 기기에 암호화 임시저장');
-      } catch (_) { _failed = true; _status('임시저장 실패 · 내용을 복사해 보관해 주세요'); }
+      } catch (_) {
+        _failed = true;
+        _status('임시저장 실패 · 내용을 복사해 보관해 주세요');
+      }
     });
     await _tail;
   }
+
   Future<void> discard() async {
     _timer?.cancel();
     _discarded = true;
@@ -111,10 +136,12 @@ class DraftTextController extends TextEditingController with WidgetsBindingObser
     });
     await _tail;
   }
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state != AppLifecycleState.resumed) unawaited(flush());
   }
+
   @override
   void dispose() {
     _disposed = true;

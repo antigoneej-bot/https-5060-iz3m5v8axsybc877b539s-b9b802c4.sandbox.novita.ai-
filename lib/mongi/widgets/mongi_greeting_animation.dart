@@ -64,7 +64,8 @@ class _MongiGreetingAnimationState extends State<MongiGreetingAnimation>
   static const double _imageAspect = 623 / 700;
 
   static const String _waveLeftAsset = 'assets/mongi/images/cat_wave_left.png';
-  static const String _waveRightAsset = 'assets/mongi/images/cat_wave_right.png';
+  static const String _waveRightAsset =
+      'assets/mongi/images/cat_wave_right.png';
   static const String _winkAsset = 'assets/mongi/images/cat_wink.png';
 
   static const int _cycleTotalMs = 4600;

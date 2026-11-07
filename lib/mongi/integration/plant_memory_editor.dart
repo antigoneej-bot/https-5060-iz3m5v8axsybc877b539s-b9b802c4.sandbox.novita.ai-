@@ -1,3 +1,5 @@
+import '../../l10n/garden_copy.dart';
+import '../../l10n/app_language.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/companion_journey.dart';
@@ -9,6 +11,7 @@ import 'mature_tree_memories.dart';
 import 'plant_memory_store.dart';
 import 'mongi_garden_store.dart';
 import '../../widgets/private_memory_links.dart';
+import '../../data/shadow_cats_data.dart';
 import '../../screens/garden_memory_book_screen.dart';
 
 class PlantMemoryEditor extends StatefulWidget {
@@ -58,9 +61,9 @@ class _PlantMemoryEditorState extends State<PlantMemoryEditor> {
           : parsePlantMemoryDay(current),
       firstDate: DateTime(1900),
       lastDate: DateTime(2200, 12, 31),
-      helpText: '기억하고 싶은 날짜를 골라 주세요',
-      cancelText: '취소',
-      confirmText: '선택',
+      helpText: tr('기억하고 싶은 날짜를 골라 주세요'),
+      cancelText: tr('취소'),
+      confirmText: tr('선택'),
     );
     return selected == null ? null : plantMemoryDay(selected);
   }
@@ -75,14 +78,16 @@ class _PlantMemoryEditorState extends State<PlantMemoryEditor> {
         builder: (dialogContext, setDialogState) => PopScope(
           canPop: !saving,
           child: AlertDialog(
-            title: const Text('글 수정'),
+            title: Text(tr('글 수정')),
             content: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   if (entry.sourceLetterId != null)
-                    const Text(
-                      '이 나무에 남긴 문장만 수정해요. 수정하면 원본 편지와의 연결이 해제되고 별도의 추억으로 남아요. 원본 편지는 바뀌지 않아요.',
+                    Text(
+                      tr(
+                        '이 나무에 남긴 문장만 수정해요. 수정하면 원본 편지와의 연결이 해제되고 별도의 추억으로 남아요. 원본 편지는 바뀌지 않아요.',
+                      ),
                     ),
                   TextButton.icon(
                     onPressed: saving
@@ -103,7 +108,7 @@ class _PlantMemoryEditorState extends State<PlantMemoryEditor> {
                     minLines: 3,
                     maxLines: 6,
                     onChanged: (_) => setDialogState(() {}),
-                    decoration: const InputDecoration(labelText: '그날의 한 장면'),
+                    decoration: InputDecoration(labelText: tr('그날의 한 장면')),
                   ),
                   if (_error != null)
                     Text(
@@ -119,10 +124,13 @@ class _PlantMemoryEditorState extends State<PlantMemoryEditor> {
             actions: [
               TextButton(
                 onPressed: saving ? null : () => Navigator.pop(dialogContext),
-                child: const Text('취소'),
+                child: Text(tr('취소')),
               ),
               FilledButton(
-                onPressed: saving || controller.text.trim().isEmpty
+                onPressed:
+                    saving ||
+                        (controller.text.trim().isEmpty &&
+                            entry.emotionCatId == null)
                     ? null
                     : () async {
                         if (saving) return;
@@ -131,6 +139,7 @@ class _PlantMemoryEditorState extends State<PlantMemoryEditor> {
                           id: entry.id,
                           on: day,
                           note: controller.text.trim(),
+                          emotionCatId: entry.emotionCatId,
                           sourceLetterId:
                               controller.text.trim() == entry.note &&
                                   day == entry.on
@@ -149,13 +158,13 @@ class _PlantMemoryEditorState extends State<PlantMemoryEditor> {
                         bool saved = false;
                         if (index >= 0) {
                           next[index] = updated;
-                          saved = await _saveEntries(next, '글을 수정했어요.');
+                          saved = await _saveEntries(next, tr('글을 수정했어요.'));
                         }
                         if (!dialogContext.mounted) return;
                         setDialogState(() => saving = false);
                         if (saved) Navigator.pop(dialogContext);
                       },
-                child: const Text('저장'),
+                child: Text(tr('저장')),
               ),
             ],
           ),
@@ -172,20 +181,22 @@ class _PlantMemoryEditorState extends State<PlantMemoryEditor> {
       await showDialog<bool>(
         context: context,
         builder: (dialogContext) => AlertDialog(
-          title: Text(all ? '이 식물의 추억을 모두 지울까요?' : '이 추억을 지울까요?'),
+          title: Text(all ? tr('이 식물의 추억을 모두 지울까요?') : tr('이 추억을 지울까요?')),
           content: Text(
             all
-                ? '이름, 기념일, 날짜별 추억과 월간 기록집에 담은 이 식물의 이름·기념일이 지워져요. 식물과 성장 기록, 원본 편지는 유지돼요.'
-                : '이 추억만 지워져요. 나무와 다른 추억, 원본 편지는 그대로 남아요.',
+                ? tr(
+                    '이름, 기념일, 날짜별 추억과 월간 기록집에 담은 이 식물의 이름·기념일이 지워져요. 식물과 성장 기록, 원본 편지는 유지돼요.',
+                  )
+                : tr('이 추억만 지워져요. 나무와 다른 추억, 원본 편지는 그대로 남아요.'),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('취소'),
+              child: Text(tr('취소')),
             ),
             TextButton(
               onPressed: () => Navigator.pop(dialogContext, true),
-              child: const Text('지우기'),
+              child: Text(tr('지우기')),
             ),
           ],
         ),
@@ -229,7 +240,7 @@ class _PlantMemoryEditorState extends State<PlantMemoryEditor> {
         setState(
           () => _error = error is StateError
               ? error.message.toString()
-              : '변경 내용을 저장하지 못했어요. 다시 시도해 주세요.',
+              : tr('변경 내용을 저장하지 못했어요. 다시 시도해 주세요.'),
         );
       return false;
     } finally {
@@ -239,26 +250,22 @@ class _PlantMemoryEditorState extends State<PlantMemoryEditor> {
 
   Future<void> _deletePlant() async {
     if (_busy) return;
-    final noun = widget.plant.isTree ? '나무' : '식물';
+    final noun = widget.plant.isTree ? tr('나무') : tr('식물');
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialog) => AlertDialog(
-        title: Text('이 $noun를 삭제할까요?'),
-        content: Text(
-          '정원에서 이 $noun가 사라지고, 이름·기념일·추억·성장 단계와 돌봄 날짜가 함께 지워져요. '
-          '월간 기록집에 담은 이 $noun의 이름과 기념일도 지워져요.\n\n'
-          '원본 편지와 다른 식물은 그대로 남아요. 사용한 씨앗은 반환되지 않으며, 다시 심으면 처음부터 자라요.',
-        ),
+        title: Text(gardenCopy('deletePlantTitle', [noun])),
+        content: Text(gardenCopy('deletePlantBody', [noun])),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialog, false),
-            child: const Text('취소'),
+            child: Text(tr('취소')),
           ),
           TextButton(
             key: const ValueKey('confirm-delete-plant'),
             onPressed: () => Navigator.pop(dialog, true),
             child: Text(
-              '$noun 삭제',
+              gardenCopy('deletePlantButton', [noun]),
               style: TextStyle(color: Theme.of(dialog).colorScheme.error),
             ),
           ),
@@ -282,7 +289,7 @@ class _PlantMemoryEditorState extends State<PlantMemoryEditor> {
       if (mounted)
         setState(() {
           _busy = false;
-          _error = '삭제하지 못했어요. 다시 시도해 주세요.';
+          _error = tr('삭제하지 못했어요. 다시 시도해 주세요.');
         });
     }
   }
@@ -294,7 +301,9 @@ class _PlantMemoryEditorState extends State<PlantMemoryEditor> {
     if (!remove &&
         _note.text.trim().isNotEmpty &&
         _entries.length >= PlantMemory.maxEntries) {
-      setState(() => _error = '추억은 60개까지 보관할 수 있어요. 기존 추억을 다듬거나 지운 뒤 저장해 주세요.');
+      setState(
+        () => _error = tr('추억은 60개까지 보관할 수 있어요. 기존 추억을 다듬거나 지운 뒤 저장해 주세요.'),
+      );
       return;
     }
     setState(() {
@@ -339,7 +348,7 @@ class _PlantMemoryEditorState extends State<PlantMemoryEditor> {
       if (mounted) {
         setState(() {
           _busy = false;
-          _error = '추억을 저장하지 못했어요. 다시 시도해 주세요.';
+          _error = tr('추억을 저장하지 못했어요. 다시 시도해 주세요.');
         });
       }
     }
@@ -370,13 +379,14 @@ class _PlantMemoryEditorState extends State<PlantMemoryEditor> {
           () => _careFeedback = changed
               ? (MongiGardenStore.instance.value.growthFor(widget.plant.id) >=
                         10
-                    ? '다 자란 식물도 오늘의 돌봄을 받았어요.'
-                    : '${care.label}를 마쳤어요. 조금 더 자랐어요.')
-              : '오늘은 이미 돌봤어요. 다음에 또 함께해요.',
+                    ? tr('다 자란 식물도 오늘의 돌봄을 받았어요.')
+                    : gardenCopy('careDone', [tr(care.label)]))
+              : tr('오늘은 이미 돌봤어요. 다음에 또 함께해요.'),
         );
       }
     } catch (_) {
-      if (mounted) setState(() => _careFeedback = '돌봄을 저장하지 못했어요. 다시 시도해 주세요.');
+      if (mounted)
+        setState(() => _careFeedback = tr('돌봄을 저장하지 못했어요. 다시 시도해 주세요.'));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -390,7 +400,7 @@ class _PlantMemoryEditorState extends State<PlantMemoryEditor> {
     return PopScope(
       canPop: !_busy || _done,
       child: AlertDialog(
-        title: Text('${widget.plant.label} · 추억 관리'),
+        title: Text(gardenCopy('plantMemories', [widget.plant.label])),
         content: SizedBox(
           width: 440,
           child: SingleChildScrollView(
@@ -449,13 +459,17 @@ class _PlantMemoryEditorState extends State<PlantMemoryEditor> {
                                 );
                             },
                       icon: const Icon(Icons.edit_outlined),
-                      label: Text(_entries.isEmpty ? '추억 쓰기' : '글 수정·삭제'),
+                      label: Text(
+                        _entries.isEmpty ? tr('추억 쓰기') : tr('글 수정·삭제'),
+                      ),
                     ),
                     TextButton.icon(
                       key: const ValueKey('delete-plant'),
                       onPressed: _busy ? null : _deletePlant,
                       icon: const Icon(Icons.delete_outline),
-                      label: Text(widget.plant.isTree ? '나무 삭제' : '식물 삭제'),
+                      label: Text(
+                        widget.plant.isTree ? tr('나무 삭제') : tr('식물 삭제'),
+                      ),
                     ),
                   ],
                 ),
@@ -480,9 +494,9 @@ class _PlantMemoryEditorState extends State<PlantMemoryEditor> {
                   controller: _name,
                   enabled: !_busy,
                   maxLength: 40,
-                  decoration: const InputDecoration(
-                    labelText: '나만의 이름',
-                    hintText: '우리의 첫 나무',
+                  decoration: InputDecoration(
+                    labelText: tr('나만의 이름'),
+                    hintText: tr('우리의 첫 나무'),
                   ),
                 ),
                 OutlinedButton.icon(
@@ -499,8 +513,8 @@ class _PlantMemoryEditorState extends State<PlantMemoryEditor> {
                   icon: const Icon(Icons.event_outlined),
                   label: Text(
                     _anniversaryOn == null
-                        ? '함께 기억할 시작일 정하기 (선택)'
-                        : '기념 시작일 · $_anniversaryOn',
+                        ? tr('함께 기억할 시작일 정하기 (선택)')
+                        : gardenCopy('anniversary', [_anniversaryOn]),
                   ),
                 ),
                 if (_anniversaryOn != null)
@@ -508,12 +522,15 @@ class _PlantMemoryEditorState extends State<PlantMemoryEditor> {
                     onPressed: _busy
                         ? null
                         : () => setState(() => _anniversaryOn = null),
-                    child: const Text('기념 시작일 지우기'),
+                    child: Text(tr('기념 시작일 지우기')),
                   ),
-                const Text('선택한 날을 1일째로 세어요. 30일·100일을 지나면 기념 엽서를 만들 수 있어요.'),
+                Text(tr('선택한 날을 1일째로 세어요. 30일·100일을 지나면 기념 엽서를 만들 수 있어요.')),
                 const SizedBox(height: 16),
                 Text(
-                  '새로운 추억 · ${_entries.length}/${PlantMemory.maxEntries}개',
+                  gardenCopy('newMemory', [
+                    _entries.length,
+                    PlantMemory.maxEntries,
+                  ]),
                   key: _newNoteKey,
                 ),
                 TextButton.icon(
@@ -526,7 +543,7 @@ class _PlantMemoryEditorState extends State<PlantMemoryEditor> {
                           }
                         },
                   icon: const Icon(Icons.calendar_today_outlined),
-                  label: Text('추억의 날짜 · $_noteOn'),
+                  label: Text(gardenCopy('memoryDay', [_noteOn])),
                 ),
                 TextField(
                   controller: _note,
@@ -534,14 +551,14 @@ class _PlantMemoryEditorState extends State<PlantMemoryEditor> {
                   maxLength: 300,
                   minLines: 3,
                   maxLines: 5,
-                  decoration: const InputDecoration(
-                    labelText: '남기고 싶은 한 장면',
-                    hintText: '오늘의 마음이나 함께한 순간을 남겨 주세요.',
+                  decoration: InputDecoration(
+                    labelText: tr('남기고 싶은 한 장면'),
+                    hintText: tr('오늘의 마음이나 함께한 순간을 남겨 주세요.'),
                   ),
                 ),
                 if (history.isNotEmpty) ...[
                   const Divider(),
-                  Text('이 나무에 쌓인 추억', key: _historyKey),
+                  Text(tr('이 나무에 쌓인 추억'), key: _historyKey),
                   for (final entry in history)
                     Card(
                       child: Padding(
@@ -555,18 +572,34 @@ class _PlantMemoryEditorState extends State<PlantMemoryEditor> {
                             ),
                             const SizedBox(height: 6),
                             if (entry.sourceLetterId != null)
-                              const Text(
-                                '편지에서 내가 고른 문장 · 나만 보기',
+                              Text(
+                                tr('편지에서 내가 고른 문장 · 나만 보기'),
                                 style: TextStyle(fontSize: 12),
                               ),
-                            SelectableText(entry.note),
+                            if (entry.emotionCatId != null)
+                              ListTile(
+                                contentPadding: EdgeInsets.zero,
+                                leading: Image.asset(
+                                  shadowCatById(entry.emotionCatId!).imageAsset,
+                                  width: 48,
+                                ),
+                                title: Text(
+                                  tr('담아둔 마음 · {0}', [
+                                    shadowCatById(
+                                      entry.emotionCatId!,
+                                    ).displayKeyword,
+                                  ]),
+                                ),
+                              ),
+                            if (entry.note.isNotEmpty)
+                              SelectableText(entry.note),
                             Wrap(
                               children: [
                                 TextButton(
                                   onPressed: _busy
                                       ? null
                                       : () => _editEntry(entry),
-                                  child: const Text('수정'),
+                                  child: Text(tr('수정')),
                                 ),
                                 if (entry.sourceLetterId != null) ...[
                                   TextButton.icon(
@@ -580,7 +613,7 @@ class _PlantMemoryEditorState extends State<PlantMemoryEditor> {
                                       Icons.mail_outline,
                                       size: 18,
                                     ),
-                                    label: const Text('그날의 편지 보기'),
+                                    label: Text(tr('그날의 편지 보기')),
                                   ),
                                   TextButton(
                                     onPressed: _busy
@@ -596,7 +629,7 @@ class _PlantMemoryEditorState extends State<PlantMemoryEditor> {
                                                   ),
                                             ),
                                           ),
-                                    child: const Text('이 달 기록집'),
+                                    child: Text(tr('이 달 기록집')),
                                   ),
                                 ],
                                 TextButton(
@@ -612,11 +645,11 @@ class _PlantMemoryEditorState extends State<PlantMemoryEditor> {
                                                         item.id != entry.id,
                                                   )
                                                   .toList(),
-                                              '추억을 삭제했어요.',
+                                              tr('추억을 삭제했어요.'),
                                             );
                                           }
                                         },
-                                  child: const Text('삭제'),
+                                  child: Text(tr('삭제')),
                                 ),
                               ],
                             ),
@@ -626,8 +659,10 @@ class _PlantMemoryEditorState extends State<PlantMemoryEditor> {
                     ),
                 ],
                 const SizedBox(height: 12),
-                const Text(
-                  '수정한 글과 삭제한 추억은 바로 저장돼요. 이름·기념일·새 추억은 아래 저장을 눌러 주세요. 기록은 나만 볼 수 있어요.',
+                Text(
+                  tr(
+                    '수정한 글과 삭제한 추억은 바로 저장돼요. 이름·기념일·새 추억은 아래 저장을 눌러 주세요. 기록은 나만 볼 수 있어요.',
+                  ),
                 ),
                 if (_error != null)
                   Text(
@@ -644,16 +679,13 @@ class _PlantMemoryEditorState extends State<PlantMemoryEditor> {
         actions: [
           TextButton(
             onPressed: _busy ? null : () => _save(remove: true),
-            child: const Text('추억만 모두 지우기'),
+            child: Text(tr('추억만 모두 지우기')),
           ),
           TextButton(
             onPressed: _busy ? null : () => Navigator.pop(context),
-            child: const Text('취소'),
+            child: Text(tr('취소')),
           ),
-          FilledButton(
-            onPressed: _busy ? null : _save,
-            child: const Text('저장'),
-          ),
+          FilledButton(onPressed: _busy ? null : _save, child: Text(tr('저장'))),
         ],
       ),
     );

@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/promise_provider.dart';
@@ -80,17 +81,13 @@ class _TodaysPromiseScreenState extends State<TodaysPromiseScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              '오늘, 나를 위해\n지켜주고 싶은 약속이 있다면?',
+              tr("오늘, 나를 위해\n지켜주고 싶은 약속이 있다면?"),
               textAlign: TextAlign.center,
-              style: titleFont(
-                fontSize: 22,
-                color: AppColors.ink,
-                height: 1.4,
-              ),
+              style: titleFont(fontSize: 22, color: AppColors.ink, height: 1.4),
             ),
             const SizedBox(height: 10),
             Text(
-              '거창하지 않아도 괜찮아요. 작은 약속 하나면 충분해요',
+              tr("거창하지 않아도 괜찮아요. 작은 약속 하나면 충분해요"),
               textAlign: TextAlign.center,
               style: bodyFont(fontSize: 12.5, color: AppColors.inkSoft),
             ),
@@ -150,9 +147,7 @@ class _CompleteButton extends StatelessWidget {
         backgroundColor: AppColors.blobButterAccent,
         foregroundColor: Colors.white,
         padding: const EdgeInsets.symmetric(vertical: 16),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(999),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
         elevation: 0,
       ),
       child: Row(
@@ -161,7 +156,7 @@ class _CompleteButton extends StatelessWidget {
           const Text('😽', style: TextStyle(fontSize: 18)),
           const SizedBox(width: 8),
           Text(
-            '완료',
+            tr("완료"),
             style: pathLabelFont(
               fontSize: 15,
               fontWeight: FontWeight.w700,
@@ -199,7 +194,7 @@ class _PromiseInputBlob extends StatelessWidget {
             maxLength: 40,
             style: bodyFont(fontSize: 14, color: AppColors.moon),
             decoration: InputDecoration(
-              hintText: '예: 아침 산책하기',
+              hintText: tr("예: 아침 산책하기"),
               hintStyle: bodyFont(fontSize: 13, color: AppColors.inkSoft),
               filled: true,
               fillColor: Colors.white.withValues(alpha: 0.55),
@@ -218,8 +213,8 @@ class _PromiseInputBlob extends StatelessWidget {
               Expanded(
                 child: Text(
                   remaining <= 1
-                      ? '오늘은 여기까지만 · $remaining개 더 남았어요'
-                      : '오늘은 ${PromiseService.maxPerDay}가지까지 담을 수 있어요',
+                      ? tr("오늘은 여기까지만 · {0}개 더 남았어요", [remaining])
+                      : tr("오늘은 {0}가지까지 담을 수 있어요", [PromiseService.maxPerDay]),
                   style: bodyFont(fontSize: 11, color: AppColors.inkSoft),
                 ),
               ),
@@ -239,7 +234,7 @@ class _PromiseInputBlob extends StatelessWidget {
                   elevation: 0,
                 ),
                 child: Text(
-                  '약속하기',
+                  tr("약속하기"),
                   style: pathLabelFont(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
@@ -266,7 +261,7 @@ class _LimitReachedBlob extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              '오늘 약속은 다 채웠어요. 내일 또 새로운 약속을 남겨보세요',
+              tr("오늘 약속은 다 채웠어요. 내일 또 새로운 약속을 남겨보세요"),
               style: bodyFont(fontSize: 12.5, color: AppColors.inkSoft),
             ),
           ),
@@ -283,7 +278,7 @@ class _EmptyHintBlob extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 20),
       child: Center(
         child: Text(
-          '아직 남긴 약속이 없어요\n위에 짧게 하나 적어볼까요?',
+          tr("아직 남긴 약속이 없어요\n위에 짧게 하나 적어볼까요?"),
           textAlign: TextAlign.center,
           style: bodyFont(
             fontSize: 12.5,

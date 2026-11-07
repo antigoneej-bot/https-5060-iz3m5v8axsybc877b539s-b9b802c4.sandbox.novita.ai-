@@ -1,3 +1,6 @@
+import '../mongi/l10n/emotion_l10n.dart';
+import '../mongi/l10n/gen/app_localizations.dart';
+import '../l10n/app_language.dart';
 import 'package:flutter/material.dart';
 
 import '../data/shadow_cats_data.dart';
@@ -17,7 +20,26 @@ class UnifiedEmotionRecord {
   final DateTime date;
   final bool hasTime;
   final String emotionId;
-  final String label;
+  final String _label;
+  String get label {
+    if (!AppLanguage.instance.isEnglish) return _label;
+    if (source == EmotionRecordSource.letter) {
+      for (final cat in shadowCats) {
+        if (cat.id == emotionId) return cat.displayKeyword;
+      }
+    } else {
+      for (final emotion in Emotion.all) {
+        if (emotion.type.name == emotionId) {
+          return emotionLabel(
+            lookupAppLocalizations(AppLanguage.instance.locale),
+            emotion.type,
+          );
+        }
+      }
+    }
+    return 'Earlier feeling ($emotionId)';
+  }
+
   final String emoji;
   final Color color;
   final Color background;
@@ -30,17 +52,17 @@ class UnifiedEmotionRecord {
     required this.date,
     required this.hasTime,
     required this.emotionId,
-    required this.label,
+    required String label,
     required this.emoji,
     required this.color,
     required this.background,
     required this.note,
     this.intensity,
-  });
+  }) : _label = label;
 
   String get categoryKey => '${source.name}:$emotionId';
   String get sourceLabel =>
-      source == EmotionRecordSource.letter ? '편지' : '정원 일기';
+      source == EmotionRecordSource.letter ? tr("편지") : tr("정원 일기");
   String get displayLabel => '$label · $sourceLabel';
 }
 

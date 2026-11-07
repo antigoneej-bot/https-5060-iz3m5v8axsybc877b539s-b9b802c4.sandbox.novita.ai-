@@ -1,3 +1,5 @@
+import '../../l10n/garden_copy.dart';
+import '../../l10n/app_language.dart';
 import '../../widgets/neighbor_news_bubble.dart';
 import 'seasonal_garden_layer.dart';
 import 'dart:typed_data';
@@ -154,9 +156,9 @@ class _GardenWorldViewState extends State<GardenWorldView>
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text('조금씩 넓어지는 내 정원', style: titleFont(fontSize: 24)),
+              Text(tr('조금씩 넓어지는 내 정원'), style: titleFont(fontSize: 24)),
               const SizedBox(height: 8),
-              const Text('씨앗을 심고 돌보며 성장 기록을 쌓아요. 한 번 열린 땅은 계속 남아요.'),
+              Text(tr('씨앗을 심고 돌보며 성장 기록을 쌓아요. 한 번 열린 땅은 계속 남아요.')),
               const SizedBox(height: 12),
               for (final zone in [1, 0, 2]) ...[
                 ListTile(
@@ -168,8 +170,11 @@ class _GardenWorldViewState extends State<GardenWorldView>
                   title: Text(GardenLayout.nameForZone(zone)),
                   subtitle: Text(
                     widget.layout.isOpen(zone)
-                        ? '열린 공간 · 심고 가꿀 수 있어요'
-                        : '누적 성장 ${GardenLayout.goalForZone(zone)}회 · ${count.clamp(0, GardenLayout.goalForZone(zone))}/${GardenLayout.goalForZone(zone)}',
+                        ? tr('열린 공간 · 심고 가꿀 수 있어요')
+                        : gardenCopy('garden90.0', [
+                            GardenLayout.goalForZone(zone),
+                            count.clamp(0, GardenLayout.goalForZone(zone)),
+                          ]),
                   ),
                   trailing: widget.layout.isOpen(zone)
                       ? const Icon(Icons.chevron_right)
@@ -197,8 +202,10 @@ class _GardenWorldViewState extends State<GardenWorldView>
               const SizedBox(height: 12),
               Text(
                 widget.layout.nextZone == null
-                    ? '모든 구역이 열렸어요. 나만의 정원을 계속 가꿔요.'
-                    : '다음 땅까지 성장 ${widget.layout.remainingGrowth(count)}회',
+                    ? tr('모든 구역이 열렸어요. 나만의 정원을 계속 가꿔요.')
+                    : gardenCopy('garden90.1', [
+                        widget.layout.remainingGrowth(count),
+                      ]),
               ),
             ],
           ),
@@ -231,10 +238,10 @@ class _GardenWorldViewState extends State<GardenWorldView>
   Offset? _catAnchor;
   String _restItem = 'decor:cat_cushion';
   String get _restName => _restItem.startsWith('seed:')
-      ? '나무 그늘'
+      ? tr('나무 그늘')
       : _restItem == 'decor:cat_basket'
-      ? '바구니'
-      : '방석';
+      ? tr('바구니')
+      : tr('방석');
   bool _onCushion = false;
   int? _appliedRestRequest;
   void _applyRequestedRest() {
@@ -300,12 +307,14 @@ class _GardenWorldViewState extends State<GardenWorldView>
           false,
           0,
           GardenCatMoment.depthSize(_catAnchor!.dy) * 1.25,
-          '방석 옆에서 쉬는 고양이',
+          tr('방석 옆에서 쉬는 고양이'),
         );
       }
     });
     _message(
-      _onCushion ? '$_restName에서 쉬어요. 고양이를 누르면 일어나요.' : '$_restName에서 일어났어요.',
+      _onCushion
+          ? gardenCopy('garden90.2', [_restName])
+          : gardenCopy('garden90.3', [_restName]),
     );
   }
 
@@ -361,7 +370,7 @@ class _GardenWorldViewState extends State<GardenWorldView>
   Future<void> _waterPlant(String id) async {
     if (widget.readOnly || _waterSaving || !id.startsWith('seed:')) return;
     if (widget.onWater == null) {
-      _message('정원 연결을 확인한 뒤 다시 시도해 주세요.');
+      _message(tr('정원 연결을 확인한 뒤 다시 시도해 주세요.'));
       return;
     }
     setState(() => _waterSaving = true);
@@ -369,14 +378,14 @@ class _GardenWorldViewState extends State<GardenWorldView>
       final cared = await widget.onWater!(id.substring(5));
       if (!mounted) return;
       if (!cared) {
-        _message('${_label(id)}에는 오늘 이미 물을 주었어요. 내일 다시 돌봐 주세요.');
+        _message(gardenCopy('garden90.4', [_label(id)]));
         return;
       }
       setState(() => _waterTarget = id);
       if (_air.isAnimating) _water.forward(from: 0);
-      _message('${_label(id)}에 물을 주었어요. 오늘의 돌봄을 기억할게요.');
+      _message(gardenCopy('garden90.5', [_label(id)]));
     } catch (_) {
-      if (mounted) _message('물주기를 저장하지 못했어요. 다시 시도해 주세요.');
+      if (mounted) _message(tr('물주기를 저장하지 못했어요. 다시 시도해 주세요.'));
     } finally {
       if (mounted) setState(() => _waterSaving = false);
     }
@@ -675,7 +684,7 @@ class _GardenWorldViewState extends State<GardenWorldView>
         _selected = null;
       });
     } catch (_) {
-      if (mounted) _message('위치를 저장하지 못했어요. 다시 시도해 주세요.');
+      if (mounted) _message(tr('위치를 저장하지 못했어요. 다시 시도해 주세요.'));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -689,7 +698,7 @@ class _GardenWorldViewState extends State<GardenWorldView>
       await widget.onMove(last.key, last.value);
       if (mounted) setState(() => _undo = null);
     } catch (_) {
-      if (mounted) _message('되돌리지 못했어요. 자리가 비어 있는지 확인해 주세요.');
+      if (mounted) _message(tr('되돌리지 못했어요. 자리가 비어 있는지 확인해 주세요.'));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -710,146 +719,155 @@ class _GardenWorldViewState extends State<GardenWorldView>
   }
 
   @override
-  Widget build(BuildContext context) => widget.cultivationMode
-      ? _canvas(context)
-      : widget.immersive
-      ? Stack(
-          fit: StackFit.expand,
-          children: [
-            _canvas(context),
-            Positioned(
-              top: 8,
-              right: 8,
-              width: 300,
-              child: SafeArea(bottom: false, child: _viewControls()),
-            ),
-            if (!widget.preview && !widget.readOnly && _toolsOpen)
+  Widget build(BuildContext context) {
+    Localizations.localeOf(context);
+    return widget.cultivationMode
+        ? _canvas(context)
+        : widget.immersive
+        ? Stack(
+            fit: StackFit.expand,
+            children: [
+              _canvas(context),
               Positioned(
-                left: 12,
-                right: 12,
-                bottom: 68,
-                child: SafeArea(
-                  top: false,
-                  bottom: false,
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      maxHeight: MediaQuery.sizeOf(context).height * .45,
+                top: 8,
+                right: 8,
+                width: 300,
+                child: SafeArea(bottom: false, child: _viewControls()),
+              ),
+              if (!widget.preview && !widget.readOnly && _toolsOpen)
+                Positioned(
+                  left: 12,
+                  right: 12,
+                  bottom: 68,
+                  child: SafeArea(
+                    top: false,
+                    bottom: false,
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxHeight: MediaQuery.sizeOf(context).height * .45,
+                      ),
+                      child: SingleChildScrollView(child: _gardenControls()),
                     ),
-                    child: SingleChildScrollView(child: _gardenControls()),
                   ),
                 ),
-              ),
-            if (!widget.preview)
-              Positioned(
-                left: 8,
-                right: 8,
-                bottom: 8,
-                child: SafeArea(top: false, child: _storybookToolbar()),
-              ),
-          ],
-        )
-      : Column(
-          children: [
-            if (!_quiet && !widget.preview && _showChrome) _viewControls(),
-            if (!_quiet && !widget.preview && _showChrome)
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 3,
+              if (!widget.preview)
+                Positioned(
+                  left: 8,
+                  right: 8,
+                  bottom: 8,
+                  child: SafeArea(top: false, child: _storybookToolbar()),
                 ),
-                child: Wrap(
-                  spacing: 8,
-                  runSpacing: 4,
-                  children: [
-                    Tooltip(
-                      message: _catWanders ? '고양이 앉아서 쉬기' : '고양이 산책하기',
-                      child: FilterChip(
-                        selected: _catWanders,
-                        avatar: Icon(
-                          _catWanders ? Icons.directions_walk : Icons.weekend,
-                          size: 18,
+            ],
+          )
+        : Column(
+            children: [
+              if (!_quiet && !widget.preview && _showChrome) _viewControls(),
+              if (!_quiet && !widget.preview && _showChrome)
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 3,
+                  ),
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
+                    children: [
+                      Tooltip(
+                        message: _catWanders
+                            ? tr('고양이 앉아서 쉬기')
+                            : tr('고양이 산책하기'),
+                        child: FilterChip(
+                          selected: _catWanders,
+                          avatar: Icon(
+                            _catWanders ? Icons.directions_walk : Icons.weekend,
+                            size: 18,
+                          ),
+                          label: Text(_catWanders ? tr('산책 켜짐') : tr('산책 꺼짐')),
+                          onSelected: (v) => setState(() {
+                            _catWanders = v;
+                            if (v) {
+                              _onCushion = false;
+                              _cushion.stop();
+                            }
+                          }),
                         ),
-                        label: Text(_catWanders ? '산책 켜짐' : '산책 꺼짐'),
-                        onSelected: (v) => setState(() {
-                          _catWanders = v;
-                          if (v) {
-                            _onCushion = false;
-                            _cushion.stop();
+                      ),
+                      Tooltip(
+                        message: _paused ? tr('정원 움직임 재생') : tr('정원 움직임 멈추기'),
+                        child: ActionChip(
+                          avatar: Icon(
+                            _air.isAnimating ? Icons.pause : Icons.play_arrow,
+                            size: 18,
+                          ),
+                          label: Text(
+                            _air.isAnimating ? tr('움직임 켜짐') : tr('움직임 꺼짐'),
+                          ),
+                          onPressed: () {
+                            if (!widget.motionEnabled ||
+                                MediaQuery.disableAnimationsOf(context)) {
+                              _message(
+                                tr('앱 또는 기기의 움직임 설정이 꺼져 있어요. 설정에서 켜 주세요.'),
+                              );
+                              return;
+                            }
+                            setState(() => _paused = !_paused);
+                            _syncMotion();
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              Expanded(child: Center(child: _canvas(context))),
+              if (widget.fillViewport && !_quiet)
+                SafeArea(
+                  top: false,
+                  child: Wrap(
+                    alignment: WrapAlignment.center,
+                    children: [
+                      TextButton.icon(
+                        key: const Key('garden-show-cat'),
+                        onPressed: _showCat,
+                        icon: const Icon(Icons.pets_outlined),
+                        label: Text(tr('고양이 보기')),
+                      ),
+                      TextButton.icon(
+                        key: const Key('garden-show-all'),
+                        onPressed: () => setState(() {
+                          _overview = true;
+                          _viewport = Size.zero;
+                        }),
+                        icon: const Icon(Icons.panorama_outlined),
+                        label: Text(tr('정원 전체')),
+                      ),
+                      TextButton.icon(
+                        key: const Key('garden-toggle-tools'),
+                        onPressed: () => setState(() {
+                          if (_fullTools) {
+                            _closeFullTools();
+                          } else {
+                            _fullTools = true;
                           }
                         }),
+                        icon: Icon(_fullTools ? Icons.expand_less : Icons.tune),
+                        label: Text(_fullTools ? tr('도구 접기') : tr('도구')),
                       ),
-                    ),
-                    Tooltip(
-                      message: _paused ? '정원 움직임 재생' : '정원 움직임 멈추기',
-                      child: ActionChip(
-                        avatar: Icon(
-                          _air.isAnimating ? Icons.pause : Icons.play_arrow,
-                          size: 18,
-                        ),
-                        label: Text(_air.isAnimating ? '움직임 켜짐' : '움직임 꺼짐'),
-                        onPressed: () {
-                          if (!widget.motionEnabled ||
-                              MediaQuery.disableAnimationsOf(context)) {
-                            _message('앱 또는 기기의 움직임 설정이 꺼져 있어요. 설정에서 켜 주세요.');
-                            return;
-                          }
-                          setState(() => _paused = !_paused);
-                          _syncMotion();
-                        },
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-            Expanded(child: Center(child: _canvas(context))),
-            if (widget.fillViewport && !_quiet)
-              SafeArea(
-                top: false,
-                child: Wrap(
-                  alignment: WrapAlignment.center,
-                  children: [
-                    TextButton.icon(
-                      key: const Key('garden-show-cat'),
-                      onPressed: _showCat,
-                      icon: const Icon(Icons.pets_outlined),
-                      label: const Text('고양이 보기'),
-                    ),
-                    TextButton.icon(
-                      key: const Key('garden-show-all'),
-                      onPressed: () => setState(() {
-                        _overview = true;
-                        _viewport = Size.zero;
-                      }),
-                      icon: const Icon(Icons.panorama_outlined),
-                      label: const Text('정원 전체'),
-                    ),
-                    TextButton.icon(
-                      key: const Key('garden-toggle-tools'),
-                      onPressed: () => setState(() {
-                        if (_fullTools) {
-                          _closeFullTools();
-                        } else {
-                          _fullTools = true;
-                        }
-                      }),
-                      icon: Icon(_fullTools ? Icons.expand_less : Icons.tune),
-                      label: Text(_fullTools ? '도구 접기' : '도구'),
-                    ),
-                  ],
+              if (_quiet && !widget.preview)
+                SafeArea(
+                  top: false,
+                  child: TextButton.icon(
+                    onPressed: () => _setQuiet(false),
+                    icon: const Icon(Icons.close),
+                    label: Text(tr('쉬기 마치기')),
+                  ),
                 ),
-              ),
-            if (_quiet && !widget.preview)
-              SafeArea(
-                top: false,
-                child: TextButton.icon(
-                  onPressed: () => _setQuiet(false),
-                  icon: const Icon(Icons.close),
-                  label: const Text('쉬기 마치기'),
-                ),
-              ),
-            if (!_quiet && !widget.preview && _showChrome) _gardenControls(),
-          ],
-        );
+              if (!_quiet && !widget.preview && _showChrome) _gardenControls(),
+            ],
+          );
+  }
 
   Widget _storybookToolbar() {
     Widget button(
@@ -912,7 +930,7 @@ class _GardenWorldViewState extends State<GardenWorldView>
           children: [
             button(
               'storybook-loaf',
-              _loafRest ? '식빵 끝내기' : '식빵 쉬기',
+              _loafRest ? tr('식빵 끝내기') : tr('식빵 쉬기'),
               Icons.pets_outlined,
               const Color(0xFFF4E5D8),
               () => setState(() {
@@ -923,14 +941,14 @@ class _GardenWorldViewState extends State<GardenWorldView>
             if (!widget.readOnly) ...[
               button(
                 'garden-growth-goals',
-                '정원 넓히기',
+                tr('정원 넓히기'),
                 Icons.map_outlined,
                 const Color(0xFFE8EDD7),
                 _showGardenGoals,
               ),
               button(
                 'storybook-water',
-                _wateringMode ? '물주기 마치기' : '물주기',
+                _wateringMode ? tr('물주기 마치기') : tr('물주기'),
                 Icons.water_drop_outlined,
                 const Color(0xFFF9EBCB),
                 _saving
@@ -943,14 +961,14 @@ class _GardenWorldViewState extends State<GardenWorldView>
               ),
               button(
                 'storybook-plant',
-                '씨앗 심기',
+                tr('씨앗 심기'),
                 Icons.spa_outlined,
                 const Color(0xFFF6EAD1),
                 _saving ? null : widget.onPlant,
               ),
               button(
                 'storybook-decorate',
-                _toolsOpen ? '도구 접기' : '꾸미기',
+                _toolsOpen ? tr('도구 접기') : tr('꾸미기'),
                 Icons.local_florist_outlined,
                 const Color(0xFFF6DEDB),
                 () => setState(() => _toolsOpen = !_toolsOpen),
@@ -958,7 +976,7 @@ class _GardenWorldViewState extends State<GardenWorldView>
               if (widget.onOrchard != null)
                 button(
                   'storybook-storage',
-                  '창고',
+                  tr('창고'),
                   Icons.inventory_2_outlined,
                   const Color(0xFFF4DFCC),
                   widget.onOrchard,
@@ -966,7 +984,7 @@ class _GardenWorldViewState extends State<GardenWorldView>
             ],
             button(
               'storybook-overview',
-              '전체보기',
+              tr('전체보기'),
               Icons.panorama_outlined,
               const Color(0xFFE8EDD7),
               () {
@@ -980,7 +998,7 @@ class _GardenWorldViewState extends State<GardenWorldView>
             if (widget.readOnly)
               button(
                 'storybook-cat',
-                '고양이 보기',
+                tr('고양이 보기'),
                 Icons.pets_outlined,
                 const Color(0xFFE8EDD7),
                 _showCat,
@@ -1027,9 +1045,11 @@ class _GardenWorldViewState extends State<GardenWorldView>
                       child: Text(
                         '${widget.layout.isOpen(zone) ? '' : '🔒 '}' +
                             [
-                              '꽃밭',
-                              '${companionDisplayName(widget.companionName)}의 집',
-                              '나무 뜰',
+                              tr('꽃밭'),
+                              gardenCopy('garden90.6', [
+                                companionDisplayName(widget.companionName),
+                              ]),
+                              tr('나무 뜰'),
                             ][zone],
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -1046,7 +1066,7 @@ class _GardenWorldViewState extends State<GardenWorldView>
           ),
           const SizedBox(width: 4),
           IconButton(
-            tooltip: _night ? '햇살 정원' : '별빛 정원',
+            tooltip: _night ? tr('햇살 정원') : tr('별빛 정원'),
             onPressed: () => setState(() => _night = !_night),
             icon: Icon(
               _night ? Icons.nightlight_round : Icons.wb_sunny_outlined,
@@ -1056,7 +1076,7 @@ class _GardenWorldViewState extends State<GardenWorldView>
             padding: EdgeInsets.zero,
           ),
           IconButton(
-            tooltip: '정원 축소',
+            tooltip: tr('정원 축소'),
             onPressed: () => _zoom(.8),
             icon: const Icon(Icons.remove, size: 17),
             padding: EdgeInsets.zero,
@@ -1069,7 +1089,7 @@ class _GardenWorldViewState extends State<GardenWorldView>
           ),
           const SizedBox(width: 3),
           IconButton(
-            tooltip: '정원 확대',
+            tooltip: tr('정원 확대'),
             onPressed: () => _zoom(1.25),
             icon: const Icon(Icons.add, size: 17),
             padding: EdgeInsets.zero,
@@ -1082,7 +1102,7 @@ class _GardenWorldViewState extends State<GardenWorldView>
           ),
           const SizedBox(width: 3),
           PopupMenuButton<String>(
-            tooltip: '보기 설정',
+            tooltip: tr('보기 설정'),
             color: AppColors.bg1,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(18),
@@ -1121,12 +1141,15 @@ class _GardenWorldViewState extends State<GardenWorldView>
             itemBuilder: (_) => [
               PopupMenuItem(
                 value: 'reset',
-                child: Text('기본 크기로 보기', style: bodyFont(color: AppColors.ink)),
+                child: Text(
+                  tr('기본 크기로 보기'),
+                  style: bodyFont(color: AppColors.ink),
+                ),
               ),
               PopupMenuItem(
                 value: 'cat',
                 child: Text(
-                  _catWanders ? '고양이 앉아서 쉬기' : '고양이 산책하기',
+                  _catWanders ? tr('고양이 앉아서 쉬기') : tr('고양이 산책하기'),
                   style: bodyFont(
                     fontSize: widget.immersive ? 12 : 14,
                     color: AppColors.ink,
@@ -1136,7 +1159,7 @@ class _GardenWorldViewState extends State<GardenWorldView>
               PopupMenuItem(
                 value: 'light',
                 child: Text(
-                  _night ? '햇살 정원' : '별빛 정원',
+                  _night ? tr('햇살 정원') : tr('별빛 정원'),
                   style: bodyFont(
                     fontSize: widget.immersive ? 12 : 14,
                     color: AppColors.ink,
@@ -1146,7 +1169,7 @@ class _GardenWorldViewState extends State<GardenWorldView>
               PopupMenuItem(
                 value: 'motion',
                 child: Text(
-                  _paused ? '정원 움직임 재생' : '정원 움직임 멈추기',
+                  _paused ? tr('정원 움직임 재생') : tr('정원 움직임 멈추기'),
                   style: bodyFont(
                     fontSize: widget.immersive ? 12 : 14,
                     color: AppColors.ink,
@@ -1183,18 +1206,18 @@ class _GardenWorldViewState extends State<GardenWorldView>
               TextButton.icon(
                 onPressed: _showGardenGoals,
                 icon: const Icon(Icons.map_outlined),
-                label: const Text('정원 넓히기 · 목표 보기'),
+                label: Text(tr('정원 넓히기 · 목표 보기')),
               ),
             Text(
               _saving
-                  ? '위치를 저장하고 있어요…'
+                  ? tr('위치를 저장하고 있어요…')
                   : _wateringMode
-                  ? '꽃이나 나무를 눌러 주세요. 하루 한 번 돌보면 자라요.'
+                  ? tr('꽃이나 나무를 눌러 주세요. 하루 한 번 돌보면 자라요.')
                   : _editing
                   ? (_selected == null
-                        ? '아이템을 고른 뒤, 원하는 잔디를 눌러 주세요.'
-                        : '${_label(_selected!)} · 옮길 잔디를 눌러 주세요.')
-                  : '좌우로 산책하고, 두 손가락으로 가까이 살펴보세요.',
+                        ? tr('아이템을 고른 뒤, 원하는 잔디를 눌러 주세요.')
+                        : gardenCopy('garden90.7', [_label(_selected!)]))
+                  : tr('좌우로 산책하고, 두 손가락으로 가까이 살펴보세요.'),
               textAlign: TextAlign.center,
               style: bodyFont(fontSize: 12.5, color: AppColors.inkSoft),
             ),
@@ -1220,9 +1243,9 @@ class _GardenWorldViewState extends State<GardenWorldView>
                 ),
               ),
             if (_editing && _items.isEmpty)
-              const Padding(
+              Padding(
                 padding: EdgeInsets.all(8),
-                child: Text('씨앗을 심거나 장식을 놓으면 여기서 옮길 수 있어요.'),
+                child: Text(tr('씨앗을 심거나 장식을 놓으면 여기서 옮길 수 있어요.')),
               ),
             if (!widget.readOnly)
               Padding(
@@ -1235,7 +1258,7 @@ class _GardenWorldViewState extends State<GardenWorldView>
                     active: _toolsOpen,
                   ),
                   icon: Icon(_toolsOpen ? Icons.expand_less : Icons.tune),
-                  label: Text(_toolsOpen ? '도구 접기' : '돌보기 · 꾸미기 · 추억'),
+                  label: Text(_toolsOpen ? tr('도구 접기') : tr('돌보기 · 꾸미기 · 추억')),
                 ),
               ),
             if (!widget.readOnly && _toolsOpen)
@@ -1271,10 +1294,10 @@ class _GardenWorldViewState extends State<GardenWorldView>
                           ),
                           label: Text(
                             _waterSaving
-                                ? '돌봄 저장 중…'
+                                ? tr('돌봄 저장 중…')
                                 : _wateringMode
-                                ? '물주기 마치기'
-                                : '물 주기',
+                                ? tr('물주기 마치기')
+                                : tr("물 주기"),
                           ),
                         ),
                         TextButton.icon(
@@ -1291,13 +1314,13 @@ class _GardenWorldViewState extends State<GardenWorldView>
                             active: _editing,
                           ),
                           icon: Icon(_editing ? Icons.check : Icons.open_with),
-                          label: Text(_editing ? '배치 완료' : '배치 모드'),
+                          label: Text(_editing ? tr('배치 완료') : tr('배치 모드')),
                         ),
                         if (widget.onOrchard != null)
                           TextButton.icon(
                             onPressed: widget.onOrchard,
                             icon: const Icon(Icons.shopping_basket_outlined),
-                            label: const Text('열매 정원 · 창고'),
+                            label: Text(tr('열매 정원 · 창고')),
                           ),
                         if (widget.onMemoryTree != null)
                           TextButton.icon(
@@ -1307,7 +1330,7 @@ class _GardenWorldViewState extends State<GardenWorldView>
                               AppColors.blobButterAccent,
                             ),
                             icon: const Icon(Icons.park_outlined),
-                            label: const Text('기억의 나무'),
+                            label: Text(tr("기억의 나무")),
                           ),
                         if (widget.onCheerFlowers != null)
                           TextButton.icon(
@@ -1317,7 +1340,7 @@ class _GardenWorldViewState extends State<GardenWorldView>
                               AppColors.blobRoseAccent,
                             ),
                             icon: const Icon(Icons.local_florist_outlined),
-                            label: const Text('응원 꽃'),
+                            label: Text(tr('응원 꽃')),
                           ),
                         TextButton.icon(
                           onPressed: () => _setQuiet(true),
@@ -1326,7 +1349,7 @@ class _GardenWorldViewState extends State<GardenWorldView>
                             AppColors.blobLavenderAccent,
                           ),
                           icon: const Icon(Icons.weekend_outlined),
-                          label: const Text('잠깐 쉬기'),
+                          label: Text(tr('잠깐 쉬기')),
                         ),
                         TextButton.icon(
                           onPressed: _saving ? null : widget.onPlant,
@@ -1335,7 +1358,7 @@ class _GardenWorldViewState extends State<GardenWorldView>
                             AppColors.blobPeachAccent,
                           ),
                           icon: const Icon(Icons.grass),
-                          label: const Text('씨앗 심기'),
+                          label: Text(tr('씨앗 심기')),
                         ),
                         TextButton.icon(
                           onPressed: _saving ? null : widget.onDecorate,
@@ -1344,14 +1367,14 @@ class _GardenWorldViewState extends State<GardenWorldView>
                             AppColors.blobButterAccent,
                           ),
                           icon: const Icon(Icons.chair_outlined),
-                          label: const Text('장식'),
+                          label: Text(tr('장식')),
                         ),
                         if (_undo != null)
                           TextButton.icon(
                             onPressed: _saving ? null : _undoMove,
                             style: _chipStyle(AppColors.bg2, AppColors.inkSoft),
                             icon: const Icon(Icons.undo),
-                            label: const Text('되돌리기'),
+                            label: Text(tr("되돌리기")),
                           ),
                       ],
                     ),
@@ -1651,8 +1674,8 @@ class _GardenWorldViewState extends State<GardenWorldView>
                                           ),
                                           label: Text(
                                             zone == 0
-                                                ? '꽃밭 · 성장하면 열려요'
-                                                : '나무 뜰 · 성장하면 열려요',
+                                                ? tr('꽃밭 · 성장하면 열려요')
+                                                : tr('나무 뜰 · 성장하면 열려요'),
                                           ),
                                         ),
                                       ),
@@ -1682,8 +1705,8 @@ class _GardenWorldViewState extends State<GardenWorldView>
                                             ),
                                             Text(
                                               zone == 0
-                                                  ? '조금씩 열리는 꽃밭'
-                                                  : '나무를 위한 넓은 뜰',
+                                                  ? tr('조금씩 열리는 꽃밭')
+                                                  : tr('나무를 위한 넓은 뜰'),
                                               style: titleFont(
                                                 fontSize: 22,
                                                 color:
@@ -1692,7 +1715,9 @@ class _GardenWorldViewState extends State<GardenWorldView>
                                             ),
                                             const SizedBox(height: 8),
                                             Text(
-                                              '씨앗을 심거나 가꾼 횟수 ${zone == 0 ? 3 : 8}회에 열려요',
+                                              gardenCopy('garden90.8', [
+                                                zone == 0 ? 3 : 8,
+                                              ]),
                                               textAlign: TextAlign.center,
                                               style: bodyFont(
                                                 fontSize: 15,
@@ -1700,7 +1725,7 @@ class _GardenWorldViewState extends State<GardenWorldView>
                                               ),
                                             ),
                                             Text(
-                                              '한 번 열린 공간은 그대로 남아요',
+                                              tr('한 번 열린 공간은 그대로 남아요'),
                                               style: bodyFont(
                                                 fontSize: 13,
                                                 color: AppColors.inkSoft,
@@ -1796,7 +1821,9 @@ class _GardenWorldViewState extends State<GardenWorldView>
           width: 52,
           height: 52,
           child: Semantics(
-            label: '24시간 응원 ${gardenReactionNames[active[i].kind]}',
+            label: gardenCopy('garden90.9', [
+              tr(gardenReactionNames[active[i].kind] ?? ""),
+            ]),
             child: GardenSway(
               animation: _air,
               child: TextButton(
@@ -1883,7 +1910,7 @@ class _GardenWorldViewState extends State<GardenWorldView>
                   false,
                   0,
                   previous.size,
-                  '곁에서 쉬는 몽이',
+                  tr('곁에서 쉬는 몽이'),
                   onBench: previous.onBench,
                   groundDy: previous.contactDy,
                 );
@@ -1941,9 +1968,14 @@ class _GardenWorldViewState extends State<GardenWorldView>
             key: const Key('garden-companion'),
             button: true,
             label: _onCushion && !widget.readOnly
-                ? '${widget.companionName} $_restName에서 일어나기'
+                ? gardenCopy('garden90.10', [
+                    companionDisplayName(widget.companionName),
+                    _restName,
+                  ])
                 : !widget.readOnly && widget.onCompanionCare != null
-                ? '${widget.companionName} 돌보기'
+                ? gardenCopy('garden90.11', [
+                    companionDisplayName(widget.companionName),
+                  ])
                 : companionCopy(moment.label, widget.companionName),
             child: GestureDetector(
               onTap: _onCushion && !widget.readOnly
@@ -2040,7 +2072,7 @@ class _GardenWorldViewState extends State<GardenWorldView>
                 height: 115,
                 child: Semantics(
                   button: true,
-                  label: '받은 응원의 꽃밭',
+                  label: tr('받은 응원의 꽃밭'),
                   child: GestureDetector(
                     key: const Key('garden-cheer-flowers'),
                     onTap: _quiet || widget.readOnly
@@ -2080,7 +2112,7 @@ class _GardenWorldViewState extends State<GardenWorldView>
                 width: 100,
                 height: 150,
                 child: Semantics(
-                  label: '내가 색칠한 작품 액자',
+                  label: tr('간직한 작품 액자'),
                   image: true,
                   child: IgnorePointer(
                     child: Container(
@@ -2157,7 +2189,7 @@ class _GardenWorldViewState extends State<GardenWorldView>
         coat: guest.coat,
         growthStage: guest.stage,
         child: Semantics(
-          label: '함께 방문한 ${guest.name}',
+          label: gardenCopy('garden90.12', [guest.name]),
           child: walking
               ? GardenWalkingCat(
                   frame: (_air.value * 24 * 8).floor(),
@@ -2209,7 +2241,7 @@ class _GardenWorldViewState extends State<GardenWorldView>
             ? 1
             : 0,
         child: Semantics(
-          label: '${coat.label}, 정원 가족',
+          label: gardenCopy('garden90.13', [coat.label]),
           child: walking
               ? GardenWalkingCat(
                   frame: (_air.value * 24 * 8).floor(),
@@ -2269,7 +2301,7 @@ class _GardenWorldViewState extends State<GardenWorldView>
     final artHeight = bench ? artWidth * .667 : artWidth;
     final child = Semantics(
       button: true,
-      label: '${_label(id)} ${_editing ? '배치 선택' : '살펴보기'}',
+      label: '${_label(id)} ${_editing ? tr('배치 선택') : tr('살펴보기')}',
       child: GestureDetector(
         key: ValueKey('world-item-$id'),
         onTap: _saving
@@ -2278,14 +2310,14 @@ class _GardenWorldViewState extends State<GardenWorldView>
                 if (_quiet || _cameraGesture) {
                   return;
                 } else if (widget.placementSeed != null && !widget.readOnly) {
-                  _message('기존 식물이 없는 빈 땅을 골라 주세요.');
+                  _message(tr('기존 식물이 없는 빈 땅을 골라 주세요.'));
                 } else if (widget.readOnly) {
                   _message(_label(id));
                 } else if (_wateringMode) {
                   if (seed != null) {
                     _waterPlant(id);
                   } else {
-                    _message('물은 꽃이나 나무에 줄 수 있어요.');
+                    _message(tr('물은 꽃이나 나무에 줄 수 있어요.'));
                   }
                 } else if (_editing) {
                   setState(() => _selected = id);
@@ -2484,7 +2516,10 @@ class _GardenViewportFrame extends StatelessWidget {
     required this.child,
   });
   @override
-  Widget build(BuildContext context) => fill
-      ? SizedBox.expand(child: child)
-      : AspectRatio(aspectRatio: aspectRatio, child: child);
+  Widget build(BuildContext context) {
+    Localizations.localeOf(context);
+    return fill
+        ? SizedBox.expand(child: child)
+        : AspectRatio(aspectRatio: aspectRatio, child: child);
+  }
 }

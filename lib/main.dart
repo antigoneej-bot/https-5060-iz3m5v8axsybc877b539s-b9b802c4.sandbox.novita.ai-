@@ -1,3 +1,6 @@
+import 'l10n/app_language.dart';
+import 'widgets/record_load_failure.dart';
+import 'services/diagnostics_service.dart';
 import 'widgets/community_consent.dart';
 import 'utils/welcome_policy.dart';
 import 'widgets/premium_test_access.dart';
@@ -57,10 +60,17 @@ const String _localUserId = 'local_user';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   AppReloadService.reloadApp = _reloadAppAfterRestore;
+  // Recovery/error UI must use the saved language even if record loading fails.
+  try {
+    await AppLanguage.instance.load();
+  } catch (_) {
+    // A preference read must not prevent the recovery screen from opening.
+  }
   try {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
+    unawaited(DiagnosticsService.initialize());
   } catch (e) {
     if (kDebugMode) debugPrint('Firebase initialization failed: $e');
   }
@@ -75,6 +85,7 @@ Future<void> main() async {
     resuming = false;
     await _launchGarden();
   } catch (e, st) {
+    unawaited(DiagnosticsService.record(e, st, 'startup'));
     if (kDebugMode) {
       debugPrint('main() failed: $e');
       debugPrint('$st');
@@ -112,9 +123,14 @@ Future<void> _launchGarden() async {
   await SpecialLetterService.setCurrentUser(_localUserId);
   await AnalyticsService().logRetentionMilestoneIfNeeded();
   await SoundService().init();
-  await NotificationService().init();
-  await NotificationService().restoreIfEnabled();
+  await _optional('알림 초기화', NotificationService().restoreIfEnabled);
   await initializeDateFormatting('ko_KR', null);
+  await initializeDateFormatting('en_US', null);
+  AppLanguage.instance.addListener(() {
+    unawaited(
+      NotificationService().refreshLanguage().catchError((Object _) {}),
+    );
+  });
   runApp(const MysticCatApp());
   // The local journal and garden can open while Play products and existing
   // purchases are being checked. Access remains governed by verified state.
@@ -138,8 +154,8 @@ Future<void> _reloadAppAfterRestore() async {
   await _optional('배경음 정리', SoundService().stopAll);
   // Unmount old controllers/providers before reloading their backing stores.
   runApp(
-    const MaterialApp(
-      home: Scaffold(body: Center(child: Text('복원한 기록을 다시 불러오고 있어요.'))),
+    MaterialApp(
+      home: Scaffold(body: Center(child: Text(tr('복원한 기록을 다시 불러오고 있어요.')))),
     ),
   );
   await WidgetsBinding.instance.endOfFrame;
@@ -159,10 +175,10 @@ Future<void> _reloadAppAfterRestore() async {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Padding(
+                  Padding(
                     padding: EdgeInsets.symmetric(horizontal: 24),
                     child: Text(
-                      '기록을 다시 불러오지 못했어요. 저장된 기록은 유지돼요.',
+                      tr('기록을 다시 불러오지 못했어요. 저장된 기록은 유지돼요.'),
                       textAlign: TextAlign.center,
                     ),
                   ),
@@ -173,7 +189,7 @@ Future<void> _reloadAppAfterRestore() async {
                         _optional('기록 다시 불러오기', AppReloadService.reload),
                       );
                     },
-                    child: const Text('다시 불러오기'),
+                    child: Text(tr('다시 불러오기')),
                   ),
                 ],
               ),
@@ -209,21 +225,26 @@ class MysticCatApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => BubbleGardenProvider()),
         ChangeNotifierProvider(create: (_) => BuriedEmotionProvider()),
       ],
-      child: MaterialApp(
-        navigatorKey: communityNavigatorKey,
-        navigatorObservers: [gardenAdRoutes],
-        localizationsDelegates: mongi.AppLocalizations.localizationsDelegates,
-        supportedLocales: const [Locale('ko')],
-        locale: const Locale('ko'),
-        builder: (_, child) => AccountAccessBridge(
-          child: AppLockGate(
-            child: BackgroundMusicGate(child: PremiumTestFrame(child: child!)),
+      child: AnimatedBuilder(
+        animation: AppLanguage.instance,
+        builder: (context, _) => MaterialApp(
+          navigatorKey: communityNavigatorKey,
+          navigatorObservers: [gardenAdRoutes],
+          localizationsDelegates: mongi.AppLocalizations.localizationsDelegates,
+          supportedLocales: const [Locale('ko'), Locale('en')],
+          locale: AppLanguage.instance.locale,
+          builder: (_, child) => AccountAccessBridge(
+            child: AppLockGate(
+              child: BackgroundMusicGate(
+                child: PremiumTestFrame(child: child!),
+              ),
+            ),
           ),
+          title: tr('마음냥 정원'),
+          debugShowCheckedModeBanner: false,
+          theme: appTheme,
+          home: const _AppRoot(),
         ),
-        title: '마음냥 정원',
-        debugShowCheckedModeBanner: false,
-        theme: appTheme,
-        home: const _AppRoot(),
       ),
     );
   }
@@ -310,23 +331,7 @@ class _AppRootState extends State<_AppRoot> {
 
   @override
   Widget build(BuildContext context) {
-    if (_bootstrapFailed)
-      return Scaffold(
-        body: SafeArea(
-          child: Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text('기록을 불러오지 못했어요. 기록을 삭제하지 않고 다시 시도할 수 있어요.'),
-                FilledButton(
-                  onPressed: _bootstrap,
-                  child: const Text('다시 불러오기'),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
+    if (_bootstrapFailed) return RecordLoadFailure(onRetry: _bootstrap);
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 500),
       switchInCurve: Curves.easeIn,

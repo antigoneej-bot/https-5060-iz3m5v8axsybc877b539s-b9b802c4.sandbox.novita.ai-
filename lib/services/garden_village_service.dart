@@ -20,6 +20,33 @@ class GardenVillageService {
   final String? Function() _currentOwner;
   final Future<void> Function(Duration) _retryDelay;
   String? _owner;
+  bool _entrySupported = true;
+
+  /// Only an explicit old-server response permits fallback. Authentication,
+  /// permission and timeout failures must not trigger extra requests.
+  Future<({GardenVillageProfile profile, GardenNeighborLists neighbors})>
+  loadEntry() async {
+    if (_entrySupported) {
+      try {
+        final result = await _request('getVillageEntry');
+        return (
+          profile: GardenVillageProfile.fromJson(
+            Map<String, dynamic>.from(result['profile'] as Map),
+          ),
+          neighbors: GardenNeighborLists.fromJson(
+            Map<String, dynamic>.from(result['neighbors'] as Map),
+          ),
+        );
+      } on CloudException catch (error) {
+        if (error.code != 'unknown-action') rethrow;
+        _entrySupported = false;
+      }
+    }
+    // Older deployments take the same account lease for each read.
+    final profile = await getProfile();
+    final neighbors = await listNeighbors();
+    return (profile: profile, neighbors: neighbors);
+  }
 
   GardenVillageService({
     GardenVillageTransport? transport,
@@ -72,6 +99,14 @@ class GardenVillageService {
       wait: _retryDelay,
       action: () => _transport(action, params, owner),
     );
+  }
+
+  Future<List<Map<String, dynamic>>> listSentGardenGifts() async {
+    final result = await _request('listSentGardenGifts');
+    final raw = result['gifts'];
+    if (raw is! List || raw.any((v) => v is! Map))
+      throw const FormatException('보낸 선물 내역을 확인하지 못했어요.');
+    return raw.map((v) => Map<String, dynamic>.from(v as Map)).toList();
   }
 
   Future<Map<String, dynamic>> memoryCards(

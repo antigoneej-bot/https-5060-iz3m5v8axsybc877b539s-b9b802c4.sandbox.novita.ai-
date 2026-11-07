@@ -51,9 +51,12 @@ class SpecialLetterReplyService {
     final practice = _pickAvoiding(pool.practice, recentReplies, rng);
     final closing = _pickAvoiding(pool.closing, recentReplies, rng);
 
-    return [opening, insight, practice, closing]
-        .where((s) => s.isNotEmpty)
-        .join(' ');
+    return [
+      opening,
+      insight,
+      practice,
+      closing,
+    ].where((s) => s.isNotEmpty).join(' ');
   }
 
   static String _pickAvoiding(

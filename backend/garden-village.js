@@ -1,4 +1,5 @@
 import {queuePush} from './push-notifications.js';
+import {boundedMap} from './bounded-map.js';
 import {sharedTreePairRef} from './shared-trees.js';
 import {createHash, randomBytes} from 'node:crypto';
 import {accountHash, sanitizeNickname, validatePublicSnapshot, validatePublicLayout, KNOWN_SEED_IDS, KNOWN_DECORATION_IDS, PUBLIC_CHEER_MESSAGE_COUNT} from './policy.js';
@@ -230,7 +231,7 @@ async function neighborCard(db, uid, target) {
   if (access.blocked || !access.alive) return null;
   return {gardenId: target, nickname: access.profile.data()?.nickname ?? access.garden.data()?.nickname ?? null,
     status: access.relation.data()?.status ?? 'none', requestedAt: villageDate(access.relation.data()?.requestedAt),
-    canVisit: access.visible};
+    canVisit: access.visible, publicCat: access.visible ? publicGardenDto(target, access.garden.data()).publicCat : null};
 }
 export async function lookupNeighbor(db, uid, body) {
   const target = await resolveInvite(db, uid, body.inviteCode);
@@ -291,11 +292,7 @@ export async function removeNeighbor(db, uid, body) {
 export async function listNeighbors(db, uid) {
   const [links, blocks] = await Promise.all([db.collection(`users/${uid}/neighbors`).limit(200).get(), db.collection(`users/${uid}/blockedNeighbors`).limit(200).get()]);
   const result = {neighbors: [], incoming: [], outgoing: [], blocked: []};
-  // Each neighbor's card is an independent read (6 docs via readVillageAccess).
-  // Fetching them concurrently instead of one-by-one keeps this screen's
-  // latency roughly constant instead of scaling with the neighbor count.
-  // Promise.all preserves links.docs order, so result ordering is unchanged.
-  const cards = await Promise.all(links.docs.map(doc => neighborCard(db, uid, doc.id)));
+  const cards = await boundedMap(links.docs, 4, doc => neighborCard(db, uid, doc.id));
   for (const card of cards) {
     if (!card) continue;
     const key = {accepted: 'neighbors', incoming: 'incoming', outgoing: 'outgoing'}[card.status];
@@ -303,6 +300,12 @@ export async function listNeighbors(db, uid) {
   }
   for (const doc of blocks.docs) result.blocked.push({gardenId: doc.id, nickname: doc.data().nickname ?? null, status: 'blocked', requestedAt: villageDate(doc.data().createdAt)});
   return result;
+}
+// Called under the existing authenticated account lease, not via nested HTTP.
+export async function getVillageEntry(db, uid, _body, deps) {
+  const profile = await getVillageProfile(db, uid, deps);
+  const neighbors = await listNeighbors(db, uid);
+  return {profile, neighbors};
 }
 export async function getNeighborGarden(db, uid, body) {
   requireTarget(uid, body.gardenId);
@@ -373,6 +376,9 @@ export async function sendVillageCheer(db, uid, body, {stamp, now = Date.now()})
       senderId: uid, senderNickname: sender.data()?.nickname ?? senderGarden.data()?.nickname ?? null,
       claimed: false, createdAt: stamp(),
     });
+    if (deliveryKind === 'gift') tx.set(db.doc(`users/${uid}/sentGardenGifts/${deliveryRef.id}`), {
+      kind: flowerKind, quantity: 1, recipientId: target, recipientName: access.garden.data()?.nickname ?? '이웃', sentAt: now,
+    });
     return {sent: true};
   });
 }
@@ -406,6 +412,9 @@ export async function sendGardenGift(db, uid, body, {stamp}) {
       senderNickname: sender.data()?.nickname ?? senderGarden.data()?.nickname ?? null,
       claimed: false, createdAt: time,
     });
+    tx.set(db.doc(`users/${uid}/sentGardenGifts/${destinationId}`), {
+      kind: data.flowerKind ?? 'daisy', quantity: 1, recipientId: body.gardenId, recipientName: access.garden.data()?.nickname ?? '이웃', sentAt: Date.now(),
+    });
     tx.set(requestRef, {fingerprint, id: destinationId, createdAt: time});
     return {sent: true, id: destinationId, sourceCheerId: body.sourceCheerId};
   });
@@ -437,7 +446,14 @@ export async function listVillageCheers(db, uid, body = {}, {timestampFromParts}
       const lock = await db.doc(`accountLocks/${accountHash(senderGardenId)}`).get();
       if (lock.data()?.deleting || lock.data()?.deleted) senderGardenId = null;
     }
-    cheers.push({id: doc.id, messageIndex: data.messageIndex ?? 0, giftLightEssence: data.giftLightEssence ?? 0,
+    // Resolve only the currently published appearance through the same access
+    // policy as a garden visit. Never read the sender's private cat preferences.
+    let senderCat = null;
+    if (senderGardenId) {
+      const access = await readVillageAccess(db, uid, senderGardenId);
+      if (access.visible) senderCat = publicGardenDto(senderGardenId, access.garden.data()).publicCat;
+    }
+    cheers.push({senderCat, id: doc.id, messageIndex: data.messageIndex ?? 0, giftLightEssence: data.giftLightEssence ?? 0,
       flowerKind: data.deliveryKind === 'cheer' ? null : data.flowerKind ?? 'daisy', reaction: liveReactions([data.reaction])[0] ?? null,
       deliveryKind: data.deliveryKind ?? 'gift', senderGardenId,
       senderNickname: senderGardenId ? data.senderNickname ?? null : null,
@@ -478,5 +494,15 @@ export async function removeVillageAccount(db, uid) {
   for (const doc of blocked.docs) await doc.ref.delete();
   const blooms = await db.collectionGroup('flowerBlooms').where('recipientId', '==', uid).get();
   for (const doc of blooms.docs) await doc.ref.delete();
+  const sent = await db.collectionGroup('sentGardenGifts').where('recipientId', '==', uid).get();
+  for (const doc of sent.docs) await doc.ref.update({recipientId:null, recipientName:'이웃'});
+  const ownSent = await db.collection(`users/${uid}/sentGardenGifts`).get();
+  for (const doc of ownSent.docs) await doc.ref.delete();
   await profileRef(db, uid).delete();
+}
+
+// Owner-scoped server ledger. No recipient account identifiers are returned.
+export async function listSentGardenGifts(db, uid) {
+  const result = await db.collection(`users/${uid}/sentGardenGifts`).orderBy('sentAt', 'desc').limit(50).get();
+  return {gifts: result.docs.map(d => {const v=d.data();return {id:d.id,kind:v.kind,quantity:v.quantity,recipientName:v.recipientName,sentAt:v.sentAt};})};
 }

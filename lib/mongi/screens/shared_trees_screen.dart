@@ -1,3 +1,4 @@
+import '../../l10n/app_language.dart';
 import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -136,105 +137,108 @@ class _SharedTreesScreenState extends State<SharedTreesScreen>
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    backgroundColor: AppColors.bg0,
-    appBar: AppBar(title: const Text('함께 가꾸는 나무')),
-    body: RefreshIndicator(
-      onRefresh: _load,
-      child: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          const Text(
-            '한 사람과, 오래 남길 작은 정원',
-            style: TextStyle(fontSize: 21, fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            '이름과 기념일을 정하고 서로 다녀간 마음을 남겨요. 편지와 감정 기록은 공유되지 않아요.',
-            style: TextStyle(height: 1.6),
-          ),
-          const SizedBox(height: 16),
-          FilledButton.icon(
-            onPressed: _busy ? null : _create,
-            icon: const Icon(Icons.add),
-            label: const Text('이웃과 나무 심기 · 구독'),
-          ),
-          const SizedBox(height: 6),
-          const Text(
-            '받은 초대 수락과 기존 나무 돌보기는 무료예요.',
-            style: TextStyle(color: AppColors.inkSoft, fontSize: 13),
-          ),
-          TextButton.icon(
-            onPressed: () async {
-              await Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => MySharedTreeNotesScreen(service: _service),
-                ),
-              );
-              if (mounted && _owner == _service.currentOwner) await _load();
-            },
-            icon: const Icon(Icons.edit_note),
-            label: const Text('내가 남긴 공동 메모 관리'),
-          ),
-          const SizedBox(height: 20),
-          if (_error != null) ...[
-            Text(_error!, style: const TextStyle(height: 1.6)),
-            TextButton(
-              onPressed: _loading ? null : _load,
-              child: const Text('다시 확인하기'),
+  Widget build(BuildContext context) {
+    Localizations.localeOf(context);
+    return Scaffold(
+      backgroundColor: AppColors.bg0,
+      appBar: AppBar(title: Text(tr("함께 가꾸는 나무"))),
+      body: RefreshIndicator(
+        onRefresh: _load,
+        child: ListView(
+          padding: const EdgeInsets.all(20),
+          children: [
+            const Text(
+              '한 사람과, 오래 남길 작은 정원',
+              style: TextStyle(fontSize: 21, fontWeight: FontWeight.w700),
             ),
+            const SizedBox(height: 8),
+            const Text(
+              '이름과 기념일을 정하고 서로 다녀간 마음을 남겨요. 편지와 감정 기록은 공유되지 않아요.',
+              style: TextStyle(height: 1.6),
+            ),
+            const SizedBox(height: 16),
+            FilledButton.icon(
+              onPressed: _busy ? null : _create,
+              icon: const Icon(Icons.add),
+              label: const Text('이웃과 나무 심기 · 구독'),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              '받은 초대 수락과 기존 나무 돌보기는 무료예요.',
+              style: TextStyle(color: AppColors.inkSoft, fontSize: 13),
+            ),
+            TextButton.icon(
+              onPressed: () async {
+                await Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => MySharedTreeNotesScreen(service: _service),
+                  ),
+                );
+                if (mounted && _owner == _service.currentOwner) await _load();
+              },
+              icon: const Icon(Icons.edit_note),
+              label: const Text('내가 남긴 공동 메모 관리'),
+            ),
+            const SizedBox(height: 20),
+            if (_error != null) ...[
+              Text(_error!, style: const TextStyle(height: 1.6)),
+              TextButton(
+                onPressed: _loading ? null : _load,
+                child: const Text('다시 확인하기'),
+              ),
+            ],
+            if (!_loading && _trees.isEmpty && _error == null)
+              const Card(
+                child: Padding(
+                  padding: EdgeInsets.all(20),
+                  child: Text(
+                    '아직 함께 가꾸는 나무가 없어요.\n이웃이 보낸 초대도 이곳에 도착해요.',
+                    style: TextStyle(height: 1.7),
+                  ),
+                ),
+              ),
+            for (final tree in _trees)
+              Card(
+                child: ListTile(
+                  leading: const Icon(
+                    Icons.park_outlined,
+                    color: AppColors.catSage,
+                    size: 36,
+                  ),
+                  title: Text(tree.name),
+                  subtitle: Text(
+                    '${tree.neighborName}님과 · ${tree.anniversaryOn}\n${tree.isInvitation
+                        ? '초대가 도착했어요'
+                        : tree.status == 'archived'
+                        ? '함께 남긴 기록'
+                        : tree.status == 'invited'
+                        ? '수락을 기다려요'
+                        : tree.stageLabel}',
+                  ),
+                  isThreeLine: true,
+                  trailing: Badge(
+                    isLabelVisible: tree.hasUnread,
+                    label: Text(tr("새 소식")),
+                    child: const Icon(Icons.chevron_right),
+                  ),
+                  onTap: () => _open(tree),
+                ),
+              ),
+            if (_loading)
+              const Padding(
+                padding: EdgeInsets.all(24),
+                child: Center(child: CircularProgressIndicator()),
+              ),
+            if (!_loading && _cursor != null)
+              OutlinedButton(
+                onPressed: () => _load(more: true),
+                child: const Text('더 보기'),
+              ),
           ],
-          if (!_loading && _trees.isEmpty && _error == null)
-            const Card(
-              child: Padding(
-                padding: EdgeInsets.all(20),
-                child: Text(
-                  '아직 함께 가꾸는 나무가 없어요.\n이웃이 보낸 초대도 이곳에 도착해요.',
-                  style: TextStyle(height: 1.7),
-                ),
-              ),
-            ),
-          for (final tree in _trees)
-            Card(
-              child: ListTile(
-                leading: const Icon(
-                  Icons.park_outlined,
-                  color: AppColors.catSage,
-                  size: 36,
-                ),
-                title: Text(tree.name),
-                subtitle: Text(
-                  '${tree.neighborName}님과 · ${tree.anniversaryOn}\n${tree.isInvitation
-                      ? '초대가 도착했어요'
-                      : tree.status == 'archived'
-                      ? '함께 남긴 기록'
-                      : tree.status == 'invited'
-                      ? '수락을 기다려요'
-                      : tree.stageLabel}',
-                ),
-                isThreeLine: true,
-                trailing: Badge(
-                  isLabelVisible: tree.hasUnread,
-                  label: const Text('새 소식'),
-                  child: const Icon(Icons.chevron_right),
-                ),
-                onTap: () => _open(tree),
-              ),
-            ),
-          if (_loading)
-            const Padding(
-              padding: EdgeInsets.all(24),
-              child: Center(child: CircularProgressIndicator()),
-            ),
-          if (!_loading && _cursor != null)
-            OutlinedButton(
-              onPressed: () => _load(more: true),
-              child: const Text('더 보기'),
-            ),
-        ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 class SharedTreeScreen extends StatefulWidget {
@@ -375,7 +379,7 @@ class _SharedTreeScreenState extends State<SharedTreeScreen>
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('취소'),
+            child: Text(tr("취소")),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
@@ -399,15 +403,32 @@ class _SharedTreeScreenState extends State<SharedTreeScreen>
   }
 
   Future<void> _reportNote(SharedTreeNote note) async {
-    final yes = await showDialog<bool>(context:context, builder:(ctx) => AlertDialog(
-      title:const Text('이 공유 메모를 신고할까요?'),
-      content:const Text('운영자가 이 공유 메모를 검토할 수 있도록 신고합니다. 개인 감정 기록은 전송하지 않아요.'),
-      actions:[TextButton(onPressed:()=>Navigator.pop(ctx,false), child:const Text('취소')),
-        FilledButton(onPressed:()=>Navigator.pop(ctx,true), child:const Text('신고'))]));
+    final yes = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('이 공유 메모를 신고할까요?'),
+        content: const Text(
+          '운영자가 이 공유 메모를 검토할 수 있도록 신고합니다. 개인 감정 기록은 전송하지 않아요.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(tr("취소")),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('신고'),
+          ),
+        ],
+      ),
+    );
     if (yes != true || !mounted) return;
     await _perform(() async {
-      await _service.reportNote(widget.id,note.id);
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('신고가 접수됐어요.')));
+      await _service.reportNote(widget.id, note.id);
+      if (mounted)
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('신고가 접수됐어요.')));
     });
   }
 
@@ -420,7 +441,7 @@ class _SharedTreeScreenState extends State<SharedTreeScreen>
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('취소'),
+            child: Text(tr("취소")),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
@@ -437,11 +458,12 @@ class _SharedTreeScreenState extends State<SharedTreeScreen>
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     final tree = _tree;
     return Scaffold(
       backgroundColor: AppColors.bg0,
       appBar: AppBar(
-        title: Text(tree?.name ?? '함께 가꾸는 나무'),
+        title: Text(tree?.name ?? tr("함께 가꾸는 나무")),
         actions: [
           if (tree != null && tree.status != 'archived')
             IconButton(
@@ -536,8 +558,8 @@ class _SharedTreeScreenState extends State<SharedTreeScreen>
                         ? null
                         : Text(_day(activity.createdAt!.toLocal())),
                     trailing: activity.unread
-                        ? const Text(
-                            '새 소식',
+                        ? Text(
+                            tr("새 소식"),
                             style: TextStyle(
                               color: AppColors.catSage,
                               fontSize: 12,
@@ -655,7 +677,12 @@ class _SharedTreeScreenState extends State<SharedTreeScreen>
                                 ),
                               ),
                               if (!note.mine)
-                                TextButton(onPressed: _busy ? null : () => _reportNote(note), child: const Text('신고')),
+                                TextButton(
+                                  onPressed: _busy
+                                      ? null
+                                      : () => _reportNote(note),
+                                  child: const Text('신고'),
+                                ),
                               if (note.mine)
                                 TextButton(
                                   onPressed: _busy
@@ -734,82 +761,89 @@ class _CreateTreeDialogState extends State<_CreateTreeDialog> {
   }
 
   @override
-  Widget build(BuildContext context) => PopScope(
-    canPop: !_busy,
-    child: AlertDialog(
-      title: const Text('함께 가꾸는 나무 심기'),
-      content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            DropdownButtonFormField<String>(
-              initialValue: _neighbor,
-              isExpanded: true,
-              decoration: const InputDecoration(labelText: '초대할 이웃'),
-              items: widget.neighbors
-                  .map(
-                    (p) => DropdownMenuItem(
-                      value: p.gardenId,
-                      child: Text(
-                        p.displayName,
-                        overflow: TextOverflow.ellipsis,
+  Widget build(BuildContext context) {
+    Localizations.localeOf(context);
+    return PopScope(
+      canPop: !_busy,
+      child: AlertDialog(
+        title: const Text('함께 가꾸는 나무 심기'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              DropdownButtonFormField<String>(
+                initialValue: _neighbor,
+                isExpanded: true,
+                decoration: const InputDecoration(labelText: '초대할 이웃'),
+                items: widget.neighbors
+                    .map(
+                      (p) => DropdownMenuItem(
+                        value: p.gardenId,
+                        child: Text(
+                          p.displayName,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
-                    ),
-                  )
-                  .toList(),
-              onChanged: _busy
-                  ? null
-                  : (value) => setState(() => _neighbor = value!),
-            ),
-            TextField(
-              controller: _name,
-              enabled: !_busy,
-              maxLength: 40,
-              decoration: const InputDecoration(
-                labelText: '나무 이름',
-                hintText: '예: 우리의 첫 겨울',
+                    )
+                    .toList(),
+                onChanged: _busy
+                    ? null
+                    : (value) => setState(() => _neighbor = value!),
               ),
-            ),
-            TextButton.icon(
-              onPressed: _busy
-                  ? null
-                  : () async {
-                      final date = await showDatePicker(
-                        context: context,
-                        initialDate: _date,
-                        firstDate: DateTime(1900),
-                        lastDate: DateTime(2200, 12, 31),
-                      );
-                      if (date != null && mounted) setState(() => _date = date);
-                    },
-              icon: const Icon(Icons.event_outlined),
-              label: Text('기념일 ${_day(_date)}'),
-            ),
-            const Text(
-              '이웃이 수락하면 함께 가꿀 수 있어요. 여기에 남긴 메모는 두 사람에게만 보여요.',
-              style: TextStyle(height: 1.5),
-            ),
-            if (_error != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 12),
-                child: Text(_error!, style: const TextStyle(color: Colors.red)),
+              TextField(
+                controller: _name,
+                enabled: !_busy,
+                maxLength: 40,
+                decoration: const InputDecoration(
+                  labelText: '나무 이름',
+                  hintText: '예: 우리의 첫 겨울',
+                ),
               ),
-          ],
+              TextButton.icon(
+                onPressed: _busy
+                    ? null
+                    : () async {
+                        final date = await showDatePicker(
+                          context: context,
+                          initialDate: _date,
+                          firstDate: DateTime(1900),
+                          lastDate: DateTime(2200, 12, 31),
+                        );
+                        if (date != null && mounted)
+                          setState(() => _date = date);
+                      },
+                icon: const Icon(Icons.event_outlined),
+                label: Text('기념일 ${_day(_date)}'),
+              ),
+              const Text(
+                '이웃이 수락하면 함께 가꿀 수 있어요. 여기에 남긴 메모는 두 사람에게만 보여요.',
+                style: TextStyle(height: 1.5),
+              ),
+              if (_error != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: Text(
+                    _error!,
+                    style: const TextStyle(color: Colors.red),
+                  ),
+                ),
+            ],
+          ),
         ),
+        actions: [
+          TextButton(
+            onPressed: _busy ? null : () => Navigator.pop(context),
+            child: Text(tr("취소")),
+          ),
+          FilledButton(
+            onPressed: _busy ? null : _save,
+            child: Text(_busy ? '초대 보내는 중' : '초대 보내기'),
+          ),
+        ],
       ),
-      actions: [
-        TextButton(
-          onPressed: _busy ? null : () => Navigator.pop(context),
-          child: const Text('취소'),
-        ),
-        FilledButton(
-          onPressed: _busy ? null : _save,
-          child: Text(_busy ? '초대 보내는 중' : '초대 보내기'),
-        ),
-      ],
-    ),
-  );
+    );
+  }
 }
 
 class _TreeNoteDialog extends StatefulWidget {
@@ -860,53 +894,56 @@ class _TreeNoteDialogState extends State<_TreeNoteDialog> {
   }
 
   @override
-  Widget build(BuildContext context) => PopScope(
-    canPop: !_busy,
-    child: AlertDialog(
-      title: const Text('함께 남길 한 줄'),
-      content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text('이 메모는 함께 가꾸는 이웃에게 보여요.'),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 6,
-              children: [
-                for (final message in ['다녀갔어 🌿', '응원해요 💛', '고마워요 🌷'])
-                  ActionChip(
-                    label: Text(message),
-                    onPressed: _busy ? null : () => _text.text = message,
-                  ),
-              ],
-            ),
-            TextField(
-              controller: _text,
-              enabled: !_busy,
-              maxLines: 4,
-              maxLength: 300,
-              decoration: const InputDecoration(
-                hintText: '오늘 남기고 싶은 말을 적어 주세요.',
+  Widget build(BuildContext context) {
+    Localizations.localeOf(context);
+    return PopScope(
+      canPop: !_busy,
+      child: AlertDialog(
+        title: const Text('함께 남길 한 줄'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text('이 메모는 함께 가꾸는 이웃에게 보여요.'),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 6,
+                children: [
+                  for (final message in ['다녀갔어 🌿', '응원해요 💛', '고마워요 🌷'])
+                    ActionChip(
+                      label: Text(message),
+                      onPressed: _busy ? null : () => _text.text = message,
+                    ),
+                ],
               ),
-            ),
-            if (_error != null)
-              Text(_error!, style: const TextStyle(color: Colors.red)),
-          ],
+              TextField(
+                controller: _text,
+                enabled: !_busy,
+                maxLines: 4,
+                maxLength: 300,
+                decoration: const InputDecoration(
+                  hintText: '오늘 남기고 싶은 말을 적어 주세요.',
+                ),
+              ),
+              if (_error != null)
+                Text(_error!, style: const TextStyle(color: Colors.red)),
+            ],
+          ),
         ),
+        actions: [
+          TextButton(
+            onPressed: _busy ? null : () => Navigator.pop(context),
+            child: Text(tr("취소")),
+          ),
+          FilledButton(
+            onPressed: _busy ? null : _save,
+            child: Text(_busy ? '저장 중' : '함께 남기기'),
+          ),
+        ],
       ),
-      actions: [
-        TextButton(
-          onPressed: _busy ? null : () => Navigator.pop(context),
-          child: const Text('취소'),
-        ),
-        FilledButton(
-          onPressed: _busy ? null : _save,
-          child: Text(_busy ? '저장 중' : '함께 남기기'),
-        ),
-      ],
-    ),
-  );
+    );
+  }
 }
 
 class _TreePicture extends StatelessWidget {
@@ -914,31 +951,34 @@ class _TreePicture extends StatelessWidget {
   final String style;
   const _TreePicture({required this.days, required this.style});
   @override
-  Widget build(BuildContext context) => Semantics(
-    label: '함께 가꾸는 기념 나무',
-    image: true,
-    child: Container(
-      height: 190,
-      margin: const EdgeInsets.only(bottom: 16),
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: style == 'moonlight'
-              ? const [Color(0xff34475b), Color(0xff8eaaa3)]
-              : style == 'blossom'
-              ? const [Color(0xfffbede7), Color(0xffe7eddb)]
-              : const [Color(0xfff8f1d9), Color(0xffe2ecd7)],
+  Widget build(BuildContext context) {
+    Localizations.localeOf(context);
+    return Semantics(
+      label: '함께 가꾸는 기념 나무',
+      image: true,
+      child: Container(
+        height: 190,
+        margin: const EdgeInsets.only(bottom: 16),
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: style == 'moonlight'
+                ? const [Color(0xff34475b), Color(0xff8eaaa3)]
+                : style == 'blossom'
+                ? const [Color(0xfffbede7), Color(0xffe7eddb)]
+                : const [Color(0xfff8f1d9), Color(0xffe2ecd7)],
+          ),
+          borderRadius: BorderRadius.circular(28),
         ),
-        borderRadius: BorderRadius.circular(28),
+        child: CustomPaint(
+          painter: _KeepsakeTreePainter(days, style),
+          size: Size.infinite,
+        ),
       ),
-      child: CustomPaint(
-        painter: _KeepsakeTreePainter(days, style),
-        size: Size.infinite,
-      ),
-    ),
-  );
+    );
+  }
 }
 
 class _KeepsakeTreePainter extends CustomPainter {

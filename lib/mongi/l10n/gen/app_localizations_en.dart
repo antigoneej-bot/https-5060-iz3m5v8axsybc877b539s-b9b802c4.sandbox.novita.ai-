@@ -22,14 +22,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get onboardingPage1Desc =>
-      'If there\'s a feeling still lingering in your heart today,\nlet\'s play together and let it go!';
+      "Something on your mind today?\nLet's spend a little time together.";
 
   @override
-  String get onboardingPage2Title => 'Mongi runs\nforward automatically';
+  String get onboardingPage2Title => "Mongi runs\non their own";
 
   @override
   String get onboardingPage2Desc =>
-      'Movement is automatic!\nJust focus on your button timing!';
+      "No need to steer!\nJust time your jumps and punches.";
 
   @override
   String get onboardingPage3Title =>
@@ -41,11 +41,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get onboardingPage4Title =>
-      'When you touch an emotion monster,\nMongi welcomes it into your heart';
+      "Mongi welcomes each\nfeeling you come across";
 
   @override
   String get onboardingPage4Desc =>
-      'Emotions you\'ve faced bloom\ninto pretty flowers in your garden 🌷';
+      "The feelings you collect\nbecome flowers in your garden 🌷";
 
   @override
   String get onboardingNext => 'Next';
@@ -55,11 +55,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get homeHeadline =>
-      'Is there a feeling\nstill lingering in your heart today?';
+      "What's on\nyour mind today?";
 
   @override
   String get homeSubCaption =>
-      'Left ✊ Punch button / Right 🦘 Jump button!\nMongi will meet the emotion monsters for you and take them in!';
+      "Left ✊ Punch / Right 🦘 Jump\nRun with Mongi and collect the feeling creatures along the way!";
 
   @override
   String get navHome => 'Home';
@@ -84,7 +84,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String homeGardenBadgeProgress(int percent) {
-    return 'Garden recovery $percent%';
+    return "Garden growth $percent%";
   }
 
   @override
@@ -104,18 +104,18 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get homeSupportAlertTitle =>
-      'It looks like things have been heavy lately';
+      "Could you use a little support?";
 
   @override
   String get homeSupportAlertBody =>
-      'You don\'t have to carry it alone. There\'s always someone to talk to.';
+      "You don't have to handle everything alone. You can reach out to someone you trust.";
 
   @override
   String get homeComebackCareTitleShort => 'Good to see you again!';
 
   @override
   String homeComebackCareBodyShort(int days) {
-    return 'It\'s been $days days. Even after a short break, Mongi was always here waiting for you 🌱';
+    return "Welcome back after $days days. Mongi is happy to see you. Pick up wherever you'd like 🌱";
   }
 
   @override
@@ -124,14 +124,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String homeComebackCareBodyLong(int days) {
-    return 'It\'s been $days days since your last visit. That\'s okay - Mongi was doing just fine here the whole time. Let\'s start again slowly, from today 💛';
+    return "It's been $days days. Mongi has been resting here, and your progress is still yours. Take your time settling in 💛";
   }
 
   @override
   String get homeChargeButton => 'Top up';
 
   @override
-  String get homeMindBoxChip => 'Mind Box';
+  String get homeMindBoxChip => "Costume box";
 
   @override
   String homePowerCharmChip(int count) {
@@ -148,7 +148,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String homeSeasonBannerTitle(int season, int level) {
-    return 'Season $season · Mongi\'s Journey of the Heart · Lv.$level';
+    return "Season $season · Mongi's Journey · Lv. $level";
   }
 
   @override
@@ -165,18 +165,18 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String homeDailyMissionClaimCount(int count) {
-    return 'Claim! $count';
+    return "Rewards to claim: $count";
   }
 
   @override
-  String get homeMindReportButton => 'Mind Report';
+  String get homeMindReportButton => "Mood report";
 
   @override
   String get homeBreathingButton => 'Breathe';
 
   @override
   String get homeNameFieldHint =>
-      'Want to tell only Mongi why you feel this way today? (optional)';
+      "Want to tell Mongi what's on your mind? (Optional)";
 
   @override
   String get homeHowToTitle => '👇 How to play';
@@ -188,21 +188,21 @@ class AppLocalizationsEn extends AppLocalizations {
   String get homeHowToStep2 => 'Start running\nwith Mongi!';
 
   @override
-  String get homeHowToStep3 => 'On contact, Mongi\ntakes it into its heart';
+  String get homeHowToStep3 => "Run into a feeling\nto collect it";
 
   @override
-  String get homeHowToStep4 => 'It stays in your garden\nas a seed';
+  String get homeHowToStep4 => "Plant it as a seed\nin your garden";
 
   @override
-  String get homeMaxSelectSnackbar => 'You can select up to 3';
+  String get homeMaxSelectSnackbar => "Choose up to 3 feelings";
 
   @override
   String get homeIntensityLabel =>
-      'How strong does this feeling feel right now?';
+      "How strong is this feeling right now?";
 
   @override
   String get homeFriendlyCaption =>
-      'Whatever you\'re feeling today, Mongi loves it all 🐾';
+      "Whatever you're feeling, you're welcome here 🐾";
 
   @override
   String homeEndlessButtonRecord(int count) {
@@ -224,7 +224,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get homeQuietModeButton => '🌙 Face it quietly';
+  String get homeQuietModeButton => "🌙 Take a quiet moment";
 
   @override
   String get homeMonetizationSectionLabel => 'Shop & currency below';
@@ -233,7 +233,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get quietModeAppBarTitle => 'Quiet Mode';
 
   @override
-  String get quietModeGreetTitle => 'Shall we gently face this feeling today?';
+  String get quietModeGreetTitle => "Let's take a moment to notice how you feel";
 
   @override
   String get quietModeGreetSubtitle =>
@@ -243,7 +243,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get quietModeGreetNextButton => 'Next';
 
   @override
-  String get quietModeBreatheTitle => 'Let\'s take a breath for a moment';
+  String get quietModeBreatheTitle => "Let's take a slow breath";
 
   @override
   String get quietModeBreatheStartButton => 'Start';
@@ -258,18 +258,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get quietModeReflectHint => 'Write a short note about how you feel';
 
   @override
-  String get quietModePlantButton => 'Plant in your heart';
+  String get quietModePlantButton => "Plant in the garden";
 
   @override
   String get quietModePlantingMessage =>
-      'Your feeling is quietly settling into the garden...';
+      "Planting a flower for this feeling…";
 
   @override
-  String get quietModeDoneTitle => 'You\'ve planted it well';
+  String get quietModeDoneTitle => "A new flower in your garden";
 
   @override
   String quietModeDoneBody(int count) {
-    return '$count feeling(s) have bloomed into flowers in your garden. You can revisit them anytime.';
+    return "Flowers planted for your feelings: $count. You can visit them anytime.";
   }
 
   @override
@@ -295,18 +295,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get shopSectionConsumables => '🎁 Consumables & Decor';
 
   @override
-  String get shopMindBoxTitle => 'Mind Box';
+  String get shopMindBoxTitle => "Costume box";
 
   @override
   String get shopMindBoxSubtitle =>
-      'Collect Mongi costumes with Light Essence (guaranteed, no random odds)';
+      "Collect costumes for Mongi with Light Essence. Each costume is guaranteed, with no random odds.";
 
   @override
   String get shopPowerCharmTitle => 'Power Charm';
 
   @override
   String shopPowerCharmSubtitle(int count) {
-    return 'A consumable that makes you invincible for 10 seconds in-game (you have $count)';
+    return "Use one for 10 seconds of invincibility during a run. You have $count.";
   }
 
   @override
@@ -314,7 +314,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get shopMongiCareSubtitle =>
-      'From tuna cans and food to special gifts like a cozy blanket';
+      "Food, treats, and cozy gifts for Mongi";
 
   @override
   String get shopGardenDecoTitle => 'Decorate Garden';
@@ -328,11 +328,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get shopSeasonPassTitle =>
-      'Mongi\'s Journey of the Heart (Season Pass)';
+      "Mongi's Journey (Season Pass)";
 
   @override
   String get shopSeasonPassSubtitle =>
-      'Get richer rewards on this season\'s limited premium track';
+      "Unlock this season's premium reward track";
 
   @override
   String get settingsHeader => '⚙️ Settings';
@@ -346,7 +346,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsNotifDesc =>
-      'Mongi will ask about your feelings once at a set time every day.\nJust a single, gentle nudge - never intrusive.';
+      "Choose a time for one daily reminder\nto check in with Mongi and your feelings.";
 
   @override
   String get settingsNotifTimeLabel => 'Reminder time';
@@ -364,7 +364,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsLanguageEnglish => 'English';
 
   @override
-  String get settingsDataNoticeTitle => '📱 Data Storage Notice';
+  String get settingsDataNoticeTitle => "📱 Where your data is stored";
 
   @override
   String get settingsDataNoticeBody =>
@@ -375,13 +375,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsMentalHealthSubtitle =>
-      'You don\'t have to endure it alone · View 24/7 support resources';
+      "Support is available · View 24/7 resources";
 
   @override
   String get settingsPrivacyPolicy => 'Privacy Policy';
 
   @override
-  String get settingsResetTitle => 'Start Over From Scratch';
+  String get settingsResetTitle => "Reset all progress";
 
   @override
   String get settingsResetDesc =>
@@ -435,7 +435,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get gameHintDodgeStage1 =>
-      'Dodge rocks with a jump, and just pass by emotion monsters to welcome them in!';
+      "Jump over rocks. Run into feeling creatures to collect them!";
 
   @override
   String get gameHintDodgeStage2Plus =>
@@ -454,7 +454,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String gameTimeOfDayBadge(String label) {
-    return 'It\'s $label right now';
+    return "Now showing: $label";
   }
 
   @override
@@ -493,7 +493,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get appExitConfirmButton => 'Exit';
 
   @override
-  String get endlessHintTitle => 'Challenge Mongi\'s best record today!';
+  String get endlessHintTitle => "See how far you and Mongi can go!";
 
   @override
   String get endlessHintGoal =>
@@ -506,19 +506,19 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get homeMongiMoodWaiting =>
-      'Mongi is waiting to see what feelings today will bring.';
+      "Mongi is ready to spend a little time with you.";
 
   @override
   String get homeMongiMoodJoyful =>
-      'Things have felt light lately! Mongi is happily hopping around 🐾';
+      "You've recorded some brighter feelings lately. Mongi has a spring in their step 🐾";
 
   @override
   String get homeMongiMoodHeavy =>
-      'Things have felt a bit heavy these past few days. Mongi is curled up beside you.';
+      "You've recorded some difficult feelings lately. Mongi is here to keep you company.";
 
   @override
   String get homeMongiMoodCalm =>
-      'Mongi is calmly keeping you company, just like always.';
+      "Mongi is settled in beside you. There's no rush.";
 
   @override
   String get homeEasterEgg0 =>
@@ -572,30 +572,30 @@ class AppLocalizationsEn extends AppLocalizations {
       'Tap a seed to see how much it has grown · Use \"Decorate\" in the top right to place items';
 
   @override
-  String get gardenHeaderTitle => '🌷 My Mind Garden';
+  String get gardenHeaderTitle => "🌷 My garden";
 
   @override
-  String get gardenTooltipCollection => 'Emotion Collection';
+  String get gardenTooltipCollection => "Mood collection";
 
   @override
-  String get gardenTooltipMilestone => 'Growth Documentary';
+  String get gardenTooltipMilestone => "Growth milestones";
 
   @override
   String get gardenTooltipShare => 'Share Garden';
 
   @override
-  String get gardenTooltipCalendar => 'Emotion Calendar';
+  String get gardenTooltipCalendar => "Mood calendar";
 
   @override
   String get gardenTooltipDiary => 'Diary';
 
   @override
   String gardenSummaryFlowersPlanted(int count) {
-    return 'You\'ve bloomed $count flowers of the heart so far';
+    return "Flowers grown in your garden: $count";
   }
 
   @override
-  String get gardenStatRecoveryLabel => 'Recovery';
+  String get gardenStatRecoveryLabel => "Growth";
 
   @override
   String get gardenStatMongiLabel => 'Mongi';
@@ -628,16 +628,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get gardenTreeWiltedHint =>
-      'Mongi\'s growth tree looks a bit bored · Visit today and it\'ll perk right back up 🌤️';
+      "Your growth tree is resting. A visit today will perk it up 🌤️";
 
   @override
   String gardenTreeMaxStageHint(String label) {
-    return 'Mongi\'s growth tree has fully bloomed into a $label!';
+    return "Mongi's tree has reached its final stage: $label!";
   }
 
   @override
   String gardenTreeGrowthHint(String label, int remaining) {
-    return 'Mongi\'s growth tree right now: $label · $remaining pts to next growth';
+    return "Mongi's tree: $label · $remaining points to the next stage";
   }
 
   @override
@@ -645,11 +645,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get gardenEmptyBody =>
-      'As you face your feelings one by one,\na flower will bloom right here';
+      "As you record your feelings,\nflowers will bloom here.";
 
   @override
   String gardenFlowerBedTitle(String emotionLabel) {
-    return '$emotionLabel\'s Garden';
+    return "$emotionLabel garden";
   }
 
   @override
@@ -683,12 +683,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String gardenSeedPotNotPlanted(String seedLabel) {
-    return '$seedLabel seed hasn\'t been planted yet';
+    return "You haven't planted $seedLabel yet";
   }
 
   @override
   String get gardenTreeWiltedSnackbar =>
-      'Mongi\'s growth tree looks a bit bored · Visit again today and it\'ll perk right back up 🌤️';
+      "Your growth tree is resting. A visit today will perk it up 🌤️";
 
   @override
   String gardenTreeStageSnackbar(String label) {
@@ -713,7 +713,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get gardenSeasonGreetingSummer =>
-      'Mongi\'s garden is sparkling with lush summer light';
+      "Summer sunshine fills Mongi's garden";
 
   @override
   String get gardenSeasonGreetingAutumn =>
@@ -745,16 +745,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String choiceAskingHeadlineWithCount(String nameLabel, int count) {
-    return 'Today, Mongi took in\n$count of $nameLabel!';
+    return "You and Mongi collected\n$count feeling creatures: $nameLabel";
   }
 
   @override
   String choiceAskingHeadlineNoCount(String nameLabel) {
-    return 'Today you briefly faced\n$nameLabel in your heart';
+    return "Today, you took a moment\nto notice $nameLabel";
   }
 
   @override
-  String get choiceAskingPrompt => 'Shall we plant\na feeling there now?';
+  String get choiceAskingPrompt => "Ready to plant\na seed for this feeling?";
 
   @override
   String get choiceAskingNotYetButton => 'Not just yet';
@@ -764,51 +764,51 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String choiceEarlyStopWithRemaining(int count, int remaining) {
-    return 'You met $count feelings today.\n$remaining more got away — will you catch them next time? 🤍';
+    return "Feeling creatures collected: $count.\n$remaining got away. You can try again whenever you'd like 🤍";
   }
 
   @override
   String choiceEarlyStopNoRemaining(int count) {
-    return 'You met $count feelings today.\nThat\'s more than enough — will you come back again? 🤍';
+    return "Feeling creatures collected: $count.\nTime for a rest. Thanks for playing 🤍";
   }
 
   @override
   String choiceComboLow(int count) {
-    return 'Even at a wobbly moment, you held on $count times';
+    return "You kept a combo going $count times!";
   }
 
   @override
   String choiceComboMid(int count) {
-    return '$count in a row without wavering — you kept your heart steady!';
+    return "$count in a row—nice timing!";
   }
 
   @override
   String choiceComboHigh(int count) {
-    return '$count in a row! Mongi is unusually sturdy today 💪';
+    return "$count in a row! You and Mongi are on a roll 💪";
   }
 
   @override
   String choiceInsightFrequentPositive(int count) {
-    return 'This feeling has already come up $count times this week.\nSeems like a good feeling that\'s visiting often lately ☺️';
+    return "You've recorded this feeling $count times this week.\nIs there a moment you'd like to remember? ☺️";
   }
 
   @override
   String choiceInsightFrequentNegative(int count) {
-    return 'This feeling has already come up $count times this week.\nIt seems to be visiting often lately. Mongi will keep watching over you.';
+    return "You've recorded this feeling $count times this week.\nMongi is here if you'd like to take a moment with it.";
   }
 
   @override
   String get choiceInsightAllPositive =>
-      'Today was filled with only good energy.\nA day like that is a precious gift for Mongi too ✨';
+      "You chose some happy feelings today.\nTake a moment to enjoy them, if you'd like ✨";
 
   @override
   String choiceInsightLongAbsence(String emotionLabel, int days) {
-    return 'Long time no see! You met $emotionLabel\nagain after $days days. Have you been okay?';
+    return "You recorded $emotionLabel again\nafter $days days. How does it feel today?";
   }
 
   @override
   String choiceInsightFirstEncounter(String emotionLabel) {
-    return 'You recorded $emotionLabel in your diary for the first time.\nThank you for showing courage. Mongi will remember it for a long time.';
+    return "This is your first diary entry for $emotionLabel.\nThanks for sharing a little of your day with Mongi.";
   }
 
   @override
@@ -818,7 +818,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String choiceNextGoalTreeAlmost(int points) {
-    return 'Mongi\'s tree is only $points points away from the next stage.\nWill you stay with it a little longer? 🌳';
+    return "Mongi's tree needs $points more points for its next stage.\nCome back to it whenever you'd like 🌳";
   }
 
   @override
@@ -853,16 +853,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String choiceTreeGrowthTitle(String label) {
-    return 'Mongi\'s growth tree has grown\ninto a $label!';
+    return "Mongi's tree has reached\nthe $label stage!";
   }
 
   @override
   String get choiceTreeGrowthHint =>
-      'The more steadily you face your feelings,\nthe bigger the tree grows 🌱';
+      "Your tree grows as you spend time\nrecording your feelings 🌱";
 
   @override
   String choiceTreeGrowthBonus(int bonus) {
-    return 'A special gift for the tree\'s growth, Light Essence +$bonus';
+    return "Your tree grew! Light Essence +$bonus";
   }
 
   @override
@@ -873,22 +873,22 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String choiceResultTitleSeedPlanted(String seedLabel) {
-    return 'A seed of $seedLabel was planted in your heart';
+    return "A seed of $seedLabel is planted in your garden";
   }
 
   @override
-  String get choiceResultTitlePlanted => 'A feeling was planted';
+  String get choiceResultTitlePlanted => "A seed for your feeling";
 
   @override
   String get choiceResultTitleGentle => 'It\'s okay, take your time';
 
   @override
   String get choiceResultMessageLove =>
-      'Warm light has seeped\ninto that once-dark spot ✨';
+      "A little light\nin your garden today ✨";
 
   @override
   String get choiceResultMessageNoLove =>
-      'Your heart is already a little lighter\nfor the feelings you faced together today\nCome back whenever you\'re ready 🤍';
+      "Thanks for spending time\nwith your feelings today.\nCome back whenever you'd like 🤍";
 
   @override
   String get choiceResultLevelUpStage2 =>
@@ -911,7 +911,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get choiceResultGoldenFrameDesc =>
-      'A rare mark you can only get with an extremely low chance.\nShow it off in your emotion collection!';
+      "You found a rare frame!\nSee it in your mood collection.";
 
   @override
   String choiceResultSeedGrown(String seedLabel) {
@@ -919,17 +919,17 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get choiceResultGardenButton => 'Visit my heart garden';
+  String get choiceResultGardenButton => "Visit my garden";
 
   @override
   String get choiceResultNoteLabel =>
-      'Want to leave this feeling as a sentence today? (optional)';
+      "Want to write a line about this feeling? (Optional)";
 
   @override
   String get choiceResultNoteHint => 'e.g. I feel a bit lighter today';
 
   @override
-  String get choiceResultShareButton => 'Share emotion card';
+  String get choiceResultShareButton => "Share mood card";
 
   @override
   String get choiceResultHomeButton => 'Home';
@@ -939,13 +939,13 @@ class AppLocalizationsEn extends AppLocalizations {
       'How strongly did you feel this emotion today?';
 
   @override
-  String get choiceIntensityVeryWeak => 'Very weak';
+  String get choiceIntensityVeryWeak => "Very mild";
 
   @override
-  String get choiceIntensityWeak => 'Weak';
+  String get choiceIntensityWeak => "Mild";
 
   @override
-  String get choiceIntensityNormal => 'Normal';
+  String get choiceIntensityNormal => "Moderate";
 
   @override
   String get choiceIntensityStrong => 'Strong';
@@ -955,38 +955,38 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get choiceTriggerLabel =>
-      'What was it because of? (optional, multiple choice)';
+      "What brought this feeling on? (Optional · Choose any that apply)";
 
   @override
   String get choiceTranscendenceBadge => 'You discovered a hidden moment';
 
   @override
   String choiceTranscendenceTitle(String emotionLabel) {
-    return '\"$emotionLabel\" has transcended';
+    return "A new milestone for “$emotionLabel”";
   }
 
   @override
   String get choiceTranscendenceDesc =>
-      'A feeling that stayed with you a hundred times over.\nNo one told you in advance, but you did it.';
+      "You've recorded this feeling 100 times.\nHere's a surprise to mark the moment.";
 
   @override
-  String get choiceSeasonMilestoneBadge => 'Heart Journey Milestone';
+  String get choiceSeasonMilestoneBadge => "Journey milestone";
 
   @override
   String get seasonMilestoneLevel5 =>
-      'Level 5 already! Proof you\'ve been caring for your heart little by little every day 🌱';
+      "Level 5! All those small steps have added up 🌱";
 
   @override
   String get seasonMilestoneLevel10 =>
-      'You\'re past halfway. Every day you\'ve built up so far is truly precious 🌿';
+      "You're halfway there. Look how far you've come 🌿";
 
   @override
   String get seasonMilestoneLevel15 =>
-      'Level 15, not much left now. Your consistency is amazing 🌳';
+      "Level 15! Just a few more levels to go 🌳";
 
   @override
   String get seasonMilestoneLevel20 =>
-      'You completed this season\'s heart journey! This is the moment Mongi is proudest of 🌟';
+      "You've completed this season's journey. Thanks for sharing it with Mongi 🌟";
 
   @override
   String get privacyHeaderTitle => '🔒 Privacy Policy';
@@ -1079,7 +1079,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get mentalHealthHeaderTitle => '🤍 When it\'s hard';
+  String get mentalHealthHeaderTitle => "🤍 Find support";
 
   @override
   String mentalHealthCallFailedSnackbar(String number) {
@@ -1104,7 +1104,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get mentalHealthIntroBody1 =>
-      'Mongi is a friend who helps you gently face and record your feelings.\nBut if things feel too heavy to bear right now,\nit\'s better to talk to a professional counselor who can support you far more than Mongi can.';
+      "Mongi gives you a place to notice and record your feelings.\nWhen you need more support,\na qualified counselor can help you work through what's going on.";
 
   @override
   String get mentalHealthIntroBody2 =>
@@ -1184,14 +1184,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get mentalHealthNearbyCounselingSubtitle =>
-      'If calling feels hard, you can visit a nearby center in person';
+      "Prefer to talk in person? Find a center near you.";
 
   @override
   String get mentalHealthSafetyPlanTitle => 'Create your own safety plan';
 
   @override
   String get mentalHealthSafetyPlanSubtitle =>
-      'Preparing it while you\'re feeling calm can give you strength later';
+      "Plan ahead for times when you might need extra support";
 
   @override
   String get mentalHealthSignsTitle => '💡 Please reach out for help when...';
@@ -1238,11 +1238,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get shareCardNotFoundError => 'Couldn\'t find the card.';
 
   @override
-  String get shareImageConvertError => 'Failed to convert the image.';
+  String get shareImageConvertError => "Couldn't create the image.";
 
   @override
   String shareTextBody(String nameLabel, int count) {
-    return 'Today, faced $nameLabel with Mongi $count times 🐱🌿 #Mongi #EmotionDiary';
+    return "Time with Mongi today: $nameLabel · Feeling creatures collected: $count 🐱🌿 #Mongi #EmotionDiary";
   }
 
   @override
@@ -1293,7 +1293,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get notificationTitle => 'Mongi 🐱';
 
   @override
-  String get notificationChannelName => 'Daily Heart Reminder';
+  String get notificationChannelName => "Daily mood check-in";
 
   @override
   String get notificationChannelDescription =>
@@ -1309,7 +1309,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get notificationReminderMessage3 =>
-      'Want to tend the Garden of the Heart with Mongi today? 🌱';
+      "Feel like spending some time in the garden with Mongi? 🌱";
 
   @override
   String get notificationReminderMessage4 =>
@@ -1320,7 +1320,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Mongi is waiting for you in the little garden 🌷';
 
   @override
-  String get shareTitle => 'Today\'s Emotion Card';
+  String get shareTitle => "Today's mood card";
 
   @override
   String get shareSubtitle => 'Share today\'s feelings with a friend';
@@ -1346,12 +1346,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String shareCardHeadlineWithCount(String nameLabel, int count) {
-    return 'Today, faced $nameLabel\n$count times with Mongi';
+    return "Time with Mongi: $nameLabel\nFeeling creatures collected: $count";
   }
 
   @override
   String shareCardHeadlineNoCount(String nameLabel) {
-    return 'Today, briefly faced\n$nameLabel in your heart';
+    return "Today, I took a moment\nto notice $nameLabel";
   }
 
   @override
@@ -1361,7 +1361,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get shareCardNoLoveMessage =>
-      'For every feeling you faced together today,\nyour heart already feels a little lighter 🤍';
+      "A little time with my feelings today.\nNo need to have everything figured out 🤍";
 
   @override
   String get shareCardPreviewBadge => 'Preview';
@@ -1372,7 +1372,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get reviveOfferHeadline => 'Not ready to stop yet!';
+  String get reviveOfferHeadline => "Want to keep going?";
 
   @override
   String get reviveFreeOfferBody =>
@@ -1386,10 +1386,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get reviveAdOfferSubtitleSecondTime =>
-      'Mongi has one more favor to ask';
+      "One more chance to continue";
 
   @override
-  String get reviveAdOfferSubtitleFirstTime => 'Give Mongi a second chance';
+  String get reviveAdOfferSubtitleFirstTime => "Keep your run going";
 
   @override
   String get reviveAdOfferBody =>
@@ -1437,16 +1437,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get weekdayObservationNotEnoughData =>
-      'As more entries pile up, I\'ll show you how your mood flows by day of the week too 🌱';
+      "With a few more entries, you'll be able to see patterns by day of the week 🌱";
 
   @override
   String weekdayObservationHasPattern(String bestDay, String toughestDay) {
-    return 'Your heart felt especially at ease on ${bestDay}days,\nand a bit tougher on ${toughestDay}days. On days like that, it\'s okay to be a little gentler with yourself 🤍';
+    return "Your entries suggest brighter feelings on ${bestDay} and more difficult ones on ${toughestDay}.\nThese are patterns in your entries, not a picture of every moment 🤍";
   }
 
   @override
   String get weekdayObservationNoClearPattern =>
-      'Your feelings flow a little differently every day.\nWhatever day it is, Mongi is always right here with the same heart 🤍';
+      "There's no clear pattern by day of the week yet.\nWhatever today brings, there's room for it here 🤍";
 
   @override
   String get weeklyObservationNoData =>
@@ -1454,34 +1454,34 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String weeklyObservationImprovedFromLastWeek(int deltaPercent) {
-    return 'Your brighter moods rose by ${deltaPercent}pp compared to last week.\nIf you felt that change yourself, that\'s entirely something you made happen ✨';
+    return "Brighter feelings made up ${deltaPercent} more percentage points of your entries than last week.\nDoes that match how the week felt to you? ✨";
   }
 
   @override
   String get weeklyObservationDeclinedFromLastWeek =>
-      'This week may have been a bit tougher than last week.\nYou don\'t have to push yourself - Mongi will keep staying by your side 🤍';
+      "You recorded more difficult feelings this week than last week.\nIf you'd like, take a moment to think about what you need now 🤍";
 
   @override
   String weeklyObservationDominantPositive(String emotion) {
-    return 'This week was especially full of \"$emotion\".\nMongi felt that good energy right along with you 😊';
+    return "“$emotion” appeared most often in this week's entries.\nIs there a moment you'd like to remember? 😊";
   }
 
   @override
   String weeklyObservationDominantNegative(String emotion) {
-    return 'This week \"$emotion\" loomed especially large.\nMongi is curious what happened - feel free to share slowly, whenever you\'re ready.';
+    return "“$emotion” appeared most often in this week's entries.\nYou can write more about it whenever you feel ready.";
   }
 
   @override
   String get weeklyObservationManyNotes =>
-      'You shared a lot of stories this week.\nOpening up your heart is never easy. Mongi remembers every single one 📔';
+      "You wrote several notes this week.\nThey're here for you to read again whenever you'd like 📔";
 
   @override
   String get weeklyObservationMostlyHeavy =>
-      'This may have been a week when your heart felt a little heavy.\nEven on days like that, just showing up for Mongi every day is already something to be proud of 🤍';
+      "Many of this week's entries describe difficult feelings.\nYou don't have to make sense of them all right now 🤍";
 
   @override
   String weeklyObservationDefaultTopEmotion(String emotion, int count) {
-    return 'The feeling you met most often this week was\n\"$emotion\" ($count times). Whatever the feeling, it all matters to Mongi.';
+    return "Your most recorded feeling this week was\n“$emotion” ($count times). Every feeling has a place here.";
   }
 
   @override
@@ -1489,7 +1489,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Thanks for spending this week with Mongi too.';
 
   @override
-  String get calendarHeaderTitle => '🗓️ Emotion Calendar';
+  String get calendarHeaderTitle => "🗓️ Mood calendar";
 
   @override
   String calendarMonthLabel(int year, int month) {
@@ -1498,15 +1498,15 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get calendarInsightNotEnoughData =>
-      'As a few more entries pile up this month,\nI\'ll show you how your heart has been flowing 🌱';
+      "A few more entries will help show\nthis month's mood patterns 🌱";
 
   @override
   String calendarInsightTitleWithTop(String label) {
-    return 'This month\'s Mongi diary title: \"$label\"';
+    return "Most recorded this month: “$label”";
   }
 
   @override
-  String get calendarInsightTitleFallback => 'See this month\'s mood flow';
+  String get calendarInsightTitleFallback => "Explore this month's feelings";
 
   @override
   String get calendarStatDiversityLabel => 'Emotion variety';
@@ -1525,7 +1525,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get calendarWeeklyTrendTitle => 'Weekly mood flow';
+  String get calendarWeeklyTrendTitle => "Feelings by week";
 
   @override
   String get calendarLegendPositive => 'Positive';
@@ -1534,7 +1534,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get calendarLegendNegative => 'Negative';
 
   @override
-  String get calendarWeekdayTrendTitle => 'Mood flow by day of week';
+  String get calendarWeekdayTrendTitle => "Feelings by day of the week";
 
   @override
   String calendarWeekLabel(int week) {
@@ -1543,19 +1543,19 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get calendarEmptyMonth =>
-      'No entries yet this month.\nThey\'ll pile up here once you face a feeling 🌱';
+      "No entries this month yet.\nRecord a feeling whenever you'd like 🌱";
 
   @override
   String get calendarMonthSummaryTitle => 'This month\'s mood summary';
 
   @override
   String calendarMonthSummaryTopEmotion(String emotion, String icon) {
-    return 'The feeling you faced most was \"$emotion\" $icon';
+    return "Most recorded feeling: “$emotion” $icon";
   }
 
   @override
   String calendarMonthSummaryTotal(int count) {
-    return 'You opened up your heart $count times this month.\nHowever you feel, it\'s okay - Mongi is always by your side.';
+    return "You made $count entries this month.\nWhatever you wrote, Mongi is here to keep you company.";
   }
 
   @override
@@ -1567,43 +1567,43 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get calendarMonthAnalysisTitle => 'A light look at this month';
+  String get calendarMonthAnalysisTitle => "A look back at this month";
 
   @override
   String get monthlyObservationNoData =>
-      'This month still needs a few more entries.\nThat\'s okay, let\'s fill it in slowly 🌱';
+      "There aren't enough entries for a monthly summary yet.\nWrite whenever it feels right 🌱";
 
   @override
   String monthlyObservationImprovedFromLastMonth(int deltaPercent) {
-    return 'Brighter feelings grew by $deltaPercent%p compared to last month.\nMongi noticed that change too, built up over the whole month ✨';
+    return "Brighter feelings made up $deltaPercent more percentage points of your entries than last month.\nHow does that compare with your own experience? ✨";
   }
 
   @override
   String get monthlyObservationDeclinedFromLastMonth =>
-      'This month may have felt a bit heavier than last month.\nNo need to push yourself - Mongi will stay right here 🤍';
+      "You recorded more difficult feelings this month than last month.\nTake your time looking back, if you'd like 🤍";
 
   @override
   String monthlyObservationDominantPositive(String emotion, int percent) {
-    return 'This month was full of \"$emotion\" ($percent%).\nMongi felt that good energy too 😊';
+    return "“$emotion” was your most recorded feeling this month ($percent%).\nIs there a moment you'd like to keep? 😊";
   }
 
   @override
   String monthlyObservationDominantNegative(String emotion, int percent) {
-    return 'This month, \"$emotion\" showed up a lot ($percent%).\nMongi is curious what happened - feel free to share it slowly.';
+    return "“$emotion” was your most recorded feeling this month ($percent%).\nYou can write more about it whenever you're ready.";
   }
 
   @override
   String monthlyObservationDiverseEmotions(int count) {
-    return 'You met as many as $count different feelings this month.\nNot staying in just one emotion shows how flexible your heart was 🎨';
+    return "You recorded $count different feelings this month.\nThere's room here for every one of them 🎨";
   }
 
   @override
   String get monthlyObservationMostlyHeavy =>
-      'This may have been a heavier month.\nStill showing up for Mongi every day is something to be proud of 🤍';
+      "Many of this month's entries describe difficult feelings.\nIt's okay to take your time with them 🤍";
 
   @override
   String monthlyObservationDefaultTopEmotion(String emotion, int count) {
-    return 'The feeling you met most this month was\n\"$emotion\" ($count times). Every feeling matters to Mongi.';
+    return "Your most recorded feeling this month was\n“$emotion” ($count times). Every feeling has a place here.";
   }
 
   @override
@@ -1612,7 +1612,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String calendarDayDetailTitle(int day) {
-    return 'Entries for the $day';
+    return "Entries for day $day";
   }
 
   @override
@@ -1622,12 +1622,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String seasonPassAppBarTitle(int seasonNumber) {
-    return 'Season $seasonNumber · Mongi\'s Heart Journey';
+    return "Season $seasonNumber · Mongi's Journey";
   }
 
   @override
   String get seasonPassSubHeadline =>
-      'Even without playing, checking in daily or leaving a gratitude entry\nmoves your heart journey forward, little by little 🌿';
+      "Checking in or writing a gratitude entry also adds to your season progress.\nYou don't have to play every time 🌿";
 
   @override
   String seasonPassCountdownDays(int days, int hours) {
@@ -1653,7 +1653,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get seasonPassRestoreConfirmedSnackbar =>
-      'We checked your purchase history. If you\'ve already purchased, it\'ll be reflected shortly.';
+      "Purchase history checked. Any restored purchases will appear shortly.";
 
   @override
   String seasonPassFreeRewardClaimedSnackbar(int level) {
@@ -1682,7 +1682,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get seasonPassPremiumTierBadge => '💎 Premium';
 
   @override
-  String get seasonPassMaxLevelReached => 'You\'ve filled every level!';
+  String get seasonPassMaxLevelReached => "You've reached the final level!";
 
   @override
   String seasonPassXpProgress(int xpInto, int span) {
@@ -1690,7 +1690,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get seasonPassMindMilestoneBadge => '🌿 Heart Milestone';
+  String get seasonPassMindMilestoneBadge => "🌿 Journey milestone";
 
   @override
   String seasonPassTierLevelLabel(int level) {
@@ -1733,7 +1733,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get nearbyIntroCardBody =>
-      'If calling still feels intimidating, visiting somewhere nearby to talk\nin person can be a great option too. Pick the type of place you want\nbelow, and we\'ll open a map to find one near you.';
+      "Would you rather talk in person?\nChoose the type of support you're looking for,\nand we'll open a map to help you find it nearby.";
 
   @override
   String get nearbyOfficialPortalTitle =>
@@ -1815,26 +1815,26 @@ class AppLocalizationsEn extends AppLocalizations {
   String get nearbyCenterPsychiatricMapQuery => 'psychiatric clinic';
 
   @override
-  String get mindReportHeaderTitle => '💗 Mind Report';
+  String get mindReportHeaderTitle => "💗 Mood report";
 
   @override
   String get mindReportIntroText =>
-      'Here\'s everything you and Mongi have faced together, at a glance.\nMore than the numbers, you\'re the amazing one for noticing those feelings.';
+      "Look back at what you've recorded with Mongi.\nThese numbers are a starting point for reflection, not a score for how you're doing.";
 
   @override
   String get mindReportSupportAlertTitle =>
-      'It seems like things have felt heavy lately';
+      "Could you use some support?";
 
   @override
   String get mindReportSupportAlertBody =>
-      'You don\'t have to carry it alone. There\'s always somewhere to talk.';
+      "You don't have to work through everything on your own. You can reach out for support.";
 
   @override
   String get mindReportSupportEntryLabel =>
-      'When it\'s hard - see counseling guide';
+      "Find counseling & support";
 
   @override
-  String get mindReportWeeklyTitle => 'Mongi\'s observations this week';
+  String get mindReportWeeklyTitle => "A look at your week";
 
   @override
   String mindReportWeeklyPositiveLabel(int percent) {
@@ -1843,24 +1843,24 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String mindReportWeeklySessionsLabel(int count) {
-    return '· Together $count times';
+    return "· $count sessions together";
   }
 
   @override
   String get mindReportWeeklyNotEnoughData =>
-      'Still gathering data. Stick with it a little longer 🌱';
+      "There aren't enough entries for a summary yet. Write whenever you'd like 🌱";
 
   @override
-  String get mindReportMonthlyTitle => 'This month\'s mood flow';
+  String get mindReportMonthlyTitle => "This month's feelings";
 
   @override
   String mindReportMonthlyTopEmotion(String emotion) {
-    return 'The feeling you met most was \"$emotion\"';
+    return "Most recorded feeling: “$emotion”";
   }
 
   @override
   String get mindReportMonthlyNoTopEmotion =>
-      'I\'ll show you this month\'s mood flow';
+      "Explore this month's entries";
 
   @override
   String mindReportMonthlyStreak(int days) {
@@ -1869,21 +1869,21 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get mindReportMonthlyNotEnoughData =>
-      'As this month\'s entries build up a bit more, I\'ll show you the flow of your heart 🌱';
+      "With a few more entries, you'll be able to see this month's mood patterns 🌱";
 
   @override
-  String get mindReportWeekdayTitle => 'Mood flow by day of the week';
+  String get mindReportWeekdayTitle => "Feelings by day of the week";
 
   @override
-  String get mindReportTriggerTitle => 'What\'s behind it';
+  String get mindReportTriggerTitle => "What brought these feelings on?";
 
   @override
   String get mindReportTriggerNotEnoughData =>
-      'Answer \"What was it because of?\" a few more times when logging your feelings, and we\'ll show you patterns here too 🌱';
+      "Add what brought a feeling on when you make an entry. With a few more answers, patterns can appear here 🌱";
 
   @override
   String triggerInsightDominantNegativeCause(String trigger, int count) {
-    return 'Lately, \"$trigger\" may have been weighing on your heart.\nIt came up $count times. Just noticing it is already a big step 🤍';
+    return "You chose “$trigger” alongside difficult feelings $count times.\nIs there anything about that you'd like to reflect on? 🤍";
   }
 
   @override
@@ -1942,10 +1942,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get mindReportGratitudeDoneToday => 'Logged today ✓';
 
   @override
-  String get mindReportCollectionTitle => 'Emotion Collection';
+  String get mindReportCollectionTitle => "Mood collection";
 
   @override
-  String get mindReportDiaryTitle => 'Emotion Diary';
+  String get mindReportDiaryTitle => "Garden journal";
 
   @override
   String mindReportDiaryCount(int count) {
@@ -1953,15 +1953,15 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get collectionHeaderTitle => '📖 Emotion Collection';
+  String get collectionHeaderTitle => "📖 Mood collection";
 
   @override
   String get collectionNegativeSectionTitle =>
-      '🌧️ Feelings you\'ve faced (10 types)';
+      "🌧️ Difficult feelings (10 types)";
 
   @override
   String get collectionPositiveSectionTitle =>
-      '🌟 Feelings you\'ve embraced (5 types)';
+      "🌟 Brighter feelings (5 types)";
 
   @override
   String get collectionProgressCompleteText =>
@@ -1974,21 +1974,21 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get collectionProgressHint =>
-      'The monster evolves the more you meet it (5x · 20x · 50x)';
+      "Each creature evolves as you meet it again (5 · 20 · 50 times)";
 
   @override
   String collectionGoldenFrameCount(int count) {
-    return 'You have $count golden frame(s)!';
+    return "Golden frames collected: $count";
   }
 
   @override
   String get collectionGoldenFrameEarned => '🏆 Golden Frame Earned!';
 
   @override
-  String get collectionTranscendedBadge => '🌌 Transcended Feeling';
+  String get collectionTranscendedBadge => "🌌 Beyond Master";
 
   @override
-  String get collectionTranscendedRank => 'Transcended Rank';
+  String get collectionTranscendedRank => "Beyond Master rank";
 
   @override
   String get collectionMasteredRank => 'Master Rank';
@@ -2000,17 +2000,17 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String collectionMetCountLabel(int count) {
-    return 'You\'ve faced it $count times so far';
+    return "Times you've met: $count";
   }
 
   @override
   String collectionNextEvolutionHint(int remaining, String nextName) {
-    return 'Face it $remaining more times to evolve into \"$nextName\"';
+    return "Meet it $remaining more times to unlock “$nextName”";
   }
 
   @override
   String get collectionTranscendedMessage =>
-      'After a hundred encounters, it became something entirely different.\nNo one warned you - this discovery is entirely your own 🌌';
+      "After 100 encounters, you've discovered a new form.\nA little surprise for you and Mongi 🌌";
 
   @override
   String get collectionMasteredMessage =>
@@ -2021,7 +2021,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String gardenShareShareText(String label) {
-    return 'Mongi\'s growth tree is now at the $label stage 🌳 We\'re growing together as I care for my heart every day #Mongi #MindGarden';
+    return "Mongi's tree has reached the $label stage 🌳 A little time for myself, a little growth in my garden #Mongi #MindGarden";
   }
 
   @override
@@ -2074,17 +2074,17 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get gardenShareCardFooter =>
-      'Caring for my heart every day\nand growing little by little 🌱';
+      "Taking time for myself\nand watching my garden grow 🌱";
 
   @override
-  String get milestoneHeaderTitle => '🎬 Mongi\'s Growth Documentary';
+  String get milestoneHeaderTitle => "🌳 Mongi's growth story";
 
   @override
   String get milestoneIntroTitle => 'Mongi\'s tree has finally\nborne fruit 🍎';
 
   @override
   String get milestoneIntroBody =>
-      'The little seed that was Mongi has grown this much\nthanks to all the feelings you\'ve faced together.\nShall we take a moment to look back on the journey?';
+      "Your tree started as a seed. Look at it now!\nEach check-in helped it grow.\nWant to look back on the journey?";
 
   @override
   String get milestoneTimelineTitle => 'Stories shared with Mongi';
@@ -2113,7 +2113,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String milestoneImprovedText(String label) {
-    return 'You used to meet $label often at first,\nbut it\'s become much less frequent lately. Your heart may have grown a little lighter.';
+    return "You recorded $label often at first,\nand less often lately. How does that compare with how you've been feeling?";
   }
 
   @override
@@ -2123,11 +2123,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get milestoneEmptyTimelineText =>
-      'There are no one-line stories left yet,\nbut every feeling you\'ve sat with together grew this tree 🌳';
+      "No written notes here yet,\nbut the feelings you've recorded helped this tree grow 🌳";
 
   @override
   String get milestoneClosingQuote =>
-      '\"Thank you for bringing me this far.\nWhatever feeling comes next,\nI\'ll be right here watching over you.\"';
+      "“Thanks for sharing this time with me.\nWhatever you're feeling next time,\nthere's a place for you here.”";
 
   @override
   String get milestoneShareButtonLabel => 'Share this moment as a card';
@@ -2157,25 +2157,25 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get weeklyReportShareText =>
-      'Here\'s my emotion report with Mongi this week 🌱 #Mongi #MindGarden';
+      "My week with Mongi, through the feelings I recorded 🌱 #Mongi #MindGarden";
 
   @override
   String get weeklyReportShareButton => 'Share this week\'s report';
 
   @override
-  String get weeklyReportNotEnoughTitle => 'Still gathering data';
+  String get weeklyReportNotEnoughTitle => "Not enough entries yet";
 
   @override
   String get weeklyReportNotEnoughBody =>
-      'Spend a little more time with Mongi\nand we\'ll share this week\'s story with you';
+      "This week's summary will appear\nwhen there are a few more entries.";
 
   @override
   String weeklyReportSessionsLabel(int count) {
-    return 'Together $count times';
+    return "$count sessions together";
   }
 
   @override
-  String get weeklyReportEmotionsSectionTitle => 'Feelings met this week';
+  String get weeklyReportEmotionsSectionTitle => "Feelings recorded this week";
 
   @override
   String weeklyReportEmotionTag(String icon, String label, int count) {
@@ -2197,7 +2197,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get gardenDecoSheetSubtitle =>
-      'Tap an unlocked item to equip or unequip it';
+      "Tap an unlocked item to place it or put it away";
 
   @override
   String get gardenDecoFreeSectionLabel =>
@@ -2208,7 +2208,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Premium Items · Garden Decoration Pack';
 
   @override
-  String get gardenDecoRestoreButton => 'Restore Previous Purchase';
+  String get gardenDecoRestoreButton => "Restore purchases";
 
   @override
   String get gardenDecoProBadge => 'PRO';
@@ -2231,7 +2231,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String gardenDecoProgressPath(int percent) {
-    return 'Garden recovery $percent% (unlocks at 100%)';
+    return "Garden growth $percent% (unlocks at 100%)";
   }
 
   @override
@@ -2255,13 +2255,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get gardenSeedDescForgiveness =>
-      'A seed that lets go of what weighs on your heart';
+      "A seed for letting go at your own pace";
 
   @override
-  String get gardenSeedDescLove => 'A seed that shares warmth';
+  String get gardenSeedDescLove => "A seed for love";
 
   @override
-  String get gardenSeedDescPeace => 'A seed of quiet, calm peace';
+  String get gardenSeedDescPeace => "A seed for a moment of calm";
 
   @override
   String get gardenDecoLabelBench => 'Wooden Bench';
@@ -2322,7 +2322,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get gardenDecoUnlockHintJangdokdae =>
-      'Unlocks after blooming flowers 10 or more times';
+      "Unlocks after flowers bloom 10 times";
 
   @override
   String get gardenDecoLabelGinkgoPath => 'Ginkgo Path';
@@ -2359,7 +2359,7 @@ class AppLocalizationsEn extends AppLocalizations {
       '💡 Not enough Light Essence. Want to collect more in Endless Mode?';
 
   @override
-  String get mindBoxHeaderTitle => '🎁 Mind Box';
+  String get mindBoxHeaderTitle => "🎁 Costume box";
 
   @override
   String get mindBoxAllCollectedTitle =>
@@ -2395,7 +2395,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get mindBoxResultTitleLegendary => '🌟 A truly special gift arrived!';
 
   @override
-  String get mindBoxResultTitleNormal => '🎁 You opened a Mind Box';
+  String get mindBoxResultTitleNormal => "🎁 You opened a costume box";
 
   @override
   String get mindBoxConfirmButton => 'OK';
@@ -2477,10 +2477,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get endlessResultNewRecordBadge => '🏆 New personal best today!';
 
   @override
-  String get endlessResultCardTitle => 'Today\'s Challenge Result';
+  String get endlessResultCardTitle => "Today's run";
 
   @override
-  String get endlessResultEatenCountLabel => 'Emotions Faced';
+  String get endlessResultEatenCountLabel => "Feeling creatures collected";
 
   @override
   String endlessResultEatenCountValue(int count) {
@@ -2488,7 +2488,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get endlessResultSurvivedTimeLabel => 'Survival Time';
+  String get endlessResultSurvivedTimeLabel => "Time running";
 
   @override
   String get endlessResultBestRecordLabel => '👑 My Best Record';
@@ -2500,7 +2500,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get endlessResultRankingFooter =>
-      'More precious than any ranking is the time you spent facing your feelings with Mongi today 🤍';
+      "Thanks for spending a little time with Mongi today. The score is just part of the game 🤍";
 
   @override
   String get endlessResultRetryButton => 'Try Again 🐾';
@@ -2518,21 +2518,21 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String dailyMissionLabelEatEmotions(int target) {
-    return 'Face $target emotion monsters together';
+    return "Collect $target feeling creatures";
   }
 
   @override
   String dailyMissionLabelCompleteStage(int target) {
-    return 'Complete a stage $target time(s)';
+    return "Stage completions: $target";
   }
 
   @override
   String dailyMissionLabelPlantLove(int target) {
-    return 'Plant your heart $target time(s)';
+    return "Planting goal: $target";
   }
 
   @override
-  String get dailyMissionSheetTitle => 'Just a little more together today';
+  String get dailyMissionSheetTitle => "Today's activities";
 
   @override
   String dailyMissionProgressWithReward(int progress, int target, int reward) {
@@ -2571,11 +2571,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get safetyPlanIntroLine1 =>
-      'While your mind feels calm, this is a space to leave\na short note for your future self.';
+      "When you have a quiet moment, write a plan\nyou can turn to when things feel difficult.";
 
   @override
   String get safetyPlanIntroLine2 =>
-      'Later, when things feel hard, there may be moments when it\'s\nhard to remember where to start. Open this page then and see the\nanswers you wrote for yourself. What you write stays only on this\ndevice — not even Mongi can see it.';
+      "It can be hard to know where to start when you're struggling.\nCome back here to find the ideas and contacts you saved.\nYour answers stay on this device and aren't visible to us.";
 
   @override
   String get safetyPlanSaveButton => 'Save';
@@ -2608,7 +2608,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get safetyPlanSectionWarningSignsHint =>
-      'When these thoughts, feelings, or situations show up, it means \"I need to be careful right now.\"';
+      "What thoughts, feelings, or situations tell you that you may need extra support?";
 
   @override
   String get safetyPlanSectionWarningSignsPlaceholder =>
@@ -2616,7 +2616,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get safetyPlanSectionCopingStrategiesTitle =>
-      'My own ways to calm down alone';
+      "Things I can try on my own";
 
   @override
   String get safetyPlanSectionCopingStrategiesHint =>
@@ -2635,14 +2635,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get safetyPlanSectionSupportPeoplePlaceholder =>
-      'e.g. Friend John (010-xxxx-xxxx), my sister, my counselor...';
+      "For example: a friend's name and phone number, a family member, or my counselor";
 
   @override
   String get safetyPlanSectionSafePlaceTitle => 'A place that feels calming';
 
   @override
   String get safetyPlanSectionSafePlaceHint =>
-      'Is there a place where even a short stay eases your mind a little?';
+      "Where could you go to feel a little more at ease?";
 
   @override
   String get safetyPlanSectionSafePlacePlaceholder =>
@@ -2688,7 +2688,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get breathingMomentTitle => 'You\'ve met a Breath Orb';
+  String get breathingMomentTitle => "You found a breathing orb";
 
   @override
   String get breathingMomentInhaleLabel => 'Breathe in and hold';
@@ -2765,11 +2765,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get breathingSuggestionTitle =>
-      'Want to start this feeling with a breath?';
+      "A breath before we begin?";
 
   @override
   String breathingSuggestionSubtitle(String emoji, String name) {
-    return 'Try $emoji $name for a moment - it can make the game feel a little gentler.';
+    return "Take a moment to try $emoji $name before the game.";
   }
 
   @override
@@ -2810,7 +2810,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get mongiCareItemReactionTunaCan =>
-      'Mongi munched on the tuna can! Such a happy face 🐟';
+      "Mongi tucked into the tuna. Just listen to that purr! 🐟";
 
   @override
   String get mongiCareItemReactionKibble =>
@@ -2826,7 +2826,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get mongiCareItemReactionBlanket =>
-      'Mongi snuggled under the blanket and fell into a warm sleep. The garden corner feels cozier now 🧣';
+      "Mongi snuggled under the blanket and drifted off. A cozy new spot in the garden 🧣";
 
   @override
   String get mongiCareItemReactionMongiHouse =>
@@ -2861,7 +2861,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get mongiCareNeverGivenStatus => 'Not given yet';
 
   @override
-  String get lightEssenceShopTitle => 'Recharge Light Essence';
+  String get lightEssenceShopTitle => "Top up Light Essence";
 
   @override
   String get lightEssencePackLabelSmall => 'Small Light Pouch';
@@ -2897,7 +2897,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get gratitudeLogEmptySubtitle =>
-      'Leave a small good thing that happened today';
+      "Write about one good thing from today, however small.";
 
   @override
   String gratitudeLogSubmittedSnackbar(String emoji) {
@@ -2956,7 +2956,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String dailyCheckInBestStreakRestart(int best) {
-    return 'Your best streak was $best days · give it another shot!';
+    return "Your longest streak: $best days · Start again whenever you'd like";
   }
 
   @override
@@ -2967,7 +2967,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get mongiLetterNotEnoughMessage =>
-      'Mongi doesn\'t have quite enough\nstories to write a letter yet.\nSpend a little more time together and\nnext week Mongi will send one for sure 🐾';
+      "Mongi needs a few more entries\nto put a letter together.\nKeep sharing whenever you'd like,\nand check back next week 🐾";
 
   @override
   String get mongiLetterArrivedTitle => 'A letter has arrived from Mongi';
@@ -2977,54 +2977,54 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get mongiLetterGreeting =>
-      'Hi, it\'s Mongi 🐱\nI\'ve been watching over your heart closely this week too.';
+      "Hi, it's Mongi 🐱\nThanks for sharing some of your week with me.";
 
   @override
   String mongiLetterBodyTopTarget(String target) {
-    return 'This week you talked about \"$target\" quite a lot.\nIt must have been taking up a big place in your heart.\nMongi kept thinking about what that story might be.';
+    return "You mentioned “$target” a few times this week.\nWould you like to look back at those moments?\nWe can take our time.";
   }
 
   @override
   String mongiLetterBodyTopEmotion(String emotion) {
-    return 'This week was a week when you met \"$emotion\" quite a lot.\nMongi was curious about what happened,\nbut just stayed by your side without pushing.';
+    return "“$emotion” came up often in your entries this week.\nIf there's more you'd like to say,\nI'm here to listen.";
   }
 
   @override
   String get mongiLetterBodyManyNotes =>
-      'This week you shared a lot of your stories.\nMongi treasured every single little word,\neven the shortest ones.';
+      "You left quite a few notes this week.\nLong or short, they're yours to come back to.\nThanks for sharing them with me.";
 
   @override
   String get mongiLetterBodyMostlyPositive =>
-      'It feels like your heart has been lighter lately,\nand Mongi got excited right along with you.\nHope there are more days like these.';
+      "There were some brighter feelings in your entries this week.\nIs there a moment you'd like to enjoy again?\nI'd be happy to sit with you while you remember it.";
 
   @override
   String get mongiLetterBodyMostlyHeavy =>
-      'There were some heavy days too.\nBut thank you for coming to Mongi\nwhenever it was hard. You don\'t have to bear it alone.';
+      "Some of your entries sound like difficult moments.\nYou don't have to explain them all.\nWe can sit here quietly for a while.";
 
   @override
   String get mongiLetterBodyDefaultThanks =>
-      'Thank you for sharing your big and small feelings\nwith Mongi this week too.\nMongi always believes any feeling is okay.';
+      "Thanks for telling me how you've been feeling.\nBig feelings, small feelings—\nthere's room for all of them here.";
 
   @override
   String mongiLetterStreakLong(int streak) {
-    return 'You came to see Mongi every day for $streak days.\nYou might not realize how amazing that is,\nbut Mongi felt it every single day.';
+    return "We've checked in together for $streak days in a row.\nI hope some of that time felt good to you.\nYou can always take a break when you need one.";
   }
 
   @override
   String mongiLetterStreakShort(int streak) {
-    return 'You came $streak days in a row!\nWatching a small habit build up like this\nis a great joy for Mongi.';
+    return "$streak days of checking in together!\nIt's nice to have these small moments\nto look back on.";
   }
 
   @override
   String get mongiLetterStreakNone =>
-      'It\'s okay if you couldn\'t come by often this week.\nWhenever you want to, Mongi will always be right here.';
+      "No need to catch up on days you missed.\nWe can start with today, whenever you're ready.";
 
   @override
   String get mongiLetterClosing =>
-      'I\'ll always be by your side.\nTalk to me again next week.\n\nYour Mongi 🐾';
+      "Take care of yourself this week.\nDrop by whenever you'd like.\n\nYour friend, Mongi 🐾";
 
   @override
-  String get diaryHeaderTitle => '📔 Emotion Diary';
+  String get diaryHeaderTitle => "📔 Garden journal";
 
   @override
   String get diaryEmptyTitle => 'No entries yet';
@@ -3076,7 +3076,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get emotionLabelIrritation => 'Irritation';
 
   @override
-  String get emotionLabelGrievance => 'Grievance';
+  String get emotionLabelGrievance => "Feeling wronged";
 
   @override
   String get emotionLabelFear => 'Fear';
@@ -3113,243 +3113,243 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get emotionCatQuestionHate =>
-      'This is... a Hate Bean. You\'ve been holding onto it for a while, huh.';
+      "Here's a Hate Bean. Want to talk about what's been bothering you?";
 
   @override
   String get emotionCatQuestionAnger =>
-      'A Blaze popped out. You must\'ve been really upset.';
+      "There's Blaze. Feeling angry today? We can take a moment with it.";
 
   @override
   String get emotionCatQuestionWorry =>
-      'A Worry Cloud rolled in, thick and heavy.';
+      "A Worry Cloud has drifted in. What's on your mind?";
 
   @override
   String get emotionCatQuestionSadness =>
-      'A Sadness Droplet. That must\'ve been really hard.';
+      "A Sadness Droplet. You don't have to explain if you'd rather sit quietly.";
 
   @override
   String get emotionCatQuestionLoneliness =>
-      'You were curled up all alone. I\'ll stay right here with you.';
+      "Feeling lonely? I'll keep you company for a while.";
 
   @override
   String get emotionCatQuestionAnxiety =>
-      'Anxiety Jitters kept trembling. You must\'ve had a lot of worried thoughts.';
+      "Here comes Anxiety Jitters. Is there something you're worried about?";
 
   @override
   String get emotionCatQuestionShame =>
-      'A little Shy One. Your cheeks must\'ve turned pink.';
+      "Here's Shy One. It's okay to take your time finding the words.";
 
   @override
   String get emotionCatQuestionIrritation =>
-      'Prickly One\'s spikes were all standing up. You must\'ve been on edge.';
+      "Prickly One has their spikes up. Has something been getting on your nerves?";
 
   @override
   String get emotionCatQuestionGrievance =>
-      'A tightly knotted Grievance. It must\'ve felt so stifling.';
+      "A knot of hurt feelings. Want to tell me what felt unfair?";
 
   @override
   String get emotionCatQuestionFear =>
-      'Fear was hiding in the dark. It\'s okay now, I\'m right here.';
+      "Darkling is hiding. If you're feeling scared, what might help you feel safer?";
 
   @override
   String get emotionCatQuestionJoy =>
-      'A sparkling Joy Star! Something good must\'ve happened today.';
+      "A Joy Star! What's bringing you a little happiness today?";
 
   @override
   String get emotionCatQuestionGratitude =>
-      'A warm Gratitude Heart. You must be feeling thankful toward someone.';
+      "A Gratitude Heart. Is there something you're thankful for today?";
 
   @override
   String get emotionCatQuestionExcitement =>
-      'A fluttering Excitement Cloud! What good thing are you looking forward to?';
+      "An Excitement Cloud! What are you looking forward to?";
 
   @override
   String get emotionCatQuestionCalm =>
-      'A gentle Calm Wave. Your heart must feel quiet and at ease.';
+      "A Calm Wave. Let's enjoy a quiet moment here.";
 
   @override
   String get emotionCatQuestionConfidence =>
-      'A brave Confidence Badge! You must\'ve accomplished something today - amazing.';
+      "A Confidence Badge! What are you feeling good about today?";
 
   @override
   String get emotionCatQuestionTired =>
-      'A drowsy Tiredness. You worked so hard today.';
+      "Drowsy One is yawning. Could you use a little rest, too?";
 
   @override
   String get emotionCatQuestionBoredom =>
-      'A yawning Boredom. You must\'ve needed something fun.';
+      "A Boredom Swirl. Feel like trying something different?";
 
   @override
   String get emotionCatQuestionCourage =>
-      'A brave Courage Shield! You faced something scary and still stepped forward.';
+      "A Courage Shield! Was there a moment when you tried something brave?";
 
   @override
   String get emotionCatQuestionThrill =>
-      'A bursting Thrill! Something exciting must\'ve happened!';
+      "A Thrill Spark! What's got you excited?";
 
   @override
   String get emotionCatQuestionHappiness =>
-      'A cozy Happiness Sunshine. Your heart must feel full and warm.';
+      "A little sunshine. What feels good about this moment?";
 
   @override
   String get emotionHealMessageHate =>
-      'Where the hate disappeared,\na little flower has bloomed 🌸';
+      "A flower for this feeling.\nYou can let it rest here for now 🌸";
 
   @override
   String get emotionHealMessageAnger =>
-      'The burning heart has cooled,\nand a warm light remains ✨';
+      "You don't have to work it all out now.\nTake a moment before your next step ✨";
 
   @override
   String get emotionHealMessageWorry =>
-      'The dark clouds have cleared,\nand the blue sky is peeking through 🌤️';
+      "One moment at a time.\nYou don't need every answer today 🌤️";
 
   @override
   String get emotionHealMessageSadness =>
-      'The tears have dried,\nand stars now shimmer in a small pond 💧';
+      "It's okay if you're still sad.\nWe can sit here a little longer 💧";
 
   @override
   String get emotionHealMessageLoneliness =>
-      'The shadow has faded,\nand a warmth stays close by 🤍';
+      "A quiet moment together.\nI'm glad you stopped by 🤍";
 
   @override
   String get emotionHealMessageAnxiety =>
-      'The trembling has settled,\nand gentle ripples spread across your heart 🌊';
+      "No need to rush.\nLet's take this moment slowly 🌊";
 
   @override
   String get emotionHealMessageShame =>
-      'The hunched shoulders have relaxed,\nand a warm smile spreads 😊';
+      "You don't have to hide here.\nThere's room for you, just as you are 😊";
 
   @override
   String get emotionHealMessageIrritation =>
-      'The spikes have softened gently,\nand a breeze drifts in 🍃';
+      "A little breathing room.\nYou can pause before carrying on 🍃";
 
   @override
   String get emotionHealMessageGrievance =>
-      'The tangled heart has unraveled,\nand breathing feels easy again 🎈';
+      "What you wanted to say matters.\nYou can leave those words here 🎈";
 
   @override
   String get emotionHealMessageFear =>
-      'The darkness has lifted,\nand a small starlight shines on your heart ⭐';
+      "Take your time.\nIt's okay to look for comfort and support ⭐";
 
   @override
   String get emotionHealMessageJoy =>
-      'Joy has filled your heart,\nand stayed behind as a bright light 🌟';
+      "That was a happy moment.\nLet's enjoy it a little longer 🌟";
 
   @override
   String get emotionHealMessageGratitude =>
-      'That grateful feeling has\nwarmly seeped into Mongi\'s heart too 💛';
+      "Thanks for sharing that with me.\nIt's a lovely thing to remember 💛";
 
   @override
   String get emotionHealMessageExcitement =>
-      'The flutter reached Mongi too,\nand my heart floated up a little 🎈';
+      "Something to look forward to!\nI'm happy to share this moment with you 🎈";
 
   @override
   String get emotionHealMessageCalm =>
-      'That quiet feeling has spread through the garden too,\nand gentle ripples appear 🌊';
+      "Nothing to hurry toward.\nLet's enjoy the quiet 🌊";
 
   @override
   String get emotionHealMessageConfidence =>
-      'That brave feeling passed on to Mongi too,\nand my shoulders straightened up 💪';
+      "Give yourself some credit.\nThat effort was yours 💪";
 
   @override
   String get emotionHealMessageTired =>
-      'The heavy eyelids have slowly closed,\nand cozy sleep is settling in 🌙';
+      "You can stop here for now.\nRest doesn't need to be earned 🌙";
 
   @override
   String get emotionHealMessageBoredom =>
-      'A little curiosity blooms\nin that blank feeling, swirling into shape 🌀';
+      "There's no need to fill every moment.\nMaybe something will catch your interest 🌀";
 
   @override
   String get emotionHealMessageCourage =>
-      'The pounding heart has grown steady,\nand a burning strength fills Mongi\'s chest too 🔥';
+      "You gave it a try.\nThat counts, even if it felt scary 🔥";
 
   @override
   String get emotionHealMessageThrill =>
-      'That bouncy energy passed on to Mongi too,\nand my whole body is bursting with excitement 🎊';
+      "What a burst of excitement!\nLet yourself enjoy it 🎊";
 
   @override
   String get emotionHealMessageHappiness =>
-      'The warm sunshine has seeped\ninto every corner of the heart, lingering softly ☀️';
+      "A good moment, just as it is.\nNo need to make it anything more ☀️";
 
   @override
   String get emotionStoryTextHate =>
-      'A Hate Bean grows harder the longer you keep it inside. Disliking someone is sometimes proof of how much you once cared. Bring it out into the open, and a flower can bloom in its place.';
+      "Hate Bean carries a feeling that's hard to admit sometimes. You don't have to act on it or make it disappear. You can start by noticing what upset you and what you need now.";
 
   @override
   String get emotionStoryTextAnger =>
-      'A Blaze flares up when your heart wasn\'t respected. It\'s not a bad thing - it\'s a signal saying \"please respect me.\" Once it cools down for a moment, only a warm light remains.';
+      "Blaze flares up when something feels unfair or a boundary has been crossed. Anger isn't a bad feeling. Take a little time before deciding what you want to do with it.";
 
   @override
   String get emotionStoryTextWorry =>
-      'A Worry Cloud forms from trying to prepare for things that haven\'t even happened yet. It was, in its own way, an effort to protect yourself. Clouds are made to drift away, so it\'s okay to just watch it for a while.';
+      "Worry Cloud drifts from one 'what if' to another. Planning can help, but you don't need to solve every possibility today. Is there one small thing you can deal with now?";
 
   @override
   String get emotionStoryTextSadness =>
-      'A Sadness Droplet forms when you\'ve lost something precious or your heart has been hurt. If you let it flow instead of holding it back, those tears pool into a small pond, and one day starlight will shine on it.';
+      "Sadness Droplet holds the feeling of missing something or being hurt. You don't have to force a smile or find the right words. It's okay to let yourself feel sad for a while.";
 
   @override
   String get emotionStoryTextLoneliness =>
-      'A Loneliness Shadow grows darker the more you long to connect with someone. Feeling alone means you want to be together with someone that much more. Mongi will stay right by your side.';
+      "Loneliness Shadow wishes someone would sit nearby. Feeling lonely can happen even around other people. If you'd like some company, you could send a small hello to someone you trust.";
 
   @override
   String get emotionStoryTextAnxiety =>
-      'Anxiety Jitters trembles nonstop when you don\'t know what\'s coming. Enduring uncertainty is hard for anyone. If you breathe slowly, the trembling will settle little by little.';
+      "Anxiety Jitters finds it hard not to know what's next. Uncertainty can be uncomfortable. You don't need to figure it all out at once; start with what you need in this moment.";
 
   @override
   String get emotionStoryTextShame =>
-      'The Shy One blushes when you\'re worried about how others see you. That really just means you truly wanted to do well. It\'s okay to make mistakes - Mongi loves that side of you too.';
+      "Shy One worries about what others might think. A mistake or an awkward moment can feel bigger than it is. Try speaking to yourself the way you'd speak to a friend.";
 
   @override
   String get emotionStoryTextIrritation =>
-      'Prickly One raises its spikes when your body and mind are worn out with no room to spare. Feeling irritated can be a sign that it\'s time to rest. Once you set the spikes down, a gentle breeze drifts in.';
+      "Prickly One gets spiky when everything feels like too much. Sometimes a little space or rest helps. You can pause and check what you need before responding.";
 
   @override
   String get emotionStoryTextGrievance =>
-      'The Grievance Knot ties itself tight when you feel your true feelings weren\'t properly understood. It was probably a heart wanting to shout out and be heard. Untangle it bit by bit, and breathing gets easier.';
+      "Grievance Knot feels tangled up after being misunderstood or treated unfairly. The words can be hard to find. Try writing what you wish someone understood, just for yourself.";
 
   @override
   String get emotionStoryTextFear =>
-      'Fear is a very old instinct meant to protect you from danger. Having something to be afraid of means there\'s something you deeply want to protect. Even in the dark, Mongi will be right there with you.';
+      "Darkling keeps close to the shadows when something feels frightening. You don't have to prove you're brave. Your safety comes first, and it's okay to ask for support.";
 
   @override
   String get emotionStoryTextJoy =>
-      'A Joy Star sparkles when you notice even the smallest happiness without letting it slip by. If you practice holding onto joyful moments a little longer, the starlight shines brighter and lasts longer.';
+      "Joy Star lights up at small happy moments. A kind message, a good song, something that made you laugh. You can enjoy it without needing a reason or a plan.";
 
   @override
   String get emotionStoryTextGratitude =>
-      'A Gratitude Heart grows warm and bigger when you notice someone\'s kindness. A single word of thanks plants one more heart in the other person\'s mind too.';
+      "Gratitude Heart notices the little kindnesses in a day. Is there one you'd like to remember? A few words are enough, whether you keep them or say thank you to someone.";
 
   @override
   String get emotionStoryTextExcitement =>
-      'An Excitement Cloud floats up gently when you look forward to something coming your way. Whatever the outcome, the time spent waiting is already a gift in itself.';
+      "Excitement Cloud bobs around at the thought of something ahead. You don't know how it will turn out yet, but you can enjoy looking forward to it.";
 
   @override
   String get emotionStoryTextCalm =>
-      'A Calm Wave doesn\'t only appear when nothing is happening. When you accept yourself just as you are, it spreads gently outward from deep within your heart.';
+      "Calm Wave settles into a quiet moment. Nothing needs fixing right now. If this feels good, you can stay with it for a little while.";
 
   @override
   String get emotionStoryTextConfidence =>
-      'A Confidence Badge lights up whenever you manage even a small attempt on your own. Recognizing the moment you tried, more than the result, is the secret to collecting more badges.';
+      "Confidence Badge shines when you give something a try. It doesn't have to go perfectly. Take a moment to give yourself credit for the effort you made.";
 
   @override
   String get emotionStoryTextTired =>
-      'Tiredness is proof that your body and mind worked hard to get through the day. Instead of pushing yourself further, close your eyes and rest for a moment - and you\'ll find the energy to bounce back the next day.';
+      "Drowsy One is ready for a break. You don't need to have had a busy day to feel tired. Rest in whatever way feels comfortable, without asking yourself to do more.";
 
   @override
   String get emotionStoryTextBoredom =>
-      'Boredom shows up when you have nothing particular to do and your heart feels empty. But boredom is actually a sign that you want to try something new. Sit still for a while, and a surprisingly fun idea might just pop into your head.';
+      "Boredom Swirl can't find anything that holds their attention. Maybe a change of pace would feel good, or maybe a quiet moment is enough. You don't have to make every moment useful.";
 
   @override
   String get emotionStoryTextCourage =>
-      'A Courage Shield doesn\'t shine because you weren\'t scared - it shines because you stepped forward even while scared. The moment you carried a trembling heart and still did it is the bravest moment of all.';
+      "Courage Shield can feel scared and still try something new. Being brave doesn't have to look impressive. Sometimes it's a small step, a question, or asking for help.";
 
   @override
   String get emotionStoryTextThrill =>
-      'Thrill bursts out when this very moment is so fun that your body moves before you even think. If Excitement is the flutter of anticipating what\'s to come, Thrill is the burst of exciting energy happening right now.';
+      "Thrill Spark is full of energy right now. Maybe something made you laugh or got you moving. Enjoy the moment in your own way.";
 
   @override
   String get emotionStoryTextHappiness =>
-      'Unlike Joy, which sparkles and fades quickly, Happiness Sunshine warms your heart gently and for a long time. Even without anything special happening, when each day just feels okay, this sunshine quietly shines through.';
+      "Happiness Sunshine enjoys the ordinary things: a familiar place, good company, a quiet afternoon. Nothing special has to happen for this moment to feel good.";
 
   @override
   String get evolutionNameHate0 => 'Hate Bean';
@@ -3409,7 +3409,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get evolutionNameLoneliness2 => 'Warm Shadow';
 
   @override
-  String get evolutionNameLoneliness3 => 'Together Light';
+  String get evolutionNameLoneliness3 => "Shared Light";
 
   @override
   String get evolutionNameAnxiety0 => 'Anxiety Jitters';
@@ -3457,7 +3457,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get evolutionNameGrievance2 => 'Untied Knot';
 
   @override
-  String get evolutionNameGrievance3 => 'Free Knot';
+  String get evolutionNameGrievance3 => "Free Spirit";
 
   @override
   String get evolutionNameFear0 => 'Darkling';
@@ -3580,20 +3580,20 @@ class AppLocalizationsEn extends AppLocalizations {
   String get evolutionNameThrill3 => 'Galaxy Spark';
 
   @override
-  String get evolutionNameHappiness0 => 'Happiness Sunshine';
+  String get evolutionNameHappiness0 => "Little Sunshine";
 
   @override
   String get evolutionNameHappiness1 => 'Warm Sunshine';
 
   @override
-  String get evolutionNameHappiness2 => 'World Sunshine';
+  String get evolutionNameHappiness2 => "Sunshine Everywhere";
 
   @override
   String get evolutionNameHappiness3 => 'Eternal Sunshine';
 
   @override
   String gameEatenLineSingle(String label) {
-    return 'There! $label settled into your heart';
+    return "Collected $label!";
   }
 
   @override
@@ -3603,7 +3603,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String gameReceivedLineSingle(String label) {
-    return 'Cozy! $label warmed your heart';
+    return "A little $label for your garden!";
   }
 
   @override
@@ -3625,7 +3625,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String gameTimeUpLabel(int count) {
-    return 'Time\'s up! You met $count feelings ⏰';
+    return "Time's up! Feeling creatures collected: $count ⏰";
   }
 
   @override
@@ -3635,17 +3635,17 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String gameEarlyStopShortNormal(int count) {
-    return 'You met $count feelings today 🤍';
+    return "Feeling creatures collected today: $count 🤍";
   }
 
   @override
   String get gameStageClearPurrLabel => 'Purr~ 😽';
 
   @override
-  String get gameBreathingLifeRestoredLabel => 'Nice breathing! 💗';
+  String get gameBreathingLifeRestoredLabel => "Breathing break complete 💗";
 
   @override
-  String get gameBreathingBonusLabel => 'Nice breathing! ✨';
+  String get gameBreathingBonusLabel => "A moment to breathe ✨";
 
   @override
   String get gameBreathingSkippedLabel => 'Took a little break 🌿';
@@ -3735,18 +3735,18 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get mindChallengeHomeBannerTitleInactive =>
-      '🌿 Start a Mind Challenge';
+      "🌿 Start a self-care challenge";
 
   @override
   String get mindChallengeHomeBannerSubtitleActive =>
-      'Check in today to fill today\'s step';
+      "Check in to complete today's step";
 
   @override
   String get mindChallengeHomeBannerSubtitleInactive =>
-      'Care for your mind with a 7-day theme journey';
+      "Choose a theme for seven days of self-care";
 
   @override
-  String get mindChallengeListAppBarTitle => 'Mind Challenges';
+  String get mindChallengeListAppBarTitle => "Self-care challenges";
 
   @override
   String get mindChallengeListHeadline =>
@@ -3754,7 +3754,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get mindChallengeListSubtitle =>
-      'Do today\'s emotion check-in each day and the challenge moves forward naturally';
+      "Each daily mood check-in completes one step of your challenge";
 
   @override
   String mindChallengeCardDurationLabel(int days) {
@@ -3794,7 +3794,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get mindChallengeDetailAppBarTitle => 'Mind Challenge';
+  String get mindChallengeDetailAppBarTitle => "Self-care challenge";
 
   @override
   String mindChallengeDetailDayLabel(int day, int total) {
@@ -3812,7 +3812,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get mindChallengeDetailNotCheckedInYet =>
-      'Do today\'s emotion check-in to fill today\'s step';
+      "Check in with your feelings to complete today's step";
 
   @override
   String get mindChallengeDetailCompleteReadyTitle =>
@@ -3826,18 +3826,18 @@ class AppLocalizationsEn extends AppLocalizations {
       'Challenge completed! Reward claimed';
 
   @override
-  String get mindChallengeDetailAbandonButton => 'Give up challenge';
+  String get mindChallengeDetailAbandonButton => "Stop challenge";
 
   @override
   String get mindChallengeDetailAbandonConfirmTitle =>
-      'Give up this challenge?';
+      "Stop this challenge?";
 
   @override
   String get mindChallengeDetailAbandonConfirmBody =>
-      'Your progress so far will be lost. Give up anyway?';
+      "This challenge's progress will be lost. Do you want to stop?";
 
   @override
-  String get mindChallengeDetailAbandonConfirmButton => 'Give up';
+  String get mindChallengeDetailAbandonConfirmButton => "Stop";
 
   @override
   String mindChallengeDetailDayRewardLabel(int reward) {
@@ -3850,11 +3850,11 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get mindChallengeTitleSelfEsteem => 'Nurturing Self-Esteem';
+  String get mindChallengeTitleSelfEsteem => "Being kinder to myself";
 
   @override
   String get mindChallengeDescSelfEsteem =>
-      'For 7 days, speak kindly to yourself and slowly rebuild your self-esteem.';
+      "Seven days of small ways to be kinder to yourself.";
 
   @override
   String get mindChallengeDaySelfEsteem1 =>
@@ -3870,7 +3870,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get mindChallengeDaySelfEsteem4 =>
-      'Day 4: Make today a day without comparing yourself to others.';
+      "Day 4: Notice a comparison, then bring your attention back to your own needs.";
 
   @override
   String get mindChallengeDaySelfEsteem5 =>
@@ -3885,11 +3885,11 @@ class AppLocalizationsEn extends AppLocalizations {
       'Day 7: Look back on the past 6 days and write yourself a letter.';
 
   @override
-  String get mindChallengeTitleAnxietyCalm => 'Calming Anxiety';
+  String get mindChallengeTitleAnxietyCalm => "Making room for calm";
 
   @override
   String get mindChallengeDescAnxietyCalm =>
-      'For 7 days, pause and breathe each day to ease an anxious mind.';
+      "Seven days of short pauses to notice your worries and take a breath.";
 
   @override
   String get mindChallengeDayAnxietyCalm1 =>
@@ -3913,18 +3913,18 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get mindChallengeDayAnxietyCalm6 =>
-      'Day 6: Find three things that are certain today.';
+      "Day 6: Name three things you know for sure right now.";
 
   @override
   String get mindChallengeDayAnxietyCalm7 =>
       'Day 7: Look back on how your anxiety changed this week.';
 
   @override
-  String get mindChallengeTitleBurnoutRecovery => 'Recovering from Burnout';
+  String get mindChallengeTitleBurnoutRecovery => "Making time to rest";
 
   @override
   String get mindChallengeDescBurnoutRecovery =>
-      'For 7 days, rest a little each day to recover a tired mind.';
+      "Seven days of finding small ways to rest when you feel worn out.";
 
   @override
   String get mindChallengeDayBurnoutRecovery1 =>
@@ -3959,7 +3959,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get mindChallengeDescGratitudeHabit =>
-      'For 7 days, find a moment of gratitude each day and grow a more positive outlook.';
+      "Seven days of noticing small things you appreciate.";
 
   @override
   String get mindChallengeDayGratitudeHabit1 =>
@@ -3990,18 +3990,18 @@ class AppLocalizationsEn extends AppLocalizations {
       'Day 7: Look back on the grateful moments you found this week.';
 
   @override
-  String get mindReportMoodTrendTitle => 'Mood Trend Graph';
+  String get mindReportMoodTrendTitle => "Mood over time";
 
   @override
   String get mindReportMoodTrendNotEnoughData =>
-      'Still gathering data. Keep coming back for a bit longer 🌱';
+      "There aren't enough entries to show a trend yet 🌱";
 
   @override
-  String get moodTrendHeaderTitle => 'Mood Trend Graph';
+  String get moodTrendHeaderTitle => "Mood over time";
 
   @override
   String get moodTrendIntroText =>
-      'Based on the emotions you\'ve logged each day, here\'s how your mood has been trending recently. Higher points mean more comfortable days, lower points mean tougher days.';
+      "This chart is based on the feelings you recorded. Higher points reflect brighter feelings in those entries; lower points reflect more difficult ones. It doesn't describe every moment of your day.";
 
   @override
   String get moodTrendWindow7Days => '7 days';
@@ -4028,10 +4028,10 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get moodTrendLegendPositive => 'Comfortable days';
+  String get moodTrendLegendPositive => "Brighter feelings";
 
   @override
-  String get moodTrendLegendNegative => 'Tough days';
+  String get moodTrendLegendNegative => "Difficult feelings";
 
   @override
   String get moodTrendDirectionNotEnoughData =>
@@ -4039,25 +4039,25 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get moodTrendDirectionImproving =>
-      'Your mood has been gradually getting lighter lately 🌤️';
+      "Brighter feelings appear more often in your recent entries 🌤️";
 
   @override
   String get moodTrendDirectionSteady =>
-      'Your mood has been flowing steadily. Keep logging just like this 🤍';
+      "Your recent entries show a fairly steady pattern 🤍";
 
   @override
   String get moodTrendDirectionDeclining =>
-      'There have been some heavier days lately. It\'s okay to rest for a while 🫂';
+      "Your recent entries show more difficult feelings. Take your time looking back 🫂";
 
   @override
-  String get homeCheerBannerTitle => '💌 Mongi\'s Cheer Mailbox';
+  String get homeCheerBannerTitle => "💌 Mongi's kind words";
 
   @override
   String get homeCheerBannerSubtitleBothDone =>
-      'You\'ve sent and received today\'s cheer';
+      "You've chosen and read today's kind words";
 
   @override
-  String get homeCheerBannerSubtitleHasNew => 'A cheer arrived for you today';
+  String get homeCheerBannerSubtitleHasNew => "A few kind words for you today";
 
   @override
   String get homeCheerBannerSubtitleDefault => 'Share a little kindness';
@@ -4066,36 +4066,36 @@ class AppLocalizationsEn extends AppLocalizations {
   String get homeCheerBannerNewBadge => 'Open';
 
   @override
-  String get cheerScreenAppBarTitle => 'Mongi\'s Cheer Mailbox';
+  String get cheerScreenAppBarTitle => "Mongi's kind words";
 
   @override
   String get cheerScreenHonestyNotice =>
-      'This app doesn\'t connect you directly with others yet. Mongi carries your heart in its place 🐱';
+      "This activity doesn't send messages to other people. These are prepared words of encouragement from Mongi 🐱";
 
   @override
-  String get cheerSendSectionTitle => 'Send a Heart';
+  String get cheerSendSectionTitle => "Choose some kind words";
 
   @override
   String get cheerSendSectionSubtitle =>
-      'Pick one, and Mongi will pass it on to the world';
+      "Pick a message you'd like to leave with Mongi";
 
   @override
-  String get cheerSendDoneTitle => 'You\'ve entrusted today\'s heart to Mongi';
+  String get cheerSendDoneTitle => "Today's kind words are saved";
 
   @override
-  String get cheerSendDoneSubtitle => 'You can send another one tomorrow';
+  String get cheerSendDoneSubtitle => "You can choose another message tomorrow";
 
   @override
-  String get cheerSendConfirmSnackbar => 'Mongi delivered your heart safely 💌';
+  String get cheerSendConfirmSnackbar => "Mongi has saved your kind words 💌";
 
   @override
-  String get cheerReceiveSectionTitle => 'Receive a Heart';
+  String get cheerReceiveSectionTitle => "A few words for you";
 
   @override
-  String get cheerReceiveButtonLabel => 'Open today\'s cheer';
+  String get cheerReceiveButtonLabel => "Read today's kind words";
 
   @override
-  String get cheerReceiveCardLabel => 'Someone\'s heart';
+  String get cheerReceiveCardLabel => "A note from Mongi";
 
   @override
   String cheerRewardEarned(int amount) {
@@ -4104,7 +4104,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get cheerSendOption0 =>
-      'You\'ve worked hard today. You\'re doing your part well.';
+      "Give yourself a little credit for today.";
 
   @override
   String get cheerSendOption1 => 'You\'re already enough, just as you are.';
@@ -4116,22 +4116,22 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cheerSendOption3 => 'It\'s okay to rest for a moment.';
 
   @override
-  String get cheerSendOption4 => 'You\'re doing so much better than you think.';
+  String get cheerSendOption4 => "Small steps count, even when they're hard to see.";
 
   @override
   String get cheerSendOption5 =>
-      'Another day has quietly passed. That\'s enough.';
+      "You can put things down for a while. It's okay to rest.";
 
   @override
-  String get cheerReceiveMessage0 => 'You made it through today. Well done.';
+  String get cheerReceiveMessage0 => "Thanks for stopping by. Take a moment for yourself.";
 
   @override
   String get cheerReceiveMessage1 =>
-      'Someone out there is rooting for you today.';
+      "I'm rooting for you today.";
 
   @override
   String get cheerReceiveMessage2 =>
-      'The path you\'ve walked so far wasn\'t in vain.';
+      "The time and care you've put in still count.";
 
   @override
   String get cheerReceiveMessage3 => 'You are not alone.';
@@ -4145,21 +4145,21 @@ class AppLocalizationsEn extends AppLocalizations {
       'It\'s okay not to be perfect. That\'s just being human.';
 
   @override
-  String get cheerReceiveMessage6 => 'Applause for you today 👏';
+  String get cheerReceiveMessage6 => "Here's a little cheer for you 👏";
 
   @override
   String get cheerReceiveMessage7 =>
       'On hard days, it\'s okay to pause for a while.';
 
   @override
-  String get cheerReceiveMessage8 => 'Someone notices your effort.';
+  String get cheerReceiveMessage8 => "Your effort matters, even when it goes unnoticed.";
 
   @override
   String get cheerReceiveMessage9 =>
       'Be a little kinder to yourself today too.';
 
   @override
-  String get cheerReceiveMessage10 => 'Even right now, you are growing.';
+  String get cheerReceiveMessage10 => "You don't have to see progress every day.";
 
   @override
   String get cheerReceiveMessage11 =>
@@ -4175,7 +4175,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cheerReceiveMessage14 => 'Going at your own pace is enough.';
 
   @override
-  String get cheerReceiveMessage15 => 'Someone truly wishes you well.';
+  String get cheerReceiveMessage15 => "Wishing you a little ease today.";
 
   @override
   String mindReflectionEmotionWeekdayLink(
@@ -4183,7 +4183,7 @@ class AppLocalizationsEn extends AppLocalizations {
     String weekday,
     int count,
   ) {
-    return 'You\'ve felt $emotion especially often on ${weekday}s - $count times recently.';
+    return "You recorded $emotion on ${weekday} more often than on other days: $count recent entries.";
   }
 
   @override
@@ -4193,35 +4193,35 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String mindReflectionGrowthSignal(String emotion) {
-    return '$emotion has clearly eased up compared to before. It seems things are getting a little lighter.';
+    return "You recorded $emotion less often recently. Does that match how you've been feeling?";
   }
 
   @override
   String get mindReflectionGratitudeMoodLink =>
-      'On days you logged something you\'re grateful for, your mood tended to be steadier.';
+      "Your mood entries showed less variation on days when you also wrote a gratitude entry.";
 
   @override
   String mindReflectionConsistencySignal(int streak) {
-    return 'You\'ve checked in for $streak days in a row. That consistency itself is powerful.';
+    return "You've checked in for $streak days in a row. That's time you've made for yourself.";
   }
 
   @override
   String get mindReflectionDefaultObservation =>
-      'No clear pattern yet, but Mongi will notice more the longer you keep journaling.';
+      "There's no clear pattern yet. More entries may help show one over time.";
 
   @override
-  String get settingsAiReflectionTitle => '🌿 Mind Reflection';
+  String get settingsAiReflectionTitle => "🌿 Patterns in my entries";
 
   @override
   String get settingsAiReflectionDesc =>
-      'Mongi combines your records to point out patterns in your mind. Nothing is sent to a server - it\'s all calculated on this device. You can turn it off anytime.';
+      "Mongi looks for patterns across your entries. Everything is calculated on this device, and nothing is sent to a server. You can turn this off anytime.";
 
   @override
-  String get mindReportReflectionTitle => 'Mongi\'s Mind Reflection';
+  String get mindReportReflectionTitle => "Patterns in your entries";
 
   @override
   String get mindReportReflectionOptInPrompt =>
-      'We can show deeper insights by combining your records. Want to turn this on in Settings?';
+      "Want to see patterns across your entries? You can turn this on in Settings.";
 
   @override
   String get mindReportReflectionOptInButton => 'Turn on in Settings';
@@ -4276,10 +4276,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get publicGardenAnonymousNickname => 'An anonymous gardener';
 
   @override
-  String get publicGardenCheerButton => 'Send cheer';
+  String get publicGardenCheerButton => "Send encouragement";
 
   @override
-  String get publicGardenCheerAlreadySentToday => 'Already cheered today';
+  String get publicGardenCheerAlreadySentToday => "Encouragement sent today";
 
   @override
   String get publicGardenCheerDialogTitle => 'What would you like to say?';
@@ -4288,10 +4288,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get publicGardenCheerSentSnackbar => 'Your message was sent 🌿';
 
   @override
-  String get publicGardenInboxTitle => 'Received cheers';
+  String get publicGardenInboxTitle => "Encouragement received";
 
   @override
-  String get publicGardenInboxEmpty => 'No cheers received yet.';
+  String get publicGardenInboxEmpty => "No encouragement received yet.";
 
   @override
   String get publicGardenInboxClaimButton => 'Claim';
@@ -4314,8 +4314,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get publicCheerOption3 => 'I\'m rooting for you';
 
   @override
-  String get publicCheerOption4 => 'I\'m on your side today';
+  String get publicCheerOption4 => "Sending a little kindness your way";
 
   @override
-  String get publicCheerOption5 => 'Just getting here is enough';
+  String get publicCheerOption5 => "It's lovely to have you here";
 }

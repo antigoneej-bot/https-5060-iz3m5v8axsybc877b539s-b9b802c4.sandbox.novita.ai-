@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import '../services/cloud_service.dart';
 import '../services/cat_care_service.dart';
 import '../mongi/integration/mongi_garden_store.dart';
@@ -52,6 +53,21 @@ Uint8List? decodeWalkPostcard(Object? input) {
   }
 }
 
+@visibleForTesting
+Map<String, Object> createWalkProfile({
+  required String name,
+  required int coat,
+  required Iterable<String> emotions,
+  required String language,
+}) => {
+  'name': name.trim().isEmpty
+      ? (language == 'en' ? 'Nabi' : tr("나비"))
+      : name.trim(),
+  'coat': coat,
+  'emotions': emotions.toSet().toList(),
+  'language': language == 'en' ? 'en' : 'ko',
+};
+
 class _CatWalkScreenState extends State<CatWalkScreen>
     with WidgetsBindingObserver {
   final _sound = SoundService();
@@ -60,7 +76,9 @@ class _CatWalkScreenState extends State<CatWalkScreen>
   bool _visible = true;
   int _loadEpoch = 0;
   String? _walkId, _walkOwner, _walkAccount;
-  bool get _ownsWalk => _walkOwner == CatCareService.localOwner && _walkAccount == CloudService.currentUser?.uid;
+  bool get _ownsWalk =>
+      _walkOwner == CatCareService.localOwner &&
+      _walkAccount == CloudService.currentUser?.uid;
   final _walkClock = Stopwatch();
   bool _rewardSaving = false, _rewardSaved = false, _feeding = false;
   Map<String, int>? _pendingReward;
@@ -72,6 +90,7 @@ class _CatWalkScreenState extends State<CatWalkScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _sound.addListener(_syncSound);
+    AppLanguage.instance.addListener(_syncLanguage);
     WidgetsBinding.instance.addPostFrameCallback((_) => _load());
   }
 
@@ -94,11 +113,12 @@ class _CatWalkScreenState extends State<CatWalkScreen>
       if (!mounted || epoch != _loadEpoch) return;
       if (!care.journeyReady) throw StateError('companion unavailable');
       final name = (care.companionName ?? '').trim();
-      _profile = {
-        'name': name.isEmpty ? '나비' : name,
-        'coat': premium ? (care.journey.coat?.index ?? 0) : -1,
-        'emotions': app.todaysLetters.map((e) => e.catId).toSet().toList(),
-      };
+      _profile = createWalkProfile(
+        name: name,
+        coat: premium ? (care.journey.coat?.index ?? 0) : -1,
+        emotions: app.todaysLetters.map((e) => e.catId),
+        language: AppLanguage.instance.code,
+      );
       final controller = WebViewController();
       await controller.setJavaScriptMode(JavaScriptMode.unrestricted);
       await controller.setBackgroundColor(const Color(0xfffaf5ed));
@@ -143,6 +163,12 @@ class _CatWalkScreenState extends State<CatWalkScreen>
     }
   }
 
+  void _syncLanguage() {
+    final language = AppLanguage.instance.code;
+    _profile?['language'] = language;
+    unawaited(_run('window.setWalkLanguage(${jsonEncode(language)});'));
+  }
+
   Future<void> _run(String script) async {
     if (!_ready || !mounted) return;
     try {
@@ -170,12 +196,16 @@ class _CatWalkScreenState extends State<CatWalkScreen>
       if (data is! Map<String, dynamic>) return;
       switch (data['type']) {
         case 'walkBegin':
-          if (_rewardSaving || (_pendingReward != null && !_rewardSaved)) return;
+          if (_rewardSaving || (_pendingReward != null && !_rewardSaved))
+            return;
           _walkId = SessionTransaction.newId();
           _walkOwner = CatCareService.localOwner;
           _walkAccount = CloudService.currentUser?.uid;
-          _pendingReward = null; _rewardSaved = false;
-          _walkClock..reset()..start();
+          _pendingReward = null;
+          _rewardSaved = false;
+          _walkClock
+            ..reset()
+            ..start();
         case 'walkPause':
           _walkClock.stop();
         case 'walkResume':
@@ -184,16 +214,20 @@ class _CatWalkScreenState extends State<CatWalkScreen>
           await _saveWalkReward(data);
         case 'walkFeed':
           final kind = data['kind'];
-          if (_feeding || !_rewardSaved || !['churu','snack'].contains(kind)) return;
+          if (_feeding || !_rewardSaved || !['churu', 'snack'].contains(kind))
+            return;
           _feeding = true;
           try {
             final ok = await MongiGardenStore.instance.consumeWalkFood(
               kind == 'churu' ? 'churu_tuna' : 'food_dry',
-              isCurrentOwner: () => _ownsWalk);
+              isCurrentOwner: () => _ownsWalk,
+            );
             await _run('window.walkFeedResult(${jsonEncode(kind)}, $ok);');
           } catch (_) {
             await _run('window.walkFeedResult(${jsonEncode(kind)}, false);');
-          } finally { _feeding = false; }
+          } finally {
+            _feeding = false;
+          }
 
         case 'fullscreen':
           await _setFullscreen(data['value'] == true);
@@ -251,7 +285,7 @@ class _CatWalkScreenState extends State<CatWalkScreen>
     } catch (_) {
       if (mounted)
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('요청을 완료하지 못했어요. 다시 시도해 주세요.')),
+          SnackBar(content: Text(tr("요청을 완료하지 못했어요. 다시 시도해 주세요."))),
         );
     }
   }
@@ -261,35 +295,55 @@ class _CatWalkScreenState extends State<CatWalkScreen>
     _walkClock.stop();
     _rewardSaving = true;
     try {
-      if (!_ownsWalk) throw StateError('계정 변경');
+      if (!_ownsWalk) throw StateError(tr("계정 변경"));
       if (_pendingReward == null) {
         final raw = data['bag'];
-        if (raw is! Map || ['churu','snack','light'].any((k) => raw[k] is! int || raw[k] < 0)) {
-          throw StateError('잘못된 보상');
+        if (raw is! Map ||
+            [
+              'churu',
+              'snack',
+              'light',
+            ].any((k) => raw[k] is! int || raw[k] < 0)) {
+          throw StateError(tr("잘못된 보상"));
         }
-        final reward = {for (final k in ['churu','snack','light']) k: raw[k] as int};
+        final reward = {
+          for (final k in ['churu', 'snack', 'light']) k: raw[k] as int,
+        };
         final seconds = _walkClock.elapsedMilliseconds / 1000;
-        if (reward['churu']! > 12 || reward['snack']! > 12 || reward['light']! > 80 ||
+        if (reward['churu']! > 12 ||
+            reward['snack']! > 12 ||
+            reward['light']! > 80 ||
             (seconds < 2 && reward.values.any((n) => n > 0)) ||
-            reward['churu']! + reward['snack']! + (reward['light']! / 20).ceil() > (seconds / 2).floor() + 1) {
-          throw StateError('잘못된 보상');
+            reward['churu']! +
+                    reward['snack']! +
+                    (reward['light']! / 20).ceil() >
+                (seconds / 2).floor() + 1) {
+          throw StateError(tr("잘못된 보상"));
         }
         _pendingReward = reward;
       }
-      await MongiGardenStore.instance.receiveWalkReward(_walkId!, _pendingReward!,
-        isCurrentOwner: () => _ownsWalk);
+      await MongiGardenStore.instance.receiveWalkReward(
+        _walkId!,
+        _pendingReward!,
+        isCurrentOwner: () => _ownsWalk,
+      );
       _rewardSaved = true;
       _rewardSaving = false;
       await _run('window.walkRewardResult(true);');
     } catch (_) {
       await _run('window.walkRewardResult(false);');
-    } finally { _rewardSaving = false; }
+    } finally {
+      _rewardSaving = false;
+    }
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     _visible = state == AppLifecycleState.resumed;
-    if (!_visible) { _walkClock.stop(); unawaited(_sound.stopPurr()); }
+    if (!_visible) {
+      _walkClock.stop();
+      unawaited(_sound.stopPurr());
+    }
     if (!_visible) unawaited(_run('window.hostPause();'));
     // The app's existing lifecycle owner controls the one SoundService player.
   }
@@ -347,6 +401,7 @@ class _CatWalkScreenState extends State<CatWalkScreen>
     unawaited(_sound.stopPurr());
     unawaited(_nativeFullscreen(false));
     _sound.removeListener(_syncSound);
+    AppLanguage.instance.removeListener(_syncLanguage);
     WidgetsBinding.instance.removeObserver(this);
     unawaited(SystemChrome.setPreferredOrientations([]));
     unawaited(SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge));
@@ -357,6 +412,7 @@ class _CatWalkScreenState extends State<CatWalkScreen>
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     final supported =
         !kIsWeb &&
         (defaultTargetPlatform == TargetPlatform.android ||
@@ -371,27 +427,27 @@ class _CatWalkScreenState extends State<CatWalkScreen>
         appBar: _full
             ? null
             : AppBar(
-                title: const Text('마음냥 산책'),
+                title: Text(tr("마음냥 산책")),
                 actions: [
                   IconButton(
                     onPressed: _load,
-                    tooltip: '산책 새로 불러오기',
+                    tooltip: tr("산책 새로 불러오기"),
                     icon: const Icon(Icons.refresh),
                   ),
                   IconButton(
                     onPressed: _ready ? () => _setFullscreen(true) : null,
-                    tooltip: '가로·세로 전체 화면',
+                    tooltip: tr("가로·세로 전체 화면"),
                     icon: Icon(Icons.fullscreen),
                   ),
                 ],
               ),
         body: !supported
-            ? const Center(child: Text('산책은 Android·iPhone 앱에서 이용할 수 있어요.'))
+            ? Center(child: Text(tr("산책은 Android·iPhone 앱에서 이용할 수 있어요.")))
             : _failed
             ? Center(
                 child: TextButton(
                   onPressed: _load,
-                  child: const Text('산책을 불러오지 못했어요 · 다시 시도'),
+                  child: Text(tr("산책을 불러오지 못했어요 · 다시 시도")),
                 ),
               )
             : Stack(
@@ -411,7 +467,7 @@ class _CatWalkScreenState extends State<CatWalkScreen>
                             children: [
                               IconButton(
                                 iconSize: 18,
-                                tooltip: '가로·세로 전환',
+                                tooltip: tr("가로·세로 전환"),
                                 onPressed: _rotate,
                                 icon: const Icon(
                                   Icons.screen_rotation_outlined,
@@ -419,7 +475,7 @@ class _CatWalkScreenState extends State<CatWalkScreen>
                               ),
                               IconButton(
                                 iconSize: 18,
-                                tooltip: '전체 화면 닫기',
+                                tooltip: tr("전체 화면 닫기"),
                                 onPressed: () => _setFullscreen(false),
                                 icon: const Icon(Icons.fullscreen_exit),
                               ),

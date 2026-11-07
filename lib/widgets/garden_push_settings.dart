@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import '../screens/garden_updates_screen.dart';
 import 'package:flutter/material.dart';
 import '../services/garden_push_service.dart';
@@ -52,7 +53,7 @@ class _GardenPushSettingsState extends State<GardenPushSettings> {
         setState(
           () => _error = error is StateError
               ? '${error.message}'
-              : '알림을 연결하지 못했어요. 로그인과 연결을 확인하고 다시 시도해 주세요.',
+              : tr("알림을 연결하지 못했어요. 로그인과 연결을 확인하고 다시 시도해 주세요."),
         );
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -65,8 +66,8 @@ class _GardenPushSettingsState extends State<GardenPushSettings> {
     children: [
       SwitchListTile(
         contentPadding: EdgeInsets.zero,
-        title: const Text('맑은 유리종 알림음'),
-        subtitle: const Text('새 소식에 짧게 울려요. 휴대폰의 무음·방해금지 설정을 따라요.'),
+        title: Text(tr("맑은 유리종 알림음")),
+        subtitle: Text(tr("새 소식에 짧게 울려요. 휴대폰의 무음·방해금지 설정을 따라요.")),
         value: _bell,
         onChanged: _busy
             ? null
@@ -82,18 +83,20 @@ class _GardenPushSettingsState extends State<GardenPushSettings> {
                   await service.sync();
                 } catch (_) {
                   if (mounted)
-                    setState(() => _error = '설정 동기화를 마치지 못했어요. 연결을 확인해 주세요.');
+                    setState(
+                      () => _error = tr("설정 동기화를 마치지 못했어요. 연결을 확인해 주세요."),
+                    );
                 } finally {
                   if (mounted) setState(() => _busy = false);
                 }
               },
       ),
-      const Text('이웃·예약 소식', style: TextStyle(fontWeight: FontWeight.bold)),
-      const Text('로그인한 계정의 소식만 받아요. 알림에는 편지나 감정 내용을 넣지 않아요.'),
+      Text(tr("이웃·예약 소식"), style: TextStyle(fontWeight: FontWeight.bold)),
+      Text(tr("로그인한 계정의 소식만 받아요. 알림에는 편지나 감정 내용을 넣지 않아요.")),
       for (final kind in ['social', 'booking'])
         SwitchListTile(
           contentPadding: EdgeInsets.zero,
-          title: Text(kind == 'social' ? '응원·선물 도착 알림' : '예약 변경·취소 알림'),
+          title: Text(kind == 'social' ? tr("응원·선물 도착 알림") : tr("예약 변경·취소 알림")),
           value: _settings[kind] == true,
           onChanged: _busy || !service.supported
               ? null
@@ -104,7 +107,7 @@ class _GardenPushSettingsState extends State<GardenPushSettings> {
           context,
           MaterialPageRoute(builder: (_) => const GardenUpdatesScreen()),
         ),
-        child: const Text('예약 변경 소식 보기'),
+        child: Text(tr("예약 변경 소식 보기")),
       ),
       if (_busy) const LinearProgressIndicator(),
       if (_error != null)
@@ -113,7 +116,7 @@ class _GardenPushSettingsState extends State<GardenPushSettings> {
           style: TextStyle(color: Theme.of(context).colorScheme.error),
         ),
       if (!service.supported)
-        const Text('Google Play에서 설치한 Android 앱에서 설정할 수 있어요.'),
+        Text(tr("Google Play에서 설치한 Android 앱에서 설정할 수 있어요.")),
     ],
   );
 }

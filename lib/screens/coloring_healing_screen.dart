@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import '../services/garden_personal_gallery_store.dart';
 import '../utils/private_gallery_png.dart';
 import 'dart:ui' as ui;
@@ -14,7 +15,11 @@ import '../services/cat_care_service.dart';
 import 'legacy_coloring_screen.dart';
 
 class ColoringHealingScreen extends StatefulWidget {
-  const ColoringHealingScreen({super.key});
+  const ColoringHealingScreen({super.key, this.artworkBundle});
+
+  /// The retired screen is kept for saved-art compatibility tests only.
+  /// Its template is no longer included in the application asset bundle.
+  final AssetBundle? artworkBundle;
   @override
   State<ColoringHealingScreen> createState() => _ColoringHealingScreenState();
 }
@@ -57,7 +62,9 @@ class _ColoringHealingScreenState extends State<ColoringHealingScreen> {
 
   Future<void> load() async {
     try {
-      final bytes = await rootBundle.load('assets/coloring/love_cat.png');
+      final bytes = await (widget.artworkBundle ?? rootBundle).load(
+        'assets/coloring/love_cat.png',
+      );
       final codec = await ui.instantiateImageCodec(bytes.buffer.asUint8List());
       final image = (await codec.getNextFrame()).image;
       codec.dispose();
@@ -83,7 +90,7 @@ class _ColoringHealingScreenState extends State<ColoringHealingScreen> {
       if (mounted)
         setState(() {
           busy = false;
-          error = '그림을 불러오지 못했어요. 화면을 다시 열어주세요.';
+          error = tr("그림을 불러오지 못했어요. 화면을 다시 열어주세요.");
         });
     }
   }
@@ -116,7 +123,7 @@ class _ColoringHealingScreenState extends State<ColoringHealingScreen> {
       }
       return true;
     } catch (_) {
-      message('저장하지 못했어요. 다시 시도해 주세요.');
+      message(tr("저장하지 못했어요. 다시 시도해 주세요."));
       return false;
     } finally {
       if (mounted) setState(() => busy = false);
@@ -166,7 +173,7 @@ class _ColoringHealingScreenState extends State<ColoringHealingScreen> {
     } else if (CatCareService.localOwner == owner) {
       setState(() {
         active = stroke;
-        error = '마지막 붓질을 저장하지 못했어요.';
+        error = tr("마지막 붓질을 저장하지 못했어요.");
       });
     }
   }
@@ -177,23 +184,23 @@ class _ColoringHealingScreenState extends State<ColoringHealingScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, update) => AlertDialog(
-          title: const Text('나만의 색'),
+          title: Text(tr("나만의 색")),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(height: 45, color: hsv.toColor()),
-              const Text('색조'),
+              Text(tr("색조")),
               Slider(
                 value: hsv.hue,
                 max: 360,
                 onChanged: (v) => update(() => hsv = hsv.withHue(v)),
               ),
-              const Text('선명함'),
+              Text(tr("선명함")),
               Slider(
                 value: hsv.saturation,
                 onChanged: (v) => update(() => hsv = hsv.withSaturation(v)),
               ),
-              const Text('밝기'),
+              Text(tr("밝기")),
               Slider(
                 value: hsv.value,
                 onChanged: (v) => update(() => hsv = hsv.withValue(v)),
@@ -203,11 +210,11 @@ class _ColoringHealingScreenState extends State<ColoringHealingScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('취소'),
+              child: Text(tr("취소")),
             ),
             FilledButton(
               onPressed: () => Navigator.pop(ctx, hsv.toColor()),
-              child: const Text('이 색으로'),
+              child: Text(tr("이 색으로")),
             ),
           ],
         ),
@@ -221,9 +228,9 @@ class _ColoringHealingScreenState extends State<ColoringHealingScreen> {
     setState(() => busy = true);
     try {
       await store.save(strokes, finished: true);
-      message('내 작품함에 보관했어요.');
+      message(tr("내 작품함에 보관했어요."));
     } catch (_) {
-      message('보관하지 못했어요. 다시 시도해 주세요.');
+      message(tr("보관하지 못했어요. 다시 시도해 주세요."));
     } finally {
       if (mounted) setState(() => busy = false);
     }
@@ -231,24 +238,51 @@ class _ColoringHealingScreenState extends State<ColoringHealingScreen> {
 
   Future<void> exhibitSaved(List<ColoringStroke> saved) async {
     if (!editable || art == null || saved.isEmpty) return;
-    final yes = await showDialog<bool>(context: context, builder: (c) => AlertDialog(
-      title: const Text('정원에 전시할까요?'),
-      content: const Text('완성한 작품을 나만 보는 정원 액자에 걸어요. 이미 전시 중인 작품은 이 그림으로 바뀌고 색칠 원본은 유지돼요.'),
-      actions: [TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('취소')),
-        FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('전시하기'))]));
+    final yes = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: Text(tr("정원에 전시할까요?")),
+        content: Text(
+          tr("완성한 작품을 나만 보는 정원 액자에 걸어요. 이미 전시 중인 작품은 이 그림으로 바뀌고 색칠 원본은 유지돼요."),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(c, false),
+            child: Text(tr("취소")),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(c, true),
+            child: Text(tr("전시하기")),
+          ),
+        ],
+      ),
+    );
     if (yes != true || !mounted || !editable || art == null) return;
     setState(() => busy = true);
     try {
       final recorder = ui.PictureRecorder();
-      BrushColoringPainter(art, saved, boundaries: boundaries).paint(Canvas(recorder), const Size(512, 768));
+      BrushColoringPainter(
+        art,
+        saved,
+        boundaries: boundaries,
+      ).paint(Canvas(recorder), const Size(512, 768));
       final picture = recorder.endRecording();
       final image = await picture.toImage(512, 768);
       picture.dispose();
-      try { await GardenPersonalGalleryStore.exhibit(owner, await privateGalleryPng(image)); }
-      finally { image.dispose(); }
-      message('내 정원의 액자에 전시했어요. 사진첩에서 내릴 수 있어요.');
-    } catch (_) { message('전시하지 못했어요. 다시 시도해 주세요.'); }
-    finally { if (mounted) setState(() => busy = false); }
+      try {
+        await GardenPersonalGalleryStore.exhibit(
+          owner,
+          await privateGalleryPng(image),
+        );
+      } finally {
+        image.dispose();
+      }
+      message(tr("내 정원의 액자에 전시했어요. 사진첩에서 내릴 수 있어요."));
+    } catch (_) {
+      message(tr("전시하지 못했어요. 다시 시도해 주세요."));
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
   }
 
   Future<void> gallery() async {
@@ -266,10 +300,10 @@ class _ColoringHealingScreenState extends State<ColoringHealingScreen> {
             padding: const EdgeInsets.all(16),
             child: Column(
               children: [
-                const Text('내 작품함 · 사랑을 안은 고양이'),
+                Text(tr("내 작품함 · 사랑을 안은 고양이")),
                 Expanded(
                   child: saved.isEmpty
-                      ? const Center(child: Text('완성한 그림을 보관해 보세요.'))
+                      ? Center(child: Text(tr("완성한 그림을 보관해 보세요.")))
                       : AspectRatio(
                           aspectRatio: 2 / 3,
                           child: CustomPaint(
@@ -281,12 +315,18 @@ class _ColoringHealingScreenState extends State<ColoringHealingScreen> {
                           ),
                         ),
                 ),
-                if (saved.isNotEmpty) TextButton.icon(
-                  onPressed: () { Navigator.pop(ctx); exhibitSaved(saved); },
-                  icon: const Icon(Icons.park_outlined), label: const Text('정원에 전시')),
+                if (saved.isNotEmpty)
+                  TextButton.icon(
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      exhibitSaved(saved);
+                    },
+                    icon: const Icon(Icons.park_outlined),
+                    label: Text(tr("정원에 전시")),
+                  ),
                 TextButton(
                   onPressed: () => Navigator.pop(ctx),
-                  child: const Text('닫기'),
+                  child: Text(tr("닫기")),
                 ),
               ],
             ),
@@ -294,7 +334,7 @@ class _ColoringHealingScreenState extends State<ColoringHealingScreen> {
         ),
       );
     } catch (_) {
-      message('작품함을 불러오지 못했어요.');
+      message(tr("작품함을 불러오지 못했어요."));
     }
   }
 
@@ -324,14 +364,14 @@ class _ColoringHealingScreenState extends State<ColoringHealingScreen> {
         ),
       );
     } catch (_) {
-      message('그림 내보내기를 다시 시도해 주세요.');
+      message(tr("그림 내보내기를 다시 시도해 주세요."));
     }
   }
 
   Widget swatch(Color c) => Padding(
     padding: const EdgeInsets.all(3),
     child: Semantics(
-      label: '색상 ${c.toARGB32().toRadixString(16)}',
+      label: tr("색상 {0}", [c.toARGB32().toRadixString(16)]),
       selected: selected == c && !erase,
       button: true,
       child: InkWell(
@@ -438,7 +478,7 @@ class _ColoringHealingScreenState extends State<ColoringHealingScreen> {
                 child: RepaintBoundary(
                   key: capture,
                   child: Semantics(
-                    label: editable ? '색칠 준비 완료' : '색칠 불러오기·저장 중',
+                    label: editable ? tr("색칠 준비 완료") : tr("색칠 불러오기·저장 중"),
                     child: CustomPaint(
                       key: const Key('brush-canvas'),
                       size: const Size(1024, 1536),
@@ -465,7 +505,7 @@ class _ColoringHealingScreenState extends State<ColoringHealingScreen> {
         spacing: 6,
         children: [
           ChoiceChip(
-            label: const Text('영역 채우기'),
+            label: Text(tr("영역 채우기")),
             selected: filling,
             onSelected: (_) => setState(() {
               filling = true;
@@ -473,7 +513,7 @@ class _ColoringHealingScreenState extends State<ColoringHealingScreen> {
             }),
           ),
           ChoiceChip(
-            label: const Text('붓으로 칠하기'),
+            label: Text(tr("붓으로 칠하기")),
             selected: !filling,
             onSelected: (_) => setState(() {
               filling = false;
@@ -487,7 +527,7 @@ class _ColoringHealingScreenState extends State<ColoringHealingScreen> {
         children: [
           for (var i = 0; i < 3; i++)
             ChoiceChip(
-              label: Text(['아주 얇은 붓', '중간 붓', '큰 붓'][i]),
+              label: Text([tr("아주 얇은 붓"), tr("중간 붓"), tr("큰 붓")][i]),
               showCheckmark: false,
               avatar: Center(
                 child: Container(
@@ -508,7 +548,7 @@ class _ColoringHealingScreenState extends State<ColoringHealingScreen> {
             ),
         ],
       ),
-      const Text('48색 · 옆으로 넘겨 골라요'),
+      Text(tr("48색 · 옆으로 넘겨 골라요")),
       SizedBox(
         height: 104,
         child: SingleChildScrollView(
@@ -527,7 +567,7 @@ class _ColoringHealingScreenState extends State<ColoringHealingScreen> {
         ),
       ),
       if (recent.isNotEmpty) ...[
-        const Text('최근 사용한 색'),
+        Text(tr("최근 사용한 색")),
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: Row(children: recent.map(swatch).toList()),
@@ -539,10 +579,10 @@ class _ColoringHealingScreenState extends State<ColoringHealingScreen> {
           TextButton.icon(
             onPressed: custom,
             icon: const Icon(Icons.palette_outlined),
-            label: const Text('직접 색 만들기'),
+            label: Text(tr("직접 색 만들기")),
           ),
           FilterChip(
-            label: const Text('지우개'),
+            label: Text(tr("지우개")),
             selected: erase,
             onSelected: (v) => setState(() => erase = v),
           ),
@@ -555,7 +595,7 @@ class _ColoringHealingScreenState extends State<ColoringHealingScreen> {
                       setState(() => redo.add(last));
                   }
                 : null,
-            child: const Text('되돌리기'),
+            child: Text(tr("되돌리기")),
           ),
           TextButton(
             onPressed: editable && redo.isNotEmpty
@@ -565,25 +605,25 @@ class _ColoringHealingScreenState extends State<ColoringHealingScreen> {
                       setState(() => redo.removeLast());
                   }
                 : null,
-            child: const Text('다시하기'),
+            child: Text(tr("다시하기")),
           ),
           TextButton(
             onPressed: editable ? share : null,
-            child: const Text('그림 내보내기'),
+            child: Text(tr("그림 내보내기")),
           ),
         ],
       ),
       FilledButton(
         onPressed: editable && strokes.isNotEmpty ? finish : null,
-        child: Text(busy ? '불러오기·저장 중…' : '작품 완성 · 보관하기'),
+        child: Text(busy ? tr("불러오기·저장 중…") : tr("작품 완성 · 보관하기")),
       ),
-      const Text('붓질을 마칠 때마다 이 기기에 저장돼요. 선은 지워지지 않아요. 지우개도 선택한 굵기를 사용해요.'),
+      Text(tr("붓질을 마칠 때마다 이 기기에 저장돼요. 선은 지워지지 않아요. 지우개도 선택한 굵기를 사용해요.")),
       TextButton(
         onPressed: () => Navigator.push(
           context,
           MaterialPageRoute(builder: (_) => const LegacyColoringScreen()),
         ),
-        child: const Text('이전 도안·작품함 · 색칠 카드'),
+        child: Text(tr("이전 도안·작품함 · 색칠 카드")),
       ),
     ],
   );
@@ -591,7 +631,7 @@ class _ColoringHealingScreenState extends State<ColoringHealingScreen> {
     spacing: 4,
     children: [
       IconButton(
-        tooltip: fullscreen ? '전체화면 닫기' : '전체화면',
+        tooltip: fullscreen ? tr("전체화면 닫기") : tr("전체화면"),
         onPressed: () => setState(() {
           fullscreen = !fullscreen;
           viewport = null;
@@ -599,7 +639,7 @@ class _ColoringHealingScreenState extends State<ColoringHealingScreen> {
         icon: Icon(fullscreen ? Icons.fullscreen_exit : Icons.fullscreen),
       ),
       IconButton(
-        tooltip: '가로·세로 전환',
+        tooltip: tr("가로·세로 전환"),
         onPressed: () async {
           orientationChanged = true;
           await SystemChrome.setPreferredOrientations(
@@ -614,18 +654,18 @@ class _ColoringHealingScreenState extends State<ColoringHealingScreen> {
         icon: const Icon(Icons.screen_rotation),
       ),
       IconButton(
-        tooltip: '그림 전체보기',
+        tooltip: tr("그림 전체보기"),
         onPressed: () => fit(),
         icon: const Icon(Icons.fit_screen),
       ),
       FilterChip(
         key: const Key('coloring-move-mode'),
-        label: Text(moving ? '이동 모드 · 색칠 멈춤' : '색칠 중 · 이동으로 전환'),
+        label: Text(moving ? tr("이동 모드 · 색칠 멈춤") : tr("색칠 중 · 이동으로 전환")),
         selected: moving,
         onSelected: editable ? setMoving : null,
       ),
       IconButton(
-        tooltip: toolsOpen ? '색칠 도구 접기' : '색칠 도구 펼치기',
+        tooltip: toolsOpen ? tr("색칠 도구 접기") : tr("색칠 도구 펼치기"),
         onPressed: () => setState(() => toolsOpen = !toolsOpen),
         icon: const Icon(Icons.palette_outlined),
       ),
@@ -633,6 +673,7 @@ class _ColoringHealingScreenState extends State<ColoringHealingScreen> {
   );
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     final landscape =
         MediaQuery.orientationOf(context) == Orientation.landscape;
     final canvas = drawing();
@@ -650,10 +691,10 @@ class _ColoringHealingScreenState extends State<ColoringHealingScreen> {
         appBar: fullscreen
             ? null
             : AppBar(
-                title: const Text('감정고양이 색칠'),
+                title: Text(tr("감정고양이 색칠")),
                 actions: [
                   IconButton(
-                    tooltip: '내 작품함',
+                    tooltip: tr("내 작품함"),
                     onPressed: editable ? gallery : null,
                     icon: const Icon(Icons.collections_outlined),
                   ),
@@ -704,9 +745,9 @@ class _ColoringHealingScreenState extends State<ColoringHealingScreen> {
                           setState(() => error = null);
                           end();
                         },
-                        child: const Text('저장 다시 시도'),
+                        child: Text(tr("저장 다시 시도")),
                       ),
-                    if (!sameOwner) const Text('계정이 바뀌었어요. 화면을 다시 열어주세요.'),
+                    if (!sameOwner) Text(tr("계정이 바뀌었어요. 화면을 다시 열어주세요.")),
                     Expanded(
                       child: landscape
                           ? Row(

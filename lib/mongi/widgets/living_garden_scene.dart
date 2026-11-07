@@ -1,3 +1,4 @@
+import '../../l10n/app_language.dart';
 import '../../utils/companion_name.dart';
 import 'dart:async';
 import 'dart:math' as math;
@@ -147,6 +148,7 @@ class _LivingGardenSceneState extends State<LivingGardenScene>
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     final night = _night;
     final planted = SeedType.all
         .where((s) => (widget.seeds[s.id] ?? 0) > 0)
@@ -333,7 +335,7 @@ class _LivingGardenSceneState extends State<LivingGardenScene>
                                 child: Column(
                                   children: [
                                     Text(
-                                      '마음냥 정원',
+                                      tr("마음냥 정원"),
                                       textAlign: TextAlign.center,
                                       style: TextStyle(
                                         fontFamily: 'GamjaFlower',
@@ -463,7 +465,7 @@ class _LivingGardenSceneState extends State<LivingGardenScene>
                 if (widget.onNeighbors != null)
                   _action(
                     Icons.favorite_border_rounded,
-                    '이웃 정원',
+                    tr("이웃 정원"),
                     widget.onNeighbors!,
                     false,
                   ),
@@ -632,6 +634,7 @@ class GardenPlantArt extends StatelessWidget {
   });
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     final tier = seed.tierForCount(count);
     if (tier == 0) return const SizedBox.shrink();
     final column = SeedType.all.indexWhere((s) => s.id == seed.id);

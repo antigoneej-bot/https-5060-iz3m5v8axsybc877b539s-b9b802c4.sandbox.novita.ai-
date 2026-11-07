@@ -59,3 +59,8 @@ android/release-key.jks
 **/.env
 **/.env.*
 !**/.env.example
+
+# Local execution evidence is delivered separately from tracked app files.
+/verification97/
+
+/verification98/

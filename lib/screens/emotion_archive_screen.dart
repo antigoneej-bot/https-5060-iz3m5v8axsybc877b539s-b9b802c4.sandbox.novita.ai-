@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import '../widgets/emotion_cat_thumbnail.dart';
 import '../services/cat_care_service.dart';
 import '../services/garden_personal_gallery_store.dart';
@@ -76,9 +77,9 @@ class _EmotionArchiveScreenState extends State<EmotionArchiveScreen> {
         if (showError)
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: const Text('간직한 카드 목록을 불러오지 못했어요.'),
+              content: Text(tr("간직한 카드 목록을 불러오지 못했어요.")),
               action: SnackBarAction(
-                label: '재시도',
+                label: tr("재시도"),
                 onPressed: () => loadFavorites(showError: true),
               ),
             ),
@@ -102,7 +103,7 @@ class _EmotionArchiveScreenState extends State<EmotionArchiveScreen> {
       if (mounted)
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(const SnackBar(content: Text('간직하기를 저장하지 못했어요.')));
+        ).showSnackBar(SnackBar(content: Text(tr("간직하기를 저장하지 못했어요."))));
     } finally {
       if (mounted) setState(() => favoriteBusy = false);
     }
@@ -113,25 +114,25 @@ class _EmotionArchiveScreenState extends State<EmotionArchiveScreen> {
     final route = DialogRoute<String>(
       context: context,
       builder: (c) => AlertDialog(
-        title: const Text('감정 카드 찾기'),
+        title: Text(tr("감정 카드 찾기")),
         content: TextField(
           controller: controller,
           autofocus: true,
           maxLength: 100,
-          decoration: const InputDecoration(
-            labelText: '기록 내용·감정·날짜',
-            hintText: '예: 산책, 기쁨, 2026-11',
+          decoration: InputDecoration(
+            labelText: tr("기록 내용·감정·날짜"),
+            hintText: tr("예: 산책, 기쁨, 2026-11"),
           ),
           onSubmitted: (v) => Navigator.pop(c, v),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(c, ''),
-            child: const Text('검색 지우기'),
+            child: Text(tr("검색 지우기")),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(c, controller.text),
-            child: const Text('찾기'),
+            child: Text(tr("찾기")),
           ),
         ],
       ),
@@ -187,7 +188,7 @@ class _EmotionArchiveScreenState extends State<EmotionArchiveScreen> {
                 asset,
                 fit: BoxFit.contain,
                 cacheWidth: (size * 3).round(),
-                semanticLabel: '${record.label} 고양이',
+                semanticLabel: tr("{0} 고양이", [record.label]),
               ),
       ),
     );
@@ -205,7 +206,7 @@ class _EmotionArchiveScreenState extends State<EmotionArchiveScreen> {
             key: const Key('emotion-day-record-list'),
             padding: const EdgeInsets.all(20),
             children: [
-              const Text('이날의 감정 고양이', style: TextStyle(fontSize: 20)),
+              Text(tr("이날의 감정 고양이"), style: TextStyle(fontSize: 20)),
               for (final record in records)
                 Card(
                   child: Padding(
@@ -228,11 +229,11 @@ class _EmotionArchiveScreenState extends State<EmotionArchiveScreen> {
                         ),
                         Text(
                           '${record.date.year}.${record.date.month}.${record.date.day}'
-                          '${record.hasTime ? ' · ${record.date.hour.toString().padLeft(2, '0')}:${record.date.minute.toString().padLeft(2, '0')}' : ' · 시간 미기록'}',
+                          '${record.hasTime ? ' · ${record.date.hour.toString().padLeft(2, '0')}:${record.date.minute.toString().padLeft(2, '0')}' : tr(" · 시간 미기록")}',
                         ),
                         const SizedBox(height: 12),
                         SelectableText(
-                          record.note.isEmpty ? '감정을 남겼어요.' : record.note,
+                          record.note.isEmpty ? tr("감정을 남겼어요.") : record.note,
                         ),
                         Wrap(
                           spacing: 8,
@@ -256,8 +257,8 @@ class _EmotionArchiveScreenState extends State<EmotionArchiveScreen> {
                                 ),
                                 label: Text(
                                   favorites.contains(record.id)
-                                      ? '간직하기 해제'
-                                      : '간직하기',
+                                      ? tr("간직하기 해제")
+                                      : tr("간직하기"),
                                 ),
                               ),
                             if ((record.id.startsWith('letter:saved:') ||
@@ -279,18 +280,18 @@ class _EmotionArchiveScreenState extends State<EmotionArchiveScreen> {
                                   );
                                 },
                                 icon: const Icon(Icons.park_outlined),
-                                label: const Text('나무에 연결'),
+                                label: Text(tr("나무에 연결")),
                               )
                             else
                               TextButton.icon(
                                 onPressed: () => showMemoryTree(context),
                                 icon: const Icon(Icons.park_outlined),
-                                label: const Text('기억의 나무 열기'),
+                                label: Text(tr("기억의 나무 열기")),
                               ),
                           ],
                         ),
                         if (!GardenPersonalGalleryStore.stableRecord(record.id))
-                          const Text('이전 형식의 기록은 간직하기를 지원하지 않아요.'),
+                          Text(tr("이전 형식의 기록은 간직하기를 지원하지 않아요.")),
                       ],
                     ),
                   ),
@@ -304,6 +305,7 @@ class _EmotionArchiveScreenState extends State<EmotionArchiveScreen> {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     final history = UnifiedEmotionSummaryService.read(
       letters: context.watch<AppStateProvider>().history,
       gardenDiary: context.watch<GardenProvider>().diaryEntries,
@@ -338,19 +340,19 @@ class _EmotionArchiveScreenState extends State<EmotionArchiveScreen> {
     final count = DateTime(month.year, month.month + 1, 0).day;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('나의 마음 보관함'),
+        title: Text(tr("나의 마음 보관함")),
         actions: [
           IconButton(
-            tooltip: query.isEmpty ? '감정 카드 검색' : '검색 중: $query',
+            tooltip: query.isEmpty ? tr("감정 카드 검색") : tr("검색 중: {0}", [query]),
             onPressed: search,
             icon: Icon(query.isEmpty ? Icons.search : Icons.manage_search),
           ),
           IconButton(
             tooltip: favoritesFailed
-                ? '간직한 카드 불러오기 재시도'
+                ? tr("간직한 카드 불러오기 재시도")
                 : favoritesOnly
-                ? '모든 카드 보기'
-                : '간직한 카드만 보기',
+                ? tr("모든 카드 보기")
+                : tr("간직한 카드만 보기"),
             onPressed: favoritesReady
                 ? () => setState(() => favoritesOnly = !favoritesOnly)
                 : () => loadFavorites(showError: true),
@@ -363,7 +365,7 @@ class _EmotionArchiveScreenState extends State<EmotionArchiveScreen> {
             ),
           ),
           IconButton(
-            tooltip: '주간·월간 만화책',
+            tooltip: tr("주간·월간 만화책"),
             icon: const Icon(Icons.menu_book_outlined),
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute<void>(
@@ -380,7 +382,7 @@ class _EmotionArchiveScreenState extends State<EmotionArchiveScreen> {
             if (failed)
               TextButton(
                 onPressed: loadGarden,
-                child: const Text('정원 기록 불러오기 재시도'),
+                child: Text(tr("정원 기록 불러오기 재시도")),
               ),
             if (query.isNotEmpty || favoritesOnly)
               SingleChildScrollView(
@@ -389,12 +391,12 @@ class _EmotionArchiveScreenState extends State<EmotionArchiveScreen> {
                   children: [
                     if (query.isNotEmpty)
                       InputChip(
-                        label: Text('검색: $query'),
+                        label: Text(tr("검색: {0}", [query])),
                         onDeleted: () => setState(() => query = ''),
                       ),
                     if (favoritesOnly)
                       InputChip(
-                        label: const Text('간직한 카드'),
+                        label: Text(tr("간직한 카드")),
                         onDeleted: () => setState(() => favoritesOnly = false),
                       ),
                   ],
@@ -404,18 +406,18 @@ class _EmotionArchiveScreenState extends State<EmotionArchiveScreen> {
               spacing: 8,
               children: [
                 ChoiceChip(
-                  label: const Text('감정 캘린더'),
+                  label: Text(tr("감정 캘린더")),
                   selected: calendar,
                   onSelected: (_) => setState(() => calendar = true),
                 ),
                 ChoiceChip(
-                  label: const Text('고양이 카드 모아보기'),
+                  label: Text(tr("고양이 카드 모아보기")),
                   selected: !calendar,
                   onSelected: (_) => setState(() => calendar = false),
                 ),
                 if (!calendar)
                   FilterChip(
-                    label: const Text('전체 기간'),
+                    label: Text(tr("전체 기간")),
                     selected: allMonths,
                     onSelected: (v) => setState(() => allMonths = v),
                   ),
@@ -425,16 +427,16 @@ class _EmotionArchiveScreenState extends State<EmotionArchiveScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 IconButton(
-                  tooltip: '이전 달',
+                  tooltip: tr("이전 달"),
                   onPressed: () => setState(() {
                     month = DateTime(month.year, month.month - 1);
                     allMonths = false;
                   }),
                   icon: const Icon(Icons.chevron_left),
                 ),
-                Text('${month.year}년 ${month.month}월'),
+                Text(tr("{0}년 {1}월", [month.year, month.month])),
                 IconButton(
-                  tooltip: '다음 달',
+                  tooltip: tr("다음 달"),
                   onPressed: () => setState(() {
                     month = DateTime(month.year, month.month + 1);
                     allMonths = false;
@@ -448,11 +450,11 @@ class _EmotionArchiveScreenState extends State<EmotionArchiveScreen> {
               child: DropdownButton<String>(
                 isExpanded: true,
                 value: filter,
-                hint: const Text('모든 감정'),
+                hint: Text(tr("모든 감정")),
                 items: [
-                  const DropdownMenuItem<String>(
+                  DropdownMenuItem<String>(
                     value: null,
-                    child: Text('모든 감정'),
+                    child: Text(tr("모든 감정")),
                   ),
                   for (final e in labels.entries)
                     DropdownMenuItem(value: e.key, child: Text(e.value)),
@@ -468,13 +470,13 @@ class _EmotionArchiveScreenState extends State<EmotionArchiveScreen> {
                         Row(
                           children: [
                             for (final day in [
-                              '월',
-                              '화',
-                              '수',
-                              '목',
-                              '금',
-                              '토',
-                              '일',
+                              tr("월"),
+                              tr("화"),
+                              tr("수"),
+                              tr("목"),
+                              tr("금"),
+                              tr("토"),
+                              tr("일"),
                             ])
                               Expanded(child: Center(child: Text(day))),
                           ],
@@ -507,8 +509,16 @@ class _EmotionArchiveScreenState extends State<EmotionArchiveScreen> {
                                 ? null
                                 : entries.first;
                             return Semantics(
-                              label:
-                                  '${month.month}월 $day일, ${entries.isEmpty ? '기록 없음' : '${representative!.label}, ${entries.length}개 기록'}',
+                              label: tr("{0}월 {1}일, {2}", [
+                                month.month,
+                                day,
+                                entries.isEmpty
+                                    ? tr("기록 없음")
+                                    : tr("{0}, {1}개 기록", [
+                                        representative!.label,
+                                        entries.length,
+                                      ]),
+                              ]),
                               button: entries.isNotEmpty,
                               child: InkWell(
                                 key: ValueKey('emotion-calendar-day-$day'),
@@ -599,22 +609,24 @@ class _EmotionArchiveScreenState extends State<EmotionArchiveScreen> {
                             );
                           },
                         ),
-                        const Padding(
+                        Padding(
                           padding: EdgeInsets.all(12),
                           child: Text(
-                            '시간이 있는 기록 중 마지막 감정을 표시해요. 시간이 없는 기록도 날짜를 누르면 함께 볼 수 있어요.',
+                            tr(
+                              "시간이 있는 기록 중 마지막 감정을 표시해요. 시간이 없는 기록도 날짜를 누르면 함께 볼 수 있어요.",
+                            ),
                           ),
                         ),
                         if (records.isEmpty)
-                          const Center(child: Text('이 달에는 아직 남긴 감정이 없어요.')),
+                          Center(child: Text(tr("이 달에는 아직 남긴 감정이 없어요."))),
                       ],
                     )
                   : records.isEmpty
                   ? Center(
                       child: Text(
                         query.isNotEmpty || favoritesOnly
-                            ? '조건에 맞는 카드가 없어요. 검색·간직하기 필터를 바꿔 보세요.'
-                            : '아직 보관된 감정 카드가 없어요.',
+                            ? tr("조건에 맞는 카드가 없어요. 검색·간직하기 필터를 바꿔 보세요.")
+                            : tr("아직 보관된 감정 카드가 없어요."),
                       ),
                     )
                   : GridView.builder(

@@ -34,12 +34,16 @@ class LetterContextBuilder {
         ? emotionTagForCatId(yesterdayEntry.catId)
         : null;
 
-    final last7 = _entriesWithinDays(catHistory, ref, 7)
-        .map((e) => emotionTagForCatId(e.catId))
-        .toList();
-    final last30 = _entriesWithinDays(catHistory, ref, 30)
-        .map((e) => emotionTagForCatId(e.catId))
-        .toList();
+    final last7 = _entriesWithinDays(
+      catHistory,
+      ref,
+      7,
+    ).map((e) => emotionTagForCatId(e.catId)).toList();
+    final last30 = _entriesWithinDays(
+      catHistory,
+      ref,
+      30,
+    ).map((e) => emotionTagForCatId(e.catId)).toList();
 
     final todayEntry = _entryForDaysAgo(catHistory, ref, 0);
 
@@ -112,9 +116,11 @@ class LetterContextBuilder {
     DateTime ref,
     int daysAgo,
   ) {
-    final target = DateTime(ref.year, ref.month, ref.day).subtract(
-      Duration(days: daysAgo),
-    );
+    final target = DateTime(
+      ref.year,
+      ref.month,
+      ref.day,
+    ).subtract(Duration(days: daysAgo));
     for (final e in sortedDesc) {
       final d = DateTime(e.date.year, e.date.month, e.date.day);
       if (d == target) return e;

@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import '../widgets/calm_letter_receipt.dart';
 import '../widgets/letter_care_closing_card.dart';
 import '../mongi/screens/garden_world_screen.dart';
@@ -24,10 +25,10 @@ class HeartLettersScreen extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Padding(
+            Padding(
               padding: EdgeInsets.all(16),
               child: Text(
-                '지난 마음편지',
+                tr("지난 마음편지"),
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
               ),
             ),
@@ -56,13 +57,13 @@ class HeartLettersScreen extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-          '오늘, 어떤 마음을\n편지로 전해볼까요?',
+          tr("오늘, 어떤 마음을\n편지로 전해볼까요?"),
           textAlign: TextAlign.center,
           style: titleFont(fontSize: 21, color: AppColors.ink, height: 1.4),
         ),
         const SizedBox(height: 8),
         Text(
-          '누구에게도 보내지 않는 편지예요. 지금 마음을 그대로 남겨요.',
+          tr("누구에게도 보내지 않는 편지예요. 지금 마음을 그대로 남겨요."),
           textAlign: TextAlign.center,
           style: bodyFont(fontSize: 12.5, color: AppColors.inkSoft),
         ),
@@ -70,7 +71,7 @@ class HeartLettersScreen extends StatelessWidget {
         OutlinedButton.icon(
           onPressed: () => _openHistory(context),
           icon: const Icon(Icons.mail_outline),
-          label: const Text('지난 마음편지'),
+          label: Text(tr("지난 마음편지")),
         ),
         const SizedBox(height: 24),
         _HeartLetterGrid(),
@@ -301,7 +302,7 @@ class _WriteHeartLetterSheetState extends State<_WriteHeartLetterSheet> {
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('편지를 보내지 못했어요. 잠시 후 다시 시도해 주세요')),
+        SnackBar(content: Text(tr("편지를 보내지 못했어요. 잠시 후 다시 시도해 주세요"))),
       );
     } finally {
       if (mounted) setState(() => _sending = false);
@@ -421,7 +422,7 @@ class _WriteHeartLetterSheetState extends State<_WriteHeartLetterSheet> {
                               ),
                             )
                           : Text(
-                              '편지 남기기',
+                              tr("편지 남기기"),
                               style: pathLabelFont(
                                 fontSize: 15,
                                 color: Colors.white,
@@ -475,18 +476,20 @@ class _SentConfirmationView extends StatelessWidget {
       ReplySupportActions(letterText: entry.letterText),
       const CalmLetterReceipt(),
       const SizedBox(height: 20),
-      FilledButton(onPressed: onClose, child: const Text('오늘은 여기까지')),
+      FilledButton(onPressed: onClose, child: Text(tr("오늘은 여기까지"))),
       const SizedBox(height: 8),
       OutlinedButton.icon(
         onPressed: () => Navigator.of(context).push(
-          MaterialPageRoute<void>(builder: (_) => const GardenWorldScreen.owned()),
+          MaterialPageRoute<void>(
+            builder: (_) => const GardenWorldScreen.owned(),
+          ),
         ),
         icon: const Icon(Icons.park_outlined),
-        label: const Text('정원에서 잠깐 쉬기'),
+        label: Text(tr("정원에서 잠깐 쉬기")),
       ),
       const SizedBox(height: 12),
       LetterCareClosingCard.heart(letter: entry),
-      TextButton(onPressed: onHistory, child: const Text('지난 마음편지 보기')),
+      TextButton(onPressed: onHistory, child: Text(tr("지난 마음편지 보기"))),
     ],
   );
 }

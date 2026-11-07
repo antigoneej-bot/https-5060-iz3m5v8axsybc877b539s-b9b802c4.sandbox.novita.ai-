@@ -269,8 +269,10 @@ class _AmbientCatState extends State<_AmbientCat>
       // 걷기: 느리고 부드러운 왕복 이동 (calmMotion에서는 비활성화)
       final dx = walkRange * sin(t * 2 * pi);
       // 앉아 숨쉬는 듯한 미세한 스케일 펄스 + 꼬리 흔들림을 암시하는 아주 작은 회전
-      final breathe = 1.0 + breatheAmp * sin(t * 2 * pi * 5 + widget.spec.phase * 10);
-      final tailAndTurn = tailAmp * sin(t * 2 * pi * 1.3 + widget.spec.phase * 7);
+      final breathe =
+          1.0 + breatheAmp * sin(t * 2 * pi * 5 + widget.spec.phase * 10);
+      final tailAndTurn =
+          tailAmp * sin(t * 2 * pi * 1.3 + widget.spec.phase * 7);
       // 눈 깜빡임: 활동 구간 동안 짧게 세 번 정도 깜빡입니다.
       final blinkFrac = (t * 3) % 1.0;
       final blink = blinkFrac > 0.95 ? 0.3 : 1.0;

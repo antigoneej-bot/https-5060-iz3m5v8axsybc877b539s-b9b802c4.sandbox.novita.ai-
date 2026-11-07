@@ -1,3 +1,10 @@
+import 'dart:io';
+import 'dart:ui' as ui;
+import 'package:flutter/rendering.dart';
+import 'package:flutter_app/l10n/app_language.dart';
+import 'package:flutter_app/screens/all_features_screen.dart';
+import 'package:flutter_app/screens/cat_bond_screen.dart';
+import 'package:flutter_app/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_app/models/letter_entry.dart';
@@ -34,7 +41,24 @@ void main() {
   const secureChannel = MethodChannel(
     'plugins.it_nomads.com/flutter_secure_storage',
   );
-  setUpAll(() {
+  setUpAll(() async {
+    for (final font in {
+      'GowunDodum': 'assets/fonts/GowunDodum-Regular.ttf',
+      'GamjaFlower': 'assets/fonts/GamjaFlower-Regular.ttf',
+      'MaterialIcons': 'fonts/MaterialIcons-Regular.otf',
+    }.entries) {
+      await (FontLoader(font.key)..addFont(rootBundle.load(font.value))).load();
+    }
+    if (Platform.isWindows && Platform.environment['WINDIR'] != null) {
+      final emoji = File(
+        Platform.environment['WINDIR']! + '/Fonts/seguiemj.ttf',
+      );
+      if (await emoji.exists()) {
+        await (FontLoader(
+          'Segoe UI Emoji',
+        )..addFont(emoji.readAsBytes().then(ByteData.sublistView))).load();
+      }
+    }
     // The screen flow does not edit reflection drafts. Model an unavailable
     // keystore explicitly so these navigation tests never start filesystem I/O.
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
@@ -48,8 +72,9 @@ void main() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(secureChannel, null);
   });
-  setUp(() {
+  setUp(() async {
     SharedPreferences.setMockInitialValues({});
+    await AppLanguage.instance.select('ko');
     GoogleFonts.config.allowRuntimeFetching = false;
     SubscriptionService.debugIsPremiumOverride = false;
   });
@@ -60,6 +85,9 @@ void main() {
     Widget screen,
     _Garden garden, {
     double width = 390,
+    double height = 844,
+    double scale = 1,
+    String language = 'ko',
   }) async {
     final now = DateTime.now();
     final app = AppStateProvider()
@@ -79,10 +107,11 @@ void main() {
       ];
     addTearDown(app.dispose);
     addTearDown(garden.dispose);
-    tester.view.physicalSize = Size(width, 844);
+    tester.view.physicalSize = Size(width, height);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
+    await AppLanguage.instance.select(language);
     await tester.pumpWidget(
       MultiProvider(
         providers: [
@@ -90,7 +119,18 @@ void main() {
           ChangeNotifierProvider<GardenProvider>.value(value: garden),
         ],
         child: MaterialApp(
-          locale: const Locale('ko'),
+          theme: appTheme,
+          locale: Locale(language),
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(context).copyWith(
+              textScaler: TextScaler.linear(scale),
+              disableAnimations: true,
+            ),
+            child: RepaintBoundary(
+              key: const Key('streamline-capture'),
+              child: child!,
+            ),
+          ),
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
           home: screen,
@@ -100,6 +140,162 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 350));
   }
+
+  Future<void> capture(WidgetTester tester, String name) async {
+    final dir = Platform.environment['UI_APPROVED_REVIEW_DIR'];
+    if (dir == null) return;
+    await tester.runAsync(() async {
+      final boundary = tester.renderObject<RenderRepaintBoundary>(
+        find.byKey(const Key('streamline-capture')),
+      );
+      final image = await boundary.toImage();
+      final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+      await Directory(dir).create(recursive: true);
+      await File('$dir/$name.png').writeAsBytes(bytes!.buffer.asUint8List());
+      image.dispose();
+    });
+  }
+
+  for (final language in ['ko', 'en']) {
+    for (final size in [
+      const Size(320, 640),
+      const Size(390, 844),
+      const Size(844, 390),
+    ]) {
+      for (final scale in [1.0, 2.0]) {
+        testWidgets(
+          'free monthly view keeps detailed journal access $language $size $scale',
+          (tester) async {
+            final garden = _Garden();
+            await open(
+              tester,
+              const EmotionStatisticsScreen(initialMonthly: true),
+              garden,
+              width: size.width,
+              height: size.height,
+              scale: scale,
+              language: language,
+            );
+            await tester.pumpAndSettle();
+            final entry = find.byKey(const Key('open-garden-report-details'));
+            await tester.ensureVisible(entry);
+            expect(entry.hitTestable(), findsOneWidget);
+            await tester.tap(entry);
+            await tester.pumpAndSettle();
+            expect(
+              tester
+                  .widget<MindReportScreen>(find.byType(MindReportScreen))
+                  .detailsFirst,
+              isTrue,
+            );
+            expect(
+              tester
+                  .widget<ExpansionTile>(
+                    find.byKey(const Key('report-garden-details')),
+                  )
+                  .initiallyExpanded,
+              isTrue,
+            );
+            expect(find.text(tr('이번 달 함께 모은 마음')), findsNothing);
+            await capture(
+              tester,
+              'report-$language-' + size.width.toInt().toString() + '-$scale',
+            );
+            final overview = find.byKey(const Key('report-period-overview'));
+            await tester.ensureVisible(overview);
+            await tester.tap(find.text(tr('주간·월간 요약 다시 보기')));
+            await tester.pumpAndSettle();
+            expect(
+              find.text(language == 'en' ? '1 day · 2 entries' : '1일 · 2개의 기록'),
+              findsNWidgets(2),
+            );
+            expect(
+              find.text(tr('편지 {0}개 · 정원 일기 {1}개', [2, 0])),
+              findsNWidgets(2),
+            );
+            if (language == 'en') {
+              expect(
+                find.byWidgetPredicate(
+                  (w) => w is Text && RegExp(r'[가-힣]').hasMatch(w.data ?? ''),
+                ),
+                findsNothing,
+              );
+            }
+            await capture(
+              tester,
+              'report-summary-$language-' +
+                  size.width.toInt().toString() +
+                  '-$scale',
+            );
+            await tester.tap(find.byIcon(Icons.arrow_back));
+            await tester.pumpAndSettle();
+            expect(find.byType(MindReportScreen), findsNothing);
+            expect(
+              find.byKey(const Key('open-garden-report-details')),
+              findsOneWidget,
+            );
+            expect(
+              tester
+                  .widget<EmotionStatisticsScreen>(
+                    find.byType(EmotionStatisticsScreen),
+                  )
+                  .initialMonthly,
+              isTrue,
+            );
+            expect(tester.takeException(), isNull);
+            await tester.pumpWidget(const SizedBox.shrink());
+            await tester.pump();
+          },
+        );
+      }
+    }
+  }
+
+  testWidgets(
+    'old report search opens statistics, cat codes remain separate from invitations',
+    (tester) async {
+      await open(tester, const AllFeaturesScreen(), _Garden());
+      await tester.pumpAndSettle();
+      expect(find.text('마음 리포트'), findsNothing);
+      expect(find.text('36개 기능'), findsOneWidget);
+      Future<void> search(String value) async {
+        await tester.ensureVisible(find.byType(TextField));
+        await tester.enterText(find.byType(TextField), value);
+        await tester.pumpAndSettle();
+      }
+
+      await search('마음 리포트');
+      expect(find.text('1개 기능'), findsOneWidget);
+      await tester.ensureVisible(find.text('감정 통계'));
+      await tester.tap(find.text('감정 통계'));
+      await tester.pumpAndSettle();
+      expect(find.byType(EmotionStatisticsScreen), findsOneWidget);
+      await tester.tap(find.byType(BackButton));
+      await tester.pumpAndSettle();
+      await search('묘연');
+      expect(find.text('1개 기능'), findsOneWidget);
+      await tester.ensureVisible(find.text('고양이 코드 비교'));
+      await tester.tap(find.text('고양이 코드 비교'));
+      // This screen keeps blinking. Wait for the route's completion condition,
+      // rather than waiting for unrelated repeating animations to stop.
+      ModalRoute<dynamic>? codeRoute;
+      for (var frame = 0; frame < 60; frame++) {
+        await tester.pump(const Duration(milliseconds: 16));
+        final screen = find.byType(CatBondScreen, skipOffstage: false);
+        if (screen.evaluate().isEmpty) continue;
+        codeRoute = ModalRoute.of(tester.element(screen));
+        if (codeRoute!.animation!.isCompleted) break;
+      }
+      expect(codeRoute?.animation?.status, AnimationStatus.completed);
+      expect(find.byType(CatBondScreen), findsOneWidget);
+      await tester.tap(find.byIcon(Icons.arrow_back_ios_new_rounded));
+      await tester.pumpAndSettle();
+      await search('예약');
+      expect(find.text('1개 기능'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
 
   testWidgets(
     'report and statistics share letters plus diary, with inspectable source and intensity',

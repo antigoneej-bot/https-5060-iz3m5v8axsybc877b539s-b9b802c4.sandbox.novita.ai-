@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import '../services/access_policy.dart';
 import '../services/subscription_service.dart';
 import 'subscription_gate.dart';
@@ -135,7 +136,7 @@ class _GuideTileState extends State<_GuideTile> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            '${guide.title}${AccessPolicy.freeMeditations.contains(widget.guideKey) ? ' · 무료' : ''}',
+                            '${guide.title}${AccessPolicy.freeMeditations.contains(widget.guideKey) ? tr(" · 무료") : ''}',
                             style: bodyFont(
                               fontSize: 13.5,
                               color: AppColors.ink,

@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import '../widgets/premium_test_access.dart';
 import 'dart:async';
 import 'dart:math' as math;
@@ -128,7 +129,7 @@ class _OrchardScreenState extends State<OrchardScreen>
         await showDialog<void>(
           context: context,
           builder: (_) => AlertDialog(
-            title: const Text('냠냠, 고마워요!'),
+            title: Text(tr("냠냠, 고마워요!")),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -144,25 +145,27 @@ class _OrchardScreenState extends State<OrchardScreen>
                     ),
                   ),
                 ),
-                Text('${kind.fruit} 1개를 맛있게 먹었어요.'),
+                Text(tr("{0} 1개를 맛있게 먹었어요.", [kind.fruit])),
               ],
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('쓰담쓰담'),
+                child: Text(tr("쓰담쓰담")),
               ),
             ],
           ),
         );
       } else {
         note(switch (op) {
-          'harvest' => '${kind.fruit} $count개를 창고에 담았어요!',
-          'water' => '물을 주었어요. 열매가 쑥쑥 자라요.',
-          'buy' => '${kind.name}를 심었어요.',
-          'gift' => '${kind.fruit} $count개를 선물했어요.',
-          'sell' => '정원 코인 ${(result['result'] as Map)['coins']}개를 모았어요.',
-          _ => '완료했어요.',
+          'harvest' => tr("{0} {1}개를 창고에 담았어요!", [kind.fruit, count]),
+          'water' => tr("물을 주었어요. 열매가 쑥쑥 자라요."),
+          'buy' => tr("{0}를 심었어요.", [kind.name]),
+          'gift' => tr("{0} {1}개를 선물했어요.", [kind.fruit, count]),
+          'sell' => tr("정원 코인 {0}개를 모았어요.", [
+            (result['result'] as Map)['coins'],
+          ]),
+          _ => tr("완료했어요."),
         });
       }
     } catch (e) {
@@ -188,7 +191,7 @@ class _OrchardScreenState extends State<OrchardScreen>
         final people = await service.village.listNeighbors();
         if (!mounted || token != epoch) return;
         if (people.neighbors.isEmpty) {
-          note('먼저 냥이 마을에서 이웃을 맺어 주세요.');
+          note(tr("먼저 냥이 마을에서 이웃을 맺어 주세요."));
           return;
         }
         final chosen = await showModalBottomSheet<String>(
@@ -199,16 +202,16 @@ class _OrchardScreenState extends State<OrchardScreen>
             height: MediaQuery.sizeOf(c).height * .6,
             child: Column(
               children: [
-                const Padding(
+                Padding(
                   padding: EdgeInsets.all(20),
-                  child: Text('선물할 이웃을 골라 주세요'),
+                  child: Text(tr("선물할 이웃을 골라 주세요")),
                 ),
                 Expanded(
                   child: ListView(
                     children: [
                       for (final p in people.neighbors)
                         ListTile(
-                          title: Text(p.nickname ?? '이웃'),
+                          title: Text(p.nickname ?? tr("이웃")),
                           trailing: const Icon(Icons.chevron_right),
                           onTap: () => Navigator.pop(c, p.gardenId),
                         ),
@@ -223,7 +226,7 @@ class _OrchardScreenState extends State<OrchardScreen>
         target = chosen;
         name =
             people.neighbors.firstWhere((p) => p.gardenId == chosen).nickname ??
-            '이웃';
+            tr("이웃");
       } catch (e) {
         if (mounted && token == epoch) note(e.toString());
         return;
@@ -237,25 +240,30 @@ class _OrchardScreenState extends State<OrchardScreen>
       context: context,
       builder: (c) => StatefulBuilder(
         builder: (c, update) => AlertDialog(
-          title: Text(op == 'sell' ? '${kind.fruit} 판매' : '$name님에게 선물'),
+          title: Text(
+            op == 'sell' ? tr("{0} 판매", [kind.fruit]) : tr("{0}님에게 선물", [name]),
+          ),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text('창고에 $stock개 있어요.'),
+                Text(tr("창고에 {0}개 있어요.", [stock])),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     IconButton(
-                      tooltip: '수량 줄이기',
+                      tooltip: tr("수량 줄이기"),
                       onPressed: quantity > 1
                           ? () => update(() => quantity--)
                           : null,
                       icon: const Icon(Icons.remove_circle_outline),
                     ),
-                    Text('$quantity개', key: const Key('orchard-quantity')),
+                    Text(
+                      tr("{0}개", [quantity]),
+                      key: const Key('orchard-quantity'),
+                    ),
                     IconButton(
-                      tooltip: '수량 늘리기',
+                      tooltip: tr("수량 늘리기"),
                       onPressed: quantity < math.min(stock, 999)
                           ? () => update(() => quantity++)
                           : null,
@@ -266,12 +274,12 @@ class _OrchardScreenState extends State<OrchardScreen>
                 TextButton(
                   onPressed: () =>
                       update(() => quantity = math.min(stock, 999)),
-                  child: const Text('가능한 만큼'),
+                  child: Text(tr("가능한 만큼")),
                 ),
                 Text(
                   op == 'sell'
-                      ? '정원 코인 ${quantity * kind.sale}개를 받아요.'
-                      : '내 창고에서 차감되어 이웃 창고에 들어가요.',
+                      ? tr("정원 코인 {0}개를 받아요.", [quantity * kind.sale])
+                      : tr("내 창고에서 차감되어 이웃 창고에 들어가요."),
                 ),
               ],
             ),
@@ -279,12 +287,12 @@ class _OrchardScreenState extends State<OrchardScreen>
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(c, false),
-              child: const Text('취소'),
+              child: Text(tr("취소")),
             ),
             FilledButton(
               key: const Key('orchard-confirm'),
               onPressed: () => Navigator.pop(c, true),
-              child: Text(op == 'sell' ? '판매하기' : '선물 보내기'),
+              child: Text(op == 'sell' ? tr("판매하기") : tr("선물 보내기")),
             ),
           ],
         ),
@@ -296,16 +304,17 @@ class _OrchardScreenState extends State<OrchardScreen>
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     final owned = OrchardKind.all
         .where((k) => state?.trees.containsKey(k.id) ?? false)
         .toList();
     return Scaffold(
       backgroundColor: const Color(0xfffffaf2),
       appBar: AppBar(
-        title: const Text('열매 정원 · 창고'),
+        title: Text(tr("열매 정원 · 창고")),
         actions: [
           IconButton(
-            tooltip: '새로고침 · 이전 요청 확인',
+            tooltip: tr("새로고침 · 이전 요청 확인"),
             onPressed: busy || loading ? null : _load,
             icon: const Icon(Icons.refresh),
           ),
@@ -315,7 +324,7 @@ class _OrchardScreenState extends State<OrchardScreen>
         child: Column(
           children: [
             if (busy || loading) const LinearProgressIndicator(),
-            const PremiumFeatureLabel('열매 나무 5종'),
+            PremiumFeatureLabel(tr("열매 나무 5종")),
             if (state != null)
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
@@ -325,7 +334,7 @@ class _OrchardScreenState extends State<OrchardScreen>
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        '정원 코인 ${state!.coins}개',
+                        tr("정원 코인 {0}개", [state!.coins]),
                         style: const TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
@@ -342,7 +351,7 @@ class _OrchardScreenState extends State<OrchardScreen>
                 children: [
                   for (var i = 0; i < 3; i++)
                     ChoiceChip(
-                      label: Text(['나무 돌보기', '수확 창고', '묘목 상점'][i]),
+                      label: Text([tr("나무 돌보기"), tr("수확 창고"), tr("묘목 상점")][i]),
                       selected: tab == i,
                       onSelected: busy ? null : (_) => setState(() => tab = i),
                     ),
@@ -358,17 +367,17 @@ class _OrchardScreenState extends State<OrchardScreen>
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             if (needsAccount) ...[
-                              const Text('나무와 수확물을 계정에 안전하게 보관해요.'),
+                              Text(tr("나무와 수확물을 계정에 안전하게 보관해요.")),
                               const SizedBox(height: 16),
                               AccountEntryCard(onChanged: _load),
                             ] else if (error != null) ...[
                               Text(error!),
                               TextButton(
                                 onPressed: loading ? null : _load,
-                                child: const Text('다시 확인하기'),
+                                child: Text(tr("다시 확인하기")),
                               ),
                             ] else
-                              const Text('우리 나무를 불러오고 있어요…'),
+                              Text(tr("우리 나무를 불러오고 있어요…")),
                           ],
                         ),
                       ),
@@ -385,15 +394,15 @@ class _OrchardScreenState extends State<OrchardScreen>
                                   Text(error!),
                                   TextButton(
                                     onPressed: busy || loading ? null : _load,
-                                    child: const Text('새로고침 · 이전 요청 확인'),
+                                    child: Text(tr("새로고침 · 이전 요청 확인")),
                                   ),
                                 ],
                               ),
                             ),
                           ),
                         if (tab == 0) ...[
-                          const Text(
-                            '좌우로 넘겨 우리 나무를 만나세요',
+                          Text(
+                            tr("좌우로 넘겨 우리 나무를 만나세요"),
                             textAlign: TextAlign.center,
                           ),
                           SizedBox(
@@ -439,7 +448,9 @@ class _OrchardScreenState extends State<OrchardScreen>
                                         ),
                                         Text(
                                           tree.ready
-                                              ? '열매 ${tree.yieldCount}개가 익었어요!'
+                                              ? tr("열매 {0}개가 익었어요!", [
+                                                  tree.yieldCount,
+                                                ])
                                               : tree.stageLabel,
                                         ),
                                         const SizedBox(height: 12),
@@ -452,7 +463,10 @@ class _OrchardScreenState extends State<OrchardScreen>
                                         ),
                                         const SizedBox(height: 12),
                                         Text(
-                                          '예상 수확 ${tree.yieldCount}개 · 돌봄 ${tree.care}/5',
+                                          tr("예상 수확 {0}개 · 돌봄 {1}/5", [
+                                            tree.yieldCount,
+                                            tree.care,
+                                          ]),
                                         ),
                                         const SizedBox(height: 12),
                                         Wrap(
@@ -469,7 +483,7 @@ class _OrchardScreenState extends State<OrchardScreen>
                                               icon: const Icon(
                                                 Icons.water_drop_outlined,
                                               ),
-                                              label: const Text('물주기'),
+                                              label: Text(tr("물주기")),
                                             ),
                                             FilledButton.icon(
                                               key: ValueKey(
@@ -482,7 +496,7 @@ class _OrchardScreenState extends State<OrchardScreen>
                                               icon: const Icon(
                                                 Icons.shopping_basket_outlined,
                                               ),
-                                              label: const Text('수확하기'),
+                                              label: Text(tr("수확하기")),
                                             ),
                                           ],
                                         ),
@@ -497,15 +511,17 @@ class _OrchardScreenState extends State<OrchardScreen>
                             '${math.min(page + 1, owned.length)} / ${owned.length}',
                             textAlign: TextAlign.center,
                           ),
-                          const Padding(
+                          Padding(
                             padding: EdgeInsets.all(16),
                             child: Text(
-                              '열매 나무는 구독 기능이며, 테스트에서는 사과나무 한 그루로 시작해요.\n기본 7일이면 익고, 물을 주면 12시간 더 빨리 자라요. 한국 시간 기준 하루 한 번, 최대 5번 돌보면 10개에서 30개까지 수확해요.\n접속하지 않아도 시들지 않고, 익은 열매는 사라지지 않아요.',
+                              tr(
+                                "열매 나무는 구독 기능이며, 테스트에서는 사과나무 한 그루로 시작해요.\n기본 7일이면 익고, 물을 주면 12시간 더 빨리 자라요. 한국 시간 기준 하루 한 번, 최대 5번 돌보면 10개에서 30개까지 수확해요.\n접속하지 않아도 시들지 않고, 익은 열매는 사라지지 않아요.",
+                              ),
                             ),
                           ),
                         ] else if (tab == 1) ...[
-                          const Text(
-                            '수확물은 여기에 차곡차곡 쌓여요.',
+                          Text(
+                            tr("수확물은 여기에 차곡차곡 쌓여요."),
                             style: TextStyle(fontSize: 18),
                           ),
                           for (final kind in OrchardKind.all)
@@ -517,13 +533,16 @@ class _OrchardScreenState extends State<OrchardScreen>
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      '${kind.fruit}  ${state!.stock[kind.id] ?? 0}개',
+                                      tr("{0}  {1}개", [
+                                        kind.fruit,
+                                        state!.stock[kind.id] ?? 0,
+                                      ]),
                                       style: const TextStyle(
                                         fontSize: 20,
                                         fontWeight: FontWeight.bold,
                                       ),
                                     ),
-                                    Text('1개 판매 → 정원 코인 ${kind.sale}개'),
+                                    Text(tr("1개 판매 → 정원 코인 {0}개", [kind.sale])),
                                     Wrap(
                                       spacing: 8,
                                       children: [
@@ -537,7 +556,7 @@ class _OrchardScreenState extends State<OrchardScreen>
                                               ? null
                                               : () =>
                                                     _stockAction('sell', kind),
-                                          child: const Text('판매'),
+                                          child: Text(tr("판매")),
                                         ),
                                         TextButton(
                                           onPressed:
@@ -549,7 +568,7 @@ class _OrchardScreenState extends State<OrchardScreen>
                                               ? null
                                               : () =>
                                                     _stockAction('gift', kind),
-                                          child: const Text('이웃 선물'),
+                                          child: Text(tr("이웃 선물")),
                                         ),
                                         if (kind.edible)
                                           TextButton(
@@ -561,7 +580,7 @@ class _OrchardScreenState extends State<OrchardScreen>
                                                         0
                                                 ? null
                                                 : () => _act('feed', kind),
-                                            child: const Text('고양이에게 1개 주기'),
+                                            child: Text(tr("고양이에게 1개 주기")),
                                           ),
                                       ],
                                     ),
@@ -570,23 +589,30 @@ class _OrchardScreenState extends State<OrchardScreen>
                               ),
                             ),
                           const SizedBox(height: 16),
-                          const Text(
-                            '이웃에게 받은 선물 · 최근 30개',
+                          Text(
+                            tr("이웃에게 받은 선물 · 최근 30개"),
                             style: TextStyle(fontSize: 20),
                           ),
                           if (state!.gifts.isEmpty)
-                            const Text('이웃이 보내준 열매도 이 창고로 들어와요.'),
+                            Text(tr("이웃이 보내준 열매도 이 창고로 들어와요.")),
                           for (final gift in state!.gifts)
                             ListTile(
                               leading: const Icon(Icons.card_giftcard),
-                              title: Text('${gift['senderName']}님이 보내준 선물'),
+                              title: Text(
+                                tr("{0}님이 보내준 선물", [gift['senderName']]),
+                              ),
                               subtitle: Text(
-                                '${OrchardKind.byId(gift['kind']).fruit} ${gift['quantity']}개',
+                                tr("{0} {1}개", [
+                                  OrchardKind.byId(gift['kind']).fruit,
+                                  gift['quantity'],
+                                ]),
                               ),
                             ),
                         ] else ...[
-                          const Text(
-                            '열매를 판매한 코인으로 새 묘목을 심어요.\n정원 코인은 묘목용이며 빛의 정수와 별도로 모아요. 현금 구매는 없어요.',
+                          Text(
+                            tr(
+                              "열매를 판매한 코인으로 새 묘목을 심어요.\n정원 코인은 묘목용이며 빛의 정수와 별도로 모아요. 현금 구매는 없어요.",
+                            ),
                           ),
                           for (final kind in OrchardKind.all)
                             Card(
@@ -604,7 +630,11 @@ class _OrchardScreenState extends State<OrchardScreen>
                                       kind.name,
                                       style: const TextStyle(fontSize: 22),
                                     ),
-                                    Text('${kind.fruit} 10~30개 · 한 종류당 한 그루'),
+                                    Text(
+                                      tr("{0} 10~30개 · 한 종류당 한 그루", [
+                                        kind.fruit,
+                                      ]),
+                                    ),
                                     const SizedBox(height: 8),
                                     FilledButton(
                                       onPressed:
@@ -618,8 +648,8 @@ class _OrchardScreenState extends State<OrchardScreen>
                                           : () => _act('buy', kind),
                                       child: Text(
                                         state!.trees.containsKey(kind.id)
-                                            ? '우리 정원에서 자라는 중'
-                                            : '${kind.price}코인으로 심기',
+                                            ? tr("우리 정원에서 자라는 중")
+                                            : tr("{0}코인으로 심기", [kind.price]),
                                       ),
                                     ),
                                   ],

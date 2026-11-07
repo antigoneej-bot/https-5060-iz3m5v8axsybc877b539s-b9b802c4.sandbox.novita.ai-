@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import 'companion_coat.dart';
 
 class VisitingCat {
@@ -23,7 +24,7 @@ class VisitingCat {
         raw['stage'] > 3 ||
         raw['name'] is! String ||
         (raw['name'] as String).isEmpty) {
-      throw const FormatException('방문 고양이를 확인하지 못했어요.');
+      throw FormatException(tr("방문 고양이를 확인하지 못했어요."));
     }
     return VisitingCat(
       coat: CompanionCoat.parse(raw['coat'])!,
@@ -54,7 +55,7 @@ class CatVisit {
         raw['id'] is! String ||
         raw['hostId'] is! String ||
         raw['guestId'] is! String) {
-      throw const FormatException('초대장을 확인하지 못했어요.');
+      throw FormatException(tr("초대장을 확인하지 못했어요."));
     }
     return CatVisit(
       id: raw['id'],

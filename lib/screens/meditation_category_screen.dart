@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import 'package:flutter/material.dart';
 import '../theme.dart';
 import '../data/solutions_data.dart';
@@ -19,6 +20,13 @@ class MeditationCategoryScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (AppLanguage.instance.isEnglish)
+      return Scaffold(
+        appBar: AppBar(title: const Text('Meditation')),
+        body: const SafeArea(
+          child: SingleChildScrollView(child: EnglishMeditationNotice()),
+        ),
+      );
     final category = solutionCategoryByKey(categoryKey);
     return Scaffold(
       body: GardenScaffoldBackground(

@@ -1,3 +1,4 @@
+import '../../l10n/app_language.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../integration/garden_layout_store.dart';
@@ -34,6 +35,7 @@ class _GardenHomePreviewState extends State<GardenHomePreview> {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     final name = context.watch<CatCareProvider>().displayName;
     return Semantics(
       label: '나의 정원 열기',
@@ -90,13 +92,13 @@ class _GardenHomePreviewState extends State<GardenHomePreview> {
                         colors: [Color(0x00364531), Color(0xD9364531)],
                       ),
                     ),
-                    child: const Padding(
+                    child: Padding(
                       padding: EdgeInsets.fromLTRB(16, 22, 16, 12),
                       child: Row(
                         children: [
                           Expanded(
                             child: Text(
-                              '나의 정원',
+                              tr("나의 정원"),
                               style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 14,

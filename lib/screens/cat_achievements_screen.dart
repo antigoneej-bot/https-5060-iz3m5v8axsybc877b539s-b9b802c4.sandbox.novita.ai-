@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/cat_care_provider.dart';
@@ -44,11 +45,11 @@ class CatAchievementsScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '뱃지 컬렉션',
+                      tr("뱃지 컬렉션"),
                       style: bodyFont(fontSize: 11, color: AppColors.inkSoft),
                     ),
                     Text(
-                      '함께한 시간이 모여 뱃지가 돼요',
+                      tr("함께한 시간이 모여 뱃지가 돼요"),
                       style: bodyFont(fontSize: 10.5, color: AppColors.inkSoft),
                     ),
                   ],
@@ -169,7 +170,7 @@ class _AchievementBadgeTile extends StatelessWidget {
               borderRadius: BorderRadius.circular(999),
             ),
             child: Text(
-              unlocked ? '달성 완료 ✓' : progress,
+              unlocked ? tr("달성 완료 ✓") : progress,
               style: numberFont(
                 fontSize: 10,
                 fontWeight: FontWeight.w700,

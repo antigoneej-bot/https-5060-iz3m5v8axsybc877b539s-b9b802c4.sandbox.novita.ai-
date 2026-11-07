@@ -6,6 +6,9 @@ import '../../services/local_record_transaction.dart';
 import '../../services/private_letter_memory_source.dart';
 import 'mongi_garden_store.dart';
 import 'plant_memory.dart';
+import 'session_transaction.dart';
+import 'planting_mind.dart';
+import '../../services/cat_care_service.dart';
 export 'plant_memory.dart';
 
 /// Written memories use the same encrypted storage as the private journal.
@@ -14,12 +17,72 @@ class PlantMemoryStore extends ValueNotifier<Map<String, PlantMemory>> {
   static const boxName = 'garden_memories_local_user';
   PlantMemoryStore._() : super(const {});
   final _queue = LocalRecordQueue();
+  @visibleForTesting
+  static void Function(String boundary)? mindSaveFault;
+
+  /// Adds to an existing plant without touching its growth, location or balance.
+  /// The draft ID makes identical retries safe across reloads and double taps.
+  Future<void> appendMind(
+    String plantId,
+    PlantingMind mind, {
+    required String owner,
+    DateTime? now,
+  }) => _serial(() async {
+    void checkOwner() {
+      if (owner != CatCareService.localOwner) {
+        throw StateError('마음을 남기는 동안 계정이 바뀌었어요.');
+      }
+    }
+
+    checkOwner();
+    await _refresh();
+    await MongiGardenStore.instance.reload();
+    checkOwner();
+    if ((MongiGardenStore.instance.value.seeds[plantId] ?? 0) <= 0) {
+      throw StateError('내 정원에 심은 식물을 골라 주세요.');
+    }
+    final date = now ?? DateTime.now();
+    final entry = mind.entry(date);
+    for (final memory in value.values) {
+      for (final saved in memory.timeline) {
+        if (saved.id != entry.id) continue;
+        if (memory.plantId == plantId &&
+            saved.emotionCatId == entry.emotionCatId &&
+            saved.note == entry.note) {
+          return;
+        }
+        throw StateError('이미 저장한 마음이에요. 다시 열어 주세요.');
+      }
+    }
+    final previous = value[plantId];
+    final entries = [...?previous?.timeline];
+    if (entries.length >= PlantMemory.maxEntries) {
+      throw const PlantMemoryCapacityException();
+    }
+    entries.add(entry);
+    mindSaveFault?.call('before_write');
+    checkOwner();
+    await _write(
+      PlantMemory(
+        plantId: plantId,
+        name: previous?.name ?? '',
+        note: entry.note,
+        updatedAt: date,
+        anniversaryOn: previous?.anniversaryOn,
+        entries: entries,
+      ),
+    );
+    mindSaveFault?.call('after_write');
+    checkOwner();
+  });
   Future<void> _serial(Future<void> Function() action) =>
       LocalRecordTransaction.atomic(() => _queued(action));
 
   Future<void> _queued(Future<void> Function() action) => _queue.run(action);
 
   Future<void> _refresh() async {
+    // Finish any durable planting before editing its private memory.
+    await SessionTransaction.initialize();
     final box = await HiveEncryption.openBox(boxName);
     final memories = <String, PlantMemory>{};
     for (final key in box.keys) {
@@ -34,16 +97,30 @@ class PlantMemoryStore extends ValueNotifier<Map<String, PlantMemory>> {
     value = Map.unmodifiable(memories);
   }
 
-  Future<void> reload() => _serial(() async { await _pruneDiaryLinks(); await _refresh(); });
+  Future<void> reload() => _serial(() async {
+    await _pruneDiaryLinks();
+    await _refresh();
+  });
 
   Future<void> _pruneDiaryLinks() async {
     await _refresh();
-    final ids = <String>{for (final memory in value.values) for (final entry in memory.timeline)
-      if (entry.sourceLetterId?.startsWith('garden-diary:') == true) entry.sourceLetterId!};
+    final ids = <String>{
+      for (final memory in value.values)
+        for (final entry in memory.timeline)
+          if (entry.sourceLetterId?.startsWith('garden-diary:') == true)
+            entry.sourceLetterId!,
+    };
     for (final id in ids) {
       final source = await PrivateLetterMemorySource.find(id);
-      final linked = value.values.expand((m) => m.timeline).where((e) => e.sourceLetterId == id);
-      if (source == null || linked.any((e) => !source.text.contains(e.note) || !source.writtenAt.isAtSameMomentAs(e.sourceWrittenAt!))) {
+      final linked = value.values
+          .expand((m) => m.timeline)
+          .where((e) => e.sourceLetterId == id);
+      if (source == null ||
+          linked.any(
+            (e) =>
+                !source.text.contains(e.note) ||
+                !source.writtenAt.isAtSameMomentAs(e.sourceWrittenAt!),
+          )) {
         await GardenMemoryBookStore.instance.removeForLetter(id);
         await _scrubLetter(id);
       }
@@ -215,4 +292,8 @@ class PlantMemoryStore extends ValueNotifier<Map<String, PlantMemory>> {
     await _scrubLetter(sourceLetterId);
     await deleteSource();
   });
+}
+
+class PlantMemoryCapacityException implements Exception {
+  const PlantMemoryCapacityException();
 }

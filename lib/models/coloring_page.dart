@@ -1,6 +1,7 @@
+import '../l10n/app_language.dart';
 import 'package:flutter/material.dart';
 
-const coloringTitles = ['꽃밭의 고양이', '달빛 정원', '사과와 낮잠'];
+List<String> get coloringTitles => [tr('꽃밭의 고양이'), tr('달빛 정원'), tr('사과와 낮잠')];
 
 /// The same closed paths drive painting and hit testing; topmost region wins.
 List<Path> coloringRegions(int design) {

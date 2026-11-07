@@ -1,3 +1,4 @@
+import {listSentGardenGifts} from '../garden-village.js';
 import test from 'node:test';import assert from 'node:assert/strict';
 import {memoryDb} from '../testing/memory-db.js';import {getOrchard,mutateOrchard} from '../orchard.js';
 const start=Date.parse('2026-10-29T00:00:00Z'),day=86400000;let sequence=0;
@@ -48,4 +49,11 @@ test('invalid quantities, unknown kind, target paths and non-cat fruit feeding a
 });
 test('feeding consumes one cat snack and replay does not consume again',async()=>{
  const db=memoryDb({'users/a/orchard/state':{coins:0,trees:{},stock:{tuna:2},gifts:[],fed:0}});const body={requestId:'c'.repeat(32),op:'feed',kind:'tuna'};await mutateOrchard(db,'a',body);await mutateOrchard(db,'a',body);const s=(await state(db)).orchard;assert.equal(s.stock.tuna,1);assert.equal(s.fed,1);
+});
+
+test('fruit history and inventory commit once for a retried gift',async()=>{
+ const db=neighbor();await ripe(db);const body={requestId:'a'.repeat(32),op:'gift',kind:'apple',quantity:3,gardenId:'b'};
+ await mutateOrchard(db,'a',body);await mutateOrchard(db,'a',body);
+ const sent=await listSentGardenGifts(db,'a');assert.equal(sent.gifts.length,1);assert.equal(sent.gifts[0].quantity,3);
+ assert.equal((await state(db)).orchard.stock.apple,7);
 });

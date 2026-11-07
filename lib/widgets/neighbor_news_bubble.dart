@@ -1,3 +1,5 @@
+import '../l10n/app_language.dart';
+import '../mongi/models/garden_village.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
@@ -14,7 +16,11 @@ class NeighborNewsBubble extends StatefulWidget {
     this.expanded = false,
     this.service,
     this.currentAccount,
+    this.neighbors,
   });
+
+  /// Parent-owned snapshot avoids fetching the same neighbor list twice.
+  final GardenNeighborLists? neighbors;
   final bool expanded;
   final GardenVillageService? service;
   final String? Function()? currentAccount;
@@ -35,9 +41,11 @@ class _NeighborNewsBubbleState extends State<NeighborNewsBubble>
   @override
   void initState() {
     super.initState();
+    final lifecycle = WidgetsBinding.instance.lifecycleState;
+    _foreground = lifecycle == null || lifecycle == AppLifecycleState.resumed;
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) => _load());
-    _timer = Timer.periodic(const Duration(seconds: 45), (_) => _load());
+    _timer = Timer.periodic(Duration(seconds: 45), (_) => _load());
   }
 
   @override
@@ -70,10 +78,19 @@ class _NeighborNewsBubbleState extends State<NeighborNewsBubble>
       return;
     }
     _busy = true;
-    bool current() => mounted && owner == _currentOwner;
+    bool current() =>
+        mounted &&
+        owner == _currentOwner &&
+        _foreground &&
+        TickerMode.of(context) &&
+        (ModalRoute.of(context)?.isCurrent ?? true);
     try {
       final service = widget.service ?? GardenVillageService();
-      final people = await service.listNeighbors();
+      // Compact home news never displays incoming friend requests. The village
+      // supplies its already loaded list to the expanded presentation.
+      final people = widget.expanded
+          ? widget.neighbors ?? await service.listNeighbors()
+          : null;
       if (!current()) return;
       final page = await service.listReceivedCheers(pageSize: 30);
       if (!current()) return;
@@ -100,7 +117,7 @@ class _NeighborNewsBubbleState extends State<NeighborNewsBubble>
       if (!current()) return;
       setState(() {
         _owner = owner;
-        _requests = people.incoming.length;
+        _requests = people?.incoming.length ?? 0;
         _food = food;
         _gifts = page.cheers
             .where(
@@ -146,22 +163,23 @@ class _NeighborNewsBubbleState extends State<NeighborNewsBubble>
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     final valid = _owner != null && _owner == _currentOwner;
     final gifts = valid ? _gifts + _food : 0,
         cheers = valid ? _cheers : 0,
         requests = valid ? _requests : 0;
     if (!widget.expanded) {
-      if (gifts + cheers == 0) return const SizedBox.shrink();
+      if (gifts + cheers == 0) return SizedBox.shrink();
       return TweenAnimationBuilder<double>(
         key: ValueKey('$gifts:$cheers:$_owner'),
         tween: Tween(begin: .85, end: 1),
         duration: MediaQuery.disableAnimationsOf(context)
             ? Duration.zero
-            : const Duration(milliseconds: 350),
+            : Duration(milliseconds: 350),
         builder: (context, scale, child) =>
             Transform.scale(scale: scale, child: child),
         child: FilledButton.tonalIcon(
-          key: const Key('cat-neighbor-news'),
+          key: Key('cat-neighbor-news'),
           onPressed: () => _open(
             2,
             filter: _gifts > 0
@@ -172,20 +190,20 @@ class _NeighborNewsBubbleState extends State<NeighborNewsBubble>
           ),
           icon: Icon(
             gifts > 0 ? Icons.card_giftcard : Icons.favorite,
-            color: const Color(0xffc77b86),
+            color: Color(0xffc77b86),
           ),
           label: Text(
-            '${gifts > 0 ? '선물' : '응원'} ${gifts + cheers}${_more ? '+' : ''}',
+            '${gifts > 0 ? tr('선물') : tr('응원')} ${gifts + cheers}${_more ? '+' : ''}',
           ),
         ),
       );
     }
     return Padding(
-      padding: const EdgeInsets.all(12),
+      padding: EdgeInsets.all(12),
       child: Column(
         children: [
-          const Text(
-            '이웃 소식',
+          Text(
+            tr("이웃 소식"),
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           Wrap(
@@ -194,13 +212,15 @@ class _NeighborNewsBubbleState extends State<NeighborNewsBubble>
             alignment: WrapAlignment.center,
             children: [
               ActionChip(
-                label: Text('받은 신청 $requests'),
-                avatar: const Icon(Icons.person_add_outlined),
+                label: Text(tr('받은 신청 {0}', [requests])),
+                avatar: Icon(Icons.person_add_outlined),
                 onPressed: () => _open(3),
               ),
               ActionChip(
-                label: Text('선물 소식 $gifts${valid && _more ? '+' : ''}'),
-                avatar: const Icon(Icons.card_giftcard),
+                label: Text(
+                  tr('선물 소식 {0}{1}', [gifts, valid && _more ? '+' : '']),
+                ),
+                avatar: Icon(Icons.card_giftcard),
                 onPressed: () => _open(
                   2,
                   filter: _gifts > 0
@@ -211,15 +231,17 @@ class _NeighborNewsBubbleState extends State<NeighborNewsBubble>
                 ),
               ),
               ActionChip(
-                label: Text('새 응원 $cheers${valid && _more ? '+' : ''}'),
-                avatar: const Icon(Icons.favorite_border),
+                label: Text(
+                  tr('새 응원 {0}{1}', [cheers, valid && _more ? '+' : '']),
+                ),
+                avatar: Icon(Icons.favorite_border),
                 onPressed: () => _open(2, filter: 1),
               ),
             ],
           ),
           if (valid && _more)
-            const Text(
-              '최근 소식 기준 · 전체 내역은 선물함에서 확인해요',
+            Text(
+              tr("최근 소식 기준 · 전체 내역은 선물함에서 확인해요"),
               style: TextStyle(fontSize: 12),
             ),
         ],

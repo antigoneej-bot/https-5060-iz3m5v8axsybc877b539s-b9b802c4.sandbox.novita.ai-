@@ -19,10 +19,7 @@ class RepetitionFilter {
       moduleKey,
       now: now,
     );
-    final lastUsedId = UsageHistoryService.lastUsedSentenceId(
-      catId,
-      moduleKey,
-    );
+    final lastUsedId = UsageHistoryService.lastUsedSentenceId(catId, moduleKey);
 
     var filtered = candidates
         .where((s) => !recentIds.contains(s.id))

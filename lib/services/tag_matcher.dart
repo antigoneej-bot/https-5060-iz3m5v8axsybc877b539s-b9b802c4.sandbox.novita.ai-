@@ -52,9 +52,7 @@ class ActiveTags {
       season: [seasonTagFor(now)],
       weekday: [weekdayTagFor(now)],
       time: [timeTagFor(now)],
-      specialDay: [
-        if (specialDayTagFor(now) != null) specialDayTagFor(now)!,
-      ],
+      specialDay: [if (specialDayTagFor(now) != null) specialDayTagFor(now)!],
       catMood: [if (catMoodOverride != null) catMoodOverride],
       // 행동제안(⑥) 모듈은 "지금 어떤 명상이 어울리는가"를 판단할 근거가
       // 컨텍스트에 따로 없으므로, 7개 카테고리를 모두 활성화해 동일한

@@ -1,7 +1,9 @@
+import '../l10n/app_language.dart';
+
 /// Apply a chosen name to curated companion copy only, never user-written text.
 String companionDisplayName(String? value) {
   final name = value?.trim() ?? '';
-  return name.isEmpty ? '고양이' : name;
+  return name.isEmpty ? tr('고양이') : name;
 }
 
 String companionCopy(String template, String? value) {

@@ -1,3 +1,5 @@
+import '../../l10n/app_language.dart';
+import '../l10n/gen/app_localizations.dart';
 import '../../services/notification_service.dart' as host;
 import 'dart:math';
 
@@ -12,7 +14,7 @@ import '../l10n/notification_l10n.dart';
 /// - 결제와 무관하게, 3일차 이후 재방문율을 높이기 위한 가장 기본적인 장치.
 /// - Android 전용 기능이며, 웹(kIsWeb)에서는 조용히 아무 것도 하지 않는다
 ///   (프리뷰/웹 데모에서 알림 권한 팝업이 뜨는 것을 방지).
-/// - 앱은 한국어 전용이므로 타임존은 'Asia/Seoul'로 고정한다(단순함 우선 - MVP 원칙).
+/// - 알림은 호스트 서비스가 초기화한 기기 타임존을 사용한다.
 class NotificationService {
   NotificationService._();
   static final NotificationService instance = NotificationService._();
@@ -23,22 +25,6 @@ class NotificationService {
   final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
   bool _initialized = false;
-
-  /// 매번 같은 문구면 지루하니, 예약할 때마다 랜덤으로 하나를 골라 보여준다.
-  /// [NotificationContent]가 주어지지 않은 호출부(과거 코드/테스트 등)를 위한
-  /// 한국어 기본값 - 실제 앱은 [scheduleDaily]의 [content] 인자로 사용자
-  /// 언어에 맞는 [NotificationContent]를 넘겨준다(main.dart/settings_screen.dart).
-  static const String _defaultTitle = '몽이 🐱';
-  static const String _defaultChannelName = '오늘의 마음 리마인더';
-  static const String _defaultChannelDescription =
-      '매일 정해진 시각에 몽이가 마음을 나누자고 알려줘요.';
-  static const List<String> _defaultMessages = [
-    '몽이가 오늘 하루는 어땠는지 궁금해하고 있어요 🐾',
-    '마음속에 쌓인 감정이 있다면, 몽이에게 나눠주세요 🐱',
-    '오늘도 몽이와 함께 마음정원을 가꿔볼까요? 🌱',
-    '잠깐, 오늘의 감정을 몽이에게 들려주지 않을래요? 🌸',
-    '몽이가 작은 정원에서 당신을 기다리고 있어요 🌷',
-  ];
 
   /// 알림은 핵심 기능이 아니므로, 플랫폼 미지원/테스트 환경 등 어떤 이유로든
   /// 초기화에 실패해도 예외를 삼켜 앱 전체가 죽지 않도록 방어적으로 처리한다.
@@ -81,24 +67,26 @@ class NotificationService {
   /// 만들어진 지역화 콘텐츠(제목/채널명/채널설명/문구 목록)이며, 호출부가
   /// [BuildContext]를 가진 위치(main.dart 부트스트랩, settings_screen.dart)
   /// 에서 `notificationContent(l10n)`으로 만들어 넘겨준다. 넘기지 않으면
-  /// 기존 한국어 기본값을 그대로 사용한다(하위 호환).
+  /// 현재 앱 언어의 기본 알림 문구를 사용한다.
   Future<bool> scheduleDaily(
     int hour,
     int minute, {
     String? personalizedMessage,
     NotificationContent? content,
+    bool requestPermissions = true,
   }) async {
     if (kIsWeb) return false;
     await init();
     if (!_initialized) return false;
-    final granted = await requestPermission();
-    if (!granted) return false;
+    if (requestPermissions && !await requestPermission()) return false;
 
-    final title = content?.title ?? _defaultTitle;
-    final channelName = content?.channelName ?? _defaultChannelName;
-    final channelDescription =
-        content?.channelDescription ?? _defaultChannelDescription;
-    final messages = content?.reminderMessages ?? _defaultMessages;
+    content ??= notificationContent(
+      lookupAppLocalizations(AppLanguage.instance.locale),
+    );
+    final title = content.title;
+    final channelName = content.channelName;
+    final channelDescription = content.channelDescription;
+    final messages = content.reminderMessages;
     final message =
         personalizedMessage ?? messages[Random().nextInt(messages.length)];
 
@@ -117,7 +105,8 @@ class NotificationService {
             priority: Priority.defaultPriority,
           ),
         ),
-        uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
         androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
         matchDateTimeComponents: DateTimeComponents.time,
       );

@@ -1,5 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:http/http.dart' as http;
+import '../models/backup_progress.dart';
+import 'diagnostics_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -45,12 +50,16 @@ class AutoBackupService with WidgetsBindingObserver {
       ? await _restoringOverride!()
       : await BackupService.hasPending() || await BackupService.hasDeferred();
   static const _secure = FlutterSecureStorage();
-  bool _running = false;
+  Future<void>? _active;
+  bool _manualRequested = false;
+  int _generation = 0;
   bool paused = false;
   Timer? _timer;
   String? _checkedOwner;
   bool? _pendingChanges;
-  final status = ValueNotifier<String>('자동 백업 꺼짐');
+  final status = ValueNotifier<BackupProgress>(
+    const BackupProgress(BackupPhase.off),
+  );
   String? _uid() => _ownerOverride != null
       ? _ownerOverride!()
       : CloudService.enabled
@@ -104,56 +113,119 @@ class AutoBackupService with WidgetsBindingObserver {
   }
 
   Future<void> disable() async {
+    _generation++;
+    _manualRequested = false;
     final uid = _uid();
     await _secure.delete(key: 'auto_backup_owner');
     if (uid != null) await _secure.delete(key: 'auto_backup_password_$uid');
-    status.value = '자동 백업 꺼짐';
+    status.value = const BackupProgress(BackupPhase.off);
   }
 
-  Future<void> run({bool force = false}) async {
-    if (_running || paused || !_cloudEnabled) return;
-    _running = true;
+  Future<void> run({bool force = false}) {
+    if (_active != null) {
+      _manualRequested |= force;
+      return _active!;
+    }
+    if (paused || !_cloudEnabled) return Future<void>.value();
+    final completion = Completer<void>();
+    _active = completion.future;
+    final generation = _generation;
+    unawaited(() async {
+      try {
+        await _runOnce(force: force, generation: generation);
+        // Join the in-flight receipt. Only a confirmed write with newer local
+        // changes (or an automatic cooldown) needs one coalesced follow-up.
+        // Never automatically retry an unconfirmed/failed write.
+        final followUp =
+            _manualRequested &&
+            generation == _generation &&
+            !paused &&
+            {
+              BackupPhase.waiting,
+              BackupPhase.changedAfterSave,
+            }.contains(status.value.phase);
+        _manualRequested = false;
+        if (followUp) await _runOnce(force: true, generation: generation);
+        completion.complete();
+      } catch (error, stack) {
+        completion.completeError(error, stack);
+      } finally {
+        _active = null;
+        _manualRequested = false;
+      }
+    }());
+    return completion.future;
+  }
+
+  Future<void> _runOnce({required bool force, required int generation}) async {
+    DateTime? confirmedAt;
+    String? operationOwner;
+    var phase = BackupPhase.preparing;
+    Future<bool> canContinue(String uid) async {
+      final enabled = await isEnabled();
+      // Recheck after asynchronous secure storage reads, too: disabling or
+      // switching accounts while that read is pending must prevent an upload.
+      return enabled && !paused && generation == _generation && _uid() == uid;
+    }
+
+    void progress(BackupPhase value, {String? errorCode}) {
+      if (generation != _generation) return;
+      phase = value;
+      status.value = BackupProgress(
+        value,
+        confirmedAt: confirmedAt,
+        errorCode: errorCode,
+      );
+    }
+
     try {
       if (await _restoring()) {
-        status.value = '복원을 마친 뒤 자동 백업을 다시 시도해요';
+        progress(BackupPhase.restoring);
         return;
       }
       if (!await isEnabled()) {
-        status.value = '자동 백업 꺼짐';
+        progress(BackupPhase.off);
         return;
       }
       final uid = _uid()!;
+      operationOwner = uid;
       final prefs = await SharedPreferences.getInstance();
       final last = DateTime.tryParse(
         prefs.getString('last_cloud_backup_$uid') ?? '',
       );
+      confirmedAt = last;
       final snapshot = await _snapshot();
       final fingerprint = await backupFingerprint(snapshot);
-      if (paused || _uid() != uid || !await isEnabled()) return;
+      if (!await canContinue(uid)) return;
       _checkedOwner = uid;
       _pendingChanges =
           fingerprint != prefs.getString('cloud_backup_digest_$uid');
       if (!force && !_pendingChanges!) {
-        status.value = '마지막 서버 백업: ${last?.toLocal() ?? '확인 필요'}';
+        progress(BackupPhase.unchanged);
         return;
       }
       if (!force &&
           last != null &&
           !last.isAfter(_now()) &&
           _now().difference(last) < const Duration(minutes: 2)) {
-        status.value = '새 기록 백업 대기 중 · 앱을 열어 두면 곧 저장해요';
+        progress(BackupPhase.waiting);
         return;
       }
-      status.value = '백업 준비 중';
+      progress(BackupPhase.preparing);
       final password =
           await (_passwordOverride?.call(uid) ??
               _secure.read(key: 'auto_backup_password_$uid'));
-      if (password == null) return;
+      if (password == null) {
+        progress(BackupPhase.failed, errorCode: 'password-unavailable');
+        return;
+      }
+      progress(BackupPhase.encrypting);
       final bytes = await BackupCodec.encrypt(snapshot, password);
-      if (paused || _uid() != uid || !await isEnabled()) return;
+      if (!await canContinue(uid)) return;
       final payload = <String, dynamic>{
         'envelope': jsonDecode(utf8.decode(bytes)),
       };
+      progress(BackupPhase.uploading);
       final result =
           await (_uploadOverride?.call(payload, uid) ??
               CloudService.call('backup', payload, uid));
@@ -168,17 +240,41 @@ class AutoBackupService with WidgetsBindingObserver {
       // A failed upload never advances the digest. A write during encryption or
       // upload remains dirty and is picked up by the next foreground check.
       await prefs.setString('cloud_backup_digest_$uid', fingerprint);
+      confirmedAt = savedAt;
       if (_uid() != uid) return;
+      // Keep the confirmed receipt, but an older upload cannot reactivate an
+      // opt-out or update the status of a later configuration.
+      if (generation != _generation || !await isEnabled()) return;
       _pendingChanges =
           await backupFingerprint(await _snapshot()) != fingerprint;
       if (_uid() != uid) return;
-      status.value = _pendingChanges!
-          ? '백업 후 새 기록이 생겼어요 · 다음 백업 대기 중'
-          : '서버 백업 완료: ${result['savedAt']}';
-    } catch (_) {
-      status.value = '백업 대기 중 · 로그인·구독·연결을 확인해 주세요';
+      progress(
+        _pendingChanges! ? BackupPhase.changedAfterSave : BackupPhase.saved,
+      );
+    } catch (error, stack) {
+      if (operationOwner != null && operationOwner != _uid()) {
+        status.value = const BackupProgress(BackupPhase.off);
+        return;
+      }
+      final code = error is CloudException
+          ? error.code
+          : error is FirebaseAuthException
+          ? 'authentication-required'
+          : error is SocketException ||
+                error is http.ClientException ||
+                error is TimeoutException
+          ? 'network-unavailable'
+          : phase == BackupPhase.encrypting
+          ? 'encryption-failed'
+          : phase == BackupPhase.uploading && error is FormatException
+          ? 'receipt-unconfirmed'
+          : 'backup-failed';
+      progress(BackupPhase.failed, errorCode: code);
+      unawaited(DiagnosticsService.record(error, stack, 'backup'));
     } finally {
-      _running = false;
+      if (operationOwner != null && operationOwner != _uid()) {
+        status.value = const BackupProgress(BackupPhase.off);
+      }
     }
   }
 

@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import '../mongi/screens/garden_world_screen.dart';
 import '../mongi/widgets/garden_tool_sheet.dart';
 import '../mongi/integration/unified_garden_panel.dart';
@@ -42,11 +43,12 @@ class MyGardenScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     if (showMongiPanel) {
       return GardenWorldScreen.owned(
         onOpenCollection: () => showGardenToolSheet(
           context,
-          title: '기록·활동',
+          title: tr("기록·활동"),
           builder: (_) => Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -72,7 +74,7 @@ class MyGardenScreen extends StatelessWidget {
         const SizedBox(height: 20),
         ExpansionTile(
           key: const PageStorageKey('garden-flower-beds'),
-          title: const Text('감정별 꽃밭 보기'),
+          title: Text(tr("감정별 꽃밭 보기")),
           children: [
             GlassBlob(
               accent: AppColors.blobPeachAccent,
@@ -85,7 +87,7 @@ class MyGardenScreen extends StatelessWidget {
         const SizedBox(height: 20),
         ExpansionTile(
           key: const PageStorageKey('garden-cats'),
-          title: const Text('함께한 고양이 도감'),
+          title: Text(tr("함께한 고양이 도감")),
           expandedCrossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             GlassBlob(
@@ -101,7 +103,7 @@ class MyGardenScreen extends StatelessWidget {
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       Text(
-                        '함께한 고양이',
+                        tr("함께한 고양이"),
                         style: pathLabelFont(
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
@@ -133,8 +135,8 @@ class MyGardenScreen extends StatelessWidget {
                   const SizedBox(height: 10),
                   Text(
                     metCount == 0
-                        ? '아직 정원에 아무도 없어요. 첫 고양이를 만나 정원을 채워보세요'
-                        : '지금까지 만난 고양이들이 정원 곳곳에 자리를 잡았어요',
+                        ? tr("아직 정원에 아무도 없어요. 첫 고양이를 만나 정원을 채워보세요")
+                        : tr("지금까지 만난 고양이들이 정원 곳곳에 자리를 잡았어요"),
                     style: bodyFont(
                       fontSize: 12,
                       color: AppColors.inkSoft,
@@ -188,7 +190,7 @@ class MyGardenScreen extends StatelessWidget {
                 child: TextButton(
                   onPressed: onGoMeetCat,
                   child: Text(
-                    '오늘의 고양이 만나러 가기 →',
+                    tr("오늘의 고양이 만나러 가기 →"),
                     style: pathLabelFont(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
@@ -230,6 +232,7 @@ class _GardenCatTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     final accent = met
         ? CatPalette.accentFor(cat.id)
         : AppColors.inkSoft.withValues(alpha: 0.32);
@@ -264,8 +267,8 @@ class _GardenCatTile extends StatelessWidget {
                       fit: BoxFit.cover,
                       cacheWidth: 130,
                       cacheHeight: 130,
-                      errorBuilder: (_, __, ___) => const Center(
-                        child: Icon(Icons.pets, semanticLabel: '고양이 이미지'),
+                      errorBuilder: (_, __, ___) => Center(
+                        child: Icon(Icons.pets, semanticLabel: tr("고양이 이미지")),
                       ),
                     )
                   : Opacity(
@@ -282,8 +285,11 @@ class _GardenCatTile extends StatelessWidget {
                           fit: BoxFit.cover,
                           cacheWidth: 130,
                           cacheHeight: 130,
-                          errorBuilder: (_, __, ___) => const Center(
-                            child: Icon(Icons.pets, semanticLabel: '고양이 이미지'),
+                          errorBuilder: (_, __, ___) => Center(
+                            child: Icon(
+                              Icons.pets,
+                              semanticLabel: tr("고양이 이미지"),
+                            ),
                           ),
                         ),
                       ),
@@ -292,7 +298,7 @@ class _GardenCatTile extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            met ? cat.keyword : '???',
+            met ? cat.displayKeyword : '???',
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: bodyFont(
@@ -303,7 +309,7 @@ class _GardenCatTile extends StatelessWidget {
           ),
           if (met && meetingCount > 1)
             Text(
-              '$meetingCount번째 만남',
+              tr("{0}번째 만남", [meetingCount]),
               style: bodyFont(fontSize: 9, color: AppColors.inkSoft),
             ),
         ],
@@ -326,6 +332,7 @@ class _GardenCatSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     final accent = met ? CatPalette.accentFor(cat.id) : AppColors.inkSoft;
     final bg = met ? CatPalette.backgroundFor(cat.id) : AppColors.bg2;
     return SafeArea(
@@ -357,7 +364,7 @@ class _GardenCatSheet extends StatelessWidget {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    met ? cat.nameKr : '아직 만나지 않은 고양이',
+                    met ? cat.displayName : tr("아직 만나지 않은 고양이"),
                     style: titleFont(fontSize: 18, color: AppColors.ink),
                   ),
                 ),
@@ -367,7 +374,7 @@ class _GardenCatSheet extends StatelessWidget {
             Text(
               met
                   ? cat.comfortMessage
-                  : '이 고양이는 아직 정원에 나타나지 않았어요.\n오늘의 감정 체크에서 만나볼 수 있어요.',
+                  : tr("이 고양이는 아직 정원에 나타나지 않았어요.\n오늘의 감정 체크에서 만나볼 수 있어요."),
               style: bodyFont(
                 fontSize: 13,
                 color: AppColors.inkSoft,
@@ -389,7 +396,7 @@ class _GardenCatSheet extends StatelessWidget {
                         ),
                       ),
                       child: Text(
-                        '닫기',
+                        tr("닫기"),
                         style: pathLabelFont(
                           fontSize: 13.5,
                           fontWeight: FontWeight.w700,
@@ -409,7 +416,7 @@ class _GardenCatSheet extends StatelessWidget {
                         ),
                       ),
                       child: Text(
-                        '오늘의 고양이 만나러 가기',
+                        tr("오늘의 고양이 만나러 가기"),
                         style: pathLabelFont(
                           fontSize: 13.5,
                           fontWeight: FontWeight.w700,

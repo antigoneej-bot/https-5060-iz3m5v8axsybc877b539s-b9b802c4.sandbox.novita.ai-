@@ -166,3 +166,58 @@ test('a pre-village lost gift response remains idempotent after upgrade', async 
   assert.equal((await village.listVillageCheers(db, 'bob')).cheers.length, 0);
   await assert.rejects(village.sendVillageCheer(db, 'alice', {...gift, flowerKind: 'daisy'}, {...deps, now}), /cheer-already-sent-today/);
 });
+
+test('sent gift ledger is owner scoped and duplicate send cannot duplicate history', async () => {
+  const db = await prepared();
+  await village.sendVillageCheer(db, 'alice', gift, deps);
+  await village.sendVillageCheer(db, 'alice', gift, deps);
+  const sent = await village.listSentGardenGifts(db, 'alice');
+  assert.equal(sent.gifts.length, 1);
+  assert.equal(sent.gifts[0].kind, 'tulip');
+  assert.equal(sent.gifts[0].quantity, 1);
+  assert.equal(sent.gifts[0].recipientName, '보리');
+  assert.equal(sent.gifts[0].recipientId, undefined);
+  assert.deepEqual(await village.listSentGardenGifts(db, 'bob'), {gifts: []});
+});
+
+test('deletion anonymizes sent ledger recipient and deletes own ledger', async () => {
+  const db = await prepared();await village.sendVillageCheer(db,'alice',gift,deps);
+  await village.removeVillageAccount(db,'bob');
+  assert.equal((await village.listSentGardenGifts(db,'alice')).gifts[0].recipientName,'이웃');
+  await village.removeVillageAccount(db,'alice');
+  assert.deepEqual(await village.listSentGardenGifts(db,'alice'),{gifts:[]});
+});
+
+test('sent ledger returns newest fifty owner records with an exact public DTO', async () => {
+  const db = memoryDb();
+  for (let i=0; i<57; i++) db.rows.set(`users/alice/sentGardenGifts/gift${i}`, {
+    kind:'daisy', quantity:1, recipientName:'공개 별명', sentAt:i,
+    recipientId:'private-uid', email:'private@example.invalid', privateDiary:'private',
+  });
+  db.rows.set('users/bob/sentGardenGifts/other', {kind:'tulip',sentAt:9999});
+  const {gifts} = await village.listSentGardenGifts(db,'alice',{uid:'bob'});
+  assert.equal(gifts.length,50);
+  assert.deepEqual(gifts.map(g=>g.sentAt),Array.from({length:50},(_,i)=>56-i));
+  for (const g of gifts) assert.deepEqual(Object.keys(g).sort(),['id','kind','quantity','recipientName','sentAt']);
+  assert.equal(JSON.stringify(gifts).includes('private'),false);
+  assert.equal((await village.listSentGardenGifts(db,'bob')).gifts.length,1);
+});
+
+test('neighbor portraits use only currently visible published appearance', async () => {
+  const db = await prepared();
+  await db.doc('publicGardens/alice').update({publicCat: {coat:'calico',stage:2,privateNote:'never'}});
+  const card = (await village.listNeighbors(db,'bob')).neighbors[0];
+  assert.deepEqual(card.publicCat,{coat:'calico',stage:2});
+  await village.sendVillageCheer(db,'alice',gift,deps);
+  assert.deepEqual((await village.listVillageCheers(db,'bob')).cheers[0].senderCat,{coat:'calico',stage:2});
+  await village.updateVillageProfile(db,'alice',{visibility:'private'},deps);
+  assert.equal((await village.listNeighbors(db,'bob')).neighbors[0].publicCat,null);
+  assert.equal((await village.listVillageCheers(db,'bob')).cheers[0].senderCat,null);
+});
+
+test('missing or invalid published cat never defaults to another user cat', async()=>{
+  const db=await prepared();
+  assert.equal((await village.listNeighbors(db,'bob')).neighbors[0].publicCat,null);
+  await db.doc('publicGardens/alice').update({publicCat:{coat:'unknown',stage:99}});
+  assert.equal((await village.listNeighbors(db,'bob')).neighbors[0].publicCat,null);
+});

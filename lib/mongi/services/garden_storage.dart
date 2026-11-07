@@ -224,18 +224,26 @@ class GardenStorage {
     _liveBox = await HiveEncryption.openBox(_boxName);
     await MongiGardenStore.instance.reload();
     await _ensureSeasonFresh();
-    if (diaryEntries.any((e) => e['id'] is! String || (e['id'] as String).isEmpty)) {
-      await MongiGardenStore.instance.commitSession(SessionTransaction.newId(), () async {
-        final entries = diaryEntries;
-        final used = <String>{};
-        for (final e in entries) {
-          if (e['id'] is! String || (e['id'] as String).isEmpty || !used.add(e['id'] as String)) {
-            e['id'] = SessionTransaction.newId(); used.add(e['id'] as String);
+    if (diaryEntries.any(
+      (e) => e['id'] is! String || (e['id'] as String).isEmpty,
+    )) {
+      await MongiGardenStore.instance.commitSession(
+        SessionTransaction.newId(),
+        () async {
+          final entries = diaryEntries;
+          final used = <String>{};
+          for (final e in entries) {
+            if (e['id'] is! String ||
+                (e['id'] as String).isEmpty ||
+                !used.add(e['id'] as String)) {
+              e['id'] = SessionTransaction.newId();
+              used.add(e['id'] as String);
+            }
           }
-        }
-        await _box.put(_keyDiary, entries);
-        return <String, dynamic>{'diaryIdsAssigned': true};
-      });
+          await _box.put(_keyDiary, entries);
+          return <String, dynamic>{'diaryIdsAssigned': true};
+        },
+      );
     }
   }
 

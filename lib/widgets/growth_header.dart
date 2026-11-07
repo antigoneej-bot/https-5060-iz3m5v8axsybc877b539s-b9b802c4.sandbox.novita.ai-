@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import 'package:flutter/material.dart';
 import '../theme.dart';
 import '../models/cat_care_state.dart';
@@ -17,10 +18,10 @@ class GrowthHeader extends StatelessWidget {
     final remain = state.daysUntilNextStage;
     final attended = state.growthDays;
     final dayLabel = remain == null
-        ? '가장 높은 단계까지 자랐어요'
+        ? tr("가장 높은 단계까지 자랐어요")
         : attended <= 0
-            ? '다음 단계까지 출석 $remain일 남음'
-            : '출석 ${attended}일째 · 다음 단계까지 $remain일';
+        ? tr("다음 단계까지 출석 {0}일 남음", [remain])
+        : tr("출석 {0}일째 · 다음 단계까지 {1}일", [attended, remain]);
     return GlassBlob(
       accent: AppColors.blobMintAccent,
       background: AppColors.blobMint,
@@ -69,7 +70,10 @@ class GrowthHeader extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '마음 온도 ${state.temperature}° / 100°  ·  $dayLabel',
+                      tr("마음 온도 {0}° / 100°  ·  {1}", [
+                        state.temperature,
+                        dayLabel,
+                      ]),
                       style: bodyFont(fontSize: 11.5, color: AppColors.inkSoft),
                     ),
                   ],

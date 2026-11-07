@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../l10n/app_language.dart';
 import '../models/plant_care.dart';
 import '../models/seed.dart';
 import 'mongi_garden_data.dart';
@@ -29,21 +30,25 @@ class PlantCarePanel extends StatelessWidget {
       children: [
         Text(
           [
-            if (data.plantedOn[id] != null) '심은 날 · ${data.plantedOn[id]}',
-            '${plant.growthLabel(data.seeds[id] ?? 0)} · 성장 ${(progress * 100).floor()}%',
+            if (data.plantedOn[id] != null)
+              tr('심은 날 · {0}', [data.plantedOn[id]]),
+            tr('{0} · 성장 {1}%', [
+              plant.growthLabel(data.seeds[id] ?? 0),
+              (progress * 100).floor(),
+            ]),
           ].join('\n'),
         ),
         const SizedBox(height: 8),
         LinearProgressIndicator(
           value: progress,
-          semanticsLabel: '${plant.label} 성장',
+          semanticsLabel: tr('{0} 성장', [plant.label]),
           semanticsValue: '${(progress * 100).floor()}%',
           minHeight: 6,
           borderRadius: BorderRadius.circular(8),
         ),
         const SizedBox(height: 8),
-        const Text(
-          '물만 주어도 자라요. 거름과 햇볕은 성장을 조금 더 도와줘요. 각각 하루 한 번, 쉬는 날에도 시들지 않아요.',
+        Text(
+          tr('물만 주어도 자라요. 거름과 햇볕은 성장을 조금 더 도와줘요. 각각 하루 한 번, 쉬는 날에도 시들지 않아요.'),
         ),
         const SizedBox(height: 8),
         for (final care in PlantCare.values)
@@ -64,7 +69,7 @@ class PlantCarePanel extends StatelessWidget {
               }),
               label: Text(
                 data.caredToday(id, care, now)
-                    ? '${care.label} · 오늘 완료'
+                    ? tr('{0} · 오늘 완료', [care.label])
                     : care.label,
               ),
             ),

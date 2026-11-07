@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import 'meditation_check_in.dart';
 import '../services/access_policy.dart';
 import 'subscription_gate.dart';
@@ -21,12 +22,14 @@ class GuideSteps extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
+    if (AppLanguage.instance.isEnglish) return const EnglishMeditationNotice();
     if (guideKey == null || !publishedMeditationKeys.contains(guideKey)) {
       return const SizedBox.shrink();
     }
     return SubscriptionGate(
       free: AccessPolicy.freeMeditations.contains(guideKey),
-      message: '이 명상은 마음냥 구독으로 들을 수 있어요. 숲 명상과 빗소리는 언제든 무료예요.',
+      message: tr("이 명상은 마음냥 구독으로 들을 수 있어요. 숲 명상과 빗소리는 언제든 무료예요."),
       builder: (_) => _content(context),
     );
   }
@@ -70,7 +73,7 @@ class GuideSteps extends StatelessWidget {
           if (guideKey == 'fireplaceRest') ...[
             const SizedBox(height: 6),
             Text(
-              '고정된 장작 이미지를 보며 소리를 듣는 명상이에요.',
+              tr("고정된 장작 이미지를 보며 소리를 듣는 명상이에요."),
               style: bodyFont(fontSize: 12, color: AppColors.ink),
             ),
           ],

@@ -1,4 +1,6 @@
+import '../l10n/app_language.dart';
 import 'package:flutter/material.dart';
+import 'neighbor_design.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/orchard.dart';
 import '../services/garden_village_service.dart';
@@ -6,7 +8,15 @@ import '../services/social_auth_service.dart';
 import '../screens/orchard_screen.dart';
 
 class OrchardGiftInbox extends StatefulWidget {
-  const OrchardGiftInbox({super.key});
+  const OrchardGiftInbox({
+    super.key,
+    this.service,
+    this.currentAccount,
+    this.compact = false,
+  });
+  final GardenVillageService? service;
+  final bool compact;
+  final String? Function()? currentAccount;
   @override
   State<OrchardGiftInbox> createState() => _OrchardGiftInboxState();
 }
@@ -20,15 +30,23 @@ class _OrchardGiftInboxState extends State<OrchardGiftInbox> {
     _load();
   }
 
+  String? get _currentOwner => widget.currentAccount != null
+      ? widget.currentAccount!()
+      : SocialAuthService.currentUser?.uid;
+
   Future<void> _load() async {
-    final owner = SocialAuthService.currentUser?.uid;
-    if (owner == null) return;
+    final owner = _currentOwner;
+    if (owner == null) {
+      setState(() => _gifts = []);
+      return;
+    }
     try {
-      final raw = await GardenVillageService().orchardState();
+      final raw = await (widget.service ?? GardenVillageService())
+          .orchardState();
       final data = OrchardState.fromJson(
         Map<String, dynamic>.from(raw['orchard'] as Map),
       );
-      if (!mounted || owner != SocialAuthService.currentUser?.uid) return;
+      if (!mounted || owner != _currentOwner) return;
       setState(() {
         _gifts = data.gifts;
         _owner = owner;
@@ -36,7 +54,7 @@ class _OrchardGiftInboxState extends State<OrchardGiftInbox> {
       });
       WidgetsBinding.instance.addPostFrameCallback((_) async {
         if (!mounted ||
-            owner != SocialAuthService.currentUser?.uid ||
+            owner != _currentOwner ||
             !(ModalRoute.of(context)?.isCurrent ?? true))
           return;
         final newest = data.gifts.fold<int>(0, (a, g) {
@@ -47,48 +65,58 @@ class _OrchardGiftInboxState extends State<OrchardGiftInbox> {
         await prefs.setInt('orchard_gifts_seen_$owner', newest);
       });
     } catch (_) {
-      if (mounted) setState(() => _error = '과일·간식 선물을 불러오지 못했어요.');
+      if (mounted && owner == _currentOwner)
+        setState(() => _error = tr("과일·간식 선물을 불러오지 못했어요."));
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     if (_error != null)
-      return TextButton(onPressed: _load, child: Text('$_error 다시 시도'));
+      return TextButton(
+        onPressed: _load,
+        child: Text(tr("{0} 다시 시도", [_error])),
+      );
     if (_gifts == null) return const LinearProgressIndicator();
-    if (_owner != SocialAuthService.currentUser?.uid)
-      return const SizedBox.shrink();
+    if (_owner != _currentOwner) return const SizedBox.shrink();
+    if (widget.compact && _gifts!.isEmpty) return const SizedBox.shrink();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Text(
-          '과일·간식 선물 · 최근 30개',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        const Text('창고에 자동으로 받았어요. 간식은 고양이에게 줄 수 있어요.'),
-        if (_gifts!.isEmpty)
-          const Padding(
-            padding: EdgeInsets.all(16),
-            child: Text('아직 받은 과일·간식이 없어요.'),
+        if (!widget.compact)
+          Text(
+            tr('과일·간식 선물 · 최근 30개'),
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+        if (!widget.compact)
+          Text(tr('과일·간식은 자동 보관돼요.'), style: const TextStyle(fontSize: 12)),
+        if (!widget.compact && _gifts!.isEmpty)
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Text(tr('아직 받은 과일·간식이 없어요.')),
           ),
         for (final gift in _gifts!)
-          Card(
-            child: ListTile(
-              leading: const Icon(Icons.card_giftcard),
-              title: Text(
-                '${gift['senderName'] ?? '이웃'} · ${OrchardKind.byId(gift['kind'] as String).fruit} ${gift['quantity']}개',
-              ),
-              subtitle: const Text('창고 보관 완료'),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const OrchardScreen(initialTab: 1),
-                ),
-              ),
+          NeighborGiftRow(
+            title: tr('{0} · {1} {2}개', [
+              gift['senderName'] ?? tr('이웃'),
+              tr(OrchardKind.byId(gift['kind'] as String).fruit),
+              gift['quantity'],
+            ]),
+            completed: true,
+            art: NeighborGiftArt(kind: gift['kind'] as String),
+            onDetails: () => _openStorage(),
+            action: TextButton(
+              onPressed: _openStorage,
+              child: Text(tr('보관 완료')),
             ),
           ),
       ],
     );
   }
+
+  void _openStorage() => Navigator.push(
+    context,
+    MaterialPageRoute(builder: (_) => const OrchardScreen(initialTab: 1)),
+  );
 }

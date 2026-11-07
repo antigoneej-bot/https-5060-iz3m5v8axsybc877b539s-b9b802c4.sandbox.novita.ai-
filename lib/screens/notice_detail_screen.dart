@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -141,16 +142,16 @@ class _NoticeDetailScreenState extends State<NoticeDetailScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('이 모임 신청을 취소할까요?'),
-        content: const Text('취소한 자리는 다른 사람이 신청할 수 있어요.'),
+        title: Text(tr("이 모임 신청을 취소할까요?")),
+        content: Text(tr("취소한 자리는 다른 사람이 신청할 수 있어요.")),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('유지하기'),
+            child: Text(tr("유지하기")),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('신청 취소'),
+            child: Text(tr("신청 취소")),
           ),
         ],
       ),
@@ -185,16 +186,16 @@ class _NoticeDetailScreenState extends State<NoticeDetailScreen> {
         uri.scheme != 'https' ||
         uri.host.isEmpty ||
         uri.userInfo.isNotEmpty) {
-      if (mounted) setState(() => _error = '운영자가 모임 접속 링크를 준비 중이에요.');
+      if (mounted) setState(() => _error = tr("운영자가 모임 접속 링크를 준비 중이에요."));
       return;
     }
     try {
       if (!await launchUrl(uri, mode: LaunchMode.externalApplication) &&
           mounted) {
-        setState(() => _error = '페이지를 열지 못했어요. 잠시 후 다시 시도해 주세요.');
+        setState(() => _error = tr("페이지를 열지 못했어요. 잠시 후 다시 시도해 주세요."));
       }
     } catch (_) {
-      if (mounted) setState(() => _error = '페이지를 열지 못했어요.');
+      if (mounted) setState(() => _error = tr("페이지를 열지 못했어요."));
     }
   }
 
@@ -212,8 +213,10 @@ class _NoticeDetailScreenState extends State<NoticeDetailScreen> {
     }
   }
 
-  String _date(DateTime date) =>
-      DateFormat('yyyy.MM.dd (E) HH:mm', 'ko_KR').format(date.toLocal());
+  String _date(DateTime date) => DateFormat(
+    'yyyy.MM.dd (E) HH:mm',
+    AppLanguage.instance.isEnglish ? 'en_US' : 'ko_KR',
+  ).format(date.toLocal());
 
   String _bookingSummary() {
     for (final slot in _notice.sessions) {
@@ -226,6 +229,7 @@ class _NoticeDetailScreenState extends State<NoticeDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     final notice = _notice;
     final known = _loaded && _owner == _events.currentOwner;
     final booked = known && _reservation != null;
@@ -246,12 +250,12 @@ class _NoticeDetailScreenState extends State<NoticeDetailScreen> {
     return Scaffold(
       backgroundColor: AppColors.bg0,
       appBar: AppBar(
-        title: const Text('정원소식'),
+        title: Text(tr("정원소식")),
         backgroundColor: AppColors.bg0,
         actions: [
           IconButton(
             onPressed: _busy ? null : _refresh,
-            tooltip: '새로고침',
+            tooltip: tr("새로고침"),
             icon: const Icon(Icons.refresh),
           ),
         ],
@@ -270,7 +274,9 @@ class _NoticeDetailScreenState extends State<NoticeDetailScreen> {
                   Chip(label: Text(notice.status!.label)),
                 if (notice.eventMode != null)
                   Chip(
-                    label: Text(notice.eventMode == 'online' ? '온라인' : '오프라인'),
+                    label: Text(
+                      notice.eventMode == 'online' ? tr("온라인") : tr("오프라인"),
+                    ),
                   ),
               ],
             ),
@@ -286,11 +292,11 @@ class _NoticeDetailScreenState extends State<NoticeDetailScreen> {
             ),
             const SizedBox(height: 16),
             if (notice.period != null)
-              _info(Icons.calendar_today, '기간', notice.period!),
+              _info(Icons.calendar_today, tr("기간"), notice.period!),
             if (notice.location != null)
-              _info(Icons.place_outlined, '장소', notice.location!),
+              _info(Icons.place_outlined, tr("장소"), notice.location!),
             if (notice.cost != null)
-              _info(Icons.payments_outlined, '비용', notice.cost!),
+              _info(Icons.payments_outlined, tr("비용"), notice.cost!),
             const SizedBox(height: 16),
             Text(
               notice.body,
@@ -301,13 +307,13 @@ class _NoticeDetailScreenState extends State<NoticeDetailScreen> {
               Text(_error!, style: const TextStyle(color: Colors.redAccent)),
               TextButton(
                 onPressed: _busy ? null : _refresh,
-                child: const Text('연결 다시 확인'),
+                child: Text(tr("연결 다시 확인")),
               ),
             ],
             if (notice.isReservable || booked) ...[
               const SizedBox(height: 24),
               Text(
-                '참여 신청',
+                tr("참여 신청"),
                 style: titleFont(fontSize: 18, color: AppColors.ink),
               ),
               if (notice.sessions.isNotEmpty) ...[
@@ -334,7 +340,7 @@ class _NoticeDetailScreenState extends State<NoticeDetailScreen> {
                   ),
                   if (!booked)
                     Text(
-                      '신청 마감 ${_date(selected.bookingClosesAt)}',
+                      tr("신청 마감 {0}", [_date(selected.bookingClosesAt)]),
                       style: const TextStyle(
                         fontSize: 12,
                         color: AppColors.inkSoft,
@@ -343,21 +349,26 @@ class _NoticeDetailScreenState extends State<NoticeDetailScreen> {
                 ],
               ] else ...[
                 if (notice.capacity != null)
-                  Text('신청 ${notice.reservedCount} / ${notice.capacity}명')
+                  Text(
+                    tr("신청 {0} / {1}명", [
+                      notice.reservedCount,
+                      notice.capacity,
+                    ]),
+                  )
                 else
-                  const Text('새 신청은 받지 않아요. 기존 신청을 확인하거나 취소할 수 있어요.'),
+                  Text(tr("새 신청은 받지 않아요. 기존 신청을 확인하거나 취소할 수 있어요.")),
               ],
               const SizedBox(height: 12),
               if (!known && _error == null)
                 const Center(child: CircularProgressIndicator()),
               if (booked) ...[
-                const Text(
-                  '신청이 완료됐어요.',
+                Text(
+                  tr("신청이 완료됐어요."),
                   style: TextStyle(fontWeight: FontWeight.bold),
                 ),
                 if (selected?.state == 'canceled')
-                  const Text(
-                    '운영자가 이 일정을 취소했어요.',
+                  Text(
+                    tr("운영자가 이 일정을 취소했어요."),
                     style: TextStyle(color: Colors.redAccent),
                   ),
                 if (notice.eventMode == 'online' &&
@@ -365,28 +376,30 @@ class _NoticeDetailScreenState extends State<NoticeDetailScreen> {
                   FilledButton.icon(
                     onPressed: _busy ? null : _join,
                     icon: const Icon(Icons.open_in_new),
-                    label: const Text('모임 접속 링크 열기'),
+                    label: Text(tr("모임 접속 링크 열기")),
                   ),
                 OutlinedButton(
                   onPressed: _busy ? null : _cancel,
-                  child: const Text('신청 취소하기'),
+                  child: Text(tr("신청 취소하기")),
                 ),
               ] else if (known)
                 FilledButton(
                   onPressed: canBook ? _reserve : null,
                   child: Text(
                     _busy
-                        ? '확인 중…'
+                        ? tr("확인 중…")
                         : notice.sessions.isNotEmpty && selected == null
-                        ? '날짜와 시간을 선택해 주세요'
+                        ? tr("날짜와 시간을 선택해 주세요")
                         : canBook
-                        ? '선택한 모임 신청하기'
-                        : '현재 신청할 수 없어요',
+                        ? tr("선택한 모임 신청하기")
+                        : tr("현재 신청할 수 없어요"),
                   ),
                 ),
               const SizedBox(height: 8),
-              const Text(
-                '편지와 감정 기록은 운영자에게 전달되지 않아요. 신청할 때 직접 적은 이름·요청 사항과 계정에서 확인된 이메일만 전달돼요. 비용이 있는 모임은 운영자의 결제 안내를 확인해 주세요.',
+              Text(
+                tr(
+                  "편지와 감정 기록은 운영자에게 전달되지 않아요. 신청할 때 직접 적은 이름·요청 사항과 계정에서 확인된 이메일만 전달돼요. 비용이 있는 모임은 운영자의 결제 안내를 확인해 주세요.",
+                ),
                 style: TextStyle(
                   fontSize: 12,
                   color: AppColors.inkSoft,
@@ -400,7 +413,7 @@ class _NoticeDetailScreenState extends State<NoticeDetailScreen> {
               const SizedBox(height: 20),
               FilledButton(
                 onPressed: () => _open(notice.applyUrl),
-                child: const Text('외부 신청 페이지 열기'),
+                child: Text(tr("외부 신청 페이지 열기")),
               ),
             ],
             if (_admin.canManage &&
@@ -416,7 +429,7 @@ class _NoticeDetailScreenState extends State<NoticeDetailScreen> {
                   ),
                 ),
                 icon: const Icon(Icons.list_alt),
-                label: const Text('(관리자) 날짜별 신청자 보기'),
+                label: Text(tr("(관리자) 날짜별 신청자 보기")),
               ),
             ],
           ],
@@ -457,48 +470,53 @@ class _BookingDetailsDialogState extends State<_BookingDetailsDialog> {
   }
 
   @override
-  Widget build(BuildContext context) => AlertDialog(
-    title: const Text('예약 확인'),
-    content: SingleChildScrollView(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            widget.summary,
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _name,
-            maxLength: 40,
-            decoration: const InputDecoration(labelText: '모임에서 사용할 이름 (선택)'),
-          ),
-          TextField(
-            controller: _note,
-            maxLength: 200,
-            maxLines: 3,
-            decoration: const InputDecoration(labelText: '운영자에게 요청할 내용 (선택)'),
-          ),
-          const Text(
-            '입력한 내용과 인증된 이메일이 있는 경우 이메일이 운영자에게 전달돼요. 개인적인 편지나 건강 정보는 적지 않아도 돼요.',
-            style: TextStyle(fontSize: 12),
-          ),
-        ],
+  Widget build(BuildContext context) {
+    Localizations.localeOf(context);
+    return AlertDialog(
+      title: Text(tr("예약 확인")),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              widget.summary,
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _name,
+              maxLength: 40,
+              decoration: InputDecoration(labelText: tr("모임에서 사용할 이름 (선택)")),
+            ),
+            TextField(
+              controller: _note,
+              maxLength: 200,
+              maxLines: 3,
+              decoration: InputDecoration(labelText: tr("운영자에게 요청할 내용 (선택)")),
+            ),
+            Text(
+              tr(
+                "입력한 내용과 인증된 이메일이 있는 경우 이메일이 운영자에게 전달돼요. 개인적인 편지나 건강 정보는 적지 않아도 돼요.",
+              ),
+              style: TextStyle(fontSize: 12),
+            ),
+          ],
+        ),
       ),
-    ),
-    actions: [
-      TextButton(
-        onPressed: () => Navigator.pop(context),
-        child: const Text('닫기'),
-      ),
-      FilledButton(
-        onPressed: () => Navigator.pop(context, {
-          'displayName': _name.text.trim(),
-          'note': _note.text.trim(),
-        }),
-        child: const Text('신청 확인'),
-      ),
-    ],
-  );
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(tr("닫기")),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(context, {
+            'displayName': _name.text.trim(),
+            'note': _note.text.trim(),
+          }),
+          child: Text(tr("신청 확인")),
+        ),
+      ],
+    );
+  }
 }

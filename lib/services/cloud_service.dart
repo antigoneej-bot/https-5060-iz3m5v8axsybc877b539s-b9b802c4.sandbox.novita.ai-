@@ -1,3 +1,5 @@
+import '../l10n/app_language.dart';
+import 'request_stage.dart';
 import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/foundation.dart';
@@ -18,7 +20,10 @@ class CloudService {
   static Future<bool> hasTrustedAccount([User? account]) async {
     final user = account ?? currentUser;
     if (user == null || user.isAnonymous) return false;
-    final token = await user.getIdTokenResult();
+    final token = await awaitRequestStage(
+      user.getIdTokenResult(),
+      'authentication-timeout',
+    );
     if (currentUser?.uid != user.uid) return false;
     return AccountIdentityPolicy.isTrusted(
       isAnonymous: user.isAnonymous,
@@ -59,23 +64,31 @@ class CloudService {
       throw const CloudException('account-changed');
     if ({'backup', 'listBackups', 'downloadBackup'}.contains(action))
       await ensureGardenOwner(user.uid);
-    final token = await user.getIdToken();
-    final appCheck = await FirebaseAppCheck.instance.getToken();
+    final token = await awaitRequestStage(
+      user.getIdToken(),
+      'authentication-timeout',
+    );
+    final appCheck = await awaitRequestStage(
+      FirebaseAppCheck.instance.getToken(),
+      'attestation-timeout',
+    );
     if (token == null || appCheck == null)
       throw StateError('로그인 상태를 다시 확인해 주세요.');
     if (currentUser?.uid != user.uid)
       throw const CloudException('account-changed');
-    final response = await http
-        .post(
-          uri,
-          headers: {
-            'Authorization': 'Bearer $token',
-            'X-Firebase-AppCheck': appCheck,
-            'Content-Type': 'application/json',
-          },
-          body: jsonEncode({...params, 'action': action}),
-        )
-        .timeout(const Duration(seconds: 50));
+    final response = await awaitRequestStage(
+      http.post(
+        uri,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'X-Firebase-AppCheck': appCheck,
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({...params, 'action': action}),
+      ),
+      'network-timeout',
+      timeout: const Duration(seconds: 50),
+    );
     if (currentUser?.uid != user.uid)
       throw const CloudException('account-changed');
     if (response.statusCode != 200) {
@@ -627,7 +640,10 @@ class CloudException implements Exception {
   final String code;
   const CloudException(this.code);
   @override
-  String toString() => switch (code) {
+  String toString() => tr(switch (code) {
+    'authentication-timeout' => '로그인 확인이 오래 걸리고 있어요. 연결을 확인한 뒤 다시 시도해 주세요.',
+    'attestation-timeout' => '앱 인증 확인이 오래 걸리고 있어요. 잠시 후 다시 시도해 주세요.',
+    'network-timeout' => '서버 응답이 늦어지고 있어요. 완료 여부를 확인한 뒤 다시 시도해 주세요.',
     'subscription-already-active' => '이미 이용 중인 구독이 있어요. 현재 이용 상태를 다시 확인할게요.',
     'subscription-check-unavailable' =>
       '구독 상태를 확인하지 못해 결제를 시작하지 않았어요. 연결 후 다시 시도해 주세요.',
@@ -705,5 +721,5 @@ class CloudException implements Exception {
     'reservation-not-available' => '이 소식은 예약을 받지 않아요.',
     'reservation-full' => '신청 인원이 모두 찼어요.',
     _ => '서버 연결을 확인할 수 없어요. 잠시 후 다시 시도해 주세요.',
-  };
+  });
 }

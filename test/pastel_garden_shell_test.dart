@@ -10,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_app/models/companion_coat.dart';
 import 'package:flutter_app/theme.dart';
 import 'package:flutter_app/widgets/pastel_garden_shell.dart';
+import 'package:flutter_app/widgets/neighbor_news_bubble.dart';
 import 'package:flutter_app/widgets/storybook_art.dart';
 
 void main() {
@@ -128,6 +129,7 @@ void main() {
           ]);
         });
         await t.pumpAndSettle();
+        expect(find.byType(NeighborNewsBubble), findsOneWidget);
         Future<void> capture(int page) async {
           final dir = Platform.environment['UI_APPROVED_REVIEW_DIR'];
           if (dir == null) return;
@@ -139,8 +141,9 @@ void main() {
             final bytes = await image.toByteData(
               format: ui.ImageByteFormat.png,
             );
+            await Directory(dir).create(recursive: true);
             await File(
-              '$dir/page-${page + 1}-${size.width.toInt()}-$scale.png',
+              '$dir/ko-page-${page + 1}-${size.width.toInt()}-$scale.png',
             ).writeAsBytes(bytes!.buffer.asUint8List());
             image.dispose();
           });
@@ -202,14 +205,29 @@ void main() {
         await t.tap(find.byKey(const ValueKey('main-tab-3')));
         await t.pumpAndSettle();
         await capture(3);
+        await t.scrollUntilVisible(
+          find.byKey(const Key('open-meditation-library')),
+          120,
+          scrollable: find
+              .descendant(
+                of: find.byKey(const PageStorageKey('pastel-page-3')),
+                matching: find.byType(Scrollable),
+              )
+              .first,
+        );
+        expect(
+          find.byKey(const Key('open-meditation-library')),
+          findsOneWidget,
+        );
+        expect(find.text('호흡·명상'), findsNothing);
+        expect(find.text('색칠 힐링'), findsNothing);
         for (final e in [
           ('고양이 선택', PastelAction.coats),
           ('밥 주기', PastelAction.feed),
           ('물 주기', PastelAction.water),
           ('목욕', PastelAction.bath),
           ('청소', PastelAction.clean),
-          ('호흡·명상', PastelAction.meditation),
-          ('색칠 힐링', PastelAction.coloring),
+          ('명상·호흡·자연음', PastelAction.meditation),
           ('돌봄 기록', PastelAction.care),
         ]) {
           await tap(e.$1, 3, e.$2);

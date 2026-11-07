@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../models/shadow_cat.dart';
@@ -73,6 +74,7 @@ class _EmotionCatCarouselState extends State<EmotionCatCarousel>
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     final cat = widget.cats[_index];
     final reduced = MediaQuery.disableAnimationsOf(context);
     return Column(
@@ -158,8 +160,8 @@ class _EmotionCatCarouselState extends State<EmotionCatCarousel>
                                       child: IconButton.filledTonal(
                                         tooltip:
                                             widget.favorites.contains(item.id)
-                                            ? '즐겨찾기 해제'
-                                            : '즐겨찾기 추가',
+                                            ? tr("즐겨찾기 해제")
+                                            : tr("즐겨찾기 추가"),
                                         onPressed: () =>
                                             widget.onFavorite(item.id),
                                         icon: Icon(
@@ -186,7 +188,7 @@ class _EmotionCatCarouselState extends State<EmotionCatCarousel>
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             IconButton(
-              tooltip: '이전 감정',
+              tooltip: tr("이전 감정"),
               onPressed: _index > 0 && !_moving ? () => _move(-1) : null,
               icon: const Icon(Icons.chevron_left_rounded),
             ),
@@ -198,7 +200,7 @@ class _EmotionCatCarouselState extends State<EmotionCatCarousel>
               ),
             ),
             IconButton(
-              tooltip: '다음 감정',
+              tooltip: tr("다음 감정"),
               onPressed: _index < widget.cats.length - 1 && !_moving
                   ? () => _move(1)
                   : null,
@@ -207,13 +209,13 @@ class _EmotionCatCarouselState extends State<EmotionCatCarousel>
           ],
         ),
         Text(
-          '${cat.emoji} ${cat.keyword}',
+          '${cat.emoji} ${cat.displayKeyword}',
           textAlign: TextAlign.center,
           style: titleFont(fontSize: 23, color: AppColors.ink),
         ),
         const SizedBox(height: 6),
         Text(
-          cat.nameKr,
+          cat.displayName,
           textAlign: TextAlign.center,
           style: bodyFont(fontSize: 14, color: AppColors.inkSoft),
         ),
@@ -238,7 +240,7 @@ class _EmotionCatCarouselState extends State<EmotionCatCarousel>
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
             ),
             child: Text(
-              '지금 내 마음이에요',
+              tr("지금 내 마음이에요"),
               style: bodyFont(
                 fontSize: 16,
                 fontWeight: FontWeight.w700,

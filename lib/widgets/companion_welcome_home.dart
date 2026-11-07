@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../models/companion_coat.dart';
@@ -67,14 +68,14 @@ class CompanionWelcomeHome extends StatelessWidget {
           children: [
             Flexible(
               child: Text(
-                loading ? '함께하는 고양이' : displayName,
+                loading ? tr("함께하는 고양이") : displayName,
                 key: const Key('home-companion-name'),
                 textAlign: TextAlign.center,
                 style: text(24, weight: FontWeight.w800),
               ),
             ),
             IconButton(
-              tooltip: '고양이 선택',
+              tooltip: tr("고양이 선택"),
               onPressed: selecting ? null : onChooseCat,
               icon: const Icon(Icons.pets_outlined, color: sage, size: 21),
             ),
@@ -84,7 +85,7 @@ class CompanionWelcomeHome extends StatelessWidget {
       Padding(
         padding: const EdgeInsets.symmetric(horizontal: 26),
         child: Text(
-          '왔구나, 여기서 같이 쉬자.',
+          tr("왔구나, 여기서 같이 쉬자."),
           key: const Key('home-greeting'),
           textAlign: TextAlign.center,
           style: text(15, color: const Color(0xff64745e)),
@@ -95,6 +96,7 @@ class CompanionWelcomeHome extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     final displayName = companionDisplayName(name);
     return ListView(
       key: const PageStorageKey('pastel-page-0'),
@@ -131,19 +133,19 @@ class CompanionWelcomeHome extends StatelessWidget {
                           children: [
                             Expanded(
                               child: Text(
-                                '마음냥 정원',
+                                tr("마음냥 정원"),
                                 style: text(23, weight: FontWeight.w800),
                               ),
                             ),
                             if (onSettings != null)
                               IconButton(
-                                tooltip: '설정·전체 기능',
+                                tooltip: tr("설정·전체 기능"),
                                 onPressed: onSettings,
                                 icon: const Icon(Icons.settings_outlined),
                               ),
                             IconButton(
                               key: const Key('home-notices'),
-                              tooltip: '정원 소식',
+                              tooltip: tr("정원 소식"),
                               onPressed: onNotices,
                               icon: const Icon(
                                 Icons.notifications_none_rounded,
@@ -161,9 +163,9 @@ class CompanionWelcomeHome extends StatelessWidget {
                             8,
                         width: double.infinity,
                         child: loading
-                            ? const Center(
+                            ? Center(
                                 child: CircularProgressIndicator(
-                                  semanticsLabel: '고양이 정보 불러오는 중',
+                                  semanticsLabel: tr("고양이 정보 불러오는 중"),
                                 ),
                               )
                             : error != null
@@ -181,7 +183,7 @@ class CompanionWelcomeHome extends StatelessWidget {
                                       if (onRetry != null)
                                         TextButton(
                                           onPressed: onRetry,
-                                          child: const Text('다시 불러오기'),
+                                          child: Text(tr("다시 불러오기")),
                                         ),
                                     ],
                                   ),
@@ -213,7 +215,7 @@ class CompanionWelcomeHome extends StatelessWidget {
                               ? null
                               : onCompanionTap,
                           icon: const Icon(Icons.favorite_border, size: 18),
-                          label: const Text('돌봐주기'),
+                          label: Text(tr("돌봐주기")),
                         ),
                       ),
                     ],
@@ -235,7 +237,7 @@ class CompanionWelcomeHome extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                '오늘 하루는 어땠어?',
+                tr("오늘 하루는 어땠어?"),
                 textAlign: TextAlign.center,
                 style: text(22, weight: FontWeight.w800),
               ),
@@ -244,7 +246,13 @@ class CompanionWelcomeHome extends StatelessWidget {
                 builder: (context, box) {
                   final large = MediaQuery.textScalerOf(context).scale(13) > 18;
                   final columns = large ? 3 : 5;
-                  const labels = ['좋아요', '평온해요', '보통', '힘들어요', '지쳤어요'];
+                  final labels = [
+                    tr("좋아요"),
+                    tr("평온해요"),
+                    tr("보통"),
+                    tr("힘들어요"),
+                    tr("지쳤어요"),
+                  ];
                   return Wrap(
                     spacing: 5,
                     runSpacing: 6,
@@ -307,6 +315,12 @@ class CompanionWelcomeHome extends StatelessWidget {
                 },
               ),
               const SizedBox(height: 13),
+              Text(
+                tr('지금 마음과 닮은 고양이를 고르고, 한 줄을 남겨보세요.'),
+                textAlign: TextAlign.center,
+                style: text(12, color: const Color(0xff777b70)),
+              ),
+              const SizedBox(height: 8),
               FilledButton.icon(
                 key: const Key('home-record'),
                 onPressed: onRecord,
@@ -324,7 +338,7 @@ class CompanionWelcomeHome extends StatelessWidget {
                 ),
                 icon: const Icon(Icons.edit_outlined, size: 22),
                 label: Text(
-                  '마음 기록하기',
+                  tr("마음 기록하기"),
                   style: text(18, weight: FontWeight.w700, color: Colors.white),
                 ),
               ),
@@ -348,11 +362,11 @@ class CompanionWelcomeHome extends StatelessWidget {
                     child: StorySprite.icon(5),
                   ),
                   title: Text(
-                    '우리 정원 둘러보기',
+                    tr("우리 정원 둘러보기"),
                     style: text(16, weight: FontWeight.w700),
                   ),
                   subtitle: Text(
-                    '함께 가꾼 작은 변화를 만나봐요',
+                    tr("함께 가꾼 작은 변화를 만나봐요"),
                     style: text(12, color: const Color(0xff777b70)),
                   ),
                   trailing: const Icon(

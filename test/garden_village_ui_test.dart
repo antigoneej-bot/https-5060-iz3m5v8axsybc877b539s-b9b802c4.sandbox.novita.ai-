@@ -25,6 +25,13 @@ const profile = GardenVillageProfile(
 );
 
 class _Village extends GardenVillageService {
+  @override
+  Future<({GardenVillageProfile profile, GardenNeighborLists neighbors})>
+  loadEntry() async {
+    final profile = await getProfile();
+    return (profile: profile, neighbors: await listNeighbors());
+  }
+
   GardenVillageProfile value = profile;
   GardenNeighborLists people = const GardenNeighborLists();
   Object? error;
@@ -201,45 +208,42 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets(
-    'hub waits for profile before neighbor request and cannot accept twice',
-    (tester) async {
-      final service = _Village()
-        ..pendingProfile = Completer<GardenVillageProfile>()
-        ..pendingResponse = Completer<void>()
-        ..people = const GardenNeighborLists(
-          incoming: [GardenNeighbor(gardenId: 'bob', nickname: '초롱')],
-        );
-      await _app(
-        tester,
-        GardenVillageScreen(
-          service: service,
-          accountReady: () async => true,
-          currentAccount: () => 'alice',
-        ),
+  testWidgets('hub waits for one complete entry and cannot accept twice', (
+    tester,
+  ) async {
+    final service = _Village()
+      ..pendingProfile = Completer<GardenVillageProfile>()
+      ..pendingResponse = Completer<void>()
+      ..people = const GardenNeighborLists(
+        incoming: [GardenNeighbor(gardenId: 'bob', nickname: '초롱')],
       );
-      // getProfile() and listNeighbors() are fetched concurrently (not
-      // sequentially), so both calls start immediately; only the still-
-      // pending profile future keeps the screen on its loading state.
-      expect(service.calls, ['profile', 'neighbors']);
-      service.pendingProfile!.complete(profile);
-      service.pendingProfile = null;
-      await tester.pumpAndSettle();
-      expect(service.calls, ['profile', 'neighbors']);
-      await tester.tap(find.text('신청').first);
-      await tester.pumpAndSettle();
-      await tester.ensureVisible(find.text('수락'));
-      await tester.tap(find.text('수락'));
-      await tester.pump();
-      await tester.tap(find.text('수락'));
-      expect(service.responses, 1);
-      expect(find.text('이웃으로 연결됐어요.'), findsNothing);
-      service.pendingResponse!.complete();
-      await tester.pumpAndSettle();
-      expect(find.text('이웃으로 연결됐어요.'), findsOneWidget);
-      expect(tester.takeException(), isNull);
-    },
-  );
+    await _app(
+      tester,
+      GardenVillageScreen(
+        service: service,
+        accountReady: () async => true,
+        currentAccount: () => 'alice',
+      ),
+    );
+    expect(service.calls, ['profile']); // legacy entry waits for profile first
+    service.pendingProfile!.complete(profile);
+    service.pendingProfile = null;
+    await tester.pumpAndSettle();
+    // The summary also refreshes neighbor counts after the profile is ready.
+    expect(service.calls.take(2).toList(), ['profile', 'neighbors']);
+    await tester.tap(find.text('신청').first);
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('수락'));
+    await tester.tap(find.text('수락'));
+    await tester.pump();
+    await tester.tap(find.text('수락'));
+    expect(service.responses, 1);
+    expect(find.text('이웃으로 연결됐어요.'), findsNothing);
+    service.pendingResponse!.complete();
+    await tester.pumpAndSettle();
+    expect(find.text('이웃으로 연결됐어요.'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets(
     'friend code shows identity confirmation before sending a request',
@@ -269,6 +273,9 @@ void main() {
       await tester.pumpAndSettle();
       expect(service.requests, 1);
       await tester.tap(find.text('신청').first);
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('보낸 신청 1'));
+      await tester.tap(find.text('보낸 신청 1'));
       await tester.pumpAndSettle();
       await tester.scrollUntilVisible(
         find.text('수락을 기다리는 이웃'),
@@ -347,6 +354,149 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets(
+    'background refresh coalesces requests and retains data on failure',
+    (tester) async {
+      final service = _Village()
+        ..people = const GardenNeighborLists(
+          neighbors: [
+            GardenNeighbor(gardenId: 'bob', nickname: 'cached-neighbor'),
+          ],
+        );
+      final active = ValueNotifier<bool>(true);
+      addTearDown(active.dispose);
+      await _app(
+        tester,
+        _TickerToggle(
+          enabled: active,
+          child: GardenVillageScreen(
+            service: service,
+            accountReady: () async => true,
+            currentAccount: () => 'alice',
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('cached-neighbor'), findsOneWidget);
+      service.pendingProfile = Completer<GardenVillageProfile>();
+      active.value = false;
+      await tester.pump();
+      active.value = true;
+      await tester.pump();
+      await tester.pump();
+      expect(service.calls, ['profile', 'neighbors', 'profile']);
+      expect(find.text('cached-neighbor'), findsOneWidget);
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      await tester.tap(find.text('신청').first);
+      await tester.pump();
+      expect(
+        service.calls.length,
+        3,
+      ); // no duplicate entry while profile is pending
+      service.pendingProfile!.completeError(StateError('offline'));
+      service.pendingProfile = null;
+      await tester.pumpAndSettle();
+      expect(find.textContaining('이전 목록을 표시'), findsOneWidget);
+      await tester.tap(find.text('내 이웃').first);
+      await tester.pumpAndSettle();
+      expect(find.text('cached-neighbor'), findsOneWidget);
+      expect(
+        service.calls.length,
+        5,
+      ); // failed profile did not start a list read
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('account switch clears cache and ignores a previous response', (
+    tester,
+  ) async {
+    final service = _Village()
+      ..people = const GardenNeighborLists(
+        neighbors: [GardenNeighbor(gardenId: 'bob', nickname: 'old-neighbor')],
+      );
+    var owner = 'alice';
+    final accounts = StreamController<String?>();
+    addTearDown(accounts.close);
+    final active = ValueNotifier<bool>(true);
+    addTearDown(active.dispose);
+    await _app(
+      tester,
+      _TickerToggle(
+        enabled: active,
+        child: GardenVillageScreen(
+          service: service,
+          accountReady: () async => true,
+          currentAccount: () => owner,
+          accountChanges: accounts.stream,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('old-neighbor'), findsOneWidget);
+    final old = Completer<GardenVillageProfile>();
+    service.pendingProfile = old;
+    active.value = false;
+    await tester.pump();
+    active.value = true;
+    await tester.pump();
+    await tester.pump();
+    owner = 'bravo';
+    service.pendingProfile = null;
+    service.people = const GardenNeighborLists();
+    accounts.add(owner);
+    await tester.pumpAndSettle();
+    expect(find.text('old-neighbor'), findsNothing);
+    old.complete(profile);
+    await tester.pumpAndSettle();
+    expect(find.text('old-neighbor'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('accept during background read refreshes post-mutation state', (
+    tester,
+  ) async {
+    final service = _Village()
+      ..people = const GardenNeighborLists(
+        incoming: [GardenNeighbor(gardenId: 'bob', nickname: '초롱')],
+      );
+    final active = ValueNotifier<bool>(true);
+    addTearDown(active.dispose);
+    await _app(
+      tester,
+      _TickerToggle(
+        enabled: active,
+        child: GardenVillageScreen(
+          service: service,
+          accountReady: () async => true,
+          currentAccount: () => 'alice',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final pending = Completer<GardenVillageProfile>();
+    service.pendingProfile = pending;
+    active.value = false;
+    await tester.pump();
+    active.value = true;
+    await tester.pump();
+    await tester.pump();
+    await tester.tap(find.text('신청').first);
+    await tester.pump();
+    await tester.ensureVisible(find.text('수락'));
+    await tester.tap(find.text('수락'));
+    await tester.pump();
+    expect(service.responses, 1);
+    service.pendingProfile = null;
+    pending.complete(profile);
+    await tester.pumpAndSettle();
+    expect(service.calls.where((c) => c == 'profile').length, 3);
+    await tester.tap(find.text('내 이웃').first);
+    await tester.pumpAndSettle();
+    expect(find.text('초롱'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('discovery connection failure is not an empty village', (
     tester,

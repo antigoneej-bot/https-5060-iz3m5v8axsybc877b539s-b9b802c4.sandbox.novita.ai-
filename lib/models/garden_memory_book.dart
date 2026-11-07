@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import 'dart:convert';
 
 import '../mongi/models/garden_decoration.dart';
@@ -11,11 +12,11 @@ String gardenBookMonth(DateTime date) {
 
 DateTime parseGardenBookMonth(Object? value) {
   if (value is! String || !RegExp(r'^\d{4}-(0[1-9]|1[0-2])$').hasMatch(value)) {
-    throw const FormatException('기록집의 달을 확인해 주세요.');
+    throw FormatException(tr("기록집의 달을 확인해 주세요."));
   }
   final date = DateTime.parse('$value-01');
   if (date.year < 1900 || date.year > 2200) {
-    throw const FormatException('기록집의 달을 확인해 주세요.');
+    throw FormatException(tr("기록집의 달을 확인해 주세요."));
   }
   return date;
 }
@@ -23,7 +24,7 @@ DateTime parseGardenBookMonth(Object? value) {
 DateTime _date(Object? value) {
   final date = value is String ? DateTime.tryParse(value) : null;
   if (date == null || date.year < 1900 || date.year > 2200) {
-    throw const FormatException('기록집의 날짜가 올바르지 않아요.');
+    throw FormatException(tr("기록집의 날짜가 올바르지 않아요."));
   }
   return date;
 }
@@ -38,7 +39,7 @@ String _readBookDay(Object? raw, DateTime legacyDate) {
   if (value is! String ||
       !RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(value) ||
       _bookDay(_date(value)) != value) {
-    throw const FormatException('기록집의 기억 날짜를 확인해 주세요.');
+    throw FormatException(tr("기록집의 기억 날짜를 확인해 주세요."));
   }
   return value;
 }
@@ -47,20 +48,20 @@ String _text(Object? value, int max, {bool empty = false}) {
   if (value is! String ||
       value.length > max ||
       (!empty && value.trim().isEmpty)) {
-    throw const FormatException('기록집의 내용이 올바르지 않아요.');
+    throw FormatException(tr("기록집의 내용이 올바르지 않아요."));
   }
   return value;
 }
 
 void _keys(Map data, Set<String> allowed) {
   if (data.keys.any((key) => key is! String || !allowed.contains(key))) {
-    throw const FormatException('알 수 없는 기록집 항목이 있어요.');
+    throw FormatException(tr("알 수 없는 기록집 항목이 있어요."));
   }
 }
 
 List<T> _rows<T>(Object? raw, int max, T Function(Map) read) {
   if (raw is! List || raw.length > max || raw.any((row) => row is! Map)) {
-    throw const FormatException('기록집의 목록을 확인해 주세요.');
+    throw FormatException(tr("기록집의 목록을 확인해 주세요."));
   }
   return List.unmodifiable(raw.map((row) => read(row as Map)));
 }
@@ -113,17 +114,17 @@ class GardenBookPlant {
     _keys(data, {'plantId', 'name', 'anniversaryOn'});
     final id = _text(data['plantId'], 60);
     if (!SeedType.all.any((seed) => seed.id == id)) {
-      throw const FormatException('기록집의 식물을 확인해 주세요.');
+      throw FormatException(tr("기록집의 식물을 확인해 주세요."));
     }
     final anniversary = data['anniversaryOn'];
     if (anniversary != null) {
       if (anniversary is! String ||
           !RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(anniversary)) {
-        throw const FormatException('기념일을 확인해 주세요.');
+        throw FormatException(tr("기념일을 확인해 주세요."));
       }
       final date = _date(anniversary);
       if (date.toIso8601String().substring(0, 10) != anniversary) {
-        throw const FormatException('기념일을 확인해 주세요.');
+        throw FormatException(tr("기념일을 확인해 주세요."));
       }
     }
     return GardenBookPlant(
@@ -248,7 +249,7 @@ class GardenBookSnapshot {
         data['memoryDays'] is! int ||
         data['memoryDays'] < 0 ||
         data['memoryDays'] > 1000000) {
-      throw const FormatException('정원 구성 기록이 올바르지 않아요.');
+      throw FormatException(tr("정원 구성 기록이 올바르지 않아요."));
     }
     _keys(data['layout'] as Map, {'version', 'spaces', 'positions'});
     return GardenBookSnapshot(
@@ -319,19 +320,22 @@ class GardenMemoryBook {
     bool includeCare = false,
     bool includeReflections = false,
   }) => [
-    '마음냥 정원 · $month의 기록집',
+    tr("마음냥 정원 · {0}의 기록집", [month]),
     if (includeQuotes)
       ...quotes.map(
-        (quote) =>
-            '${quote.calendarDate.month}월 ${quote.calendarDate.day}일 · ${quote.text}',
+        (quote) => tr("{0}월 {1}일 · {2}", [
+          quote.calendarDate.month,
+          quote.calendarDate.day,
+          quote.text,
+        ]),
       ),
     if (includePlants)
       ...plants.map(
         (plant) =>
-            '${plant.name}${plant.anniversaryOn == null ? '' : ' · 기념일 ${plant.anniversaryOn}'}',
+            '${plant.name}${plant.anniversaryOn == null ? '' : tr(" · 기념일 {0}", [plant.anniversaryOn])}',
       ),
     if (includeCare)
-      ...care.map((entry) => '내가 도움이 됐다고 남긴 경험 · ${entry.actionLabel}'),
+      ...care.map((entry) => tr("내가 도움이 됐다고 남긴 경험 · {0}", [entry.actionLabel])),
     if (includeReflections)
       ...reflections.map(
         (entry) =>
@@ -374,7 +378,7 @@ class GardenMemoryBook {
         !{'basic', 'seasonal'}.contains(data['style']) ||
         data['snapshot'] is! Map ||
         jsonEncode(data).length > 100000) {
-      throw const FormatException('기록집의 형식을 확인해 주세요.');
+      throw FormatException(tr("기록집의 형식을 확인해 주세요."));
     }
     final created = _date(data['createdAt']),
         updated = _date(data['updatedAt']);
@@ -405,7 +409,7 @@ class GardenMemoryBook {
         reflections.any(
           (r) => r.at.isBefore(created) || r.at.isAfter(updated),
         )) {
-      throw const FormatException('선택한 달과 기록 날짜를 확인해 주세요.');
+      throw FormatException(tr("선택한 달과 기록 날짜를 확인해 주세요."));
     }
     return GardenMemoryBook(
       month: month as String,

@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_state_provider.dart';
@@ -90,7 +91,7 @@ class _ReflectionLetterScreenState extends State<ReflectionLetterScreen> {
               const Text('🌙', style: TextStyle(fontSize: 34)),
               const SizedBox(height: 14),
               Text(
-                '이번 달의 그림자들에게\n답장을 모두 남겼어요',
+                tr("이번 달의 그림자들에게\n답장을 모두 남겼어요"),
                 textAlign: TextAlign.center,
                 style: titleFont(fontSize: 18, color: AppColors.ink),
               ),
@@ -112,7 +113,7 @@ class _ReflectionLetterScreenState extends State<ReflectionLetterScreen> {
                     ),
                   ),
                   child: Text(
-                    '닫기',
+                    tr("닫기"),
                     style: serifFont(fontSize: 14, color: Colors.white),
                   ),
                 ),
@@ -126,6 +127,7 @@ class _ReflectionLetterScreenState extends State<ReflectionLetterScreen> {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     return Scaffold(
       body: GardenScaffoldBackground(
         child: SafeArea(
@@ -148,7 +150,7 @@ class _ReflectionLetterScreenState extends State<ReflectionLetterScreen> {
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          '리플렉션 레터',
+                          tr("리플렉션 레터"),
                           style: titleFont(
                             fontSize: 19,
                             color: AppColors.titlePastelGreen,
@@ -186,6 +188,7 @@ class _NoCatsThisMonth extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 60),
       child: Column(
@@ -193,7 +196,7 @@ class _NoCatsThisMonth extends StatelessWidget {
           const Text('🌙', style: TextStyle(fontSize: 40)),
           const SizedBox(height: 14),
           Text(
-            '이번 달 만난 고양이가 없어요',
+            tr("이번 달 만난 고양이가 없어요"),
             style: bodyFont(fontSize: 13.5, color: AppColors.inkSoft),
           ),
         ],
@@ -218,6 +221,7 @@ class _LetterStep extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     final cat = shadowCatById(catId);
     final accent = CatPalette.accentFor(catId);
     return Column(
@@ -234,22 +238,22 @@ class _LetterStep extends StatelessWidget {
         const SizedBox(height: 12),
         Center(
           child: Text(
-            cat.nameKr,
+            cat.displayName,
             style: titleFont(fontSize: 20, color: AppColors.ink),
           ),
         ),
         const SizedBox(height: 4),
         Center(
           child: Text(
-            cat.keyword,
+            cat.displayKeyword,
             style: bodyFont(fontSize: 12.5, color: accent),
           ),
         ),
         const SizedBox(height: 20),
         JournalBox(
-          question: '${cat.nameKr}에게, 이번 달을 돌아보며 답장을 남겨보세요',
+          question: tr("{0}에게, 이번 달을 돌아보며 답장을 남겨보세요", [cat.displayName]),
           controller: controller,
-          hint: '짧아도 괜찮아요. 그때의 나에게 지금의 내가 건네는 말이에요',
+          hint: tr("짧아도 괜찮아요. 그때의 나에게 지금의 내가 건네는 말이에요"),
         ),
         const SizedBox(height: 20),
         SizedBox(
@@ -266,7 +270,7 @@ class _LetterStep extends StatelessWidget {
               ),
             ),
             child: Text(
-              index == total - 1 ? '마지막 답장 남기기' : '다음 고양이에게',
+              index == total - 1 ? tr("마지막 답장 남기기") : tr("다음 고양이에게"),
               style: serifFont(fontSize: 14.5, color: Colors.white),
             ),
           ),

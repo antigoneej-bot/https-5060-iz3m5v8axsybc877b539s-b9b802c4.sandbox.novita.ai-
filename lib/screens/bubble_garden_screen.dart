@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -69,13 +70,13 @@ class _BubbleGardenScreenState extends State<BubbleGardenScreen> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-          '오늘의 그림자\n방울 터뜨리기',
+          tr("오늘의 그림자\n방울 터뜨리기"),
           textAlign: TextAlign.center,
           style: titleFont(fontSize: 24, color: AppColors.ink, height: 1.4),
         ),
         const SizedBox(height: 10),
         Text(
-          '오늘 마주한 감정을 하나씩 가만히 들여다보고, 톡 터뜨려 놓아주세요',
+          tr("오늘 마주한 감정을 하나씩 가만히 들여다보고, 톡 터뜨려 놓아주세요"),
           textAlign: TextAlign.center,
           style: bodyFont(
             fontSize: 12.5,
@@ -120,7 +121,7 @@ class _LockedGuidance extends StatelessWidget {
           const Text('🌫️', style: TextStyle(fontSize: 28)),
           const SizedBox(height: 12),
           Text(
-            '오늘의 감정을 먼저 기록해주세요',
+            tr("오늘의 감정을 먼저 기록해주세요"),
             textAlign: TextAlign.center,
             style: pathLabelFont(
               fontSize: 16,
@@ -130,7 +131,7 @@ class _LockedGuidance extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           Text(
-            '그림자 고양이에게 오늘의 마음을 들려주고 나면,\n그 감정이 담긴 방울들이 여기 조용히 피어나요',
+            tr("그림자 고양이에게 오늘의 마음을 들려주고 나면,\n그 감정이 담긴 방울들이 여기 조용히 피어나요"),
             textAlign: TextAlign.center,
             style: bodyFont(
               fontSize: 12,
@@ -410,7 +411,7 @@ class _BubbleState extends State<_Bubble> with TickerProviderStateMixin {
             Positioned(
               top: -8,
               child: _ReactionBubble(
-                text: '이 마음은 지금 당장 다루지 않아도 괜찮아요',
+                text: tr("이 마음은 지금 당장 다루지 않아도 괜찮아요"),
                 accent: accent,
                 width: 168,
               ),
@@ -496,7 +497,7 @@ class _BubbleMemoSheetState extends State<_BubbleMemoSheet> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      '${widget.cat.nameKr}에게 한마디 남기기',
+                      tr("{0}에게 한마디 남기기", [widget.cat.displayName]),
                       style: pathLabelFont(
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
@@ -516,7 +517,7 @@ class _BubbleMemoSheetState extends State<_BubbleMemoSheet> {
               ),
               const SizedBox(height: 6),
               Text(
-                '편지처럼 길게 쓰지 않아도 괜찮아요 · 짧은 한마디만 남겨보세요 (선택)',
+                tr("편지처럼 길게 쓰지 않아도 괜찮아요 · 짧은 한마디만 남겨보세요 (선택)"),
                 style: bodyFont(
                   fontSize: 11,
                   color: AppColors.inkSoft,
@@ -548,7 +549,7 @@ class _BubbleMemoSheetState extends State<_BubbleMemoSheet> {
                       fontSize: 10,
                       color: AppColors.inkSoft,
                     ),
-                    hintText: '예) 오늘은 유난히 힘들었어',
+                    hintText: tr("예) 오늘은 유난히 힘들었어"),
                     hintStyle: bodyFont(
                       fontSize: 12.5,
                       color: AppColors.inkSoft,
@@ -577,7 +578,7 @@ class _BubbleMemoSheetState extends State<_BubbleMemoSheet> {
                             ),
                           ),
                           child: Text(
-                            '남기지 않기',
+                            tr("남기지 않기"),
                             style: pathLabelFont(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
@@ -604,7 +605,7 @@ class _BubbleMemoSheetState extends State<_BubbleMemoSheet> {
                             color: accent.withValues(alpha: 0.88),
                           ),
                           child: Text(
-                            '한마디 남기기',
+                            tr("한마디 남기기"),
                             style: pathLabelFont(
                               fontSize: 12,
                               fontWeight: FontWeight.w700,
@@ -770,7 +771,7 @@ class _BuryGround extends StatelessWidget {
     return Column(
       children: [
         Text(
-          '이 마음만은, 터뜨리지 않고\n잠시 땅에 묻어두어도 괜찮아요',
+          tr("이 마음만은, 터뜨리지 않고\n잠시 땅에 묻어두어도 괜찮아요"),
           textAlign: TextAlign.center,
           style: bodyFont(
             fontSize: 11.5,
@@ -805,7 +806,7 @@ class _BuryGround extends StatelessWidget {
                 ),
               ),
               child: Text(
-                hovering ? '여기에 놓아주세요 🌱' : '🌿  방울을 여기로',
+                hovering ? tr("여기에 놓아주세요 🌱") : tr("🌿  방울을 여기로"),
                 textAlign: TextAlign.center,
                 style: bodyFont(
                   fontSize: 11.5,
@@ -818,7 +819,7 @@ class _BuryGround extends StatelessWidget {
         ),
         const SizedBox(height: 10),
         Text(
-          '길게 눌러 드래그하면 묻어둘 수 있어요 · 하고 싶지 않다면 그냥 톡 터뜨려도 괜찮아요',
+          tr("길게 눌러 드래그하면 묻어둘 수 있어요 · 하고 싶지 않다면 그냥 톡 터뜨려도 괜찮아요"),
           textAlign: TextAlign.center,
           style: bodyFont(
             fontSize: 10.5,
@@ -885,7 +886,7 @@ class _CompletionCelebrationState extends State<_CompletionCelebration>
               const Text('🌿', style: TextStyle(fontSize: 30)),
               const SizedBox(height: 12),
               Text(
-                '오늘의 그림자 정원이\n조용히 정돈되었어요',
+                tr("오늘의 그림자 정원이\n조용히 정돈되었어요"),
                 textAlign: TextAlign.center,
                 style: pathLabelFont(
                   fontSize: 16,
@@ -897,8 +898,10 @@ class _CompletionCelebrationState extends State<_CompletionCelebration>
               const SizedBox(height: 10),
               Text(
                 widget.pointsEarned > 0
-                    ? '오늘 ${widget.pointsEarned}개의 방울을 놓아주며\n포인트를 조금 모았어요 · 상점에서 꾸미기에 써보세요'
-                    : '오늘 방울들을 모두 놓아주었어요',
+                    ? tr("오늘 {0}개의 방울을 놓아주며\n포인트를 조금 모았어요 · 상점에서 꾸미기에 써보세요", [
+                        widget.pointsEarned,
+                      ])
+                    : tr("오늘 방울들을 모두 놓아주었어요"),
                 textAlign: TextAlign.center,
                 style: bodyFont(
                   fontSize: 11.5,
@@ -909,7 +912,7 @@ class _CompletionCelebrationState extends State<_CompletionCelebration>
               if (widget.hasBuried) ...[
                 const SizedBox(height: 12),
                 Text(
-                  '땅에 묻어둔 마음 하나는 며칠 뒤,\n정원 어딘가에 작은 새싹으로 조용히 다시 찾아올 거예요',
+                  tr("땅에 묻어둔 마음 하나는 며칠 뒤,\n정원 어딘가에 작은 새싹으로 조용히 다시 찾아올 거예요"),
                   textAlign: TextAlign.center,
                   style: bodyFont(
                     fontSize: 11,
@@ -927,7 +930,7 @@ class _CompletionCelebrationState extends State<_CompletionCelebration>
               ],
               const SizedBox(height: 12),
               Text(
-                '내일 새로운 감정을 기록하면,\n다시 새로운 방울들이 피어날 거예요',
+                tr("내일 새로운 감정을 기록하면,\n다시 새로운 방울들이 피어날 거예요"),
                 textAlign: TextAlign.center,
                 style: bodyFont(
                   fontSize: 11,

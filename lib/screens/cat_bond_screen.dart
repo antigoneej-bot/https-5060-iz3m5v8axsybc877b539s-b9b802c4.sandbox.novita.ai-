@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -41,7 +42,7 @@ class _CatBondScreenState extends State<CatBondScreen> {
     final catId = CompatibilityService.catIdForCode(_codeController.text);
     setState(() {
       if (catId == null) {
-        _error = '코드를 다시 확인해주세요';
+        _error = tr("코드를 다시 확인해주세요");
         _friendCatId = null;
       } else {
         _error = null;
@@ -59,6 +60,7 @@ class _CatBondScreenState extends State<CatBondScreen> {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     final app = context.watch<AppStateProvider>();
     final myCatId = app.history.isNotEmpty ? app.history.first.catId : null;
     final myCode = myCatId != null
@@ -86,11 +88,13 @@ class _CatBondScreenState extends State<CatBondScreen> {
                           ),
                         ),
                         const SizedBox(width: 4),
-                        Text(
-                          '묘연 나누기',
-                          style: titleFont(
-                            fontSize: 19,
-                            color: AppColors.titlePastelGreen,
+                        Expanded(
+                          child: Text(
+                            tr("고양이 코드 비교"),
+                            style: titleFont(
+                              fontSize: 19,
+                              color: AppColors.titlePastelGreen,
+                            ),
                           ),
                         ),
                       ],
@@ -103,7 +107,9 @@ class _CatBondScreenState extends State<CatBondScreen> {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           Text(
-                            '내 그림자 고양이 코드를 친구에게 보내보세요.\n친구가 코드를 입력하면 두 그림자가 나란히 놓여요.',
+                            tr(
+                              "내 그림자 고양이 코드를 친구에게 보내보세요.\n친구가 코드를 입력하면 두 그림자가 나란히 놓여요.",
+                            ),
                             textAlign: TextAlign.center,
                             style: bodyFont(
                               fontSize: 13,
@@ -146,6 +152,7 @@ class _CatBondScreenState extends State<CatBondScreen> {
 class _NoCatYet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 30),
       child: Column(
@@ -153,12 +160,12 @@ class _NoCatYet extends StatelessWidget {
           const Text('🐾', style: TextStyle(fontSize: 34)),
           const SizedBox(height: 12),
           Text(
-            '아직 만난 고양이가 없어요',
+            tr("아직 만난 고양이가 없어요"),
             style: bodyFont(fontSize: 13, color: AppColors.inkSoft),
           ),
           const SizedBox(height: 4),
           Text(
-            '고양이를 먼저 만나면 내 코드가 만들어져요',
+            tr("고양이를 먼저 만나면 내 코드가 만들어져요"),
             textAlign: TextAlign.center,
             style: bodyFont(fontSize: 12, color: AppColors.inkSoft),
           ),
@@ -177,7 +184,7 @@ class _MyCodeCard extends StatelessWidget {
     Clipboard.setData(ClipboardData(text: code));
     ScaffoldMessenger.of(
       context,
-    ).showSnackBar(const SnackBar(content: Text('코드를 복사했어요')));
+    ).showSnackBar(SnackBar(content: Text(tr("코드를 복사했어요"))));
   }
 
   /// 코드만 텍스트로 보내지 않고, 내 그림자 고양이 카드 이미지를 함께
@@ -187,11 +194,10 @@ class _MyCodeCard extends StatelessWidget {
     showShareReflectionCard(
       context,
       cardContent: _MyCodeShareCardContent(catId: catId, code: code),
-      shareText:
-          '내 그림자 고양이는 \'${cat.nameKr}\'예요 🐾\n'
-          '내 묘연 코드: $code\n\n'
-          '"마음냥 정원" 앱에서 이 코드를 입력하고\n'
-          '네 그림자와 나란히 놓아볼래? #마음냥정원',
+      shareText: tr(
+        "내 그림자 고양이는 '{0}'예요 🐾\n내 묘연 코드: {1}\n\n\"마음냥 정원\" 앱에서 이 코드를 입력하고\n네 그림자와 나란히 놓아볼래? #마음냥정원",
+        [cat.displayName, code],
+      ),
     );
     AnalyticsService().logEvent(AnalyticsEvents.bondCodeGenerated, {
       'cat_id': catId,
@@ -200,6 +206,7 @@ class _MyCodeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     final cat = shadowCatById(catId);
     final accent = CatPalette.accentFor(catId);
     final background = CatPalette.backgroundFor(catId);
@@ -211,7 +218,7 @@ class _MyCodeCard extends StatelessWidget {
       child: Column(
         children: [
           Text(
-            '내 그림자 고양이',
+            tr("내 그림자 고양이"),
             style: pathLabelFont(
               fontSize: 13.5,
               fontWeight: FontWeight.w700,
@@ -227,7 +234,7 @@ class _MyCodeCard extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           Text(
-            cat.nameKr,
+            cat.displayName,
             style: titleFont(fontSize: 17, color: AppColors.ink),
           ),
           const SizedBox(height: 16),
@@ -260,13 +267,13 @@ class _MyCodeCard extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            '탭해서 코드 복사',
+            tr("탭해서 코드 복사"),
             style: bodyFont(fontSize: 10.5, color: AppColors.inkSoft),
           ),
           const SizedBox(height: 16),
           _RoundButton(
             icon: Icons.ios_share_rounded,
-            label: '친구에게 코드 보내기',
+            label: tr("친구에게 코드 보내기"),
             accent: accent,
             onTap: () => _shareCode(context),
           ),
@@ -286,6 +293,7 @@ class _MyCodeShareCardContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     final cat = shadowCatById(catId);
     final accent = CatPalette.accentFor(catId);
     final background = CatPalette.backgroundFor(catId);
@@ -317,7 +325,7 @@ class _MyCodeShareCardContent extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            '내 그림자 고양이',
+            tr("내 그림자 고양이"),
             textAlign: TextAlign.center,
             style: titleFont(fontSize: 18, color: AppColors.ink),
           ),
@@ -333,7 +341,7 @@ class _MyCodeShareCardContent extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           Text(
-            cat.nameKr,
+            cat.displayName,
             textAlign: TextAlign.center,
             style: titleFont(fontSize: 17, color: AppColors.ink),
           ),
@@ -358,13 +366,13 @@ class _MyCodeShareCardContent extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           Text(
-            '이 코드를 입력하고\n내 그림자와 나란히 놓아보세요',
+            tr("이 코드를 입력하고\n내 그림자와 나란히 놓아보세요"),
             textAlign: TextAlign.center,
             style: bodyFont(fontSize: 11.5, color: accent, height: 1.5),
           ),
           const SizedBox(height: 14),
           Text(
-            '🐈‍⬛  마음냥 정원',
+            tr("🐈‍⬛  마음냥 정원"),
             textAlign: TextAlign.center,
             style: brandFont(fontSize: 15, color: AppColors.inkSoft),
           ),
@@ -388,6 +396,7 @@ class _RoundButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     return Material(
       color: Colors.transparent,
       borderRadius: BorderRadius.circular(999),
@@ -435,6 +444,7 @@ class _FriendCodeInput extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     return GlassBlob(
       accent: AppColors.blobLavenderAccent,
       background: AppColors.blobLavender,
@@ -444,7 +454,7 @@ class _FriendCodeInput extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '친구의 묘연 코드 입력하기',
+            tr("친구의 묘연 코드 입력하기"),
             style: pathLabelFont(
               fontSize: 14,
               fontWeight: FontWeight.w700,
@@ -459,7 +469,7 @@ class _FriendCodeInput extends StatelessWidget {
                   controller: controller,
                   textCapitalization: TextCapitalization.characters,
                   decoration: InputDecoration(
-                    hintText: '예: M7K9',
+                    hintText: tr("예: M7K9"),
                     filled: true,
                     fillColor: Colors.white.withValues(alpha: 0.8),
                     contentPadding: const EdgeInsets.symmetric(
@@ -497,7 +507,7 @@ class _FriendCodeInput extends StatelessWidget {
                       color: AppColors.blobLavenderAccent,
                     ),
                     child: Text(
-                      '확인',
+                      tr("확인"),
                       style: pathLabelFont(
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
@@ -545,6 +555,7 @@ class _BondResultCardState extends State<_BondResultCard> {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     final myCat = shadowCatById(widget.myCatId);
     final friendCat = shadowCatById(widget.friendCatId);
     return GlassBlob(
@@ -555,7 +566,7 @@ class _BondResultCardState extends State<_BondResultCard> {
       child: Column(
         children: [
           Text(
-            '오늘의 묘연',
+            tr("오늘의 묘연"),
             style: pathLabelFont(
               fontSize: 13.5,
               fontWeight: FontWeight.w700,
@@ -566,12 +577,12 @@ class _BondResultCardState extends State<_BondResultCard> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              _MiniCat(cat: myCat, label: '나'),
+              _MiniCat(cat: myCat, label: tr("나")),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 14),
                 child: Text('🐾', style: TextStyle(fontSize: 20)),
               ),
-              _MiniCat(cat: friendCat, label: '친구'),
+              _MiniCat(cat: friendCat, label: tr("친구")),
             ],
           ),
           const SizedBox(height: 18),
@@ -590,8 +601,10 @@ class _BondResultCardState extends State<_BondResultCard> {
                   friendCatId: widget.friendCatId,
                   sentence: _sentence,
                 ),
-                shareText:
-                    '오늘의 묘연: ${myCat.nameKr} × ${friendCat.nameKr} 🐾 #마음냥정원',
+                shareText: tr("오늘의 묘연: {0} × {1} 🐾 #마음냥정원", [
+                  myCat.displayName,
+                  friendCat.displayName,
+                ]),
               );
             },
             icon: Icon(
@@ -610,7 +623,7 @@ class _BondResultCardState extends State<_BondResultCard> {
               ),
             ),
             label: Text(
-              '묘연 카드 공유하기',
+              tr("묘연 카드 공유하기"),
               style: pathLabelFont(
                 fontSize: 12.5,
                 color: AppColors.blobPeachAccent,
@@ -630,6 +643,7 @@ class _MiniCat extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     return Column(
       children: [
         LivelyCatImage(
@@ -640,7 +654,7 @@ class _MiniCat extends StatelessWidget {
         ),
         const SizedBox(height: 6),
         Text(
-          '$label · ${cat.nameKr}',
+          '$label · ${cat.displayName}',
           style: bodyFont(fontSize: 11, color: AppColors.inkSoft),
         ),
       ],
@@ -661,6 +675,7 @@ class _BondShareCardContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     final myCat = shadowCatById(myCatId);
     final friendCat = shadowCatById(friendCatId);
     return Container(
@@ -691,7 +706,7 @@ class _BondShareCardContent extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            '오늘의 묘연',
+            tr("오늘의 묘연"),
             textAlign: TextAlign.center,
             style: titleFont(fontSize: 18, color: AppColors.ink),
           ),
@@ -699,12 +714,12 @@ class _BondShareCardContent extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              _ShareMiniCat(cat: myCat, label: '나'),
+              _ShareMiniCat(cat: myCat, label: tr("나")),
               const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 12),
                 child: Text('🐾', style: TextStyle(fontSize: 18)),
               ),
-              _ShareMiniCat(cat: friendCat, label: '친구'),
+              _ShareMiniCat(cat: friendCat, label: tr("친구")),
             ],
           ),
           const SizedBox(height: 18),
@@ -715,7 +730,7 @@ class _BondShareCardContent extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           Text(
-            '🐈‍⬛  마음냥 정원',
+            tr("🐈‍⬛  마음냥 정원"),
             textAlign: TextAlign.center,
             style: brandFont(fontSize: 15, color: AppColors.inkSoft),
           ),
@@ -732,6 +747,7 @@ class _ShareMiniCat extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     return Column(
       children: [
         ClipRRect(
@@ -745,7 +761,7 @@ class _ShareMiniCat extends StatelessWidget {
         ),
         const SizedBox(height: 6),
         Text(
-          '$label · ${cat.nameKr}',
+          '$label · ${cat.displayName}',
           style: bodyFont(fontSize: 10.5, color: AppColors.inkSoft),
         ),
       ],

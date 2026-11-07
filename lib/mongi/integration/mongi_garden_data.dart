@@ -45,7 +45,9 @@ class MongiGardenData {
     Set<String>? careDays,
     Set<String> meditationDays = const {},
     Map<String, int> storyProgress = const {},
-  }) : lifeEvents = List.unmodifiable(lifeEvents.map((e) => Map<String, dynamic>.unmodifiable(e))),
+  }) : lifeEvents = List.unmodifiable(
+         lifeEvents.map((e) => Map<String, dynamic>.unmodifiable(e)),
+       ),
        walkStock = Map.unmodifiable(walkStock),
        claimedGiftReceipts = Set.unmodifiable(claimedGiftReceipts),
        seeds = Map.unmodifiable(seeds),
@@ -205,18 +207,28 @@ class MongiGardenData {
     final rawWalk = json['walkStock'] ?? <String, dynamic>{};
     if (rawWalk is! Map) throw const FormatException('잘못된 산책 보관함');
     for (final entry in rawWalk.entries) {
-      if (!['churu_tuna','food_dry'].contains(entry.key) || entry.value is! int || entry.value < 0) {
+      if (!['churu_tuna', 'food_dry'].contains(entry.key) ||
+          entry.value is! int ||
+          entry.value < 0) {
         throw const FormatException('잘못된 산책 보관함');
       }
       walk[entry.key as String] = entry.value as int;
     }
     final rawEvents = json['lifeEvents'] ?? const [];
-    if (rawEvents is! List || rawEvents.length > 1000) throw const FormatException('정원 사건 기록을 확인해 주세요.');
+    if (rawEvents is! List || rawEvents.length > 1000)
+      throw const FormatException('정원 사건 기록을 확인해 주세요.');
     final events = <Map<String, dynamic>>[];
     for (final e in rawEvents) {
-      if (e is! Map || e.length != 4 || !['plant', 'growth'].contains(e['kind']) ||
-          !SeedType.all.any((s) => s.id == e['plant']) || e['at'] is! String ||
-          (DateTime.tryParse(e['at'] as String) == null || dayKey(DateTime.parse(e['at'] as String)) != e['at']) || e['level'] is! int || e['level'] < 1 || e['level'] > 10) {
+      if (e is! Map ||
+          e.length != 4 ||
+          !['plant', 'growth'].contains(e['kind']) ||
+          !SeedType.all.any((s) => s.id == e['plant']) ||
+          e['at'] is! String ||
+          (DateTime.tryParse(e['at'] as String) == null ||
+              dayKey(DateTime.parse(e['at'] as String)) != e['at']) ||
+          e['level'] is! int ||
+          e['level'] < 1 ||
+          e['level'] > 10) {
         throw const FormatException('정원 사건 기록이 올바르지 않아요.');
       }
       events.add(Map<String, dynamic>.from(e));
@@ -318,8 +330,21 @@ class MongiGardenData {
         );
 
   /// A seed starts one plant; replanting never consumes a second token.
-  List<Map<String, dynamic>> _event(String kind, String id, DateTime date, int level) {
-    final next = [...lifeEvents, <String, dynamic>{'kind': kind, 'plant': id, 'at': dayKey(date), 'level': level}];
+  List<Map<String, dynamic>> _event(
+    String kind,
+    String id,
+    DateTime date,
+    int level,
+  ) {
+    final next = [
+      ...lifeEvents,
+      <String, dynamic>{
+        'kind': kind,
+        'plant': id,
+        'at': dayKey(date),
+        'level': level,
+      },
+    ];
     return next.length <= 1000 ? next : next.sublist(next.length - 1000);
   }
 
@@ -409,7 +434,9 @@ class MongiGardenData {
     final points = (careRemainders[id] ?? 0) + care.growthPoints;
     final grown = count >= 10 ? count : (count + points ~/ 3).clamp(1, 10);
     return copy(
-      lifeEvents: grown > count ? _event('growth', id, today, grown) : lifeEvents,
+      lifeEvents: grown > count
+          ? _event('growth', id, today, grown)
+          : lifeEvents,
       seeds: {...seeds, id: grown},
       careRemainders: {...careRemainders, id: grown >= 10 ? 0 : points % 3},
       wateredOn: care == PlantCare.water ? {...wateredOn, id: day} : wateredOn,

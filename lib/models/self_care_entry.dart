@@ -1,3 +1,5 @@
+import '../l10n/app_language.dart';
+
 /// Self-reported comfort is independent of rewards and is never inferred.
 enum CareAction {
   rest('잠깐 쉬기', '편한 자세로 잠시 쉬어요. 아무것도 하지 않아도 괜찮아요.'),
@@ -9,9 +11,11 @@ enum CareAction {
   meditation('명상하기', '원하는 명상을 골라 편한 만큼 쉬어보세요.'),
   custom('내가 정한 돌봄', '지금 나에게 맞는 작은 돌봄을 직접 정해보세요.');
 
-  final String label;
-  final String guide;
-  const CareAction(this.label, this.guide);
+  final String _label;
+  String get label => tr(_label);
+  final String _guide;
+  String get guide => tr(_guide);
+  const CareAction(this._label, this._guide);
 }
 
 enum CareFeedback {
@@ -20,14 +24,15 @@ enum CareFeedback {
   uncomfortable('불편했어요'),
   unsure('잘 모르겠어요');
 
-  final String label;
-  const CareFeedback(this.label);
+  final String _label;
+  String get label => tr(_label);
+  const CareFeedback(this._label);
 }
 
-const reflectionPrompts = [
-  '이 마음이 느껴졌던 순간은 언제였나요?',
-  '그때 나에게 필요했던 것은 무엇일까요?',
-  '지금 나에게 해주고 싶은 말이 있나요?',
+List<String> get reflectionPrompts => [
+  tr('이 마음이 느껴졌던 순간은 언제였나요?'),
+  tr('그때 나에게 필요했던 것은 무엇일까요?'),
+  tr('지금 나에게 해주고 싶은 말이 있나요?'),
 ];
 
 class SelfCareEntry {

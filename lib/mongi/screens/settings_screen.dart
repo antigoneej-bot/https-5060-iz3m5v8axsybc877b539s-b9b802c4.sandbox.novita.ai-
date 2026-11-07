@@ -1,3 +1,4 @@
+import '../../l10n/app_language.dart';
 import '../../providers/cat_care_provider.dart';
 import '../../theme.dart' show AppColors;
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -40,6 +41,8 @@ class SettingsScreen extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      const LanguageSetting(),
+                      const SizedBox(height: 12),
                       _buildNotificationCard(context, garden),
                       if (kIsWeb) ...[
                         const SizedBox(height: 12),
@@ -59,8 +62,6 @@ class SettingsScreen extends StatelessWidget {
                       _buildPrivacyPolicyCard(context),
                       const SizedBox(height: 12),
                       _buildTermsOfServiceCard(context),
-                      const SizedBox(height: 20),
-                      _buildResetCard(context, garden),
                     ],
                   ),
                 ),
@@ -276,7 +277,9 @@ class SettingsScreen extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            l10n.settingsDataNoticeBody,
+            AppLanguage.instance.isEnglish
+                ? 'Your journal and garden are saved on this device. Signing in enables account features; it does not automatically transfer your records. Use backup and restore before switching devices or removing the app.'
+                : l10n.settingsDataNoticeBody,
             style: const TextStyle(
               fontSize: 12.5,
               color: AppColors.inkSoft,
@@ -404,8 +407,8 @@ class SettingsScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  '정원 배경 효과',
+                Text(
+                  tr('정원 배경 효과'),
                   style: TextStyle(
                     fontWeight: FontWeight.w800,
                     fontSize: 16,
@@ -414,7 +417,7 @@ class SettingsScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '낙엽·물결·반짝임을 조절해요. 홈 고양이의 움직임은 별도로 설정해요.',
+                  tr('낙엽·물결·반짝임을 조절해요. 홈 고양이의 움직임은 별도로 설정해요.'),
                   style: const TextStyle(
                     fontSize: 12.5,
                     color: AppColors.inkSoft,
@@ -620,93 +623,6 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
-  /// 테스트/체험용 - 스테이지, 재화, 코스튬 등 이 기기에 쌓인 진행도를 전부
-  /// 지우고 1단계 온보딩부터 처음 다시 시작할 수 있는 카드. 되돌릴 수 없는
-  /// 동작이라 항상 확인 다이얼로그를 먼저 보여준다.
-  Widget _buildResetCard(BuildContext context, GardenProvider garden) {
-    final l10n = AppLocalizations.of(context);
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.88),
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: const [
-          BoxShadow(
-            color: Colors.black12,
-            blurRadius: 12,
-            offset: Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: Colors.redAccent.withValues(alpha: 0.12),
-                  shape: BoxShape.circle,
-                ),
-                child: const Text('🔄', style: TextStyle(fontSize: 20)),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  l10n.settingsResetTitle,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 16,
-                    color: AppColors.ink,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            l10n.settingsResetDesc,
-            style: const TextStyle(
-              fontSize: 12.5,
-              color: AppColors.inkSoft,
-              height: 1.5,
-            ),
-          ),
-          const SizedBox(height: 14),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton(
-              style: OutlinedButton.styleFrom(
-                foregroundColor: Colors.redAccent,
-                side: const BorderSide(color: Colors.redAccent),
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
-              onPressed: () => _confirmReset(context, garden),
-              child: Text(
-                l10n.settingsResetButton,
-                style: const TextStyle(fontWeight: FontWeight.w800),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _confirmReset(
-    BuildContext context,
-    GardenProvider garden,
-  ) async {
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('통합 정원 기록을 보호하기 위해 전체 초기화는 지원하지 않아요.')));
-  }
-
   Widget _buildWebNotice(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     return Container(
@@ -753,8 +669,10 @@ class SettingsScreen extends StatelessWidget {
 class _CompanionMotionSetting extends StatefulWidget {
   const _CompanionMotionSetting();
   @override
-  State<_CompanionMotionSetting> createState() => _CompanionMotionSettingState();
+  State<_CompanionMotionSetting> createState() =>
+      _CompanionMotionSettingState();
 }
+
 class _CompanionMotionSettingState extends State<_CompanionMotionSetting> {
   bool _saving = false;
   Future<void> _save(bool value) async {
@@ -763,19 +681,26 @@ class _CompanionMotionSettingState extends State<_CompanionMotionSetting> {
     try {
       await context.read<CatCareProvider>().setAutomaticBehavior(value);
     } catch (_) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('고양이 움직임 설정을 저장하지 못했어요. 다시 시도해 주세요.')));
-    } finally { if (mounted) setState(() => _saving = false); }
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(tr('고양이 움직임 설정을 저장하지 못했어요. 다시 시도해 주세요.'))),
+        );
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
+
   @override
   Widget build(BuildContext context) {
     final care = context.watch<CatCareProvider>();
-    return Card(child: SwitchListTile.adaptive(
-      key: const Key('settings-companion-motion'),
-      title: const Text('고양이 움직임'),
-      subtitle: const Text('홈의 눈 깜박임·작은 몸짓을 켜요. 휴대폰의 동작 줄이기 설정을 존중해요.'),
-      value: care.journey.automaticBehavior,
-      onChanged: _saving || !care.journeyReady ? null : _save,
-    ));
+    return Card(
+      child: SwitchListTile.adaptive(
+        key: const Key('settings-companion-motion'),
+        title: Text(tr('고양이 움직임')),
+        subtitle: Text(tr('홈의 눈 깜박임·작은 몸짓을 켜요. 휴대폰의 동작 줄이기 설정을 존중해요.')),
+        value: care.journey.automaticBehavior,
+        onChanged: _saving || !care.journeyReady ? null : _save,
+      ),
+    );
   }
 }

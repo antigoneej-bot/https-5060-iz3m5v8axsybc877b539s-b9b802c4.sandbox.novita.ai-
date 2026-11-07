@@ -111,6 +111,7 @@ class ReceivedCheer {
   final GardenReaction? reaction;
   final String? senderGardenId;
   final String? senderNickname;
+  final CompanionCoat? senderCoat;
   final String deliveryKind;
   final bool claimed;
   final bool bloomConfirmed;
@@ -129,6 +130,7 @@ class ReceivedCheer {
     this.reaction,
     this.senderGardenId,
     this.senderNickname,
+    this.senderCoat,
     this.deliveryKind = 'gift',
     this.claimed = false,
     this.bloomConfirmed = false,
@@ -141,6 +143,9 @@ class ReceivedCheer {
     return ReceivedCheer(
       senderGardenId: json['senderGardenId'] is String
           ? json['senderGardenId'] as String
+          : null,
+      senderCoat: json['senderCat'] is Map
+          ? CompanionCoat.parse(json['senderCat']['coat'])
           : null,
       senderNickname: json['senderNickname'] is String
           ? json['senderNickname'] as String

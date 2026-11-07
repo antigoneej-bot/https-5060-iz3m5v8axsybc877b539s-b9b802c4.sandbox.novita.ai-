@@ -1,6 +1,8 @@
 import 'dart:math';
 import 'dart:async';
 import 'session_transaction.dart';
+import 'plant_memory.dart';
+import 'planting_mind.dart';
 import '../../services/hive_encryption.dart';
 import '../../services/local_record_transaction.dart';
 import '../models/plant_care.dart';
@@ -173,45 +175,81 @@ class MongiGardenStore extends ValueNotifier<MongiGardenData> {
 
   /// Durable final-value journal: replay completes both planting and layout.
   /// An existing species at this coordinate is an idempotent retry, never a replant.
-  Future<void> plantAt(String id, Offset point, {DateTime? now}) =>
-      _serial(() async {
-        await SessionTransaction.initialize();
-        final current = await _read(await SharedPreferences.getInstance());
-        final layouts = GardenLayoutStore.instance;
-        await layouts.reload();
-        if (!SeedType.all.any((s) => s.id == id))
-          throw StateError('알 수 없는 씨앗이에요.');
-        final item = 'seed:$id';
-        if ((current.seeds[id] ?? 0) > 0) {
-          if (layouts.value.positions[item] == point) {
-            value = current;
-            return;
-          }
-          throw StateError('이미 심은 식물이에요. 내 식물에서 찾아주세요.');
+  Future<void> plantAt(
+    String id,
+    Offset point, {
+    DateTime? now,
+    PlantingMind? mind,
+  }) => _serial(() async {
+    await SessionTransaction.initialize();
+    final current = await _read(await SharedPreferences.getInstance());
+    final layouts = GardenLayoutStore.instance;
+    await layouts.reload();
+    if (!SeedType.all.any((s) => s.id == id)) throw StateError('알 수 없는 씨앗이에요.');
+    final item = 'seed:$id';
+    final memoryBox = mind == null
+        ? null
+        : await HiveEncryption.openBox('garden_memories_local_user');
+    final oldMemory = memoryBox?.get(id);
+    final previousMemory = oldMemory == null
+        ? null
+        : PlantMemory.fromJson(Map<dynamic, dynamic>.from(oldMemory as Map));
+    final mindEntry = mind?.entry(now ?? DateTime.now());
+    if ((current.seeds[id] ?? 0) > 0) {
+      if (layouts.value.positions[item] == point) {
+        if (mindEntry != null &&
+            !(previousMemory?.timeline.any(
+                  (entry) =>
+                      entry.id == mindEntry.id &&
+                      entry.note == mindEntry.note &&
+                      entry.emotionCatId == mindEntry.emotionCatId,
+                ) ??
+                false)) {
+          throw StateError('이미 심은 식물이에요. 내 식물에서 마음을 다시 확인해 주세요.');
         }
-        if (current.seedTokens < 1) throw StateError('보유한 씨앗이 없어요.');
-        final visible = [
-          ...current.seeds.entries
-              .where((e) => e.value > 0)
-              .map((e) => 'seed:${e.key}'),
-          ...current.placed.map((id) => 'decor:$id'),
-        ];
-        final error = layouts.value.placementError(item, point, visible);
-        if (error != null) throw StateError(error);
-        final next = current.plant(id, now: now);
-        final layout = GardenLayout(
-          spaces: layouts.value.spaces,
-          positions: {...layouts.value.positions, item: point},
-        ).grow(next.seeds.values.fold<int>(0, (a, b) => a + b));
-        final box = await HiveEncryption.openBox(SessionTransaction.boxName);
-        await SessionTransaction.commit(
-          DraftBox(box),
-          next.toJson(),
-          layout: layout.toJson(),
-        );
-        await layouts.reload();
-        value = next;
-      });
+        value = current;
+        return;
+      }
+      throw StateError('이미 심은 식물이에요. 내 식물에서 찾아주세요.');
+    }
+    if (current.seedTokens < 1) throw StateError('보유한 씨앗이 없어요.');
+    final visible = [
+      ...current.seeds.entries
+          .where((e) => e.value > 0)
+          .map((e) => 'seed:${e.key}'),
+      ...current.placed.map((id) => 'decor:$id'),
+    ];
+    final error = layouts.value.placementError(item, point, visible);
+    if (error != null) throw StateError(error);
+    final next = current.plant(id, now: now);
+    final memories = [
+      ...?previousMemory?.timeline,
+      if (mindEntry != null) mindEntry,
+    ];
+    final privateMemory = mindEntry == null
+        ? null
+        : PlantMemory(
+            plantId: id,
+            name: previousMemory?.name ?? '',
+            note: memories.last.note,
+            updatedAt: now ?? DateTime.now(),
+            anniversaryOn: previousMemory?.anniversaryOn,
+            entries: memories,
+          );
+    final layout = GardenLayout(
+      spaces: layouts.value.spaces,
+      positions: {...layouts.value.positions, item: point},
+    ).grow(next.seeds.values.fold<int>(0, (a, b) => a + b));
+    final box = await HiveEncryption.openBox(SessionTransaction.boxName);
+    await SessionTransaction.commit(
+      DraftBox(box),
+      next.toJson(),
+      layout: layout.toJson(),
+      plantMemory: privateMemory,
+    );
+    await layouts.reload();
+    value = next;
+  });
 
   /// Hold the garden queue until private copies and the planting are removed.
   /// Write preferences last: if it fails, the private-record transaction restores

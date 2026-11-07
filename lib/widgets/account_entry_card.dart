@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import 'dart:async';
 
 import 'package:firebase_auth/firebase_auth.dart';
@@ -52,6 +53,7 @@ class _AccountEntryCardState extends State<AccountEntryCard> {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     final user = SocialAuthService.currentUser;
     final signedIn = user != null;
     return Material(
@@ -80,7 +82,7 @@ class _AccountEntryCardState extends State<AccountEntryCard> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      signedIn ? '내 계정 관리' : '간편 로그인',
+                      signedIn ? tr("내 계정 관리") : tr("간편 로그인"),
                       style: bodyFont(
                         fontSize: 17,
                         fontWeight: FontWeight.w700,
@@ -90,14 +92,14 @@ class _AccountEntryCardState extends State<AccountEntryCard> {
                     const SizedBox(height: 5),
                     Text(
                       signedIn
-                          ? '로그인 정보 · 계정 확인 · 로그아웃'
-                          : '구글 · 카카오 · 네이버 · 페이스북',
+                          ? tr("로그인 정보 · 계정 확인 · 로그아웃")
+                          : tr("구글 · 카카오 · 네이버 · 페이스북"),
                       style: bodyFont(fontSize: 12, color: AppColors.ink),
                     ),
                     if (!signedIn) ...[
                       const SizedBox(height: 5),
                       Text(
-                        '로그인하고 이웃의 정원에 응원을 건네요.',
+                        tr("로그인하고 이웃의 정원에 응원을 건네요."),
                         style: bodyFont(fontSize: 12, color: AppColors.inkSoft),
                       ),
                     ],

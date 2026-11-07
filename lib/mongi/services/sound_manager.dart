@@ -34,27 +34,39 @@ class SoundManager {
     birdsVolume = birds.isFinite ? birds.clamp(0.0, 1.0) : .14;
     waterVolume = water.isFinite ? water.clamp(0.0, 1.0) : .12;
   }
-  Future<void> setNature({bool? enabled, double? birds, double? water}) => _settingsQueue.run(() async {
-    final prefs = await SharedPreferences.getInstance();
-    if (enabled != null) {
-      if (!await prefs.setBool('garden_nature_enabled', enabled)) throw StateError('자연음 설정을 저장하지 못했어요.');
-      natureEnabled = enabled;
-    }
-    if (birds != null && birds.isFinite) {
-      final v = birds.clamp(0.0, 1.0);
-      if (!await prefs.setDouble('garden_birds_volume', v)) throw StateError('새소리 음량을 저장하지 못했어요.');
-      birdsVolume = v;
-    }
-    if (water != null && water.isFinite) {
-      final v = water.clamp(0.0, 1.0);
-      if (!await prefs.setDouble('garden_water_volume', v)) throw StateError('물소리 음량을 저장하지 못했어요.');
-      waterVolume = v;
-    }
-    final wanted = ambientRequested;
-    if (!natureEnabled) { await stopAmbientNature(); ambientRequested = wanted; }
-    else if (wanted && !_ambientStarted) { await startAmbientNature(); }
-    try { await _ambientBirdsPlayer?.setVolume(birdsVolume); await _ambientWaterPlayer?.setVolume(waterVolume); } catch (_) {}
-  });
+
+  Future<void> setNature({bool? enabled, double? birds, double? water}) =>
+      _settingsQueue.run(() async {
+        final prefs = await SharedPreferences.getInstance();
+        if (enabled != null) {
+          if (!await prefs.setBool('garden_nature_enabled', enabled))
+            throw StateError('자연음 설정을 저장하지 못했어요.');
+          natureEnabled = enabled;
+        }
+        if (birds != null && birds.isFinite) {
+          final v = birds.clamp(0.0, 1.0);
+          if (!await prefs.setDouble('garden_birds_volume', v))
+            throw StateError('새소리 음량을 저장하지 못했어요.');
+          birdsVolume = v;
+        }
+        if (water != null && water.isFinite) {
+          final v = water.clamp(0.0, 1.0);
+          if (!await prefs.setDouble('garden_water_volume', v))
+            throw StateError('물소리 음량을 저장하지 못했어요.');
+          waterVolume = v;
+        }
+        final wanted = ambientRequested;
+        if (!natureEnabled) {
+          await stopAmbientNature();
+          ambientRequested = wanted;
+        } else if (wanted && !_ambientStarted) {
+          await startAmbientNature();
+        }
+        try {
+          await _ambientBirdsPlayer?.setVolume(birdsVolume);
+          await _ambientWaterPlayer?.setVolume(waterVolume);
+        } catch (_) {}
+      });
   bool musicEnabled = true;
   bool effectsEnabled = true;
   bool _enabled = true;
@@ -206,7 +218,12 @@ class SoundManager {
       await _ensureStopReleaseMode(player);
       await player.stop();
       await player.setVolume(volume);
-      if (!effectsEnabled || sleepStopped || narrationSuspended || !_enabled || _muted) return;
+      if (!effectsEnabled ||
+          sleepStopped ||
+          narrationSuspended ||
+          !_enabled ||
+          _muted)
+        return;
       await player.play(AssetSource(assetPath));
     } catch (e) {
       if (kDebugMode) {
@@ -237,7 +254,12 @@ class SoundManager {
       if (_footstepSuppressed) return;
       await player.setVolume(0.5);
       if (_footstepSuppressed) return;
-      if (!effectsEnabled || sleepStopped || narrationSuspended || !_enabled || _muted) return;
+      if (!effectsEnabled ||
+          sleepStopped ||
+          narrationSuspended ||
+          !_enabled ||
+          _muted)
+        return;
       await player.play(AssetSource('mongi/audio/sfx_footstep.mp3'));
     } catch (e) {
       if (kDebugMode) {
@@ -509,9 +531,24 @@ class SoundManager {
   // 무시해서 소리가 겹쳐 재생되지 않도록 한다.
   Future<void> startAmbientNature() async {
     ambientRequested = true;
-    if (!appAudible || !natureEnabled || sleepStopped || narrationSuspended || _ambientStarted || !_enabled || _muted) return;
+    if (!appAudible ||
+        !natureEnabled ||
+        sleepStopped ||
+        narrationSuspended ||
+        _ambientStarted ||
+        !_enabled ||
+        _muted)
+      return;
     final generation = ++_ambientGeneration;
-    bool current() => generation == _ambientGeneration && ambientRequested && appAudible && natureEnabled && !sleepStopped && !narrationSuspended && _enabled && !_muted;
+    bool current() =>
+        generation == _ambientGeneration &&
+        ambientRequested &&
+        appAudible &&
+        natureEnabled &&
+        !sleepStopped &&
+        !narrationSuspended &&
+        _enabled &&
+        !_muted;
     _ambientStarted = true;
     try {
       // 볼륨을 아주 낮게 잡아서(0.14/0.12) 귀에 또렷이 들리는 소리가 아니라
@@ -526,7 +563,10 @@ class SoundManager {
       await birds.setVolume(birdsVolume);
       if (!current()) return;
       await birds.play(AssetSource('mongi/audio/ambient_birds.mp3'));
-      if (!current()) { await birds.stop(); return; }
+      if (!current()) {
+        await birds.stop();
+        return;
+      }
 
       final water = _ambientWaterPlayer ??= AudioPlayer(
         playerId: 'ambient_water_player',
@@ -536,14 +576,18 @@ class SoundManager {
       await water.setVolume(waterVolume);
       if (!current()) return;
       await water.play(AssetSource('mongi/audio/ambient_water.mp3'));
-      if (!current()) { await water.stop(); return; }
+      if (!current()) {
+        await water.stop();
+        return;
+      }
     } catch (e) {
       await stopAmbientNature();
       if (kDebugMode) {
         debugPrint('SoundManager: failed to start ambient nature -> $e');
       }
     } finally {
-      if (!current() && generation == _ambientGeneration) _ambientStarted = false;
+      if (!current() && generation == _ambientGeneration)
+        _ambientStarted = false;
     }
   }
 
@@ -552,6 +596,7 @@ class SoundManager {
     await stopAmbientNature();
     if (_ambientGeneration == generation + 1) ambientRequested = wanted;
   }
+
   Future<void> stopForSleep() async {
     final wanted = ambientRequested, generation = _ambientGeneration;
     await stopEverything();
@@ -582,7 +627,13 @@ class SoundManager {
   /// [_ambientStarted]가 true였던 경우에만(=원래 재생 중이었던 경우에만)
   /// 되살린다 - 애초에 재생된 적 없는 상태에서 잘못 재생을 시작시키지 않는다.
   Future<void> resumeAmbientNatureIfNeeded() async {
-    if (!_ambientStarted || _muted || sleepStopped || !natureEnabled || !appAudible || narrationSuspended) return;
+    if (!_ambientStarted ||
+        _muted ||
+        sleepStopped ||
+        !natureEnabled ||
+        !appAudible ||
+        narrationSuspended)
+      return;
     for (final p in [_ambientBirdsPlayer, _ambientWaterPlayer]) {
       if (p == null) continue;
       try {

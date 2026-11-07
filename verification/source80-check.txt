@@ -1,0 +1,2 @@
+Structural checks passed for 695 Dart/Kotlin files, local imports, Android XML and asset paths.
+These checks do not compile code, resolve packages, run Flutter tests, or exercise a device.

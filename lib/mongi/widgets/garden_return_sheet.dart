@@ -1,3 +1,4 @@
+import '../../l10n/app_language.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -32,11 +33,13 @@ Future<void> showGardenReturnSheet(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    currentSummary?.greeting ?? '정원에 남은 작은 소식',
+                    currentSummary?.greeting ?? tr('정원에 남은 작은 소식'),
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
                   const SizedBox(height: 10),
-                  Text(currentSummary?.description ?? '지금의 정원에서 잠깐 쉬어가도 괜찮아요.'),
+                  Text(
+                    currentSummary?.description ?? tr('지금의 정원에서 잠깐 쉬어가도 괜찮아요.'),
+                  ),
                   const SizedBox(height: 16),
                   ListenableBuilder(
                     listenable: GardenReturnStore.instance,
@@ -51,8 +54,10 @@ Future<void> showGardenReturnSheet(
                               ? Icons.mark_email_unread_outlined
                               : Icons.mail_outline,
                         ),
-                        title: Text(unseen ? '확인하지 않은 마음이 있어요' : '받은 마음 살펴보기'),
-                        subtitle: const Text('새 소식은 앱에서 연결을 확인한 뒤 표시돼요.'),
+                        title: Text(
+                          unseen ? tr('확인하지 않은 마음이 있어요') : tr('받은 마음 살펴보기'),
+                        ),
+                        subtitle: Text(tr('새 소식은 앱에서 연결을 확인한 뒤 표시돼요.')),
                         trailing: const Icon(Icons.chevron_right),
                         onTap: () {
                           Navigator.pop(sheetContext);
@@ -70,8 +75,8 @@ Future<void> showGardenReturnSheet(
                   ListTile(
                     contentPadding: EdgeInsets.zero,
                     leading: const Icon(Icons.park_outlined),
-                    title: const Text('기억의 나무 다시 보기'),
-                    subtitle: const Text('마음을 남겼던 날들을 천천히 돌아봐요.'),
+                    title: Text(tr('기억의 나무 다시 보기')),
+                    subtitle: Text(tr('마음을 남겼던 날들을 천천히 돌아봐요.')),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () {
                       Navigator.pop(sheetContext);

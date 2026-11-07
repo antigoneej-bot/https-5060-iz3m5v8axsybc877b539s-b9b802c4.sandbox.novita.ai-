@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import '../theme.dart';
@@ -67,13 +68,13 @@ class _LevelUpOverlayState extends State<LevelUpOverlay>
   String get _stageLabel {
     switch (widget.stage) {
       case CatGrowthStage.baby:
-        return '0단계 · 아기 고양이';
+        return tr("0단계 · 아기 고양이");
       case CatGrowthStage.teen:
-        return '1단계 · 소년 고양이';
+        return tr("1단계 · 소년 고양이");
       case CatGrowthStage.young:
-        return '2단계 · 청년 고양이';
+        return tr("2단계 · 청년 고양이");
       case CatGrowthStage.adult:
-        return '3단계 · 다 자란 고양이';
+        return tr("3단계 · 다 자란 고양이");
     }
   }
 
@@ -174,14 +175,14 @@ class _LevelUpCard extends StatelessWidget {
             Text(stageEmoji, style: const TextStyle(fontSize: 30)),
             const SizedBox(height: 6),
             Text(
-              '레벨업!',
+              tr("레벨업!"),
               style: titleFont(fontSize: 22, color: AppColors.blobPeachAccent),
             ),
             const SizedBox(height: 12),
             _BouncingImage(imageAsset: imageAsset),
             const SizedBox(height: 14),
             Text(
-              '$name${topicParticle(name)}\n$stageLabel로 자라났어요',
+              tr("{0}{1}\n{2}로 자라났어요", [name, topicParticle(name), stageLabel]),
               textAlign: TextAlign.center,
               style: pathLabelFont(
                 fontSize: 15.5,
@@ -191,7 +192,7 @@ class _LevelUpCard extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             Text(
-              '꾸준히 돌봐준 마음이 모여\n이렇게 자라났어요 🌷',
+              tr("꾸준히 돌봐준 마음이 모여\n이렇게 자라났어요 🌷"),
               textAlign: TextAlign.center,
               style: bodyFont(fontSize: 12, color: AppColors.inkSoft),
             ),
@@ -210,7 +211,7 @@ class _LevelUpCard extends StatelessWidget {
                   elevation: 0,
                 ),
                 child: Text(
-                  '고마워, 앞으로도 잘 부탁해',
+                  tr("고마워, 앞으로도 잘 부탁해"),
                   style: pathLabelFont(
                     fontSize: 13.5,
                     fontWeight: FontWeight.w700,

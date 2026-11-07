@@ -29,7 +29,8 @@ class UsageHistoryEntry {
       catId: map['catId'] as String? ?? '',
       moduleKey: map['moduleKey'] as String? ?? '',
       sentenceId: map['sentenceId'] as String? ?? '',
-      usedAt: DateTime.tryParse(map['usedAt'] as String? ?? '') ?? DateTime.now(),
+      usedAt:
+          DateTime.tryParse(map['usedAt'] as String? ?? '') ?? DateTime.now(),
     );
   }
 }

@@ -1,4 +1,5 @@
 import 'dart:ui' as ui;
+import 'support/retired_coloring_asset_bundle.dart';
 import 'dart:io';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -45,7 +46,12 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
     CatCareService.setCurrentUser('gesture-regression');
     await tester.pumpWidget(
-      MaterialApp(theme: appTheme, home: const ColoringHealingScreen()),
+      MaterialApp(
+        theme: appTheme,
+        home: ColoringHealingScreen(
+          artworkBundle: RetiredColoringAssetBundle(),
+        ),
+      ),
     );
     await waitForPainting(tester);
     final canvas = find.byKey(const Key('brush-canvas'));
@@ -175,7 +181,9 @@ void main() {
           theme: appTheme,
           home: RepaintBoundary(
             key: capture,
-            child: const ColoringHealingScreen(),
+            child: ColoringHealingScreen(
+              artworkBundle: RetiredColoringAssetBundle(),
+            ),
           ),
         ),
       );
@@ -277,7 +285,9 @@ void main() {
           theme: appTheme,
           home: RepaintBoundary(
             key: capture,
-            child: const ColoringHealingScreen(),
+            child: ColoringHealingScreen(
+              artworkBundle: RetiredColoringAssetBundle(),
+            ),
           ),
         ),
       );

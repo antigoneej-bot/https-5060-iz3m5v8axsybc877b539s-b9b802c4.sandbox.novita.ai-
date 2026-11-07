@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import '../mongi/widgets/garden_record_card.dart';
 import 'dart:async';
 import 'dart:math';
@@ -58,7 +59,7 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
       _step = _OnboardingStep.sending;
     });
 
-    final minShow = Future<void>.delayed(const Duration(milliseconds: 1400));
+    final minShow = Future<void>.delayed(Duration(milliseconds: 1400));
     var saved = false;
     try {
       await context.read<AppStateProvider>().saveOnboardingLetter(
@@ -81,7 +82,7 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
       });
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('편지를 저장하지 못했어요. 다시 보내 주세요')));
+      ).showSnackBar(SnackBar(content: Text(tr('편지를 저장하지 못했어요. 다시 보내 주세요'))));
       return;
     }
 
@@ -103,7 +104,7 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
   Future<void> _onContinueLocal() async {
     if (_busy) return;
     setState(() => _busy = true);
-    await Future.delayed(const Duration(milliseconds: 350));
+    await Future.delayed(Duration(milliseconds: 350));
     await StorageService.setLoginProvider('local');
     if (!mounted) return;
     setState(() {
@@ -139,7 +140,7 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
     switch (_step) {
       case _OnboardingStep.letter:
         return _OnboardingLetterStep(
-          key: const ValueKey('letter'),
+          key: ValueKey('letter'),
           cat: widget.cat,
           controller: _letterController,
           busy: _busy,
@@ -149,19 +150,16 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
           onSkip: () => setState(() => _step = _OnboardingStep.signup),
         );
       case _OnboardingStep.sending:
-        return _SendingAnimationStep(
-          key: const ValueKey('sending'),
-          cat: widget.cat,
-        );
+        return _SendingAnimationStep(key: ValueKey('sending'), cat: widget.cat);
       case _OnboardingStep.signup:
         return _SignupPromptStep(
-          key: const ValueKey('signup'),
+          key: ValueKey('signup'),
           busy: _busy,
           onContinueLocal: _onContinueLocal,
         );
       case _OnboardingStep.notification:
         return _NotificationPromptStep(
-          key: const ValueKey('notification'),
+          key: ValueKey('notification'),
           onChoice: _onNotificationChoice,
         );
     }
@@ -169,16 +167,17 @@ class _OnboardingFlowScreenState extends State<OnboardingFlowScreen> {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     return Scaffold(
       body: GardenScaffoldBackground(
         child: SafeArea(
           child: Center(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 460),
+              constraints: BoxConstraints(maxWidth: 460),
               child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(24, 28, 24, 28),
+                padding: EdgeInsets.fromLTRB(24, 28, 24, 28),
                 child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 420),
+                  duration: Duration(milliseconds: 420),
                   switchInCurve: Curves.easeOut,
                   switchOutCurve: Curves.easeIn,
                   transitionBuilder: (child, animation) =>
@@ -215,24 +214,25 @@ class _OnboardingLetterStep extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10),
+      padding: EdgeInsets.symmetric(vertical: 10),
       child: Column(
         children: [
           AnimatedCatArt(imageAsset: cat.imageAsset, size: 120),
-          const SizedBox(height: 20),
+          SizedBox(height: 20),
           Text(
-            '${cat.nameKr}에게',
+            tr("{0}에게", [cat.displayName]),
             style: serifFont(
               fontSize: 15,
               fontWeight: FontWeight.bold,
               color: AppColors.ink,
             ),
           ),
-          const SizedBox(height: 18),
+          SizedBox(height: 18),
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+            padding: EdgeInsets.fromLTRB(18, 16, 18, 16),
             decoration: BoxDecoration(
               color: AppColors.bg1,
               borderRadius: BorderRadius.circular(16),
@@ -246,7 +246,7 @@ class _OnboardingLetterStep extends StatelessWidget {
               style: bodyFont(fontSize: 14, color: AppColors.moon, height: 1.6),
               decoration: InputDecoration(
                 border: InputBorder.none,
-                hintText: '오늘은 조금 지쳤어… 한 줄이면 충분해요.',
+                hintText: tr('오늘은 조금 지쳤어… 한 줄이면 충분해요.'),
                 hintStyle: bodyFont(
                   fontSize: 13.5,
                   color: AppColors.inkSoft,
@@ -255,15 +255,15 @@ class _OnboardingLetterStep extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 14),
+          SizedBox(height: 14),
           MoodPicker(selectedEmoji: moodEmoji, onChanged: onMoodChanged),
-          const SizedBox(height: 8),
-          const Text('글 대신 감정 하나만 골라도 괜찮아요.'),
+          SizedBox(height: 8),
+          Text(tr('글 대신 감정 하나만 골라도 괜찮아요.')),
           TextButton(
             onPressed: busy ? null : onSkip,
-            child: const Text('기록은 나중에, 먼저 시작할래요'),
+            child: Text(tr('기록은 나중에, 먼저 시작할래요')),
           ),
-          const SizedBox(height: 22),
+          SizedBox(height: 22),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
@@ -271,14 +271,14 @@ class _OnboardingLetterStep extends StatelessWidget {
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.gold,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 14),
+                padding: EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(999),
                 ),
                 elevation: 0,
               ),
               child: Text(
-                '보내기',
+                tr('보내기'),
                 style: serifFont(fontSize: 15, color: Colors.white),
               ),
             ),
@@ -307,7 +307,7 @@ class _SendingAnimationStepState extends State<_SendingAnimationStep>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1200),
+      duration: Duration(milliseconds: 1200),
     )..forward();
   }
 
@@ -319,8 +319,9 @@ class _SendingAnimationStepState extends State<_SendingAnimationStep>
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 60),
+      padding: EdgeInsets.symmetric(vertical: 60),
       child: Column(
         children: [
           SizedBox(
@@ -349,10 +350,7 @@ class _SendingAnimationStepState extends State<_SendingAnimationStep>
                         opacity: letterOpacity,
                         child: Transform.scale(
                           scale: letterScale,
-                          child: const Text(
-                            '💌',
-                            style: TextStyle(fontSize: 40),
-                          ),
+                          child: Text('💌', style: TextStyle(fontSize: 40)),
                         ),
                       ),
                     ),
@@ -361,9 +359,9 @@ class _SendingAnimationStepState extends State<_SendingAnimationStep>
               },
             ),
           ),
-          const SizedBox(height: 18),
+          SizedBox(height: 18),
           Text(
-            '편지가 ${widget.cat.nameKr}에게 도착했어요',
+            tr("편지가 {0}에게 도착했어요", [widget.cat.displayName]),
             style: serifFont(
               fontSize: 14.5,
               fontWeight: FontWeight.bold,
@@ -388,13 +386,14 @@ class _SignupPromptStep extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 24),
+      padding: EdgeInsets.symmetric(vertical: 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            '당신의 속도로 가꾸는 정원',
+            tr('당신의 속도로 가꾸는 정원'),
             textAlign: TextAlign.center,
             style: serifFont(
               fontSize: 18,
@@ -402,9 +401,9 @@ class _SignupPromptStep extends StatelessWidget {
               color: AppColors.ink,
             ),
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: 12),
           Text(
-            '기억의 씨앗에 소중한 날짜와 마음을 담아요.\n기록하지 않는 날에는 정원에서 쉬어도 괜찮아요.',
+            tr('기억의 씨앗에 소중한 날짜와 마음을 담아요.\n기록하지 않는 날에는 정원에서 쉬어도 괜찮아요.'),
             textAlign: TextAlign.center,
             style: bodyFont(
               fontSize: 13.5,
@@ -413,10 +412,10 @@ class _SignupPromptStep extends StatelessWidget {
             ),
           ),
           if (context.watch<AppStateProvider>().history.isNotEmpty) ...[
-            const SizedBox(height: 16),
-            const GardenRecordCard(),
+            SizedBox(height: 16),
+            GardenRecordCard(),
           ],
-          const SizedBox(height: 32),
+          SizedBox(height: 32),
           SizedBox(
             width: double.infinity,
             height: 50,
@@ -432,7 +431,7 @@ class _SignupPromptStep extends StatelessWidget {
                 ),
               ),
               child: busy
-                  ? const SizedBox(
+                  ? SizedBox(
                       width: 20,
                       height: 20,
                       child: CircularProgressIndicator(
@@ -441,7 +440,7 @@ class _SignupPromptStep extends StatelessWidget {
                       ),
                     )
                   : Text(
-                      '이 기기에서 계속하기',
+                      tr('이 기기에서 계속하기'),
                       style: bodyFont(
                         fontSize: 14.5,
                         fontWeight: FontWeight.w700,
@@ -450,9 +449,9 @@ class _SignupPromptStep extends StatelessWidget {
                     ),
             ),
           ),
-          const SizedBox(height: 14),
+          SizedBox(height: 14),
           Text(
-            '계정 로그인 없이 이 기기에만 저장돼요.\n앱을 삭제하면 기록도 함께 사라질 수 있어요.',
+            tr('계정 로그인 없이 이 기기에만 저장돼요.\n앱을 삭제하면 기록도 함께 사라질 수 있어요.'),
             textAlign: TextAlign.center,
             style: bodyFont(
               fontSize: 12,
@@ -473,14 +472,15 @@ class _NotificationPromptStep extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 60),
+      padding: EdgeInsets.symmetric(vertical: 60),
       child: Column(
         children: [
-          const Text('🔔', style: TextStyle(fontSize: 40)),
-          const SizedBox(height: 22),
+          Text('🔔', style: TextStyle(fontSize: 40)),
+          SizedBox(height: 22),
           Text(
-            '가끔 고양이들이\n당신 생각이 날 때 알려드려도 될까요?',
+            tr('가끔 고양이들이\n당신 생각이 날 때 알려드려도 될까요?'),
             textAlign: TextAlign.center,
             style: serifFont(
               fontSize: 16,
@@ -489,7 +489,7 @@ class _NotificationPromptStep extends StatelessWidget {
               height: 1.6,
             ),
           ),
-          const SizedBox(height: 36),
+          SizedBox(height: 36),
           Row(
             children: [
               Expanded(
@@ -499,13 +499,13 @@ class _NotificationPromptStep extends StatelessWidget {
                     onPressed: () => onChoice(false),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppColors.ink,
-                      side: const BorderSide(color: AppColors.line),
+                      side: BorderSide(color: AppColors.line),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14),
                       ),
                     ),
                     child: Text(
-                      '나중에요',
+                      tr('나중에요'),
                       style: bodyFont(
                         fontSize: 14.5,
                         fontWeight: FontWeight.w700,
@@ -515,7 +515,7 @@ class _NotificationPromptStep extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(width: 12),
+              SizedBox(width: 12),
               Expanded(
                 child: SizedBox(
                   height: 50,
@@ -530,7 +530,7 @@ class _NotificationPromptStep extends StatelessWidget {
                       ),
                     ),
                     child: Text(
-                      '네, 알려주세요',
+                      tr('네, 알려주세요'),
                       style: bodyFont(
                         fontSize: 14.5,
                         fontWeight: FontWeight.w700,

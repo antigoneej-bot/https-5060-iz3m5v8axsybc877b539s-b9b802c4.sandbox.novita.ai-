@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import 'package:flutter/material.dart';
 import '../services/draft_service.dart';
 import '../theme.dart';
@@ -38,8 +39,16 @@ class _PeriodReflectionCardState extends State<PeriodReflectionCard> {
   @override
   Widget build(BuildContext context) {
     final prompts = widget.monthly
-        ? ['이번 달에 기억하고 싶은 장면', '나에게 도움이 되었던 일', '다음 달에도 이어가고 싶은 작은 실천']
-        : ['이번 주에 기억하고 싶은 장면', '나에게 도움이 되었던 일', '다음 주에 해보고 싶은 작은 실천'];
+        ? [
+            tr("이번 달에 기억하고 싶은 장면"),
+            tr("나에게 도움이 되었던 일"),
+            tr("다음 달에도 이어가고 싶은 작은 실천"),
+          ]
+        : [
+            tr("이번 주에 기억하고 싶은 장면"),
+            tr("나에게 도움이 되었던 일"),
+            tr("다음 주에 해보고 싶은 작은 실천"),
+          ];
     return Card(
       margin: const EdgeInsets.only(bottom: 20),
       color: AppColors.blobMint,
@@ -51,12 +60,12 @@ class _PeriodReflectionCardState extends State<PeriodReflectionCard> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              widget.monthly ? '나의 월간 회고' : '나의 주간 회고',
+              widget.monthly ? tr("나의 월간 회고") : tr("나의 주간 회고"),
               style: titleFont(fontSize: 26, color: AppColors.titlePastelGreen),
             ),
             const SizedBox(height: 8),
             Text(
-              '한 줄만 남겨도 좋아요. 이전 주·달로 이동하면 다시 볼 수 있어요.',
+              tr("한 줄만 남겨도 좋아요. 이전 주·달로 이동하면 다시 볼 수 있어요."),
               style: bodyFont(fontSize: 14, color: AppColors.inkSoft),
             ),
             for (var i = 0; i < prompts.length; i++) ...[
@@ -73,7 +82,7 @@ class _PeriodReflectionCardState extends State<PeriodReflectionCard> {
                 minLines: 2,
                 maxLength: 2000,
                 decoration: InputDecoration(
-                  hintText: '여기에 마음을 남겨 주세요',
+                  hintText: tr("여기에 마음을 남겨 주세요"),
                   counterText: '',
                   contentPadding: const EdgeInsets.all(16),
                 ),
@@ -81,14 +90,14 @@ class _PeriodReflectionCardState extends State<PeriodReflectionCard> {
               ValueListenableBuilder<String>(
                 valueListenable: _notes[i].saveStatus,
                 builder: (_, status, __) => Text(
-                  status.replaceAll('임시저장', '저장'),
+                  status.replaceAll(tr("임시저장"), tr("저장")),
                   style: bodyFont(fontSize: 12, color: AppColors.inkSoft),
                 ),
               ),
             ],
             const SizedBox(height: 16),
             Text(
-              '회고도 백업에 포함돼요. 앱 삭제에 대비해 별도 백업을 보관해 주세요.',
+              tr("회고도 백업에 포함돼요. 앱 삭제에 대비해 별도 백업을 보관해 주세요."),
               style: bodyFont(fontSize: 13, color: AppColors.inkSoft),
             ),
           ],

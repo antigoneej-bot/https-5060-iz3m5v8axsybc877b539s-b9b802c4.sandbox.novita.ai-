@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'dart:math';
 import '../theme.dart';
@@ -21,6 +22,7 @@ class _AnimatedCatArtState extends State<AnimatedCatArt>
   late AnimationController _earController; // 귀/꼬리 씰룩임 느낌의 미세 흔들림
 
   final Random _rng = Random();
+  Timer? _hopTimer;
 
   @override
   void initState() {
@@ -47,7 +49,8 @@ class _AnimatedCatArtState extends State<AnimatedCatArt>
 
   void _scheduleNextHop() {
     final delay = Duration(milliseconds: 2600 + _rng.nextInt(3200));
-    Future.delayed(delay, () {
+    _hopTimer?.cancel();
+    _hopTimer = Timer(delay, () {
       if (!mounted) return;
       _hopController.forward(from: 0).then((_) {
         if (mounted) _hopController.reverse();
@@ -58,6 +61,7 @@ class _AnimatedCatArtState extends State<AnimatedCatArt>
 
   @override
   void dispose() {
+    _hopTimer?.cancel();
     _floatController.dispose();
     _sparkleController.dispose();
     _hopController.dispose();

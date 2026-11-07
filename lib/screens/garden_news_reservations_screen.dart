@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import 'package:flutter/material.dart';
 import '../models/notice.dart';
 import 'package:intl/intl.dart';
@@ -47,7 +48,7 @@ class _GardenNewsReservationsScreenState
         backgroundColor: AppColors.bg0,
         elevation: 0,
         title: Text(
-          '신청자 목록',
+          tr("신청자 목록"),
           style: const TextStyle(
             color: AppColors.ink,
             fontWeight: FontWeight.w800,
@@ -65,7 +66,7 @@ class _GardenNewsReservationsScreenState
   String _sessionDate(dynamic value) {
     final date = DateTime.tryParse(value.toString());
     return date == null
-        ? '날짜 확인 필요'
+        ? tr("날짜 확인 필요")
         : DateFormat('yyyy.MM.dd HH:mm').format(date.toLocal());
   }
 
@@ -92,7 +93,7 @@ class _GardenNewsReservationsScreenState
           const SizedBox(height: 60),
           Center(
             child: Text(
-              '아직 신청자가 없어요.',
+              tr("아직 신청자가 없어요."),
               style: const TextStyle(fontSize: 13, color: AppColors.inkSoft),
             ),
           ),
@@ -118,7 +119,7 @@ class _GardenNewsReservationsScreenState
               Text(
                 r['displayName']?.toString().isNotEmpty == true
                     ? r['displayName'].toString()
-                    : r['email']?.toString() ?? '신청자 ${index + 1}',
+                    : r['email']?.toString() ?? tr("신청자 {0}", [index + 1]),
                 style: const TextStyle(
                   fontWeight: FontWeight.w700,
                   fontSize: 13.5,
@@ -128,7 +129,7 @@ class _GardenNewsReservationsScreenState
               if (r['sessionStartsAt'] != null) ...[
                 const SizedBox(height: 4),
                 Text(
-                  '신청 일정: ${_sessionDate(r['sessionStartsAt'])}',
+                  tr("신청 일정: {0}", [_sessionDate(r['sessionStartsAt'])]),
                   style: const TextStyle(
                     fontSize: 12.5,
                     color: AppColors.inkSoft,

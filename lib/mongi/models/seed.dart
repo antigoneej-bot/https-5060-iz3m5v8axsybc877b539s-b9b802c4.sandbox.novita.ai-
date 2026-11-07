@@ -1,3 +1,4 @@
+import '../../l10n/app_language.dart';
 import 'package:flutter/material.dart';
 
 /// 스테이지 클리어 후 "마음을 심기로" 선택했을 때, 구체적으로 어떤 마음의
@@ -12,8 +13,10 @@ import 'package:flutter/material.dart';
 /// [growthStages]에 원하는 이모지 시퀀스만 넣어주면 자유롭게 표현할 수 있다.
 class SeedType {
   final String id;
-  final String label; // 화면에 표시되는 한글 이름 (용서/사랑/평안 등)
-  final String description; // 선택 화면에서 보여줄 짧은 설명
+  final String _label;
+  String get label => tr(_label); // 화면에 표시되는 한글 이름 (용서/사랑/평안 등)
+  final String _description;
+  String get description => tr(_description); // 선택 화면에서 보여줄 짧은 설명
   final Color color;
 
   /// 성장 단계별로 보여줄 이모지 시퀀스. index 0 = 아직 심기 전(빈 흙),
@@ -25,12 +28,13 @@ class SeedType {
 
   const SeedType({
     required this.id,
-    required this.label,
-    required this.description,
+    required String label,
+    required String description,
     required this.color,
     required this.growthStages,
     this.sceneAnchor = Alignment.center,
-  });
+  }) : _label = label,
+       _description = description;
 
   /// 심기 1회와 돌봄으로 쌓인 성장 기록 [count]의 단계.
   /// 0,1-2,3-5,6-9,10+ 총 5단계 - growthStages가 5개 미만이면 자동으로 clamp된다.
@@ -59,8 +63,8 @@ class SeedType {
   }
 
   String growthLabel(int count) => count <= 0
-      ? '아직 심기 전'
-      : ['아직 심기 전', '새싹', '자라는 중', '무성해졌어요', '다 자랐어요'][tierForCount(count)];
+      ? tr('아직 심기 전')
+      : tr(['아직 심기 전', '새싹', '자라는 중', '무성해졌어요', '다 자랐어요'][tierForCount(count)]);
 
   String emojiForCount(int count) => growthStages[tierForCount(count)];
 

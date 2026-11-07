@@ -1,4 +1,5 @@
 import '../../theme.dart' show AppColors;
+import '../../l10n/app_language.dart';
 import '../../providers/app_state_provider.dart';
 import '../../services/emotion_summary_service.dart';
 import '../../services/unified_emotion_summary_service.dart';
@@ -37,7 +38,8 @@ import 'settings_screen.dart';
 /// 항상 노출한다 - 데이터 패턴상 마음이 많이 무거워 보일 때는 더 눈에 띄게,
 /// 그렇지 않을 때도 조용히 항상 열려 있게.
 class MindReportScreen extends StatefulWidget {
-  const MindReportScreen({super.key});
+  const MindReportScreen({super.key, this.detailsFirst = false});
+  final bool detailsFirst;
   @override
   State<MindReportScreen> createState() => _MindReportScreenState();
 }
@@ -127,28 +129,44 @@ class _MindReportScreenState extends State<MindReportScreen> {
                         _buildSupportAlertCard(context, l10n),
                         const SizedBox(height: 18),
                       ],
-                      _buildIntroText(l10n),
+                      if (!widget.detailsFirst) _buildIntroText(l10n),
                       const SizedBox(height: 18),
                       if (_gardenLoading) const LinearProgressIndicator(),
                       if (_gardenFailed)
                         TextButton.icon(
                           onPressed: _loadGarden,
                           icon: const Icon(Icons.refresh),
-                          label: const Text('정원 일기를 불러오지 못했어요. 다시 시도'),
+                          label: Text(tr('정원 일기를 불러오지 못했어요. 다시 시도')),
                         ),
-                      _UnifiedPeriodCard(summary: weekly),
-                      const SizedBox(height: 14),
-                      _UnifiedPeriodCard(summary: monthly, monthly: true),
+                      if (widget.detailsFirst)
+                        ExpansionTile(
+                          key: const Key('report-period-overview'),
+                          title: Text(tr('주간·월간 요약 다시 보기')),
+                          children: [
+                            _UnifiedPeriodCard(summary: weekly),
+                            const SizedBox(height: 14),
+                            _UnifiedPeriodCard(summary: monthly, monthly: true),
+                          ],
+                        )
+                      else ...[
+                        _UnifiedPeriodCard(summary: weekly),
+                        const SizedBox(height: 14),
+                        _UnifiedPeriodCard(summary: monthly, monthly: true),
+                      ],
                       const SizedBox(height: 14),
                       ExpansionTile(
+                        key: const Key('report-garden-details'),
+                        initiallyExpanded: widget.detailsFirst,
                         tilePadding: EdgeInsets.zero,
-                        title: const Text('정원 일기만 자세히 살펴보기'),
-                        subtitle: const Text('아래 패턴은 정원 일기 기준이며 편지는 포함하지 않아요.'),
+                        title: Text(tr('정원 일기만 자세히 살펴보기')),
+                        subtitle: Text(tr('아래 패턴은 정원 일기 기준이며 편지는 포함하지 않아요.')),
                         children: [
-                          const Padding(
-                            padding: EdgeInsets.only(bottom: 12),
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
                             child: Text(
-                              '마음 흐름은 선택한 감정과 강도로 계산한 참고값이에요. 직접 매긴 기분 점수나 심리 상태의 진단이 아니에요.',
+                              tr(
+                                '마음 흐름은 선택한 감정과 강도로 계산한 참고값이에요. 직접 매긴 기분 점수나 심리 상태의 진단이 아니에요.',
+                              ),
                             ),
                           ),
                           const _MoodTrendSummaryCard(),
@@ -199,7 +217,9 @@ class _MindReportScreenState extends State<MindReportScreen> {
           const SizedBox(width: 4),
           Expanded(
             child: Text(
-              l10n.mindReportHeaderTitle,
+              widget.detailsFirst
+                  ? tr('정원 일기 자세히')
+                  : l10n.mindReportHeaderTitle,
               style: const TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w800,
@@ -214,7 +234,7 @@ class _MindReportScreenState extends State<MindReportScreen> {
 
   Widget _buildIntroText(AppLocalizations l10n) {
     return Text(
-      '편지와 정원 일기에 남긴 마음을 함께 돌아봐요. 기록 횟수는 마음이 좋아지거나 나빠진 정도를 뜻하지 않아요.',
+      tr('편지와 정원 일기에 남긴 마음을 함께 돌아봐요. 기록 횟수는 마음이 좋아지거나 나빠진 정도를 뜻하지 않아요.'),
       style: const TextStyle(
         fontSize: 12.5,
         color: AppColors.inkSoft,
@@ -342,6 +362,9 @@ class _UnifiedPeriodCard extends StatelessWidget {
   final bool monthly;
   const _UnifiedPeriodCard({required this.summary, this.monthly = false});
 
+  String _count(int value, String singular, String plural) =>
+      '$value ' + (value == 1 ? singular : plural);
+
   @override
   Widget build(BuildContext context) {
     return _ReportCardShell(
@@ -352,27 +375,47 @@ class _UnifiedPeriodCard extends StatelessWidget {
       ),
       accentColor: const Color(0xFF5FB8AE),
       emoji: monthly ? '🗓️' : '📊',
-      title: monthly ? '이번 달 함께 모은 마음' : '이번 주 함께 모은 마음',
+      title: tr(monthly ? '이번 달 함께 모은 마음' : '이번 주 함께 모은 마음'),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '${summary.recordedDays}일 · ${summary.records.length}개의 기록',
+            AppLanguage.instance.isEnglish
+                ? _count(summary.recordedDays, 'day', 'days') +
+                      ' · ' +
+                      _count(summary.records.length, 'entry', 'entries')
+                : tr('{0}일 · {1}개의 기록', [
+                    summary.recordedDays,
+                    summary.records.length,
+                  ]),
             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 6),
-          Text('편지 ${summary.letterCount}개 · 정원 일기 ${summary.gardenCount}개'),
+          Text(
+            AppLanguage.instance.isEnglish
+                ? _count(summary.letterCount, 'letter', 'letters') +
+                      ' · ' +
+                      _count(
+                        summary.gardenCount,
+                        'garden journal entry',
+                        'garden journal entries',
+                      )
+                : tr('편지 {0}개 · 정원 일기 {1}개', [
+                    summary.letterCount,
+                    summary.gardenCount,
+                  ]),
+          ),
           const SizedBox(height: 6),
           Text(
             summary.records.isEmpty
-                ? '감정 하나를 골라 남겨도 괜찮아요.'
-                : '날짜를 눌러 당시의 글과 감정을 다시 볼 수 있어요.',
+                ? tr('감정 하나를 골라 남겨도 괜찮아요.')
+                : tr('날짜를 눌러 당시의 글과 감정을 다시 볼 수 있어요.'),
             style: const TextStyle(fontSize: 12.5, color: AppColors.inkSoft),
           ),
           if (monthly)
-            const Text(
-              '월간 상세 분석은 구독으로 이용해요.',
-              style: TextStyle(fontSize: 12, color: AppColors.inkSoft),
+            Text(
+              tr('월간 상세 분석은 구독으로 이용해요.'),
+              style: const TextStyle(fontSize: 12, color: AppColors.inkSoft),
             ),
         ],
       ),
@@ -514,7 +557,10 @@ class _GratitudeSummaryCard extends StatelessWidget {
       accentColor: const Color(0xFFE0A31A),
       emoji: '🌻',
       title: l10n.mindReportGratitudeTitle,
-      child: Row(
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        crossAxisAlignment: WrapCrossAlignment.center,
         children: [
           Text(
             count == 0
@@ -526,7 +572,6 @@ class _GratitudeSummaryCard extends StatelessWidget {
               height: 1.4,
             ),
           ),
-          const Spacer(),
           if (doneToday)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -645,8 +690,8 @@ class _CollectionSummaryCard extends StatelessWidget {
       ).push(MaterialPageRoute(builder: (_) => const MemoryCardsScreen())),
       accentColor: const Color(0xFF8B6BB5),
       emoji: '🃏',
-      title: '마음냥 추억 카드',
-      child: const Text('특별한 장면을 모으고\n이웃과 교환·자랑해요.'),
+      title: tr('마음냥 추억 카드'),
+      child: Text(tr('특별한 장면을 모으고\n이웃과 교환·자랑해요.')),
     );
   }
 }

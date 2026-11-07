@@ -33,9 +33,12 @@ class MemoryEntry {
 
   /// 캡처 시점 기준 3/7/14/30일 후 회상 예정일 리스트를 계산합니다.
   static List<DateTime> computeDueDates(DateTime capturedAt) {
-    return const [3, 7, 14, 30]
-        .map((days) => capturedAt.add(Duration(days: days)))
-        .toList();
+    return const [
+      3,
+      7,
+      14,
+      30,
+    ].map((days) => capturedAt.add(Duration(days: days))).toList();
   }
 
   /// [now] 기준으로 "오늘 회상해도 되는" 예정일이 있으면 그 날짜를 반환합니다.
@@ -65,10 +68,7 @@ class MemoryEntry {
       originalSnippet: originalSnippet,
       capturedAt: capturedAt,
       recallDueDates: recallDueDates,
-      alreadyRecalledAt: {
-        ...alreadyRecalledAt,
-        dueDate.toIso8601String(),
-      },
+      alreadyRecalledAt: {...alreadyRecalledAt, dueDate.toIso8601String()},
     );
   }
 
@@ -100,7 +100,9 @@ class MemoryEntry {
               .toList() ??
           const [],
       alreadyRecalledAt:
-          (map['alreadyRecalledAt'] as List?)?.map((e) => e as String).toSet() ??
+          (map['alreadyRecalledAt'] as List?)
+              ?.map((e) => e as String)
+              .toSet() ??
           const {},
     );
   }

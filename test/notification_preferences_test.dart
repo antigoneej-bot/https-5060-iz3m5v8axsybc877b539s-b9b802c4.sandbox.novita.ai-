@@ -1,3 +1,5 @@
+import 'package:flutter_app/mongi/services/notification_service.dart' as mongi;
+import 'package:flutter_app/l10n/app_language.dart';
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
@@ -30,6 +32,7 @@ void main() {
 
   setUp(() async {
     SharedPreferences.setMockInitialValues({});
+    await AppLanguage.instance.select('ko');
     debugDefaultTargetPlatformOverride = TargetPlatform.android;
     AndroidFlutterLocalNotificationsPlugin.registerWith();
     calls = [];
@@ -83,7 +86,7 @@ void main() {
 
   for (final morning in [true, false]) {
     test(
-      '${morning ? 'morning' : 'evening'} native failure does not enable; failed time and cancel preserve old settings',
+      '${morning ? 'morning' : 'evening'} failure preserves time; opt-out persists while cancellation is pending',
       () async {
         Future<bool> enable() =>
             morning ? service.enableMorning() : service.enableEvening();
@@ -112,13 +115,22 @@ void main() {
           await (morning ? service.disableMorning() : service.disableEvening()),
           isFalse,
         );
-        expect(await enabled(), isTrue);
+        expect(await enabled(), isFalse);
+        expect(await time(), before);
+        expect(
+          service.cancellationPending.value,
+          contains(morning ? 'morning' : 'evening'),
+        );
         failCancel = false;
         expect(
           await (morning ? service.disableMorning() : service.disableEvening()),
           isTrue,
         );
         expect(await enabled(), isFalse);
+        expect(
+          service.cancellationPending.value,
+          isNot(contains(morning ? 'morning' : 'evening')),
+        );
       },
     );
   }
@@ -315,6 +327,78 @@ void main() {
       expect(await service.isCrisisEnabled(), isFalse);
       expect(calls.last.method, 'cancel');
       expect(calls.last.arguments['id'], 1004);
+    },
+  );
+  test(
+    'daily and foreground alerts follow language; refresh keeps opt-ins and asks no permission',
+    () async {
+      await service.enableMorning();
+      await service.enableEvening();
+      final morningTime = await service.getMorningTime(),
+          eveningTime = await service.getEveningTime();
+      for (final code in ['en', 'ko', 'en']) {
+        await AppLanguage.instance.select(code);
+        calls.clear();
+        await service.refreshLanguage();
+        for (final id in [1002, 1003]) {
+          final message = schedules(id).last;
+          expect(
+            RegExp('[가-힣]').hasMatch('${message['title']} ${message['body']}'),
+            code == 'ko',
+          );
+        }
+        expect(
+          calls.any((c) => c.method == 'requestNotificationsPermission'),
+          false,
+        );
+        expect(await service.getMorningTime(), morningTime);
+        expect(await service.getEveningTime(), eveningTime);
+        await service.showGardenUpdate('social');
+        await service.showGardenUpdate('booking');
+        for (final call in calls.where((c) => c.method == 'show')) {
+          expect(
+            RegExp(
+              '[가-힣]',
+            ).hasMatch('${call.arguments['title']} ${call.arguments['body']}'),
+            code == 'ko',
+          );
+        }
+      }
+      await service.disableMorning();
+      await service.disableEvening();
+      calls.clear();
+      await service.refreshLanguage();
+      expect(schedules(1002), isEmpty);
+      expect(schedules(1003), isEmpty);
+    },
+  );
+  test(
+    'daily emotion reminder defaults to app language without asking permission on refresh',
+    () async {
+      for (final code in ['en', 'ko', 'en']) {
+        await AppLanguage.instance.select(code);
+        calls.clear();
+        expect(
+          await mongi.NotificationService.instance.scheduleDaily(
+            20,
+            30,
+            requestPermissions: false,
+          ),
+          isTrue,
+        );
+        final scheduled = schedules(21001).single;
+        expect(
+          RegExp(
+            r'[가-힣]',
+          ).hasMatch('${scheduled['title']} ${scheduled['body']}'),
+          code == 'ko',
+        );
+        expect(
+          calls.any((c) => c.method == 'requestNotificationsPermission'),
+          isFalse,
+        );
+      }
+      NotificationService().dispose();
     },
   );
 }

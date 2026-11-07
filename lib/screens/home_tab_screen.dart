@@ -1,5 +1,5 @@
+import '../l10n/app_language.dart';
 import 'keepsake_forest_screen.dart';
-import 'coloring_healing_screen.dart';
 import 'memory_cards_screen.dart';
 import 'all_features_screen.dart';
 import 'mind_review_screen.dart';
@@ -55,11 +55,28 @@ class HomeTabScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     final app = context.watch<AppStateProvider>();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Card(color: const Color(0xFFFFEDCF), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)), child: ListTile(contentPadding: const EdgeInsets.all(18), leading: const Icon(Icons.spa_outlined, color: Color(0xFFAD863B)), title: const Text('기억의 나무'), subtitle: const Text('소중한 날짜와 이야기를 씨앗에 담아 키워요'), trailing: const Icon(Icons.chevron_right), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const KeepsakeForestScreen())))),
+        Card(
+          color: const Color(0xFFFFEDCF),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(26),
+          ),
+          child: ListTile(
+            contentPadding: const EdgeInsets.all(18),
+            leading: const Icon(Icons.spa_outlined, color: Color(0xFFAD863B)),
+            title: Text(tr("기억의 나무")),
+            subtitle: Text(tr("소중한 날짜와 이야기를 씨앗에 담아 키워요")),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const KeepsakeForestScreen()),
+            ),
+          ),
+        ),
         DailyCareCard(
           onWrite: onGoToCatSelect,
           onRest: onGoToMeditation,
@@ -70,7 +87,7 @@ class HomeTabScreen extends StatelessWidget {
           ),
           onGarden: () => pushFullScreen(
             context,
-            '나의 정원',
+            tr("나의 정원"),
             MyGardenScreen(onGoMeetCat: onGoToCatSelect),
           ),
         ),
@@ -80,12 +97,12 @@ class HomeTabScreen extends StatelessWidget {
         if (app.gardenRewardPending)
           ListTile(
             leading: const Icon(Icons.cloud_sync_outlined),
-            title: const Text('편지는 저장됐어요. 정원 보상을 다시 연결할게요.'),
+            title: Text(tr("편지는 저장됐어요. 정원 보상을 다시 연결할게요.")),
             trailing: TextButton(
               onPressed: app.gardenRewardRetrying
                   ? null
                   : app.retryGardenRewards,
-              child: Text(app.gardenRewardRetrying ? '확인 중…' : '다시 연결'),
+              child: Text(app.gardenRewardRetrying ? tr("확인 중…") : tr("다시 연결")),
             ),
           ),
         // 작은 정원 미리보기 + 진입 버튼 - 입체 연출이 있는 '살아있는 정원'
@@ -94,14 +111,14 @@ class HomeTabScreen extends StatelessWidget {
         ExpansionTile(
           key: const PageStorageKey('home-garden-preview'),
           title: Text(
-            '정원 미리보기',
+            tr("정원 미리보기"),
             style: titleFont(fontSize: 17, color: AppColors.moon),
           ),
           children: [
             GestureDetector(
               onTap: () => pushFullScreen(
                 context,
-                '나의 정원',
+                tr("나의 정원"),
                 MyGardenScreen(onGoMeetCat: onGoToCatSelect),
               ),
               child: const GardenHomePreview(),
@@ -112,7 +129,7 @@ class HomeTabScreen extends StatelessWidget {
         ExpansionTile(
           key: const PageStorageKey('home-growth'),
           title: Text(
-            '고양이와 함께한 기록',
+            tr("고양이와 함께한 기록"),
             style: titleFont(fontSize: 17, color: AppColors.moon),
           ),
           children: [
@@ -126,7 +143,7 @@ class HomeTabScreen extends StatelessWidget {
               onMeetCat: onGoToCatSelect,
               onOpenGarden: () => pushFullScreen(
                 context,
-                '나의 정원',
+                tr("나의 정원"),
                 MyGardenScreen(onGoMeetCat: onGoToCatSelect),
               ),
             ),
@@ -150,16 +167,16 @@ class HomeTabScreen extends StatelessWidget {
         ExpansionTile(
           key: const PageStorageKey('home-more'),
           title: Text(
-            '다른 활동 둘러보기',
+            tr("다른 활동 둘러보기"),
             style: titleFont(fontSize: 17, color: AppColors.moon),
           ),
           children: [
-            _PathSignpost(title: '고양이를 만난 뒤엔, 이렇게 돌봐요'),
+            _PathSignpost(title: tr("고양이를 만난 뒤엔, 이렇게 돌봐요")),
             const SizedBox(height: 6),
             GardenPathCard(
               emoji: '🌿',
-              title: '마음 돌보기',
-              subtitle: '명상·휴식·색칠 힐링과 추억 카드를 만나요',
+              title: tr("마음 돌보기"),
+              subtitle: tr("명상·휴식과 추억 카드를 만나요"),
               accent: AppColors.blobMintAccent,
               background: AppColors.blobMint,
               alignX: 0.28,
@@ -168,16 +185,28 @@ class HomeTabScreen extends StatelessWidget {
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute(
                   builder: (_) => CategoryListScreen(
-                    title: '마음 돌보기',
+                    title: tr("마음 돌보기"),
                     headerEmoji: '🌿',
-                    headerSubtitle: '몸과 마음을 함께 돌보는 시간이에요.\n필요한 곳을 골라 들어가보세요',
+                    headerSubtitle: tr(
+                      "몸과 마음을 함께 돌보는 시간이에요.\n필요한 곳을 골라 들어가보세요",
+                    ),
                     items: [
-                      CategoryItem(emoji: '🎨', title: '색칠 힐링', subtitle: '나만의 색으로 쉬어가는 고양이 정원', accent: AppColors.blobRoseAccent, background: AppColors.blobRose, onTap: (ctx) => Navigator.of(ctx).push(MaterialPageRoute(builder: (_) => const ColoringHealingScreen()))),
-                      CategoryItem(emoji: '🃏', title: '추억 카드 수집·교환', subtitle: '특별한 카드를 모으고 이웃에게 자랑해요', accent: AppColors.blobLavenderAccent, background: AppColors.blobLavender, onTap: (ctx) => Navigator.of(ctx).push(MaterialPageRoute(builder: (_) => const MemoryCardsScreen()))),
+                      CategoryItem(
+                        emoji: '🃏',
+                        title: tr("추억 카드 수집·교환"),
+                        subtitle: tr("특별한 카드를 모으고 이웃에게 자랑해요"),
+                        accent: AppColors.blobLavenderAccent,
+                        background: AppColors.blobLavender,
+                        onTap: (ctx) => Navigator.of(ctx).push(
+                          MaterialPageRoute(
+                            builder: (_) => const MemoryCardsScreen(),
+                          ),
+                        ),
+                      ),
                       CategoryItem(
                         emoji: '🧘',
-                        title: '명상·힐링 한곳에',
-                        subtitle: '호흡, 알아차림, 움직임, 표현하기 가이드를 살펴보세요',
+                        title: tr("명상·힐링 한곳에"),
+                        subtitle: tr("호흡, 알아차림, 움직임, 표현하기 가이드를 살펴보세요"),
                         accent: AppColors.blobLavenderAccent,
                         background: AppColors.blobLavender,
                         onTap: (ctx) {
@@ -189,25 +218,25 @@ class HomeTabScreen extends StatelessWidget {
                       ),
                       CategoryItem(
                         emoji: '🐟',
-                        title: '마음 돌보기(몸 돌봄)',
-                        subtitle: '밥·물·목욕과 호흡·걷기 명상으로 고양이를 함께 키워보세요',
+                        title: tr("마음 돌보기(몸 돌봄)"),
+                        subtitle: tr("밥·물·목욕과 호흡·걷기 명상으로 고양이를 함께 키워보세요"),
                         accent: AppColors.blobRoseAccent,
                         background: AppColors.blobRose,
                         onTap: (ctx) => pushFullScreen(
                           ctx,
-                          '마음 돌보기',
+                          tr("마음 돌보기"),
                           const PetCareScreen(),
                         ),
                       ),
                       CategoryItem(
                         emoji: '🔮',
-                        title: '오늘의 고양이 카드',
-                        subtitle: '오늘의 카드를 뽑아 위로와 지침을 받아보세요',
+                        title: tr("오늘의 고양이 카드"),
+                        subtitle: tr("오늘의 카드를 뽑아 위로와 지침을 받아보세요"),
                         accent: AppColors.blobPeriwinkleAccent,
                         background: AppColors.blobPeriwinkle,
                         onTap: (ctx) => pushFullScreen(
                           ctx,
-                          '오늘의 고양이 카드',
+                          tr("오늘의 고양이 카드"),
                           const DailyCardScreen(),
                         ),
                       ),
@@ -223,8 +252,8 @@ class HomeTabScreen extends StatelessWidget {
             ),
             GardenPathCard(
               emoji: '💌',
-              title: '편지 쓰기',
-              subtitle: '마음편지와 오늘의 약속, 마음을 짧게 적어보는 곳이에요',
+              title: tr("편지 쓰기"),
+              subtitle: tr("마음편지와 오늘의 약속, 마음을 짧게 적어보는 곳이에요"),
               accent: AppColors.blobButterAccent,
               background: AppColors.blobButter,
               alignX: -0.28,
@@ -233,31 +262,31 @@ class HomeTabScreen extends StatelessWidget {
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute(
                   builder: (_) => CategoryListScreen(
-                    title: '편지 쓰기',
+                    title: tr("편지 쓰기"),
                     headerEmoji: '💌',
-                    headerSubtitle: '짧게 적어도 괜찮아요.\n마음을 편지로 남겨보세요',
+                    headerSubtitle: tr("짧게 적어도 괜찮아요.\n마음을 편지로 남겨보세요"),
                     items: [
                       CategoryItem(
                         emoji: '💌',
-                        title: '마음편지',
-                        subtitle: '전하지 못한 말과 지금의 마음을 내 속도로 남겨요',
+                        title: tr("마음편지"),
+                        subtitle: tr("전하지 못한 말과 지금의 마음을 내 속도로 남겨요"),
                         accent: AppColors.blobButterAccent,
                         background: AppColors.blobButter,
                         onTap: (ctx) => pushFullScreen(
                           ctx,
-                          '마음편지',
+                          tr("마음편지"),
                           const HeartLettersScreen(),
                         ),
                       ),
                       CategoryItem(
                         emoji: '🌱',
-                        title: '오늘의 약속',
-                        subtitle: '오늘 나를 위해 지켜주고 싶은 작은 약속을 남겨보세요',
+                        title: tr("오늘의 약속"),
+                        subtitle: tr("오늘 나를 위해 지켜주고 싶은 작은 약속을 남겨보세요"),
                         accent: AppColors.blobRoseAccent,
                         background: AppColors.blobRose,
                         onTap: (ctx) => pushFullScreen(
                           ctx,
-                          '오늘의 약속',
+                          tr("오늘의 약속"),
                           const TodaysPromiseScreen(),
                         ),
                       ),
@@ -273,8 +302,8 @@ class HomeTabScreen extends StatelessWidget {
             ),
             GardenPathCard(
               emoji: '📖',
-              title: '돌아보기 & 기록',
-              subtitle: '돌봄 온기, 주간 지도, 하루 닫기, 그림자 방울을 살펴보세요',
+              title: tr("돌아보기 & 기록"),
+              subtitle: tr("돌봄 온기, 주간 지도, 하루 닫기, 그림자 방울을 살펴보세요"),
               accent: AppColors.blobPeachAccent,
               background: AppColors.blobPeach,
               alignX: 0.26,
@@ -283,14 +312,14 @@ class HomeTabScreen extends StatelessWidget {
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute(
                   builder: (_) => CategoryListScreen(
-                    title: '돌아보기 & 기록',
+                    title: tr("돌아보기 & 기록"),
                     headerEmoji: '📖',
-                    headerSubtitle: '지나온 마음의 흐름을\n천천히 돌아보는 시간이에요',
+                    headerSubtitle: tr("지나온 마음의 흐름을\n천천히 돌아보는 시간이에요"),
                     items: [
                       CategoryItem(
                         emoji: '🌡️',
-                        title: '돌봄 온기와 기록 보기',
-                        subtitle: '지난 편지와 활동으로 모은 온기를 돌아보세요',
+                        title: tr("돌봄 온기와 기록 보기"),
+                        subtitle: tr("지난 편지와 활동으로 모은 온기를 돌아보세요"),
                         accent: AppColors.blobRoseAccent,
                         background: AppColors.blobRose,
                         onTap: (ctx) {
@@ -300,44 +329,44 @@ class HomeTabScreen extends StatelessWidget {
                       ),
                       CategoryItem(
                         emoji: '🗺️',
-                        title: '감정 통계',
-                        subtitle: '이번 주 자주 마주한 감정 Top 3를 지도처럼 살펴보세요',
+                        title: tr("감정 통계"),
+                        subtitle: tr("이번 주 자주 마주한 감정 Top 3를 지도처럼 살펴보세요"),
                         accent: AppColors.blobPeachAccent,
                         background: AppColors.blobPeach,
                         onTap: (ctx) => pushFullScreen(
                           ctx,
-                          '감정 통계',
+                          tr("감정 통계"),
                           const EmotionStatisticsScreen(),
                         ),
                       ),
                       CategoryItem(
                         emoji: '🌙',
-                        title: '하루 닫기',
-                        subtitle: '오늘 곁에 남긴 약속들을 조용히 돌아보며 하루를 닫아요',
+                        title: tr("하루 닫기"),
+                        subtitle: tr("오늘 곁에 남긴 약속들을 조용히 돌아보며 하루를 닫아요"),
                         accent: AppColors.blobPeriwinkleAccent,
                         background: AppColors.blobPeriwinkle,
                         onTap: (ctx) => pushFullScreen(
                           ctx,
-                          '하루 닫기',
+                          tr("하루 닫기"),
                           const DayCloseScreen(),
                         ),
                       ),
                       CategoryItem(
                         emoji: '🫧',
-                        title: '오늘의 그림자 방울 터뜨리기',
-                        subtitle: '오늘 마주한 감정을 방울로 만나, 하나씩 터뜨려 놓아주세요',
+                        title: tr("오늘의 그림자 방울 터뜨리기"),
+                        subtitle: tr("오늘 마주한 감정을 방울로 만나, 하나씩 터뜨려 놓아주세요"),
                         accent: AppColors.blobLavenderAccent,
                         background: AppColors.blobLavender,
                         onTap: (ctx) => pushFullScreen(
                           ctx,
-                          '오늘의 그림자 방울 터뜨리기',
+                          tr("오늘의 그림자 방울 터뜨리기"),
                           const BubbleGardenScreen(),
                         ),
                       ),
                       CategoryItem(
                         emoji: '📝',
-                        title: '돌아보고 돌보기',
-                        subtitle: '주간·월간으로 나를 돌아보고 스스로 돌본 기록을 남겨보세요',
+                        title: tr("돌아보고 돌보기"),
+                        subtitle: tr("주간·월간으로 나를 돌아보고 스스로 돌본 기록을 남겨보세요"),
                         accent: AppColors.blobMintAccent,
                         background: AppColors.blobMint,
                         onTap: (ctx) {
@@ -352,8 +381,8 @@ class HomeTabScreen extends StatelessWidget {
                       ),
                       CategoryItem(
                         emoji: '🤝',
-                        title: '사람과 연결',
-                        subtitle: '혼자서 버거울 때 도움받을 수 있는 공식 기관을 안내해요',
+                        title: tr("사람과 연결"),
+                        subtitle: tr("혼자서 버거울 때 도움받을 수 있는 공식 기관을 안내해요"),
                         accent: AppColors.blobRoseAccent,
                         background: AppColors.blobRose,
                         onTap: (ctx) {
@@ -377,22 +406,22 @@ class HomeTabScreen extends StatelessWidget {
             ),
             GardenPathCard(
               emoji: '🧵',
-              title: '묘연 나누기',
-              subtitle: '내 그림자 고양이 코드를 친구에게 보내고 나란히 살펴보세요',
+              title: tr("고양이 코드 비교"),
+              subtitle: tr("내 그림자 고양이 코드를 친구에게 보내고 나란히 살펴보세요"),
               accent: AppColors.blobLavenderAccent,
               background: AppColors.blobLavender,
               alignX: -0.24,
               widthFactor: 0.9,
               floatSeed: 11,
               onTap: () =>
-                  pushFullScreen(context, '묘연 나누기', const CatBondScreen()),
+                  pushFullScreen(context, tr("고양이 코드 비교"), const CatBondScreen()),
             ),
           ],
         ),
         ExpansionTile(
           key: const PageStorageKey('home-news'),
           title: Text(
-            '정원 소식 · 알림',
+            tr("정원 소식 · 알림"),
             style: titleFont(fontSize: 17, color: AppColors.moon),
           ),
           children: [
@@ -422,6 +451,7 @@ class _JourneyHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     final progress = total == 0 ? 0.0 : metCount / total;
     final remaining = total - metCount;
     return GlassBlob(
@@ -453,7 +483,7 @@ class _JourneyHero extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '그림자 고양이 여정',
+                      tr("그림자 고양이 여정"),
                       style: pathLabelFont(
                         fontSize: 15.5,
                         fontWeight: FontWeight.w700,
@@ -463,10 +493,14 @@ class _JourneyHero extends StatelessWidget {
                     const SizedBox(height: 3),
                     Text(
                       metCount == 0
-                          ? '아직 만난 고양이가 없어요. 지금 첫 고양이를 만나볼까요?'
+                          ? tr("아직 만난 고양이가 없어요. 지금 첫 고양이를 만나볼까요?")
                           : remaining == 0
-                          ? '$total마리를 모두 만났어요. 정원이 가득 채워졌네요 🌸'
-                          : '$total마리 중 $metCount마리를 만났어요 · $remaining마리가 기다리는 중',
+                          ? tr("{0}마리를 모두 만났어요. 정원이 가득 채워졌네요 🌸", [total])
+                          : tr("{0}마리 중 {1}마리를 만났어요 · {2}마리가 기다리는 중", [
+                              total,
+                              metCount,
+                              remaining,
+                            ]),
                       style: bodyFont(
                         fontSize: 11.5,
                         color: AppColors.inkSoft,
@@ -495,7 +529,7 @@ class _JourneyHero extends StatelessWidget {
             children: [
               Expanded(
                 child: _JourneyHeroButton(
-                  label: metCount == 0 ? '고양이 만나기' : '오늘의 고양이 만나기',
+                  label: metCount == 0 ? tr("고양이 만나기") : tr("오늘의 고양이 만나기"),
                   emoji: '🐈',
                   filled: true,
                   onTap: onMeetCat,
@@ -504,7 +538,7 @@ class _JourneyHero extends StatelessWidget {
               const SizedBox(width: 10),
               Expanded(
                 child: _JourneyHeroButton(
-                  label: '정원 들어가기',
+                  label: tr("정원 들어가기"),
                   emoji: '🌷',
                   filled: false,
                   onTap: onOpenGarden,
@@ -532,6 +566,7 @@ class _JourneyHeroButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     return Material(
       color: Colors.transparent,
       borderRadius: BorderRadius.circular(999),
@@ -577,6 +612,7 @@ class _PathSignpost extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     return Column(
       children: [
         Text(
@@ -606,6 +642,7 @@ class _SproutBannerArea extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     final sprouts = context.watch<BuriedEmotionProvider>().sprouts;
     if (sprouts.isEmpty) return const SizedBox.shrink();
     final entry = sprouts.first;
@@ -622,7 +659,7 @@ class _SproutBannerArea extends StatelessWidget {
           onTap: () => Navigator.of(context).push(
             MaterialPageRoute(
               builder: (_) => FeatureScaffold(
-                title: '다시 떠오른 마음',
+                title: tr("다시 떠오른 마음"),
                 child: SproutReflectionScreen(entry: entry),
               ),
             ),
@@ -662,7 +699,7 @@ class _SproutBannerArea extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        '정원에 작은 새싹이 돋아났어요',
+                        tr("정원에 작은 새싹이 돋아났어요"),
                         style: pathLabelFont(
                           fontSize: 14.5,
                           fontWeight: FontWeight.w700,
@@ -671,7 +708,7 @@ class _SproutBannerArea extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '며칠 전 묻어둔 마음이에요 · 지금 들여다봐도, 그냥 두어도 괜찮아요',
+                        tr("며칠 전 묻어둔 마음이에요 · 지금 들여다봐도, 그냥 두어도 괜찮아요"),
                         style: bodyFont(
                           fontSize: 11.5,
                           color: AppColors.inkSoft,
@@ -701,6 +738,7 @@ class _StreakBlob extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     final app = context.watch<AppStateProvider>();
     final last7 = app.last7DaysCatIds();
     final recordedToday = last7.isNotEmpty && last7.last.value != null;
@@ -740,7 +778,7 @@ class _StreakBlob extends StatelessWidget {
                         color: AppColors.goldSoft,
                       ),
                     ),
-                    const TextSpan(text: '일째 함께하는 중'),
+                    TextSpan(text: tr("일째 함께하는 중")),
                   ],
                 ),
               ),
@@ -750,14 +788,14 @@ class _StreakBlob extends StatelessWidget {
           _StreakWeekDots(days: last7),
           const SizedBox(height: 8),
           Text(
-            '숫자는 앱과 함께한(출석) 일수예요.\n아래 점은 최근 7일 중 편지를 남긴 날이에요',
+            tr("숫자는 앱과 함께한(출석) 일수예요.\n아래 점은 최근 7일 중 편지를 남긴 날이에요"),
             textAlign: TextAlign.center,
             style: bodyFont(fontSize: 11, color: AppColors.inkSoft),
           ),
           if (!recordedToday && streak > 0) ...[
             const SizedBox(height: 10),
             Text(
-              '오늘 아직 기록이 없어요 · 지금 만나면 마음이 이어져요',
+              tr("오늘 아직 기록이 없어요 · 지금 만나면 마음이 이어져요"),
               style: bodyFont(fontSize: 11, color: AppColors.blobButterAccent),
             ),
           ],
@@ -775,14 +813,15 @@ class _StreakMilestoneUpsell extends StatelessWidget {
   final int streak;
   const _StreakMilestoneUpsell({required this.streak});
 
-  static const _milestones = {
-    7: '일주일째 마음을 돌보고 있어요',
-    14: '2주째 꾸준히 이어오고 있어요',
-    30: '한 달째 함께하고 있어요',
+  static Map<int, String> get _milestones => {
+    7: tr("일주일째 마음을 돌보고 있어요"),
+    14: tr("2주째 꾸준히 이어오고 있어요"),
+    30: tr("한 달째 함께하고 있어요"),
   };
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     final app = context.watch<AppStateProvider>();
     final label = _milestones[streak];
     if (label == null || app.isPremiumUser) return const SizedBox.shrink();
@@ -807,7 +846,7 @@ class _StreakMilestoneUpsell extends StatelessWidget {
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  '$label. 더 깊이 들여다볼 준비가 됐어요',
+                  tr("{0}. 더 깊이 들여다볼 준비가 됐어요", [label]),
                   style: bodyFont(fontSize: 11.5, color: AppColors.ink),
                 ),
               ),
@@ -831,10 +870,19 @@ class _StreakWeekDots extends StatelessWidget {
   final List<MapEntry<DateTime, String?>> days;
   const _StreakWeekDots({required this.days});
 
-  static const _weekdayLabels = ['월', '화', '수', '목', '금', '토', '일'];
+  static List<String> get _weekdayLabels => [
+    tr("월"),
+    tr("화"),
+    tr("수"),
+    tr("목"),
+    tr("금"),
+    tr("토"),
+    tr("일"),
+  ];
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
@@ -905,6 +953,7 @@ class _HomeNoticeCardState extends State<_HomeNoticeCard> {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     if (_notices.isEmpty) return const SizedBox.shrink();
     final notice = _notices.first;
     return Padding(
@@ -932,7 +981,7 @@ class _HomeNoticeCardState extends State<_HomeNoticeCard> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '정원 소식',
+                      tr("정원 소식"),
                       style: bodyFont(
                         fontSize: 10.5,
                         fontWeight: FontWeight.w700,
@@ -956,14 +1005,14 @@ class _HomeNoticeCardState extends State<_HomeNoticeCard> {
               TextButton(
                 onPressed: () => Navigator.of(context).push(
                   MaterialPageRoute(
-                    builder: (_) => const FeatureScaffold(
-                      title: '정원 소식',
+                    builder: (_) => FeatureScaffold(
+                      title: tr("정원 소식"),
                       child: NoticeListScreen(),
                     ),
                   ),
                 ),
                 child: Text(
-                  '더보기',
+                  tr("더보기"),
                   style: bodyFont(
                     fontSize: 11.5,
                     fontWeight: FontWeight.w700,
@@ -1014,6 +1063,7 @@ class _ReflectionBannerAreaState extends State<_ReflectionBannerArea> {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     if (!_checked || (!_showWeekly && !_showMonthly)) {
       return const SizedBox.shrink();
     }
@@ -1022,8 +1072,8 @@ class _ReflectionBannerAreaState extends State<_ReflectionBannerArea> {
       child: _showMonthly
           ? _ReflectionReadyBanner(
               emoji: '📖',
-              title: '이번 달 돌아보기가 도착했어요',
-              subtitle: '한 달간의 감정 흐름을 문장으로 되짚어볼 수 있어요',
+              title: tr("이번 달 돌아보기가 도착했어요"),
+              subtitle: tr("한 달간의 감정 흐름을 문장으로 되짚어볼 수 있어요"),
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute(
                   builder: (_) =>
@@ -1033,8 +1083,8 @@ class _ReflectionBannerAreaState extends State<_ReflectionBannerArea> {
             )
           : _ReflectionReadyBanner(
               emoji: '🗓️',
-              title: '이번 주 돌아보기가 도착했어요',
-              subtitle: '이번 주 함께한 고양이와 요일별 흐름을 살펴보세요',
+              title: tr("이번 주 돌아보기가 도착했어요"),
+              subtitle: tr("이번 주 함께한 고양이와 요일별 흐름을 살펴보세요"),
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute(
                   builder: (_) => const EmotionStatisticsScreen(),
@@ -1059,6 +1109,7 @@ class _ReflectionReadyBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     return Material(
       color: Colors.transparent,
       borderRadius: BorderRadius.circular(28),
@@ -1133,11 +1184,12 @@ class _ReflectionReadyBanner extends StatelessWidget {
 class _GardenHintCaption extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24),
         child: Text(
-          '🐈‍⬛  그림자 고양이들이 정원 어딘가에서\n조용히 당신의 마음을 지켜보고 있어요',
+          tr("🐈‍⬛  그림자 고양이들이 정원 어딘가에서\n조용히 당신의 마음을 지켜보고 있어요"),
           textAlign: TextAlign.center,
           style: bodyFont(
             fontSize: 11.5,

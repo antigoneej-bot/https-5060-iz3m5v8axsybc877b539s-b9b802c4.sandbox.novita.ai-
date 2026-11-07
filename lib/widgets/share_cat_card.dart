@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import 'dart:io';
 import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
@@ -75,7 +76,7 @@ class _ShareCatCardDialogState extends State<_ShareCatCardDialog> {
       if (kIsWeb) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('카드 이미지가 만들어졌어요 (모바일 앱에서 저장 가능해요)')),
+          SnackBar(content: Text(tr("카드 이미지가 만들어졌어요 (모바일 앱에서 저장 가능해요)"))),
         );
         return;
       }
@@ -93,13 +94,13 @@ class _ShareCatCardDialogState extends State<_ShareCatCardDialog> {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('카드를 사진첩에 저장했어요 📷')));
+      ).showSnackBar(SnackBar(content: Text(tr("카드를 사진첩에 저장했어요 📷"))));
     } catch (e) {
-      if (kDebugMode) debugPrint('카드 저장 실패: $e');
+      if (kDebugMode) debugPrint(tr("카드 저장 실패: {0}", [e]));
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('저장 권한을 확인해주세요')));
+      ).showSnackBar(SnackBar(content: Text(tr("저장 권한을 확인해주세요"))));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -117,7 +118,7 @@ class _ShareCatCardDialogState extends State<_ShareCatCardDialog> {
         // 성공 여부만 안내합니다(모바일 앱(APK)에서 정상 공유됩니다).
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('카드 이미지가 만들어졌어요 (모바일 앱에서 공유 가능해요)')),
+          SnackBar(content: Text(tr("카드 이미지가 만들어졌어요 (모바일 앱에서 공유 가능해요)"))),
         );
         return;
       }
@@ -143,12 +144,12 @@ class _ShareCatCardDialogState extends State<_ShareCatCardDialog> {
           'cat_id': widget.cat.id,
         });
       } catch (e) {
-        if (kDebugMode) debugPrint('갤러리 저장 실패: $e');
+        if (kDebugMode) debugPrint(tr("갤러리 저장 실패: {0}", [e]));
       }
 
       await SharePlus.instance.share(
         ShareParams(
-          text: '오늘은 ${widget.cat.nameKr} 고양이를 만났어요 🐾 #마음냥정원',
+          text: tr("오늘은 {0} 고양이를 만났어요 🐾 #마음냥정원", [widget.cat.displayName]),
           files: [XFile(file.path)],
         ),
       );
@@ -160,14 +161,14 @@ class _ShareCatCardDialogState extends State<_ShareCatCardDialog> {
       if (savedToGallery && mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(const SnackBar(content: Text('사진첩에도 저장했어요 📷')));
+        ).showSnackBar(SnackBar(content: Text(tr("사진첩에도 저장했어요 📷"))));
       }
     } catch (e) {
-      if (kDebugMode) debugPrint('공유 카드 생성 실패: $e');
+      if (kDebugMode) debugPrint(tr("공유 카드 생성 실패: {0}", [e]));
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('카드를 만드는 데 문제가 있었어요')));
+      ).showSnackBar(SnackBar(content: Text(tr("카드를 만드는 데 문제가 있었어요"))));
     } finally {
       if (mounted) setState(() => _sharing = false);
     }
@@ -175,6 +176,7 @@ class _ShareCatCardDialogState extends State<_ShareCatCardDialog> {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     return Dialog(
       backgroundColor: Colors.transparent,
       insetPadding: const EdgeInsets.symmetric(horizontal: 28, vertical: 32),
@@ -197,19 +199,19 @@ class _ShareCatCardDialogState extends State<_ShareCatCardDialog> {
             children: [
               _RoundButton(
                 icon: Icons.close_rounded,
-                label: '닫기',
+                label: tr("닫기"),
                 filled: false,
                 onTap: () => Navigator.pop(context),
               ),
               _RoundButton(
                 icon: Icons.download_rounded,
-                label: _saving ? '저장 중...' : '폰에 저장',
+                label: _saving ? tr("저장 중...") : tr("폰에 저장"),
                 filled: false,
                 onTap: (_sharing || _saving) ? null : _saveOnly,
               ),
               _RoundButton(
                 icon: Icons.ios_share_rounded,
-                label: _sharing ? '만드는 중...' : '공유하기',
+                label: _sharing ? tr("만드는 중...") : tr("공유하기"),
                 filled: true,
                 onTap: (_sharing || _saving) ? null : _share,
               ),
@@ -235,6 +237,7 @@ class _RoundButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     return Material(
       color: Colors.transparent,
       borderRadius: BorderRadius.circular(999),
@@ -289,6 +292,7 @@ class ShareCatCardContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     // ⚠️ 유료(Basic 구독) 고양이는 잠겨있으면 탭해도 "만남" 처리가 되지
     // 전원 무료로 전환되어 freeShadowCats == shadowCats(37마리)입니다. shadowCats.length
     // 와 freeShadowCats.length는 이제 항상 같은 값(37)이지만, 과거 호환을 위해
@@ -322,7 +326,7 @@ class ShareCatCardContent extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            '오늘 만난 그림자 고양이',
+            tr("오늘 만난 그림자 고양이"),
             textAlign: TextAlign.center,
             style: titleFont(fontSize: 18, color: AppColors.ink),
           ),
@@ -338,13 +342,13 @@ class ShareCatCardContent extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           Text(
-            '${cat.emoji}  ${cat.nameKr}',
+            '${cat.emoji}  ${cat.displayName}',
             textAlign: TextAlign.center,
             style: titleFont(fontSize: 22, color: AppColors.ink),
           ),
           const SizedBox(height: 4),
           Text(
-            cat.keyword,
+            cat.displayKeyword,
             textAlign: TextAlign.center,
             style: bodyFont(fontSize: 12.5, color: AppColors.blobPeachAccent),
           ),
@@ -357,7 +361,7 @@ class ShareCatCardContent extends StatelessWidget {
                 borderRadius: BorderRadius.circular(999),
               ),
               child: Text(
-                '벌써 $meetingCount번째 만남이에요',
+                tr("벌써 {0}번째 만남이에요", [meetingCount]),
                 style: bodyFont(
                   fontSize: 11.5,
                   fontWeight: FontWeight.w700,
@@ -373,7 +377,7 @@ class ShareCatCardContent extends StatelessWidget {
               borderRadius: BorderRadius.circular(16),
             ),
             child: Text(
-              '$total마리 중 $metCount마리를 만났어요',
+              tr("{0}마리 중 {1}마리를 만났어요", [total, metCount]),
               textAlign: TextAlign.center,
               style: bodyFont(
                 fontSize: 12,
@@ -384,7 +388,7 @@ class ShareCatCardContent extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           Text(
-            '🐈‍⬛  마음냥 정원',
+            tr("🐈‍⬛  마음냥 정원"),
             textAlign: TextAlign.center,
             style: brandFont(fontSize: 15, color: AppColors.inkSoft),
           ),

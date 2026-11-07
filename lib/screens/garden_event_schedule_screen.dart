@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -110,7 +111,7 @@ class _GardenEventScheduleScreenState extends State<GardenEventScheduleScreen> {
     ];
     if (clocks.any((clock) => !clock.isValid)) {
       setState(() {
-        _error = '시간은 0~23시, 분은 0~59분으로 입력해 주세요.';
+        _error = tr("시간은 0~23시, 분은 0~59분으로 입력해 주세요.");
         if (_customOpen || _customClose) _advanced = true;
       });
       _form.currentState!.validate();
@@ -127,11 +128,11 @@ class _GardenEventScheduleScreenState extends State<GardenEventScheduleScreen> {
     final close = _customClose ? _close.on(_closeDay) : start;
     String? error;
     if (!end.isAfter(start)) {
-      error = '종료 시간을 시작 시간보다 늦게 입력해 주세요.';
+      error = tr("종료 시간을 시작 시간보다 늦게 입력해 주세요.");
     } else if (close.isAfter(start)) {
-      error = '신청 마감은 모임 시작 시간과 같거나 더 빨라야 해요.';
+      error = tr("신청 마감은 모임 시작 시간과 같거나 더 빨라야 해요.");
     } else if (open != null && !open.isBefore(close)) {
-      error = '신청 시작을 신청 마감보다 빠르게 지정해 주세요.';
+      error = tr("신청 시작을 신청 마감보다 빠르게 지정해 주세요.");
     }
     if (error != null) {
       setState(() {
@@ -165,7 +166,7 @@ class _GardenEventScheduleScreenState extends State<GardenEventScheduleScreen> {
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: AppColors.bg0,
     appBar: AppBar(
-      title: Text(widget.existing == null ? '예약 날짜 추가' : '예약 날짜 수정'),
+      title: Text(widget.existing == null ? tr("예약 날짜 추가") : tr("예약 날짜 수정")),
     ),
     body: SafeArea(
       child: Form(
@@ -175,15 +176,15 @@ class _GardenEventScheduleScreenState extends State<GardenEventScheduleScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text(
-                '1  달력에서 날짜를 골라 주세요',
+              Text(
+                tr("1  달력에서 날짜를 골라 주세요"),
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),
               if (_locked)
-                const Padding(
+                Padding(
                   padding: EdgeInsets.only(top: 8),
                   child: Text(
-                    '신청자가 있어 날짜와 시간은 바꿀 수 없어요. 정원과 신청 상태는 아래에서 관리할 수 있어요.',
+                    tr("신청자가 있어 날짜와 시간은 바꿀 수 없어요. 정원과 신청 상태는 아래에서 관리할 수 있어요."),
                   ),
                 ),
               AbsorbPointer(
@@ -199,31 +200,33 @@ class _GardenEventScheduleScreenState extends State<GardenEventScheduleScreen> {
                 ),
               ),
               Text(
-                DateFormat('yyyy년 M월 d일').format(_day),
+                DateFormat(tr("yyyy년 M월 d일")).format(_day),
                 style: titleFont(fontSize: 18),
               ),
               const SizedBox(height: 20),
-              const Text(
-                '2  시간을 숫자로 입력해 주세요',
+              Text(
+                tr("2  시간을 숫자로 입력해 주세요"),
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),
-              const Padding(
+              Padding(
                 padding: EdgeInsets.symmetric(vertical: 8),
                 child: Text(
-                  '24시간 기준이에요. 오후 2시는 14 : 00으로 입력해요.',
+                  tr("24시간 기준이에요. 오후 2시는 14 : 00으로 입력해요."),
                   style: TextStyle(color: AppColors.inkSoft, fontSize: 12),
                 ),
               ),
-              _ClockFields(clock: _start, label: '시작', enabled: !_locked),
+              _ClockFields(clock: _start, label: tr("시작"), enabled: !_locked),
               const SizedBox(height: 12),
-              _ClockFields(clock: _end, label: '종료', enabled: !_locked),
+              _ClockFields(clock: _end, label: tr("종료"), enabled: !_locked),
               if (!_locked)
-                _dateButton('종료 날짜', _endDay, (day) => _endDay = day)
+                _dateButton(tr("종료 날짜"), _endDay, (day) => _endDay = day)
               else if (!DateUtils.isSameDay(_day, _endDay))
-                Text('종료 날짜 ${DateFormat('yyyy.MM.dd').format(_endDay)}'),
+                Text(
+                  tr("종료 날짜 {0}", [DateFormat('yyyy.MM.dd').format(_endDay)]),
+                ),
               const SizedBox(height: 20),
-              const Text(
-                '3  모집 인원을 입력해 주세요',
+              Text(
+                tr("3  모집 인원을 입력해 주세요"),
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 12),
@@ -235,51 +238,51 @@ class _GardenEventScheduleScreenState extends State<GardenEventScheduleScreen> {
                   FilteringTextInputFormatter.digitsOnly,
                   LengthLimitingTextInputFormatter(4),
                 ],
-                decoration: const InputDecoration(
-                  labelText: '모집 정원',
-                  suffixText: '명',
+                decoration: InputDecoration(
+                  labelText: tr("모집 정원"),
+                  suffixText: tr("명"),
                   border: OutlineInputBorder(),
                 ),
                 validator: (text) {
                   final count = int.tryParse(text ?? '');
                   if (count == null || count < 1 || count > 1000) {
-                    return '1~1000명을 입력해 주세요.';
+                    return tr("1~1000명을 입력해 주세요.");
                   }
                   if (count < (widget.existing?.reservedCount ?? 0)) {
-                    return '이미 신청한 인원보다 줄일 수 없어요.';
+                    return tr("이미 신청한 인원보다 줄일 수 없어요.");
                   }
                   return null;
                 },
               ),
               const SizedBox(height: 12),
-              const Text(
-                '기본 설정은 소식을 게시한 뒤 바로 신청을 받고, 모임 시작 시간에 마감해요.',
+              Text(
+                tr("기본 설정은 소식을 게시한 뒤 바로 신청을 받고, 모임 시작 시간에 마감해요."),
                 style: TextStyle(fontSize: 12, color: AppColors.inkSoft),
               ),
               TextButton.icon(
                 onPressed: () => setState(() => _advanced = !_advanced),
                 icon: Icon(_advanced ? Icons.expand_less : Icons.expand_more),
-                label: const Text('추가 설정 · 신청 기간과 일정 이름'),
+                label: Text(tr("추가 설정 · 신청 기간과 일정 이름")),
               ),
               if (_advanced) ...[
                 TextFormField(
                   controller: _label,
                   maxLength: 60,
-                  decoration: const InputDecoration(labelText: '일정 이름 (선택)'),
+                  decoration: InputDecoration(labelText: tr("일정 이름 (선택)")),
                 ),
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: const Text('신청 시작일 따로 지정'),
+                  title: Text(tr("신청 시작일 따로 지정")),
                   value: _customOpen,
                   onChanged: (value) => setState(() => _customOpen = value),
                 ),
                 if (_customOpen) ...[
-                  _dateButton('신청 시작일', _openDay, (day) => _openDay = day),
-                  _ClockFields(clock: _open, label: '신청 시작'),
+                  _dateButton(tr("신청 시작일"), _openDay, (day) => _openDay = day),
+                  _ClockFields(clock: _open, label: tr("신청 시작")),
                 ],
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: const Text('신청 마감일 따로 지정'),
+                  title: Text(tr("신청 마감일 따로 지정")),
                   value: _customClose,
                   onChanged: (value) => setState(() {
                     _customClose = value;
@@ -290,20 +293,27 @@ class _GardenEventScheduleScreenState extends State<GardenEventScheduleScreen> {
                   }),
                 ),
                 if (_customClose) ...[
-                  _dateButton('신청 마감일', _closeDay, (day) => _closeDay = day),
-                  _ClockFields(clock: _close, label: '신청 마감'),
+                  _dateButton(
+                    tr("신청 마감일"),
+                    _closeDay,
+                    (day) => _closeDay = day,
+                  ),
+                  _ClockFields(clock: _close, label: tr("신청 마감")),
                 ],
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
                   initialValue: _state,
-                  decoration: const InputDecoration(
-                    labelText: '신청 상태',
+                  decoration: InputDecoration(
+                    labelText: tr("신청 상태"),
                     border: OutlineInputBorder(),
                   ),
-                  items: const [
-                    DropdownMenuItem(value: 'open', child: Text('신청 가능')),
-                    DropdownMenuItem(value: 'closed', child: Text('신청 마감')),
-                    DropdownMenuItem(value: 'canceled', child: Text('일정 취소')),
+                  items: [
+                    DropdownMenuItem(value: 'open', child: Text(tr("신청 가능"))),
+                    DropdownMenuItem(value: 'closed', child: Text(tr("신청 마감"))),
+                    DropdownMenuItem(
+                      value: 'canceled',
+                      child: Text(tr("일정 취소")),
+                    ),
                   ],
                   onChanged: (value) =>
                       setState(() => _state = value ?? _state),
@@ -318,10 +328,10 @@ class _GardenEventScheduleScreenState extends State<GardenEventScheduleScreen> {
                   ),
                 ),
               const SizedBox(height: 20),
-              FilledButton(onPressed: _save, child: const Text('날짜와 시간 저장')),
+              FilledButton(onPressed: _save, child: Text(tr("날짜와 시간 저장"))),
               const SizedBox(height: 8),
-              const Text(
-                '일정을 추가한 뒤 정원소식에서 저장하기를 누르면 공개돼요.',
+              Text(
+                tr("일정을 추가한 뒤 정원소식에서 저장하기를 누르면 공개돼요."),
                 style: TextStyle(fontSize: 12, color: AppColors.inkSoft),
                 textAlign: TextAlign.center,
               ),
@@ -391,7 +401,9 @@ class _ClockFields extends StatelessWidget {
         ),
         validator: (text) {
           final value = int.tryParse(text ?? '');
-          return value == null || value < 0 || value > max ? '0~$max 입력' : null;
+          return value == null || value < 0 || value > max
+              ? tr("0~{0} 입력", [max])
+              : null;
         },
       );
 
@@ -399,12 +411,12 @@ class _ClockFields extends StatelessWidget {
   Widget build(BuildContext context) => Row(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      Expanded(child: _number(clock.hour, '시', 23)),
+      Expanded(child: _number(clock.hour, tr("시"), 23)),
       const Padding(
         padding: EdgeInsets.symmetric(horizontal: 10, vertical: 16),
         child: Text(':'),
       ),
-      Expanded(child: _number(clock.minute, '분', 59)),
+      Expanded(child: _number(clock.minute, tr("분"), 59)),
     ],
   );
 }

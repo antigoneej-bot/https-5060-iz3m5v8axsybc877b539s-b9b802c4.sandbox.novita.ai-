@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -61,7 +62,7 @@ class _LegacyColoringScreenState extends State<LegacyColoringScreen> {
         error = null;
       });
     } catch (_) {
-      if (mounted) setState(() => error = '저장된 그림을 불러오지 못했어요. 다시 열어주세요.');
+      if (mounted) setState(() => error = tr("저장된 그림을 불러오지 못했어요. 다시 열어주세요."));
     } finally {
       if (mounted) setState(() => busy = false);
     }
@@ -79,7 +80,7 @@ class _LegacyColoringScreenState extends State<LegacyColoringScreen> {
           complete = false;
         });
     } catch (_) {
-      message('저장하지 못했어요. 다시 시도해주세요.');
+      message(tr("저장하지 못했어요. 다시 시도해주세요."));
     } finally {
       if (mounted) setState(() => busy = false);
     }
@@ -97,25 +98,25 @@ class _LegacyColoringScreenState extends State<LegacyColoringScreen> {
       await store.save(design, colors, complete: true);
       if (mounted) setState(() => complete = true);
       if (colors.any((c) => c == null)) {
-        message('작품을 보관했어요. 모든 영역을 칠하면 오늘의 색칠 카드를 받을 수 있어요.');
+        message(tr("작품을 보관했어요. 모든 영역을 칠하면 오늘의 색칠 카드를 받을 수 있어요."));
       } else {
         try {
-          if (!sameOwner) throw StateError('계정이 바뀌었어요.');
+          if (!sameOwner) throw StateError(tr("계정이 바뀌었어요."));
           final r = await GardenVillageService().memoryCards(
             'claimMemoryCard',
             {'source': 'coloring', 'colors': colors},
           );
           message(
             r['already'] == true
-                ? '작품을 보관했어요. 오늘의 색칠 카드는 이미 받았어요.'
-                : '작품 보관 완료! 추억 카드 한 장도 받았어요.',
+                ? tr("작품을 보관했어요. 오늘의 색칠 카드는 이미 받았어요.")
+                : tr("작품 보관 완료! 추억 카드 한 장도 받았어요."),
           );
         } catch (_) {
-          message('작품은 보관했어요. 로그인과 서버 연결을 확인한 뒤 완료를 다시 눌러 카드를 받아주세요.');
+          message(tr("작품은 보관했어요. 로그인과 서버 연결을 확인한 뒤 완료를 다시 눌러 카드를 받아주세요."));
         }
       }
     } catch (_) {
-      message('작품을 보관하지 못했어요. 다시 시도해주세요.');
+      message(tr("작품을 보관하지 못했어요. 다시 시도해주세요."));
     } finally {
       if (mounted) setState(() => busy = false);
     }
@@ -137,15 +138,15 @@ class _LegacyColoringScreenState extends State<LegacyColoringScreen> {
             controller: scroll,
             padding: const EdgeInsets.all(20),
             children: [
-              const Text(
-                '내 작품함',
+              Text(
+                tr("내 작품함"),
                 style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
               ),
-              const Text('도안마다 가장 최근 완성한 작품을 보관해요.'),
+              Text(tr("도안마다 가장 최근 완성한 작품을 보관해요.")),
               if (saved.every((d) => d == null))
-                const Padding(
+                Padding(
                   padding: EdgeInsets.all(30),
-                  child: Text('완성한 작품을 여기에 모아드릴게요.'),
+                  child: Text(tr("완성한 작품을 여기에 모아드릴게요.")),
                 ),
               for (var i = 0; i < saved.length; i++)
                 if (saved[i] != null) ...[
@@ -165,7 +166,7 @@ class _LegacyColoringScreenState extends State<LegacyColoringScreen> {
         ),
       );
     } catch (_) {
-      message('작품함을 불러오지 못했어요.');
+      message(tr("작품함을 불러오지 못했어요."));
     }
   }
 
@@ -189,12 +190,12 @@ class _LegacyColoringScreenState extends State<LegacyColoringScreen> {
               name: 'mindnyang-coloring.png',
             ),
           ],
-          text: '마음냥 정원에서 색칠한 나의 작은 쉼',
+          text: tr("마음냥 정원에서 색칠한 나의 작은 쉼"),
           sharePositionOrigin: box.localToGlobal(Offset.zero) & box.size,
         ),
       );
     } catch (_) {
-      message('그림 내보내기를 다시 시도해주세요.');
+      message(tr("그림 내보내기를 다시 시도해주세요."));
     }
   }
 
@@ -206,7 +207,7 @@ class _LegacyColoringScreenState extends State<LegacyColoringScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, update) => AlertDialog(
-          title: const Text('나만의 색'),
+          title: Text(tr("나만의 색")),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -232,14 +233,14 @@ class _LegacyColoringScreenState extends State<LegacyColoringScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('취소'),
+              child: Text(tr("취소")),
             ),
             FilledButton(
               onPressed: () => Navigator.pop(
                 ctx,
                 Color.fromARGB(255, r.round(), g.round(), b.round()),
               ),
-              child: const Text('이 색으로'),
+              child: Text(tr("이 색으로")),
             ),
           ],
         ),
@@ -253,187 +254,194 @@ class _LegacyColoringScreenState extends State<LegacyColoringScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    backgroundColor: const Color(0xFFFFF8F1),
-    appBar: AppBar(
-      title: const Text('색칠 힐링'),
-      actions: [
-        IconButton(
-          tooltip: '내 작품함',
-          onPressed: busy ? null : gallery,
-          icon: const Icon(Icons.collections_outlined),
-        ),
-        IconButton(
-          tooltip: '추억 카드',
-          onPressed: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const MemoryCardsScreen()),
+  Widget build(BuildContext context) {
+    Localizations.localeOf(context);
+    return Scaffold(
+      backgroundColor: const Color(0xFFFFF8F1),
+      appBar: AppBar(
+        title: Text(tr("색칠 힐링")),
+        actions: [
+          IconButton(
+            tooltip: tr("내 작품함"),
+            onPressed: busy ? null : gallery,
+            icon: const Icon(Icons.collections_outlined),
           ),
-          icon: const Icon(Icons.style_outlined),
-        ),
-      ],
-    ),
-    body: SafeArea(
-      child: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          const Text(
-            '오늘은 어떤 색으로 쉬어갈까요?',
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
+          IconButton(
+            tooltip: tr("추억 카드"),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const MemoryCardsScreen()),
+            ),
+            icon: const Icon(Icons.style_outlined),
           ),
-          const Text('영역을 톡 눌러 색칠해요. 두 손가락으로 확대할 수 있어요.'),
-          Wrap(
-            spacing: 8,
-            children: [
-              for (var i = 0; i < coloringTitles.length; i++)
-                ChoiceChip(
-                  label: Text(coloringTitles[i]),
-                  selected: design == i,
-                  onSelected: busy
-                      ? null
-                      : (_) {
-                          design = i;
-                          transform.value = Matrix4.identity();
-                          load();
-                        },
-                ),
-            ],
-          ),
-          if (!sameOwner) const Text('계정이 바뀌었어요. 화면을 다시 열어주세요.'),
-          if (error != null) Text(error!),
-          AspectRatio(
-            aspectRatio: 1,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(28),
-              child: InteractiveViewer(
-                transformationController: transform,
-                minScale: 1,
-                maxScale: 4,
-                child: LayoutBuilder(
-                  builder: (ctx, c) => GestureDetector(
-                    onTapUp: busy || error != null || !sameOwner
+        ],
+      ),
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            Text(
+              tr("오늘은 어떤 색으로 쉬어갈까요?"),
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
+            ),
+            Text(tr("영역을 톡 눌러 색칠해요. 두 손가락으로 확대할 수 있어요.")),
+            Wrap(
+              spacing: 8,
+              children: [
+                for (var i = 0; i < coloringTitles.length; i++)
+                  ChoiceChip(
+                    label: Text(coloringTitles[i]),
+                    selected: design == i,
+                    onSelected: busy
                         ? null
-                        : (d) {
-                            final point = Offset(
-                              d.localPosition.dx / c.maxWidth * 400,
-                              d.localPosition.dy / c.maxHeight * 400,
-                            );
-                            final regions = coloringRegions(design);
-                            for (var i = regions.length - 1; i >= 0; i--) {
-                              if (regions[i].contains(point)) {
-                                final next = List<int?>.from(colors);
-                                next[i] = erasing ? null : selected.toARGB32();
-                                change(next);
-                                break;
-                              }
-                            }
+                        : (_) {
+                            design = i;
+                            transform.value = Matrix4.identity();
+                            load();
                           },
-                    child: RepaintBoundary(
-                      key: capture,
-                      child: CustomPaint(
-                        painter: ColoringPainter(colors, design),
-                        size: Size(c.maxWidth, c.maxHeight),
+                  ),
+              ],
+            ),
+            if (!sameOwner) Text(tr("계정이 바뀌었어요. 화면을 다시 열어주세요.")),
+            if (error != null) Text(error!),
+            AspectRatio(
+              aspectRatio: 1,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(28),
+                child: InteractiveViewer(
+                  transformationController: transform,
+                  minScale: 1,
+                  maxScale: 4,
+                  child: LayoutBuilder(
+                    builder: (ctx, c) => GestureDetector(
+                      onTapUp: busy || error != null || !sameOwner
+                          ? null
+                          : (d) {
+                              final point = Offset(
+                                d.localPosition.dx / c.maxWidth * 400,
+                                d.localPosition.dy / c.maxHeight * 400,
+                              );
+                              final regions = coloringRegions(design);
+                              for (var i = regions.length - 1; i >= 0; i--) {
+                                if (regions[i].contains(point)) {
+                                  final next = List<int?>.from(colors);
+                                  next[i] = erasing
+                                      ? null
+                                      : selected.toARGB32();
+                                  change(next);
+                                  break;
+                                }
+                              }
+                            },
+                      child: RepaintBoundary(
+                        key: capture,
+                        child: CustomPaint(
+                          painter: ColoringPainter(colors, design),
+                          size: Size(c.maxWidth, c.maxHeight),
+                        ),
                       ),
                     ),
                   ),
                 ),
               ),
             ),
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              for (final color in palette)
-                Semantics(
-                  label: '색상 ${palette.indexOf(color) + 1}',
-                  button: true,
-                  selected: selected == color && !erasing,
-                  child: InkWell(
-                    onTap: () => setState(() {
-                      selected = color;
-                      erasing = false;
-                    }),
-                    child: Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: color,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: selected == color && !erasing
-                              ? const Color(0xFF726183)
-                              : Colors.white,
-                          width: 3,
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final color in palette)
+                  Semantics(
+                    label: tr("색상 {0}", [palette.indexOf(color) + 1]),
+                    button: true,
+                    selected: selected == color && !erasing,
+                    child: InkWell(
+                      onTap: () => setState(() {
+                        selected = color;
+                        erasing = false;
+                      }),
+                      child: Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: color,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: selected == color && !erasing
+                                ? const Color(0xFF726183)
+                                : Colors.white,
+                            width: 3,
+                          ),
                         ),
                       ),
                     ),
                   ),
+                IconButton(
+                  tooltip: tr("직접 색 만들기"),
+                  onPressed: custom,
+                  icon: const Icon(Icons.palette_outlined),
                 ),
-              IconButton(
-                tooltip: '직접 색 만들기',
-                onPressed: custom,
-                icon: const Icon(Icons.palette_outlined),
+              ],
+            ),
+            Wrap(
+              spacing: 8,
+              children: [
+                TextButton.icon(
+                  onPressed: busy || undo.isEmpty || !sameOwner
+                      ? null
+                      : () async {
+                          final prev = undo.removeLast();
+                          setState(() => busy = true);
+                          try {
+                            await store.save(design, prev);
+                            if (mounted)
+                              setState(() {
+                                colors = prev;
+                                complete = false;
+                              });
+                          } catch (_) {
+                            undo.add(prev);
+                            message(tr("되돌리기를 저장하지 못했어요."));
+                          } finally {
+                            if (mounted) setState(() => busy = false);
+                          }
+                        },
+                  icon: const Icon(Icons.undo),
+                  label: Text(tr("되돌리기")),
+                ),
+                TextButton.icon(
+                  onPressed: () => setState(() => erasing = !erasing),
+                  icon: Icon(erasing ? Icons.check : Icons.auto_fix_normal),
+                  label: Text(tr("지우개")),
+                ),
+                TextButton(
+                  onPressed: () => transform.value = Matrix4.identity(),
+                  child: Text(tr("전체보기")),
+                ),
+                TextButton.icon(
+                  onPressed: share,
+                  icon: const Icon(Icons.ios_share),
+                  label: Text(tr("그림 내보내기")),
+                ),
+              ],
+            ),
+            FilledButton(
+              onPressed: busy || error != null || !sameOwner ? null : finish,
+              child: Text(
+                complete ? tr("보관한 작품 · 카드 받기 확인") : tr("작품 완성 · 보관하기"),
               ),
-            ],
-          ),
-          Wrap(
-            spacing: 8,
-            children: [
-              TextButton.icon(
-                onPressed: busy || undo.isEmpty || !sameOwner
-                    ? null
-                    : () async {
-                        final prev = undo.removeLast();
-                        setState(() => busy = true);
-                        try {
-                          await store.save(design, prev);
-                          if (mounted)
-                            setState(() {
-                              colors = prev;
-                              complete = false;
-                            });
-                        } catch (_) {
-                          undo.add(prev);
-                          message('되돌리기를 저장하지 못했어요.');
-                        } finally {
-                          if (mounted) setState(() => busy = false);
-                        }
-                      },
-                icon: const Icon(Icons.undo),
-                label: const Text('되돌리기'),
-              ),
-              TextButton.icon(
-                onPressed: () => setState(() => erasing = !erasing),
-                icon: Icon(erasing ? Icons.check : Icons.auto_fix_normal),
-                label: const Text('지우개'),
-              ),
-              TextButton(
-                onPressed: () => transform.value = Matrix4.identity(),
-                child: const Text('전체보기'),
-              ),
-              TextButton.icon(
-                onPressed: share,
-                icon: const Icon(Icons.ios_share),
-                label: const Text('그림 내보내기'),
-              ),
-            ],
-          ),
-          FilledButton(
-            onPressed: busy || error != null || !sameOwner ? null : finish,
-            child: Text(complete ? '보관한 작품 · 카드 받기 확인' : '작품 완성 · 보관하기'),
-          ),
-          Text(
-            busy
-                ? '저장 중…'
-                : complete
-                ? '내 작품으로 보관했어요. 위 도안을 누르면 다시 볼 수 있어요.'
-                : '칠할 때마다 이 기기에 저장돼요. 완성하지 않아도 괜찮아요.',
-          ),
-          const Text('기본 도안 3종 · 무료. 색칠 카드는 모든 영역을 채우면 하루 한 장 받을 수 있어요.'),
-        ],
+            ),
+            Text(
+              busy
+                  ? tr("저장 중…")
+                  : complete
+                  ? tr("내 작품으로 보관했어요. 위 도안을 누르면 다시 볼 수 있어요.")
+                  : tr("칠할 때마다 이 기기에 저장돼요. 완성하지 않아도 괜찮아요."),
+            ),
+            Text(tr("기본 도안 3종 · 무료. 색칠 카드는 모든 영역을 채우면 하루 한 장 받을 수 있어요.")),
+          ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 }

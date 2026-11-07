@@ -67,7 +67,7 @@ class GardenScene extends StatelessWidget {
                     .take(6)
                     .map(
                       (cat) => Tooltip(
-                        message: cat.nameKr,
+                        message: cat.displayName,
                         child: ClipOval(
                           child: Image.asset(
                             cat.imageAsset,

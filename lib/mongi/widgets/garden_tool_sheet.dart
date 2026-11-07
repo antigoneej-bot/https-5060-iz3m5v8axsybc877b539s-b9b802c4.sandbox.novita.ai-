@@ -1,3 +1,4 @@
+import '../../l10n/app_language.dart';
 import 'package:flutter/material.dart';
 
 /// Tools have their own bounded, scrollable surface; the garden stays visible.
@@ -30,7 +31,7 @@ Future<void> showGardenToolSheet(
                     ),
                   ),
                   IconButton(
-                    tooltip: '닫기',
+                    tooltip: tr("닫기"),
                     onPressed: () => Navigator.of(sheetContext).pop(),
                     icon: const Icon(Icons.close),
                   ),

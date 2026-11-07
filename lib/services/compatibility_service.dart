@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import 'dart:math';
 import '../data/shadow_cats_data.dart';
 
@@ -15,8 +16,7 @@ class CompatibilityService {
 
   // 혼동되기 쉬운 O/0, I/1, L 등을 제외한 31자 알파벳 (사람이 직접 타이핑하기
   // 편하도록 구성).
-  static const String _alphabet =
-      'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+  static const String _alphabet = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
   static const String _prefix = 'M';
 
   /// 고양이 id로부터 4자리 묘연 코드를 생성합니다(항상 같은 id는 같은 코드).
@@ -38,9 +38,7 @@ class CompatibilityService {
         .toUpperCase()
         .replaceAll('-', '')
         .replaceAll(' ', '');
-    final body = cleaned.startsWith(_prefix)
-        ? cleaned.substring(1)
-        : cleaned;
+    final body = cleaned.startsWith(_prefix) ? cleaned.substring(1) : cleaned;
     if (body.length != 3) return null;
 
     final i1 = _alphabet.indexOf(body[0]);
@@ -69,24 +67,28 @@ class CompatibilityService {
     final rng = Random();
 
     if (myCatId == friendCatId) {
-      const templates = [
-        '두 사람 모두 지금 \'{name}\'의 그림자를 품고 있어요.\n같은 결을 가진 두 마음이 나란히 서 있는 하루예요.',
-        '\'{name}\'이 두 사람에게 동시에 찾아왔어요.\n서로의 마음을 설명하지 않아도 알아볼 수 있는 순간일지도 몰라요.',
+      final templates = [
+        tr("두 사람 모두 지금 '{name}'의 그림자를 품고 있어요.\n같은 결을 가진 두 마음이 나란히 서 있는 하루예요."),
+        tr("'{name}'이 두 사람에게 동시에 찾아왔어요.\n서로의 마음을 설명하지 않아도 알아볼 수 있는 순간일지도 몰라요."),
       ];
       final t = templates[rng.nextInt(templates.length)];
-      return t.replaceAll('{name}', my.nameKr);
+      return t.replaceAll('{name}', my.displayName);
     }
 
     final templates = [
-      '당신의 그림자는 \'{a}({ka})\', 친구의 그림자는 \'{b}({kb})\'예요.\n서로 다른 결의 두 마음이 오늘 나란히 놓여 있어요.',
-      '\'{a}\'와 \'{b}\'가 오늘 만났어요.\n{ka}과 {kb}, 이 둘이 함께 있을 때 어떤 풍경이 될까요?',
-      '당신은 {ka}의 마음을, 친구는 {kb}의 마음을 지나고 있어요.\n각자의 속도로 흘러가는 두 결을 그대로 지켜봐 주세요.',
+      tr(
+        "당신의 그림자는 '{a}({ka})', 친구의 그림자는 '{b}({kb})'예요.\n서로 다른 결의 두 마음이 오늘 나란히 놓여 있어요.",
+      ),
+      tr("'{a}'와 '{b}'가 오늘 만났어요.\n{ka}과 {kb}, 이 둘이 함께 있을 때 어떤 풍경이 될까요?"),
+      tr(
+        "당신은 {ka}의 마음을, 친구는 {kb}의 마음을 지나고 있어요.\n각자의 속도로 흘러가는 두 결을 그대로 지켜봐 주세요.",
+      ),
     ];
     final t = templates[rng.nextInt(templates.length)];
     return t
-        .replaceAll('{a}', my.nameKr)
-        .replaceAll('{b}', friend.nameKr)
-        .replaceAll('{ka}', my.keyword)
-        .replaceAll('{kb}', friend.keyword);
+        .replaceAll('{a}', my.displayName)
+        .replaceAll('{b}', friend.displayName)
+        .replaceAll('{ka}', my.displayKeyword)
+        .replaceAll('{kb}', friend.displayKeyword);
   }
 }

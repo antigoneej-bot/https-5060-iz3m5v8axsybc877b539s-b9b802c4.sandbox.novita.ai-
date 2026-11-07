@@ -1,4 +1,6 @@
 import 'support/encrypted_meditation_storage.dart';
+import 'package:flutter_app/screens/mind_care_hub.dart';
+import 'package:flutter_app/widgets/healing_activities.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -41,12 +43,13 @@ void main() {
   testWidgets('duration and voice filters intersect', (tester) async {
     await tester.pumpWidget(
       const MaterialApp(
-        home: Scaffold(
-          body: SingleChildScrollView(child: MeditationLibraryScreen()),
-        ),
+        home: Scaffold(body: SingleChildScrollView(child: MindCareHub())),
       ),
     );
     await tester.pumpAndSettle();
+    expect(find.byType(MeditationLibraryScreen), findsOneWidget);
+    expect(find.byType(HealingActivities), findsNothing);
+    expect(find.text('목소리 있음'), findsOneWidget);
     expect(find.text('10개의 명상'), findsOneWidget);
     await tester.ensureVisible(find.text('3분 이내'));
     await tester.tap(find.text('3분 이내'));

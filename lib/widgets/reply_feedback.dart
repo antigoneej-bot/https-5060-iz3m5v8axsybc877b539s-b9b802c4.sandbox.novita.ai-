@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import '../theme.dart';
 import 'package:flutter/material.dart';
 import '../services/personal_reply_service.dart';
@@ -50,7 +51,7 @@ class _ReplyFeedbackState extends State<ReplyFeedback> {
     } catch (_) {
       if (mounted)
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('평가를 저장하지 못했어요. 다시 시도해 주세요.')),
+          SnackBar(content: Text(tr("평가를 저장하지 못했어요. 다시 시도해 주세요."))),
         );
     } finally {
       if (mounted && widget.replyId == id) setState(() => _busy = false);
@@ -69,16 +70,19 @@ class _ReplyFeedbackState extends State<ReplyFeedback> {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('이번 답장은 어땠나요? (선택)', style: bodyFont(fontWeight: FontWeight.w700)),
+        Text(
+          tr("이번 답장은 어땠나요? (선택)"),
+          style: bodyFont(fontWeight: FontWeight.w700),
+        ),
         const SizedBox(height: 8),
         Wrap(
           spacing: 6,
           runSpacing: 6,
           children: [
-            for (final item in const {
-              'matched': '내 마음과 맞아요',
-              'off_topic': '조금 달라요',
-              'repeated': '반복적으로 느껴져요',
+            for (final item in {
+              'matched': tr("내 마음과 맞아요"),
+              'off_topic': tr("조금 달라요"),
+              'repeated': tr("반복적으로 느껴져요"),
             }.entries)
               FilterChip(
                 label: Text(item.value),
@@ -87,8 +91,8 @@ class _ReplyFeedbackState extends State<ReplyFeedback> {
               ),
           ],
         ),
-        const Text(
-          '평가는 이 기기에 저장되며 다음 답장의 표현 선택에 참고해요. 평가만으로 이미 받은 답장이 바뀌지는 않아요.',
+        Text(
+          tr("평가는 이 기기에 저장되며 다음 답장의 표현 선택에 참고해요. 평가만으로 이미 받은 답장이 바뀌지는 않아요."),
           style: TextStyle(fontSize: 12, height: 1.6, color: AppColors.inkSoft),
         ),
       ],

@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../models/keepsake_tree.dart';
@@ -71,7 +72,7 @@ class _KeepsakeTreeArtState extends State<KeepsakeTreeArt>
   Widget build(BuildContext context) => Semantics(
     image: true,
     label:
-        '${widget.metal.label} ${widget.kind.label} ${['씨앗', '새싹', '어린 나무', '빛나는 나무', '보석나무'][widget.stage.clamp(0, 4)]}',
+        '${widget.metal.label} ${widget.kind.label} ${[tr("씨앗"), tr("새싹"), tr("어린 나무"), tr("빛나는 나무"), tr("보석나무")][widget.stage.clamp(0, 4)]}',
     child: RepaintBoundary(
       child: AnimatedBuilder(
         animation: air,

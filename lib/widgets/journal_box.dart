@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import '../services/draft_service.dart';
 import 'package:flutter/material.dart';
 import '../theme.dart';
@@ -42,7 +43,10 @@ class JournalBox extends StatelessWidget {
           if (controller is DraftTextController)
             ValueListenableBuilder<String>(
               valueListenable: (controller as DraftTextController).saveStatus,
-              builder: (_, status, __) => Text(status, style: bodyFont(fontSize: 12, color: AppColors.inkSoft)),
+              builder: (_, status, __) => Text(
+                status,
+                style: bodyFont(fontSize: 12, color: AppColors.inkSoft),
+              ),
             ),
           const SizedBox(height: 12),
           Container(
@@ -57,7 +61,7 @@ class JournalBox extends StatelessWidget {
               style: bodyFont(fontSize: 13.5, color: AppColors.moon),
               decoration: InputDecoration(
                 filled: false,
-                hintText: '지금 이 마음을 그대로 적어보세요…',
+                hintText: tr("지금 이 마음을 그대로 적어보세요…"),
                 hintStyle: bodyFont(fontSize: 13, color: AppColors.inkSoft),
                 contentPadding: const EdgeInsets.symmetric(
                   horizontal: 14,

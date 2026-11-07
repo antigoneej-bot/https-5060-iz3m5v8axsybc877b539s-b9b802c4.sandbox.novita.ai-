@@ -1,7 +1,10 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'storage_service.dart';
+import 'local_record_transaction.dart';
 
 /// 앱 전체의 핵심 행동(편지 작성, 공유, 구독, 리텐션 마일스톤 등)을
 /// 한 곳에서 기록하는 계측 계층입니다.
@@ -12,7 +15,7 @@ import 'storage_service.dart';
 /// 처리합니다.
 ///
 /// 결제 이벤트도 실연동 이후 Firebase로 전송합니다.
-class AnalyticsService {
+class AnalyticsService with WidgetsBindingObserver {
   AnalyticsService._();
   static final AnalyticsService _instance = AnalyticsService._();
   factory AnalyticsService() => _instance;
@@ -24,27 +27,95 @@ class AnalyticsService {
   static const Set<String> _excludedFromFirebase = <String>{};
 
   static final sharingEnabled = ValueNotifier<bool>(false);
-  Future<void> loadConsent() async {
-    final prefs = await SharedPreferences.getInstance();
-    final enabled = prefs.getBool('analytics_sharing_v1') ?? false;
-    try {
-      await FirebaseAnalytics.instance.setAnalyticsCollectionEnabled(enabled);
-      sharingEnabled.value = enabled;
-    } catch (_) {
-      sharingEnabled.value = false;
+  static final optOutPending = ValueNotifier<bool>(false);
+  final _changes = LocalRecordQueue();
+  int _generation = 0;
+  bool _observing = false;
+
+  void _observe() {
+    if (_observing) return;
+    WidgetsBinding.instance.addObserver(this);
+    _observing = true;
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && optOutPending.value) {
+      unawaited(retryOptOut().catchError((Object _) {}));
     }
   }
 
-  Future<void> setSharing(bool enabled) async {
-    await FirebaseAnalytics.instance.setAnalyticsCollectionEnabled(enabled);
+  Future<void> loadConsent() => _changes.run(() async {
+    _observe();
+    final generation = _generation;
     final prefs = await SharedPreferences.getInstance();
-    if (!await prefs.setBool('analytics_sharing_v1', enabled)) {
-      await FirebaseAnalytics.instance.setAnalyticsCollectionEnabled(false);
+    final enabled = prefs.getBool('analytics_sharing_v1') ?? false;
+    try {
+      if (optOutPending.value || !enabled) {
+        await _applyOff(prefs);
+      } else {
+        await FirebaseAnalytics.instance.setAnalyticsCollectionEnabled(true);
+        if (generation == _generation) sharingEnabled.value = true;
+      }
+    } catch (_) {
       sharingEnabled.value = false;
+    }
+  });
+
+  Future<void> _saveConsent(SharedPreferences prefs, bool enabled) async {
+    if (!await prefs.setBool('analytics_sharing_v1', enabled)) {
       throw StateError('통계 설정을 저장하지 못했어요.');
     }
-    sharingEnabled.value = enabled;
   }
+
+  Future<void> _applyOff(SharedPreferences prefs) async {
+    sharingEnabled.value = false;
+    optOutPending.value = true;
+    Object? failure;
+    StackTrace? failureStack;
+    // Try both operations, even if physical storage or the native SDK fails.
+    for (final action in <Future<void> Function()>[
+      () => _saveConsent(prefs, false),
+      () => FirebaseAnalytics.instance.setAnalyticsCollectionEnabled(false),
+    ]) {
+      try {
+        await action();
+      } catch (error, stack) {
+        failure ??= error;
+        failureStack ??= stack;
+      }
+    }
+    if (failure != null) Error.throwWithStackTrace(failure, failureStack!);
+    optOutPending.value = false;
+  }
+
+  Future<void> setSharing(bool enabled) {
+    final generation = ++_generation;
+    // Block new app events immediately, including while an older ON is pending.
+    sharingEnabled.value = false;
+    return _changes.run(() async {
+      _observe();
+      if (generation != _generation) return;
+      final prefs = await SharedPreferences.getInstance();
+      await _applyOff(prefs);
+      if (!enabled || generation != _generation) return;
+      try {
+        await _saveConsent(prefs, true);
+        await FirebaseAnalytics.instance.setAnalyticsCollectionEnabled(true);
+        if (generation == _generation) sharingEnabled.value = true;
+      } catch (error, stack) {
+        try {
+          await _applyOff(prefs);
+        } catch (_) {}
+        Error.throwWithStackTrace(error, stack);
+      }
+    });
+  }
+
+  Future<void> retryOptOut() => _changes.run(() async {
+    if (!optOutPending.value) return;
+    await _applyOff(await SharedPreferences.getInstance());
+  });
 
   /// 이벤트를 기록합니다. [name]은 스네이크케이스 권장(예: letter_sent).
   /// [params]는 선택적 부가 정보(예: {'cat_id': 'sad'}).

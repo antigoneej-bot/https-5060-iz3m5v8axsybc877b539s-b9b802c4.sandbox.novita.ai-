@@ -1,3 +1,5 @@
+import '../../l10n/garden_copy.dart';
+import '../../l10n/app_language.dart';
 import '../../screens/keepsake_forest_screen.dart';
 import '../integration/mongi_garden_store.dart';
 import '../integration/plant_memory_store.dart';
@@ -22,7 +24,9 @@ import '../l10n/public_cheer_l10n.dart';
 String? currentGardenOwner() =>
     Firebase.apps.isEmpty ? null : FirebaseAuth.instance.currentUser?.uid;
 
-Future<void> showMemoryTree(BuildContext context) => Navigator.of(context).push<void>(MaterialPageRoute(builder: (_) => const KeepsakeForestScreen()));
+Future<void> showMemoryTree(BuildContext context) => Navigator.of(
+  context,
+).push<void>(MaterialPageRoute(builder: (_) => const KeepsakeForestScreen()));
 
 Future<void> showLegacyGardenLetters(BuildContext context) async {
   // Deleted originals disappear; private growth receipts remain.
@@ -45,25 +49,27 @@ Future<void> showLegacyGardenLetters(BuildContext context) async {
               padding: const EdgeInsets.all(20),
               child: Column(
                 children: [
-                  const Text('지난 편지 기록', style: TextStyle(fontSize: 22)),
+                  Text(tr('지난 편지 기록'), style: TextStyle(fontSize: 22)),
                   OutlinedButton.icon(
                     onPressed: () => showPlantMemoryManager(sheetContext),
                     icon: const Icon(Icons.edit_outlined),
-                    label: const Text('내 나무 · 글 수정·삭제'),
+                    label: Text(tr('내 나무 · 글 수정·삭제')),
                   ),
                   const SizedBox(height: 6),
                   Text(gardenRecordMessage(growthDays)),
-                  const Text(
-                    '기쁜 날도 힘든 날도 모두 자라요. 기록을 쉬거나 편지를 삭제해도 성장은 남아요. 편지는 나만 볼 수 있어요.',
+                  Text(
+                    tr(
+                      '기쁜 날도 힘든 날도 모두 자라요. 기록을 쉬거나 편지를 삭제해도 성장은 남아요. 편지는 나만 볼 수 있어요.',
+                    ),
                     textAlign: TextAlign.center,
                   ),
                 ],
               ),
             ),
             if (days.isEmpty)
-              const Padding(
+              Padding(
                 padding: EdgeInsets.all(16),
-                child: Text('지금 보관 중인 편지는 없어요. 한 줄부터 남겨도 괜찮아요.'),
+                child: Text(tr('지금 보관 중인 편지는 없어요. 한 줄부터 남겨도 괜찮아요.')),
               ),
             Expanded(
               child: ListView.builder(
@@ -81,7 +87,7 @@ Future<void> showLegacyGardenLetters(BuildContext context) async {
                     title: Text(
                       '${day.year}.${day.month.toString().padLeft(2, '0')}.${day.day.toString().padLeft(2, '0')}',
                     ),
-                    subtitle: Text('편지 ${entries.length}개'),
+                    subtitle: Text(gardenCopy('letterCount', [entries.length])),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => _readLetters(sheetContext, entries),
                   );
@@ -119,16 +125,13 @@ Future<void> showPlantMemoryManager(BuildContext context) async {
                     return ListView(
                       padding: const EdgeInsets.all(20),
                       children: [
-                        const Text(
-                          '내 나무와 추억 관리',
-                          style: TextStyle(fontSize: 22),
-                        ),
+                        Text(tr('내 나무와 추억 관리'), style: TextStyle(fontSize: 22)),
                         const SizedBox(height: 8),
-                        const Text('식물을 골라 이름·기념일·글을 수정하거나 삭제할 수 있어요.'),
+                        Text(tr('식물을 골라 이름·기념일·글을 수정하거나 삭제할 수 있어요.')),
                         if (plants.isEmpty)
-                          const Padding(
+                          Padding(
                             padding: EdgeInsets.symmetric(vertical: 24),
-                            child: Text('아직 심은 식물이 없어요.'),
+                            child: Text(tr('아직 심은 식물이 없어요.')),
                           ),
                         for (final plant in plants)
                           ListTile(
@@ -141,7 +144,10 @@ Future<void> showPlantMemoryManager(BuildContext context) async {
                                   : plant.label,
                             ),
                             subtitle: Text(
-                              '${plant.label} · 추억 ${memories[plant.id]?.timeline.length ?? 0}개',
+                              gardenCopy('memoryCount', [
+                                plant.label,
+                                memories[plant.id]?.timeline.length ?? 0,
+                              ]),
                             ),
                             trailing: const Icon(Icons.edit_outlined),
                             onTap: () => showDialog<void>(
@@ -161,7 +167,7 @@ Future<void> showPlantMemoryManager(BuildContext context) async {
   } catch (_) {
     if (context.mounted)
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('나무와 추억을 불러오지 못했어요. 다시 시도해 주세요.')),
+        SnackBar(content: Text(tr('나무와 추억을 불러오지 못했어요. 다시 시도해 주세요.'))),
       );
   }
 }
@@ -170,7 +176,7 @@ Future<void> _readLetters(BuildContext context, List<LetterEntry> letters) =>
     showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('그날의 내 마음'),
+        title: Text(tr('그날의 내 마음')),
         content: SizedBox(
           width: double.maxFinite,
           child: SingleChildScrollView(
@@ -182,7 +188,7 @@ Future<void> _readLetters(BuildContext context, List<LetterEntry> letters) =>
                     padding: const EdgeInsets.only(bottom: 20),
                     child: SelectableText(
                       letter.letterText.isEmpty
-                          ? (letter.moodEmoji ?? '마음을 남긴 날')
+                          ? (letter.moodEmoji ?? tr('마음을 남긴 날'))
                           : letter.letterText,
                     ),
                   ),
@@ -193,7 +199,7 @@ Future<void> _readLetters(BuildContext context, List<LetterEntry> letters) =>
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('닫기'),
+            child: Text(tr("닫기")),
           ),
         ],
       ),
@@ -217,9 +223,9 @@ Future<void> showCheerFlowers(
               .toList();
           return Column(
             children: [
-              const Padding(
+              Padding(
                 padding: EdgeInsets.all(18),
-                child: Text('응원이 남긴 꽃', style: TextStyle(fontSize: 22)),
+                child: Text(tr('응원이 남긴 꽃'), style: TextStyle(fontSize: 22)),
               ),
               TextButton.icon(
                 onPressed: () => Navigator.of(context).push(
@@ -228,7 +234,7 @@ Future<void> showCheerFlowers(
                   ),
                 ),
                 icon: const Icon(Icons.mark_email_read_outlined),
-                label: const Text('내가 건넨 꽃 소식'),
+                label: Text(tr("내가 건넨 꽃 소식")),
               ),
               TextButton.icon(
                 onPressed: () => Navigator.of(context).push(
@@ -237,13 +243,13 @@ Future<void> showCheerFlowers(
                   ),
                 ),
                 icon: const Icon(Icons.mail_outline),
-                label: const Text('받은 응원함 열기'),
+                label: Text(tr('받은 응원함 열기')),
               ),
               if (flowers.isEmpty)
-                const Padding(
+                Padding(
                   padding: EdgeInsets.all(24),
                   child: Text(
-                    '받은 응원은 꽃으로 남길 수 있어요. 이모티콘은 하루 동안 머물고, 심은 꽃은 계속 남아요.',
+                    tr('받은 응원은 꽃으로 남길 수 있어요. 이모티콘은 하루 동안 머물고, 심은 꽃은 계속 남아요.'),
                     textAlign: TextAlign.center,
                   ),
                 ),
@@ -269,13 +275,25 @@ Future<void> showCheerFlowers(
                       ),
                       subtitle: Text(
                         flower.planted
-                            ? '${_receivedOn(flower)}\n${gardenFlowerNames[flower.flowerKind]} · 정원에 심은 꽃${flower.bloomPending ? '\n연결되면 심기 기록을 확인해요' : ''}'
-                            : '${_receivedOn(flower)}\n${gardenFlowerNames[flower.flowerKind]} · 눌러서 선물 보기',
+                            ? gardenCopy('plantedFlower', [
+                                    _receivedOn(flower),
+                                    tr(
+                                      gardenFlowerNames[flower.flowerKind] ??
+                                          '',
+                                    ),
+                                  ]) +
+                                  (flower.bloomPending
+                                      ? gardenCopy('flowerPending', [])
+                                      : '')
+                            : gardenCopy('giftFlower', [
+                                _receivedOn(flower),
+                                tr(gardenFlowerNames[flower.flowerKind] ?? ''),
+                              ]),
                       ),
                       trailing: flower.planted
                           ? const Icon(Icons.check)
                           : IconButton(
-                              tooltip: '정원에 심기',
+                              tooltip: tr('정원에 심기'),
                               icon: const Icon(Icons.add_circle_outline),
                               onPressed: owner == null
                                   ? null
@@ -290,9 +308,11 @@ Future<void> showCheerFlowers(
                                           ScaffoldMessenger.of(
                                             context,
                                           ).showSnackBar(
-                                            const SnackBar(
+                                            SnackBar(
                                               content: Text(
-                                                '꽃을 심지 못했어요. 연결 상태와 받은 마음을 확인한 뒤 다시 시도해 주세요.',
+                                                tr(
+                                                  '꽃을 심지 못했어요. 연결 상태와 받은 마음을 확인한 뒤 다시 시도해 주세요.',
+                                                ),
                                               ),
                                             ),
                                           );
@@ -335,7 +355,7 @@ Future<void> chooseFlower(
               ),
             ),
             Text(
-              gardenFlowerNames[flower.flowerKind] ?? '응원 꽃',
+              tr(gardenFlowerNames[flower.flowerKind] ?? '응원 꽃'),
               textAlign: TextAlign.center,
               style: const TextStyle(fontSize: 20),
             ),
@@ -354,14 +374,14 @@ Future<void> chooseFlower(
               FilledButton.icon(
                 onPressed: () => Navigator.pop(sheetContext, true),
                 icon: const Icon(Icons.local_florist_outlined),
-                label: const Text('이 꽃을 정원에 심기'),
+                label: Text(tr('이 꽃을 정원에 심기')),
               )
             else
-              const Text('정원에 심은 꽃이에요.', textAlign: TextAlign.center),
+              Text(tr('정원에 심은 꽃이에요.'), textAlign: TextAlign.center),
             const SizedBox(height: 8),
             TextButton(
               onPressed: () => Navigator.pop(sheetContext),
-              child: const Text('닫기'),
+              child: Text(tr("닫기")),
             ),
           ],
         ),
@@ -374,8 +394,8 @@ Future<void> chooseFlower(
   } catch (_) {
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('꽃을 심지 못했어요. 연결 상태와 받은 마음을 확인한 뒤 다시 시도해 주세요.'),
+        SnackBar(
+          content: Text(tr('꽃을 심지 못했어요. 연결 상태와 받은 마음을 확인한 뒤 다시 시도해 주세요.')),
         ),
       );
     }
@@ -385,8 +405,10 @@ Future<void> chooseFlower(
 String _receivedOn(CheerFlower flower) {
   final day = flower.createdAt?.toLocal();
   final from = flower.senderNickname?.trim();
-  final sender = from == null || from.isEmpty ? '이웃이 전한 마음' : '$from님이 전한 마음';
+  final sender = from == null || from.isEmpty
+      ? tr('이웃이 전한 마음')
+      : gardenCopy('giftFrom', [from]);
   return day == null
       ? sender
-      : '$sender\n${day.year}.${day.month}.${day.day}에 받은 선물';
+      : gardenCopy('giftDate', [sender, day.year, day.month, day.day]);
 }

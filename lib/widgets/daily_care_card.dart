@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import 'package:flutter/material.dart';
 import '../theme.dart';
 import '../mongi/integration/mongi_garden_store.dart';
@@ -67,21 +68,21 @@ class _DailyCareCardState extends State<DailyCareCard>
       final choices = [
         (
           icon: Icons.edit_note_rounded,
-          label: '마음 남기기',
-          detail: '고양이에게 오늘의 마음을 적어요',
+          label: tr("마음 남기기"),
+          detail: tr("고양이에게 오늘의 마음을 적어요"),
           tap: widget.onWrite,
         ),
         (
           icon: Icons.local_florist_outlined,
-          label: '정원 가꾸기',
-          detail: '나무를 돌보고 이웃의 마음을 만나요',
+          label: tr("정원 가꾸기"),
+          detail: tr("나무를 돌보고 이웃의 마음을 만나요"),
           tap: widget.onGarden,
         ),
         if (widget.onReview != null)
           (
             icon: Icons.auto_stories_outlined,
-            label: '지난 마음 보기',
-            detail: '편지와 돌봄, 정원 기록집을 돌아봐요',
+            label: tr("지난 마음 보기"),
+            detail: tr("편지와 돌봄, 정원 기록집을 돌아봐요"),
             tap: widget.onReview!,
           ),
       ];
@@ -103,12 +104,12 @@ class _DailyCareCardState extends State<DailyCareCard>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '오늘의 마음 돌봄',
+              tr("오늘의 마음 돌봄"),
               style: titleFont(fontSize: 21, color: AppColors.titlePastelGreen),
             ),
             const SizedBox(height: 6),
             Text(
-              '지금 끌리는 것 하나면 충분해요.',
+              tr("지금 끌리는 것 하나면 충분해요."),
               style: pathLabelFont(fontSize: 13, color: AppColors.moon),
             ),
             const SizedBox(height: 14),
@@ -198,7 +199,7 @@ class _DailyCareCardState extends State<DailyCareCard>
                   onPressed: widget.onRest,
                   icon: const Icon(Icons.spa_outlined, size: 17),
                   label: Text(
-                    '지금은 조용히 쉬기',
+                    tr("지금은 조용히 쉬기"),
                     style: pathLabelFont(
                       fontSize: 13,
                       color: AppColors.titlePastelGreen,
@@ -206,10 +207,10 @@ class _DailyCareCardState extends State<DailyCareCard>
                   ),
                 ),
                 if (_failed)
-                  TextButton(onPressed: _load, child: const Text('돌봄 기록 다시 확인'))
+                  TextButton(onPressed: _load, child: Text(tr("돌봄 기록 다시 확인")))
                 else if (_loaded && done)
                   Text(
-                    '오늘의 돌봄 완료 🌱',
+                    tr("오늘의 돌봄 완료 🌱"),
                     style: pathLabelFont(fontSize: 12, color: AppColors.moon),
                   ),
               ],

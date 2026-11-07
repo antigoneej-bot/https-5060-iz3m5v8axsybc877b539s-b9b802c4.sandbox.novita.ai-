@@ -18,11 +18,7 @@ class CatMoodPicker {
     CatMoodTag.quiet: 10,
   };
 
-  static CatMoodTag pick(
-    LetterContext ctx,
-    DateTime now, {
-    Random? random,
-  }) {
+  static CatMoodTag pick(LetterContext ctx, DateTime now, {Random? random}) {
     final rng = random ?? Random();
     final weights = <CatMoodTag, int>{..._baseWeights};
 

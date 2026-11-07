@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import '../mongi/services/sound_manager.dart';
 import '../services/garden_sound_timer.dart';
 import 'package:flutter/material.dart';
@@ -14,7 +15,7 @@ class SoundToggleButton extends StatelessWidget {
     return AnimatedBuilder(
       animation: audio,
       builder: (context, _) => IconButton.filledTonal(
-        tooltip: '소리 설정',
+        tooltip: tr("소리 설정"),
         style: IconButton.styleFrom(
           backgroundColor: AppColors.bg2,
           foregroundColor: AppColors.moon,
@@ -36,7 +37,7 @@ class SoundToggleButton extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text('소리 설정', style: titleFont(fontSize: 21)),
+                  Text(tr("소리 설정"), style: titleFont(fontSize: 21)),
                   const SizedBox(height: 12),
                   SoundSettingsControls(sound: audio),
                 ],
@@ -68,7 +69,8 @@ class _SoundSettingsControlsState extends State<SoundSettingsControls> {
       await action();
       if (mounted) setState(() => _message = null);
     } catch (_) {
-      if (mounted) setState(() => _message = '소리 설정을 저장하지 못했어요. 다시 시도해 주세요.');
+      if (mounted)
+        setState(() => _message = tr("소리 설정을 저장하지 못했어요. 다시 시도해 주세요."));
     }
   }
 
@@ -83,10 +85,10 @@ class _SoundSettingsControlsState extends State<SoundSettingsControls> {
       if (mounted)
         setState(
           () => _message = started
-              ? '재생을 다시 요청했어요. 소리가 없으면 휴대전화 미디어 음량과 블루투스 연결을 확인해 주세요.'
+              ? tr("재생을 다시 요청했어요. 소리가 없으면 휴대전화 미디어 음량과 블루투스 연결을 확인해 주세요.")
               : widget.sound.narrationPlaying
-              ? '명상 재생을 멈춘 뒤 다시 눌러 주세요.'
-              : '현재 음악을 시작할 수 없어요. 배경 음악과 음량을 확인해 주세요.',
+              ? tr("명상 재생을 멈춘 뒤 다시 눌러 주세요.")
+              : tr("현재 음악을 시작할 수 없어요. 배경 음악과 음량을 확인해 주세요."),
         );
     } finally {
       if (mounted) setState(() => _retrying = false);
@@ -104,23 +106,23 @@ class _SoundSettingsControlsState extends State<SoundSettingsControls> {
         children: [
           SwitchListTile.adaptive(
             contentPadding: EdgeInsets.zero,
-            title: const Text('배경 음악'),
+            title: Text(tr("배경 음악")),
             value: sound.bgmEnabled,
             onChanged: (value) => _change(() => sound.setBgmEnabled(value)),
           ),
           SwitchListTile.adaptive(
             contentPadding: EdgeInsets.zero,
-            title: const Text('효과음'),
+            title: Text(tr("효과음")),
             value: sound.sfxEnabled,
             onChanged: (value) => _change(() => sound.setSfxEnabled(value)),
           ),
           SwitchListTile.adaptive(
-            title: const Text('고양이 소리'),
-            subtitle: const Text('야옹·그릉그릉 · 전체 효과음 설정도 적용돼요'),
+            title: Text(tr("고양이 소리")),
+            subtitle: Text(tr("야옹·그릉그릉 · 전체 효과음 설정도 적용돼요")),
             value: sound.catSoundEnabled,
             onChanged: (v) => _change(() => sound.setCatSound(enabled: v)),
           ),
-          Text('고양이 음량 ${(sound.catVolume * 100).round()}%'),
+          Text(tr("고양이 음량 {0}%", [(sound.catVolume * 100).round()])),
           Slider(
             key: const Key('sound-cat-volume'),
             value: sound.catVolume,
@@ -129,20 +131,20 @@ class _SoundSettingsControlsState extends State<SoundSettingsControls> {
           const SizedBox(height: 4),
           Align(
             alignment: Alignment.centerLeft,
-            child: Text('음악 볼륨 · $percent%'),
+            child: Text(tr("음악 볼륨 · {0}%", [percent])),
           ),
           Slider(
             key: const Key('sound-bgm-volume'),
             value: sound.bgmVolume,
             label: '$percent%',
             semanticFormatterCallback: (value) =>
-                '음악 볼륨 ${(value * 100).round()}퍼센트',
+                tr("음악 볼륨 {0}퍼센트", [(value * 100).round()]),
             onChanged: (value) => _change(() => sound.setBgmVolume(value)),
           ),
           if (!sound.bgmEnabled)
-            const Text('배경 음악이 꺼져 있어요.')
+            Text(tr("배경 음악이 꺼져 있어요."))
           else if (sound.bgmVolume == 0)
-            const Text('음악 볼륨이 0이에요. 위에서 음량을 올려 주세요.'),
+            Text(tr("음악 볼륨이 0이에요. 위에서 음량을 올려 주세요.")),
           if (sound.bgmError != null) Text(sound.bgmError!),
           Align(
             alignment: Alignment.centerLeft,
@@ -151,26 +153,30 @@ class _SoundSettingsControlsState extends State<SoundSettingsControls> {
                   ? null
                   : _retry,
               icon: const Icon(Icons.refresh),
-              label: Text(_retrying ? '음악 불러오는 중…' : '음악 다시 재생'),
+              label: Text(_retrying ? tr("음악 불러오는 중…") : tr("음악 다시 재생")),
             ),
           ),
           const Divider(),
           SwitchListTile.adaptive(
             contentPadding: EdgeInsets.zero,
-            title: const Text('정원 자연음'),
-            subtitle: const Text('조용히 쉬는 동안 재생해요. 배경 음악과 따로 조절해요.'),
+            title: Text(tr("정원 자연음")),
+            subtitle: Text(tr("조용히 쉬는 동안 재생해요. 배경 음악과 따로 조절해요.")),
             value: SoundManager.instance.natureEnabled,
             onChanged: (v) =>
                 _change(() => SoundManager.instance.setNature(enabled: v)),
           ),
-          Text('새소리 ${(SoundManager.instance.birdsVolume * 100).round()}%'),
+          Text(
+            tr("새소리 {0}%", [(SoundManager.instance.birdsVolume * 100).round()]),
+          ),
           Slider(
             key: const Key('sound-birds-volume'),
             value: SoundManager.instance.birdsVolume,
             onChanged: (v) =>
                 _change(() => SoundManager.instance.setNature(birds: v)),
           ),
-          Text('물소리 ${(SoundManager.instance.waterVolume * 100).round()}%'),
+          Text(
+            tr("물소리 {0}%", [(SoundManager.instance.waterVolume * 100).round()]),
+          ),
           Slider(
             key: const Key('sound-water-volume'),
             value: SoundManager.instance.waterVolume,
@@ -178,7 +184,7 @@ class _SoundSettingsControlsState extends State<SoundSettingsControls> {
                 _change(() => SoundManager.instance.setNature(water: v)),
           ),
           const Divider(),
-          const Text('소리 종료 타이머 · 음악·자연음·재생 중인 명상을 멈춰요'),
+          Text(tr("소리 종료 타이머 · 음악·자연음·재생 중인 명상을 멈춰요")),
           Wrap(
             spacing: 8,
             children: [
@@ -187,23 +193,27 @@ class _SoundSettingsControlsState extends State<SoundSettingsControls> {
                   onPressed: GardenSoundTimer.instance.stopped
                       ? null
                       : () => GardenSoundTimer.instance.setMinutes(minutes),
-                  child: Text('$minutes분'),
+                  child: Text(tr("{0}분", [minutes])),
                 ),
               TextButton(
                 onPressed: () => GardenSoundTimer.instance.setMinutes(null),
-                child: const Text('타이머 취소'),
+                child: Text(tr("타이머 취소")),
               ),
             ],
           ),
           if (GardenSoundTimer.instance.deadline != null)
             Text(
-              '종료까지 ${(GardenSoundTimer.instance.remaining.inSeconds.clamp(0, 3600) / 60).ceil()}분',
+              tr("종료까지 {0}분", [
+                (GardenSoundTimer.instance.remaining.inSeconds.clamp(0, 3600) /
+                        60)
+                    .ceil(),
+              ]),
             ),
           if (GardenSoundTimer.instance.stopped)
             TextButton.icon(
               onPressed: () => _change(GardenSoundTimer.instance.resumeSound),
               icon: const Icon(Icons.play_arrow),
-              label: const Text('다시 듣기'),
+              label: Text(tr("다시 듣기")),
             ),
           if (_message != null) Text(_message!, style: bodyFont(fontSize: 13)),
         ],

@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import 'package:flutter/material.dart';
 import '../models/care_journal_entry.dart';
 import '../models/letter_entry.dart';
@@ -42,7 +43,7 @@ class _LetterCareClosingCardState extends State<LetterCareClosingCard> {
       await _store.reload();
     } catch (_) {
       if (mounted)
-        setState(() => _error = '돌봄 선택을 불러오지 못했어요. 편지는 이미 저장되어 있어요.');
+        setState(() => _error = tr("돌봄 선택을 불러오지 못했어요. 편지는 이미 저장되어 있어요."));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -59,8 +60,9 @@ class _LetterCareClosingCardState extends State<LetterCareClosingCard> {
     } catch (_) {
       if (mounted)
         setState(
-          () =>
-              _error = '이 선택을 저장하지 못했어요. 편지는 안전하게 남아 있어요. 다시 시도하거나 여기서 마쳐도 돼요.',
+          () => _error = tr(
+            "이 선택을 저장하지 못했어요. 편지는 안전하게 남아 있어요. 다시 시도하거나 여기서 마쳐도 돼요.",
+          ),
         );
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -81,7 +83,7 @@ class _LetterCareClosingCardState extends State<LetterCareClosingCard> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, change) => AlertDialog(
-          title: const Text('내 문장 하나 간직하기'),
+          title: Text(tr("내 문장 하나 간직하기")),
           content: SizedBox(
             width: double.maxFinite,
             child: SingleChildScrollView(
@@ -89,7 +91,7 @@ class _LetterCareClosingCardState extends State<LetterCareClosingCard> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Text('내가 쓴 말 그대로 남겨요. 다른 사람에게 공개되지 않아요.'),
+                  Text(tr("내가 쓴 말 그대로 남겨요. 다른 사람에게 공개되지 않아요.")),
                   const SizedBox(height: 12),
                   for (final quote in candidates)
                     Padding(
@@ -107,9 +109,9 @@ class _LetterCareClosingCardState extends State<LetterCareClosingCard> {
                     controller: text,
                     maxLength: 600,
                     maxLines: 3,
-                    decoration: const InputDecoration(
-                      labelText: '원문에서 다른 부분 고르기',
-                      hintText: '간직하고 싶은 부분을 그대로 옮겨 적어주세요.',
+                    decoration: InputDecoration(
+                      labelText: tr("원문에서 다른 부분 고르기"),
+                      hintText: tr("간직하고 싶은 부분을 그대로 옮겨 적어주세요."),
                     ),
                     onChanged: (_) => change(() {}),
                   ),
@@ -119,7 +121,7 @@ class _LetterCareClosingCardState extends State<LetterCareClosingCard> {
                             widget.originalText.contains(text.text)
                         ? () => Navigator.pop(ctx, text.text)
                         : null,
-                    child: const Text('이 부분 간직하기'),
+                    child: Text(tr("이 부분 간직하기")),
                   ),
                 ],
               ),
@@ -128,7 +130,7 @@ class _LetterCareClosingCardState extends State<LetterCareClosingCard> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('나중에'),
+              child: Text(tr("나중에")),
             ),
           ],
         ),
@@ -151,18 +153,18 @@ class _LetterCareClosingCardState extends State<LetterCareClosingCard> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, change) => AlertDialog(
-          title: const Text('내가 나에게 고르는 말'),
+          title: Text(tr("내가 나에게 고르는 말")),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Text('고양이의 답장이 아닌, 내가 듣고 싶어 직접 고르는 말이에요.'),
+                Text(tr("고양이의 답장이 아닌, 내가 듣고 싶어 직접 고르는 말이에요.")),
                 const SizedBox(height: 12),
                 for (final words in [
-                  '오늘은 여기까지 해도 괜찮아.',
-                  '지금의 마음을 그대로 남겨두자.',
-                  '천천히 내 속도로 가도 괜찮아.',
+                  tr("오늘은 여기까지 해도 괜찮아."),
+                  tr("지금의 마음을 그대로 남겨두자."),
+                  tr("천천히 내 속도로 가도 괜찮아."),
                 ])
                   Padding(
                     padding: const EdgeInsets.only(bottom: 8),
@@ -175,14 +177,14 @@ class _LetterCareClosingCardState extends State<LetterCareClosingCard> {
                   controller: text,
                   maxLength: 120,
                   maxLines: 2,
-                  decoration: const InputDecoration(labelText: '직접 적어도 좋아요'),
+                  decoration: InputDecoration(labelText: tr("직접 적어도 좋아요")),
                   onChanged: (_) => change(() {}),
                 ),
                 FilledButton(
                   onPressed: text.text.trim().isEmpty
                       ? null
                       : () => Navigator.pop(ctx, text.text.trim()),
-                  child: const Text('이 말 남기기'),
+                  child: Text(tr("이 말 남기기")),
                 ),
               ],
             ),
@@ -190,7 +192,7 @@ class _LetterCareClosingCardState extends State<LetterCareClosingCard> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('건너뛰기'),
+              child: Text(tr("건너뛰기")),
             ),
           ],
         ),
@@ -202,172 +204,179 @@ class _LetterCareClosingCardState extends State<LetterCareClosingCard> {
   }
 
   @override
-  Widget build(BuildContext context) => AnimatedBuilder(
-    animation: _store,
-    builder: (context, _) {
-      final entry = _store.entryForLetter(widget.sourceId);
-      return Card(
-        color: const Color(0xfff5f7ee),
-        child: Padding(
-          padding: const EdgeInsets.all(18),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              AnimatedSwitcher(
-                duration: MediaQuery.disableAnimationsOf(context)
-                    ? Duration.zero
-                    : const Duration(milliseconds: 250),
-                child: Icon(
-                  _closed ? Icons.mark_email_read_outlined : Icons.mail_outline,
-                  key: ValueKey(_closed),
-                  size: 32,
-                  color: AppColors.titlePastelGreen,
+  Widget build(BuildContext context) {
+    Localizations.localeOf(context);
+    return AnimatedBuilder(
+      animation: _store,
+      builder: (context, _) {
+        final entry = _store.entryForLetter(widget.sourceId);
+        return Card(
+          color: const Color(0xfff5f7ee),
+          child: Padding(
+            padding: const EdgeInsets.all(18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                AnimatedSwitcher(
+                  duration: MediaQuery.disableAnimationsOf(context)
+                      ? Duration.zero
+                      : const Duration(milliseconds: 250),
+                  child: Icon(
+                    _closed
+                        ? Icons.mark_email_read_outlined
+                        : Icons.mail_outline,
+                    key: ValueKey(_closed),
+                    size: 32,
+                    color: AppColors.titlePastelGreen,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                _closed ? '오늘의 편지를 간직했어요.' : '오늘의 마음을 남겼어요.',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                '마음이 바로 달라지지 않아도 괜찮아요. 여기서 마쳐도 돼요.',
-                textAlign: TextAlign.center,
-              ),
-              if (_loading)
-                const Padding(
-                  padding: EdgeInsets.all(10),
-                  child: LinearProgressIndicator(),
-                ),
-              if (_error != null) ...[
                 const SizedBox(height: 10),
                 Text(
-                  _error!,
-                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                  _closed ? tr("오늘의 편지를 간직했어요.") : tr("오늘의 마음을 남겼어요."),
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.titleMedium,
                 ),
-                TextButton(
-                  onPressed: _busy ? null : _load,
-                  child: const Text('다시 불러오기'),
-                ),
-              ],
-              if (!_closed && !_loading) ...[
-                const SizedBox(height: 18),
-                const Text('쓰고 난 지금은 어떤가요? · 선택'),
                 const SizedBox(height: 8),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: [
-                    for (final feeling in AfterWritingFeeling.values)
-                      ChoiceChip(
-                        label: Text(feeling.label),
-                        selected: entry?.afterWritingFeeling == feeling,
-                        onSelected: _busy
-                            ? null
-                            : (_) => _save(
-                                () => _store.saveLetterFeeling(
-                                  widget.sourceId,
-                                  feeling,
-                                ),
-                              ),
-                      ),
-                  ],
+                Text(
+                  tr("마음이 바로 달라지지 않아도 괜찮아요. 여기서 마쳐도 돼요."),
+                  textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 12),
-                if (entry?.ownQuote != null)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('내가 간직한 문장', style: TextStyle(fontSize: 12)),
-                        SelectableText(entry!.ownQuote!),
-                      ],
+                if (_loading)
+                  const Padding(
+                    padding: EdgeInsets.all(10),
+                    child: LinearProgressIndicator(),
+                  ),
+                if (_error != null) ...[
+                  const SizedBox(height: 10),
+                  Text(
+                    _error!,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
                     ),
                   ),
-                if (entry?.ownQuote != null)
-                  TextButton.icon(
-                    onPressed: _busy
-                        ? null
-                        : () async {
-                            final saved = await attachLetterQuoteToPlant(
-                              context,
-                              sourceLetterId: widget.sourceId,
-                              quote: entry!.ownQuote!,
-                            );
-                            if (saved && context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    '내 나무의 추억에 간직했어요. 나무를 눌러 다시 볼 수 있어요.',
+                  TextButton(
+                    onPressed: _busy ? null : _load,
+                    child: Text(tr("다시 불러오기")),
+                  ),
+                ],
+                if (!_closed && !_loading) ...[
+                  const SizedBox(height: 18),
+                  Text(tr("쓰고 난 지금은 어떤가요? · 선택")),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      for (final feeling in AfterWritingFeeling.values)
+                        ChoiceChip(
+                          label: Text(feeling.label),
+                          selected: entry?.afterWritingFeeling == feeling,
+                          onSelected: _busy
+                              ? null
+                              : (_) => _save(
+                                  () => _store.saveLetterFeeling(
+                                    widget.sourceId,
+                                    feeling,
                                   ),
                                 ),
-                              );
-                            }
-                          },
-                    icon: const Icon(Icons.park_outlined),
-                    label: const Text('이 문장을 내 나무에 간직하기'),
-                  ),
-                if (entry?.selfChosenClosing != null)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          '내가 나에게 고른 말',
-                          style: TextStyle(fontSize: 12),
                         ),
-                        Text(entry!.selfChosenClosing!),
-                      ],
-                    ),
+                    ],
                   ),
-                Wrap(
-                  spacing: 6,
-                  children: [
-                    if (widget.originalText.trim().isNotEmpty)
-                      TextButton.icon(
-                        onPressed: _busy ? null : _chooseQuote,
-                        icon: const Icon(Icons.bookmark_border),
-                        label: const Text('내 문장 간직하기'),
+                  const SizedBox(height: 12),
+                  if (entry?.ownQuote != null)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(tr("내가 간직한 문장"), style: TextStyle(fontSize: 12)),
+                          SelectableText(entry!.ownQuote!),
+                        ],
                       ),
-                    TextButton(
-                      onPressed: _busy ? null : _chooseClosing,
-                      child: const Text('듣고 싶은 말 고르기'),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                OutlinedButton(
-                  onPressed: _busy
-                      ? null
-                      : () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => CareJournalScreen(
-                              sourceLetterId: widget.sourceId,
+                  if (entry?.ownQuote != null)
+                    TextButton.icon(
+                      onPressed: _busy
+                          ? null
+                          : () async {
+                              final saved = await attachLetterQuoteToPlant(
+                                context,
+                                sourceLetterId: widget.sourceId,
+                                quote: entry!.ownQuote!,
+                              );
+                              if (saved && context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      tr("내 나무의 추억에 간직했어요. 나무를 눌러 다시 볼 수 있어요."),
+                                    ),
+                                  ),
+                                );
+                              }
+                            },
+                      icon: const Icon(Icons.park_outlined),
+                      label: Text(tr("이 문장을 내 나무에 간직하기")),
+                    ),
+                  if (entry?.selfChosenClosing != null)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            tr("내가 나에게 고른 말"),
+                            style: TextStyle(fontSize: 12),
+                          ),
+                          Text(entry!.selfChosenClosing!),
+                        ],
+                      ),
+                    ),
+                  Wrap(
+                    spacing: 6,
+                    children: [
+                      if (widget.originalText.trim().isNotEmpty)
+                        TextButton.icon(
+                          onPressed: _busy ? null : _chooseQuote,
+                          icon: const Icon(Icons.bookmark_border),
+                          label: Text(tr("내 문장 간직하기")),
+                        ),
+                      TextButton(
+                        onPressed: _busy ? null : _chooseClosing,
+                        child: Text(tr("듣고 싶은 말 고르기")),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  OutlinedButton(
+                    onPressed: _busy
+                        ? null
+                        : () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => CareJournalScreen(
+                                sourceLetterId: widget.sourceId,
+                              ),
                             ),
                           ),
-                        ),
-                  child: const Text('나를 돌보는 방법 보기'),
-                ),
-                FilledButton(
-                  onPressed: _busy
-                      ? null
-                      : () => setState(() => _closed = true),
-                  child: const Text('오늘은 여기까지'),
-                ),
-              ] else if (_closed)
-                TextButton(
-                  onPressed: () => setState(() => _closed = false),
-                  child: const Text('내 선택 다시 보기'),
-                ),
-              if (_busy) const LinearProgressIndicator(),
-            ],
+                    child: Text(tr("나를 돌보는 방법 보기")),
+                  ),
+                  FilledButton(
+                    onPressed: _busy
+                        ? null
+                        : () => setState(() => _closed = true),
+                    child: Text(tr("오늘은 여기까지")),
+                  ),
+                ] else if (_closed)
+                  TextButton(
+                    onPressed: () => setState(() => _closed = false),
+                    child: Text(tr("내 선택 다시 보기")),
+                  ),
+                if (_busy) const LinearProgressIndicator(),
+              ],
+            ),
           ),
-        ),
-      );
-    },
-  );
+        );
+      },
+    );
+  }
 }

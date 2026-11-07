@@ -1,3 +1,4 @@
+import '../../l10n/app_language.dart';
 import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -140,6 +141,7 @@ class _GardenDiscoveryScreenState extends State<GardenDiscoveryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     if (!_loading && !_needsAccount && _error == null && _garden != null) {
       return GardenVisitScreen(
         key: ValueKey('${_service.accountOwner}:${_garden!.gardenId}'),
@@ -153,7 +155,7 @@ class _GardenDiscoveryScreenState extends State<GardenDiscoveryScreen> {
     return Scaffold(
       backgroundColor: AppColors.bg0,
       appBar: AppBar(
-        title: Text(widget.favorites ? '즐겨찾는 정원' : '이웃 정원 둘러보기'),
+        title: Text(widget.favorites ? tr("즐겨찾는 정원") : tr("이웃 정원 둘러보기")),
         backgroundColor: AppColors.bg0,
       ),
       body: _loading && _favorites.isEmpty
@@ -191,7 +193,7 @@ class _GardenDiscoveryScreenState extends State<GardenDiscoveryScreen> {
                         title: Text(garden.nickname ?? '이름 없는 정원사'),
                         onTap: _loading ? null : () => _visit(garden),
                         trailing: IconButton(
-                          tooltip: '즐겨찾기 해제',
+                          tooltip: tr("즐겨찾기 해제"),
                           icon: const Icon(Icons.star),
                           onPressed: _loading
                               ? null

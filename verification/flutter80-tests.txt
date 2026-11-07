@@ -1,0 +1,451 @@
+00:00 +0: loading /workspace/scratch/0a11930073d3/work80/flutter_app/test/companion_greeting_reward_test.dart
+00:00 +0: /workspace/scratch/0a11930073d3/work80/flutter_app/test/companion_greeting_reward_test.dart: opening does not count attendance; repeated greeting counts once
+00:00 +1: /workspace/scratch/0a11930073d3/work80/flutter_app/test/companion_greeting_reward_test.dart: opening does not count attendance; repeated greeting counts once
+00:00 +2: /workspace/scratch/0a11930073d3/work80/flutter_app/test/garden_return_store_test.dart: retired gifts and concurrent observe/read do not resurface a badge
+00:00 +3: /workspace/scratch/0a11930073d3/work80/flutter_app/test/companion_greeting_reward_test.dart: rapid taps award once; reopening preserves receipt; next day awards once
+00:00 +4: /workspace/scratch/0a11930073d3/work80/flutter_app/test/companion_greeting_reward_test.dart: rapid taps award once; reopening preserves receipt; next day awards once
+00:00 +5: /workspace/scratch/0a11930073d3/work80/flutter_app/test/companion_greeting_reward_test.dart: failure after durable journal replays award without a second bonus
+00:00 +6: /workspace/scratch/0a11930073d3/work80/flutter_app/test/companion_greeting_reward_test.dart: backup receipt blocks a second award even without session journal history
+00:01 +7: /workspace/scratch/0a11930073d3/work80/flutter_app/test/pastel_garden_shell_test.dart: (setUpAll)
+00:02 +7: /workspace/scratch/0a11930073d3/work80/flutter_app/test/pastel_garden_shell_test.dart: all five pages swipe forward and back
+00:04 +8: /workspace/scratch/0a11930073d3/work80/flutter_app/test/pastel_garden_shell_test.dart: all five pages swipe forward and back
+00:05 +9: /workspace/scratch/0a11930073d3/work80/flutter_app/test/pastel_garden_shell_test.dart: all five pages swipe forward and back
+00:07 +10: /workspace/scratch/0a11930073d3/work80/flutter_app/test/pastel_garden_shell_test.dart: all five pages swipe forward and back
+00:07 +11: /workspace/scratch/0a11930073d3/work80/flutter_app/test/pastel_garden_shell_test.dart: all five pages swipe forward and back
+00:07 +12: /workspace/scratch/0a11930073d3/work80/flutter_app/test/pastel_garden_shell_test.dart: all five pages swipe forward and back
+00:08 +13: /workspace/scratch/0a11930073d3/work80/flutter_app/test/pastel_garden_shell_test.dart: all five pages swipe forward and back
+00:08 +14: /workspace/scratch/0a11930073d3/work80/flutter_app/test/pastel_garden_shell_test.dart: all five pages swipe forward and back
+00:08 +15: /workspace/scratch/0a11930073d3/work80/flutter_app/test/pastel_garden_shell_test.dart: all five pages swipe forward and back
+00:08 +16: /workspace/scratch/0a11930073d3/work80/flutter_app/test/pastel_garden_shell_test.dart: all five pages swipe forward and back
+00:08 +17: /workspace/scratch/0a11930073d3/work80/flutter_app/test/pastel_garden_shell_test.dart: all five pages swipe forward and back
+00:08 +18: /workspace/scratch/0a11930073d3/work80/flutter_app/test/pastel_garden_shell_test.dart: all five pages swipe forward and back
+00:08 +19: /workspace/scratch/0a11930073d3/work80/flutter_app/test/pastel_garden_shell_test.dart: all five pages swipe forward and back
+00:08 +20: /workspace/scratch/0a11930073d3/work80/flutter_app/test/pastel_garden_shell_test.dart: all five pages swipe forward and back
+00:08 +21: /workspace/scratch/0a11930073d3/work80/flutter_app/test/pastel_garden_shell_test.dart: all five pages swipe forward and back
+00:08 +22: /workspace/scratch/0a11930073d3/work80/flutter_app/test/pastel_garden_shell_test.dart: all five pages swipe forward and back
+00:08 +23: /workspace/scratch/0a11930073d3/work80/flutter_app/test/pastel_garden_shell_test.dart: all five pages swipe forward and back
+00:08 +23: /workspace/scratch/0a11930073d3/work80/flutter_app/test/background_music_test.dart: transient preparation failure does not prevent the next start
+[31mAudioPlayers Exception: AudioPlayerException(
+	AssetSource(path: audio/bgm_mystic.mp3, mimeType: null), 
+	PlatformException(decode-failed, null, null, null)
+dart:async/future_impl.dart 21:26                                  _interceptError
+dart:async/future_impl.dart 52:23                                  _interceptUserError
+dart:async/broadcast_stream_controller.dart 262:39                 _BroadcastStreamController.addError
+test/background_music_test.dart 63:41                              _AudioPlatform.setSourceUrl
+package:audioplayers/src/audioplayer.dart 423:23                   AudioPlayer.setSourceAsset.<fn>
+package:audioplayers/src/audioplayer.dart 361:38                   AudioPlayer._completePrepared
+===== asynchronous gap ===========================
+dart:async/zone.dart 1450:19                                       _CustomZone.registerUnaryCallback
+package:audioplayers/src/audioplayer.dart 355:5                    AudioPlayer._completePrepared
+package:audioplayers/src/audioplayer.dart 422:11                   AudioPlayer.setSourceAsset
+===== asynchronous gap ===========================
+dart:async/zone.dart 1450:19                                       _CustomZone.registerUnaryCallback
+package:audioplayers/src/audioplayer.dart 421:23                   AudioPlayer.setSourceAsset
+package:audioplayers/src/source.dart 68:19                         AssetSource.setOnPlayer
+package:audioplayers/src/audioplayer.dart 348:18                   AudioPlayer.setSource
+package:flutter_app/services/sound_service.dart 85:22              SoundService._prepareBgm
+===== asynchronous gap ===========================
+dart:async/zone.dart 1450:19                                       _CustomZone.registerUnaryCallback
+package:flutter_app/services/sound_service.dart 82:5               SoundService._prepareBgm
+package:flutter_app/services/local_record_transaction.dart 102:28  LocalRecordQueue.run.<fn>
+package:stack_trace/src/stack_zone_specification.dart 127:36       StackZoneSpecification._registerUnaryCallback.<fn>.<fn>
+package:stack_trace/src/stack_zone_specification.dart 207:15       StackZoneSpecification._run
+package:stack_trace/src/stack_zone_specification.dart 127:24       StackZoneSpecification._registerUnaryCallback.<fn>
+dart:async/zone.dart 1538:47                                       _rootRunUnary
+dart:async/zone.dart 1429:19                                       _CustomZone.runUnary
+dart:async/future_impl.dart 948:45                                 Future._propagateToListeners.handleValueCallback
+dart:async/future_impl.dart 977:13                                 Future._propagateToListeners
+dart:async/future_impl.dart 720:5                                  Future._completeWithValue
+dart:async/future_impl.dart 804:7                                  Future._asyncCompleteWithValue.<fn>
+package:stack_trace/src/stack_zone_specification.dart 207:15       StackZoneSpecification._run
+package:stack_trace/src/stack_zone_specification.dart 114:48       StackZoneSpecification._registerCallback.<fn>
+dart:async/zone.dart 1525:13                                       _rootRun
+dart:async/zone.dart 1422:19                                       _CustomZone.run
+dart:async/zone.dart 1321:7                                        _CustomZone.runGuarded
+dart:async/zone.dart 1362:23                                       _CustomZone.bindCallbackGuarded.<fn>
+dart:async/schedule_microtask.dart 40:35                           _microtaskLoop
+dart:async/schedule_microtask.dart 49:5                            _startMicrotaskLoop
+===== asynchronous gap ===========================
+dart:async/zone.dart 1450:19                                       _CustomZone.registerUnaryCallback
+dart:async/future_impl.dart 403:23                                 Future.then
+package:flutter_app/services/local_record_transaction.dart 100:32  LocalRecordQueue.run
+package:flutter_app/services/sound_service.dart 27:17              SoundService._bgmAction
+package:flutter_app/services/sound_service.dart 162:9              SoundService.init
+===== asynchronous gap ===========================
+dart:async/zone.dart 1450:19                                       _CustomZone.registerUnaryCallback
+package:flutter_app/services/sound_service.dart 148:22             SoundService.init
+test/background_music_test.dart 282:19                             main.<fn>
+package:test_api/src/backend/declarer.dart 242:19                  Declarer.test.<fn>.<fn>
+===== asynchronous gap ===========================
+dart:async/zone.dart 1450:19                                       _CustomZone.registerUnaryCallback
+package:test_api/src/backend/declarer.dart 241:9                   Declarer.test.<fn>.<fn>
+dart:async/zone.dart 1525:13                                       _rootRun
+dart:async/zone.dart 1422:19                                       _CustomZone.run
+dart:async/zone.dart 2034:6                                        _runZoned
+dart:async/zone.dart 1960:10                                       runZoned
+package:test_api/src/backend/declarer.dart 240:13                  Declarer.test.<fn>
+package:test_api/src/backend/invoker.dart 282:17                   Invoker._waitForOutstandingCallbacks.<fn>
+dart:async/zone.dart 1525:13                                       _rootRun
+dart:async/zone.dart 1422:19                                       _CustomZone.run
+dart:async/zone.dart 2034:6                                        _runZoned
+dart:async/zone.dart 1960:10                                       runZoned
+package:test_api/src/backend/invoker.dart 278:5                    Invoker._waitForOutstandingCallbacks
+package:test_api/src/backend/invoker.dart 418:17                   Invoker._onRun.<fn>.<fn>.<fn>
+===== asynchronous gap ===========================
+dart:async/zone.dart 1450:19                                       _CustomZone.registerUnaryCallback
+package:test_api/src/backend/invoker.dart 416:11                   Invoker._onRun.<fn>.<fn>.<fn>
+dart:async/zone.dart 1525:13                                       _rootRun
+dart:async/zone.dart 1422:19                                       _CustomZone.run
+dart:async/zone.dart 2034:6                                        _runZoned
+dart:async/zone.dart 1960:10                                       runZoned
+package:test_api/src/backend/invoker.dart 407:9                    Invoker._onRun.<fn>.<fn>
+package:test_api/src/backend/invoker.dart 450:15                   Invoker._guardIfGuarded
+package:test_api/src/backend/invoker.dart 406:7                    Invoker._onRun.<fn>
+package:stack_trace/src/chain.dart 97:24                           Chain.capture.<fn>
+dart:async/zone.dart 1525:13                                       _rootRun
+dart:async/zone.dart 1422:19                                       _CustomZone.run
+dart:async/zone.dart 2034:6                                        _runZoned
+dart:async/zone.dart 1960:10                                       runZoned
+package:stack_trace/src/chain.dart 95:12                           Chain.capture
+package:test_api/src/backend/invoker.dart 405:11                   Invoker._onRun
+package:test_api/src/backend/live_test_controller.dart 153:11      LiveTestController.run
+package:test_api/src/backend/remote_listener.dart 275:16           RemoteListener._runLiveTest.<fn>
+dart:async/zone.dart 1525:13                                       _rootRun
+dart:async/zone.dart 1422:19                                       _CustomZone.run
+dart:async/zone.dart 2034:6                                        _runZoned
+dart:async/zone.dart 1960:10                                       runZoned
+package:test_api/src/backend/remote_listener.dart 274:5            RemoteListener._runLiveTest
+package:test_api/src/backend/remote_listener.dart 221:7            RemoteListener._serializeTest.<fn>
+dart:async/zone.dart 1538:47                                       _rootRunUnary
+dart:async/zone.dart 1429:19                                       _CustomZone.runUnary
+dart:async/zone.dart 1329:7                                        _CustomZone.runUnaryGuarded
+dart:async/stream_impl.dart 381:11                                 _BufferingStreamSubscription._sendData
+dart:async/stream_impl.dart 312:7                                  _BufferingStreamSubscription._add
+dart:async/stream_controller.dart 798:19                           _SyncStreamControllerDispatch._sendData
+dart:async/stream_controller.dart 663:7                            _StreamController._add
+dart:async/stream_controller.dart 618:5                            _StreamController.add
+dart:async/zone.dart 1546:13                                       _rootRunUnary
+dart:async/zone.dart 1429:19                                       _CustomZone.runUnary
+dart:async/zone.dart 1329:7                                        _CustomZone.runUnaryGuarded
+dart:async/stream_impl.dart 381:11                                 _BufferingStreamSubscription._sendData
+dart:async/stream_impl.dart 312:7                                  _BufferingStreamSubscription._add
+dart:async/stream_controller.dart 798:19                           _SyncStreamControllerDispatch._sendData
+dart:async/stream_controller.dart 663:7                            _StreamController._add
+dart:async/stream_controller.dart 618:5                            _StreamController.add
+dart:async/stream_controller.dart 898:13                           _StreamSinkWrapper.add
+package:stream_channel/src/guarantee_channel.dart 125:12           _GuaranteeSink.add
+package:stream_channel/src/multi_channel.dart 159:31               new _MultiChannel.<fn>
+dart:async/zone.dart 1778:10                                       _RootZone.runUnaryGuarded
+dart:_internal/async_cast.dart 95:11                               CastStreamSubscription._onData
+dart:async/zone.dart 1778:10                                       _RootZone.runUnaryGuarded
+dart:async/stream_impl.dart 381:11                                 _BufferingStreamSubscription._sendData
+dart:async/stream_impl.dart 312:7                                  _BufferingStreamSubscription._add
+dart:async/stream_controller.dart 798:19                           _SyncStreamControllerDispatch._sendData
+dart:async/stream_controller.dart 663:7                            _StreamController._add
+dart:async/stream_controller.dart 618:5                            _StreamController.add
+dart:async/zone.dart 1778:10                                       _RootZone.runUnaryGuarded
+dart:async/stream_impl.dart 381:11                                 _BufferingStreamSubscription._sendData
+dart:async/stream_impl.dart 312:7                                  _BufferingStreamSubscription._add
+dart:async/stream_controller.dart 798:19                           _SyncStreamControllerDispatch._sendData
+dart:async/stream_controller.dart 663:7                            _StreamController._add
+dart:async/stream_controller.dart 618:5                            _StreamController.add
+dart:async/stream_controller.dart 898:13                           _StreamSinkWrapper.add
+dart:async/zone.dart 1778:10                                       _RootZone.runUnaryGuarded
+dart:async/stream_impl.dart 381:11                                 _BufferingStreamSubscription._sendData
+dart:async/stream_impl.dart 312:7                                  _BufferingStreamSubscription._add
+dart:async/stream_pipe.dart 154:11                                 _ForwardingStreamSubscription._add
+dart:async/stream_pipe.dart 252:10                                 _MapStream._handleData
+dart:async/stream_pipe.dart 184:13                                 _ForwardingStreamSubscription._handleData
+dart:async/zone.dart 1778:10                                       _RootZone.runUnaryGuarded
+dart:async/stream_impl.dart 381:11                                 _BufferingStreamSubscription._sendData
+dart:async/stream_impl.dart 312:7                                  _BufferingStreamSubscription._add
+dart:async/stream_controller.dart 798:19                           _SyncStreamControllerDispatch._sendData
+dart:async/stream_controller.dart 663:7                            _StreamController._add
+dart:async/stream_controller.dart 618:5                            _StreamController.add
+dart:_http/websocket_impl.dart 1252:27                             new _WebSocketImpl._fromSocket.<fn>
+dart:async/zone.dart 1778:10                                       _RootZone.runUnaryGuarded
+dart:async/stream_impl.dart 381:11                                 _BufferingStreamSubscription._sendData
+dart:async/stream_impl.dart 312:7                                  _BufferingStreamSubscription._add
+dart:async/stream_transformers.dart 67:11                          _SinkTransformerStreamSubscription._add
+dart:async/stream_transformers.dart 13:11                          _EventSinkWrapper.add
+dart:_http/websocket_impl.dart 348:23                              _WebSocketProtocolTransformer._messageFrameEnd
+dart:_http/websocket_impl.dart 238:46                              _WebSocketProtocolTransformer.add
+dart:async/stream_transformers.dart 115:24                         _SinkTransformerStreamSubscription._handleData
+dart:async/zone.dart 1778:10                                       _RootZone.runUnaryGuarded
+dart:async/stream_impl.dart 381:11                                 _BufferingStreamSubscription._sendData
+dart:async/stream_impl.dart 312:7                                  _BufferingStreamSubscription._add
+dart:async/stream_controller.dart 798:19                           _SyncStreamControllerDispatch._sendData
+dart:async/stream_controller.dart 663:7                            _StreamController._add
+dart:async/stream_controller.dart 618:5                            _StreamController.add
+dart:io-patch/socket_patch.dart 2912:41                            _Socket._onData
+dart:async/zone.dart 1778:10                                       _RootZone.runUnaryGuarded
+dart:async/stream_impl.dart 381:11                                 _BufferingStreamSubscription._sendData
+dart:async/stream_impl.dart 312:7                                  _BufferingStreamSubscription._add
+dart:async/stream_controller.dart 798:19                           _SyncStreamControllerDispatch._sendData
+dart:async/stream_controller.dart 663:7                            _StreamController._add
+dart:async/stream_controller.dart 618:5                            _StreamController.add
+dart:io-patch/socket_patch.dart 2331:31                            new _RawSocket.<fn>
+dart:io-patch/socket_patch.dart 1655:14                            _NativeSocket.issueReadEvent.issue
+dart:async/schedule_microtask.dart 40:35                           _microtaskLoop
+dart:async/schedule_microtask.dart 49:5                            _startMicrotaskLoop
+[0m
+BGM error: PlatformException(decode-failed, null, null, null)
+[31mAudioPlayers Exception: AudioPlayerException(
+	AssetSource(path: audio/bgm_mystic.mp3, mimeType: null), 
+	PlatformException(decode-failed, null, null, null)
+dart:async/future_impl.dart 21:26                                  _interceptError
+dart:async/future_impl.dart 52:23                                  _interceptUserError
+dart:async/broadcast_stream_controller.dart 262:39                 _BroadcastStreamController.addError
+test/background_music_test.dart 63:41                              _AudioPlatform.setSourceUrl
+package:audioplayers/src/audioplayer.dart 423:23                   AudioPlayer.setSourceAsset.<fn>
+package:audioplayers/src/audioplayer.dart 361:38                   AudioPlayer._completePrepared
+===== asynchronous gap ===========================
+dart:async/zone.dart 1450:19                                       _CustomZone.registerUnaryCallback
+package:audioplayers/src/audioplayer.dart 355:5                    AudioPlayer._completePrepared
+package:audioplayers/src/audioplayer.dart 422:11                   AudioPlayer.setSourceAsset
+===== asynchronous gap ===========================
+dart:async/zone.dart 1450:19                                       _CustomZone.registerUnaryCallback
+package:audioplayers/src/audioplayer.dart 421:23                   AudioPlayer.setSourceAsset
+package:audioplayers/src/source.dart 68:19                         AssetSource.setOnPlayer
+package:audioplayers/src/audioplayer.dart 348:18                   AudioPlayer.setSource
+package:flutter_app/services/sound_service.dart 85:22              SoundService._prepareBgm
+===== asynchronous gap ===========================
+dart:async/zone.dart 1450:19                                       _CustomZone.registerUnaryCallback
+package:flutter_app/services/sound_service.dart 82:5               SoundService._prepareBgm
+package:flutter_app/services/sound_service.dart 176:13             SoundService._startBgmDirect
+package:flutter_app/services/local_record_transaction.dart 102:28  LocalRecordQueue.run.<fn>
+package:stack_trace/src/stack_zone_specification.dart 127:36       StackZoneSpecification._registerUnaryCallback.<fn>.<fn>
+package:stack_trace/src/stack_zone_specification.dart 207:15       StackZoneSpecification._run
+package:stack_trace/src/stack_zone_specification.dart 127:24       StackZoneSpecification._registerUnaryCallback.<fn>
+dart:async/zone.dart 1538:47                                       _rootRunUnary
+dart:async/zone.dart 1429:19                                       _CustomZone.runUnary
+===== asynchronous gap ===========================
+dart:async/zone.dart 1450:19                                       _CustomZone.registerUnaryCallback
+dart:async/future_impl.dart 403:23                                 Future.then
+package:flutter_app/services/local_record_transaction.dart 100:32  LocalRecordQueue.run
+package:flutter_app/services/sound_service.dart 27:17              SoundService._bgmAction
+package:flutter_app/services/sound_service.dart 171:30             SoundService.startBgm
+package:flutter_app/services/sound_service.dart 169:33             SoundService.tryStartBgm
+package:flutter_app/services/sound_service.dart 71:34              SoundService.setAppAudible
+test/background_music_test.dart 283:19                             main.<fn>
+===== asynchronous gap ===========================
+dart:async/zone.dart 1450:19                                       _CustomZone.registerUnaryCallback
+test/background_music_test.dart 282:7                              main.<fn>
+package:test_api/src/backend/declarer.dart 242:19                  Declarer.test.<fn>.<fn>
+===== asynchronous gap ===========================
+dart:async/zone.dart 1450:19                                       _CustomZone.registerUnaryCallback
+package:test_api/src/backend/declarer.dart 241:9                   Declarer.test.<fn>.<fn>
+dart:async/zone.dart 1525:13                                       _rootRun
+dart:async/zone.dart 1422:19                                       _CustomZone.run
+dart:async/zone.dart 2034:6                                        _runZoned
+dart:async/zone.dart 1960:10                                       runZoned
+package:test_api/src/backend/declarer.dart 240:13                  Declarer.test.<fn>
+package:test_api/src/backend/invoker.dart 282:17                   Invoker._waitForOutstandingCallbacks.<fn>
+dart:async/zone.dart 1525:13                                       _rootRun
+dart:async/zone.dart 1422:19                                       _CustomZone.run
+dart:async/zone.dart 2034:6                                        _runZoned
+dart:async/zone.dart 1960:10                                       runZoned
+package:test_api/src/backend/invoker.dart 278:5                    Invoker._waitForOutstandingCallbacks
+package:test_api/src/backend/invoker.dart 418:17                   Invoker._onRun.<fn>.<fn>.<fn>
+===== asynchronous gap ===========================
+dart:async/zone.dart 1450:19                                       _CustomZone.registerUnaryCallback
+package:test_api/src/backend/invoker.dart 416:11                   Invoker._onRun.<fn>.<fn>.<fn>
+dart:async/zone.dart 1525:13                                       _rootRun
+dart:async/zone.dart 1422:19                                       _CustomZone.run
+dart:async/zone.dart 2034:6                                        _runZoned
+dart:async/zone.dart 1960:10                                       runZoned
+package:test_api/src/backend/invoker.dart 407:9                    Invoker._onRun.<fn>.<fn>
+package:test_api/src/backend/invoker.dart 450:15                   Invoker._guardIfGuarded
+package:test_api/src/backend/invoker.dart 406:7                    Invoker._onRun.<fn>
+package:stack_trace/src/chain.dart 97:24                           Chain.capture.<fn>
+dart:async/zone.dart 1525:13                                       _rootRun
+dart:async/zone.dart 1422:19                                       _CustomZone.run
+dart:async/zone.dart 2034:6                                        _runZoned
+dart:async/zone.dart 1960:10                                       runZoned
+package:stack_trace/src/chain.dart 95:12                           Chain.capture
+package:test_api/src/backend/invoker.dart 405:11                   Invoker._onRun
+package:test_api/src/backend/live_test_controller.dart 153:11      LiveTestController.run
+package:test_api/src/backend/remote_listener.dart 275:16           RemoteListener._runLiveTest.<fn>
+dart:async/zone.dart 1525:13                                       _rootRun
+dart:async/zone.dart 1422:19                                       _CustomZone.run
+dart:async/zone.dart 2034:6                                        _runZoned
+dart:async/zone.dart 1960:10                                       runZoned
+package:test_api/src/backend/remote_listener.dart 274:5            RemoteListener._runLiveTest
+package:test_api/src/backend/remote_listener.dart 221:7            RemoteListener._serializeTest.<fn>
+dart:async/zone.dart 1538:47                                       _rootRunUnary
+dart:async/zone.dart 1429:19                                       _CustomZone.runUnary
+dart:async/zone.dart 1329:7                                        _CustomZone.runUnaryGuarded
+dart:async/stream_impl.dart 381:11                                 _BufferingStreamSubscription._sendData
+dart:async/stream_impl.dart 312:7                                  _BufferingStreamSubscription._add
+dart:async/stream_controller.dart 798:19                           _SyncStreamControllerDispatch._sendData
+dart:async/stream_controller.dart 663:7                            _StreamController._add
+dart:async/stream_controller.dart 618:5                            _StreamController.add
+dart:async/zone.dart 1546:13                                       _rootRunUnary
+dart:async/zone.dart 1429:19                                       _CustomZone.runUnary
+dart:async/zone.dart 1329:7                                        _CustomZone.runUnaryGuarded
+dart:async/stream_impl.dart 381:11                                 _BufferingStreamSubscription._sendData
+dart:async/stream_impl.dart 312:7                                  _BufferingStreamSubscription._add
+dart:async/stream_controller.dart 798:19                           _SyncStreamControllerDispatch._sendData
+dart:async/stream_controller.dart 663:7                            _StreamController._add
+dart:async/stream_controller.dart 618:5                            _StreamController.add
+dart:async/stream_controller.dart 898:13                           _StreamSinkWrapper.add
+package:stream_channel/src/guarantee_channel.dart 125:12           _GuaranteeSink.add
+package:stream_channel/src/multi_channel.dart 159:31               new _MultiChannel.<fn>
+dart:async/zone.dart 1778:10                                       _RootZone.runUnaryGuarded
+dart:_internal/async_cast.dart 95:11                               CastStreamSubscription._onData
+dart:async/zone.dart 1778:10                                       _RootZone.runUnaryGuarded
+dart:async/stream_impl.dart 381:11                                 _BufferingStreamSubscription._sendData
+dart:async/stream_impl.dart 312:7                                  _BufferingStreamSubscription._add
+dart:async/stream_controller.dart 798:19                           _SyncStreamControllerDispatch._sendData
+dart:async/stream_controller.dart 663:7                            _StreamController._add
+dart:async/stream_controller.dart 618:5                            _StreamController.add
+dart:async/zone.dart 1778:10                                       _RootZone.runUnaryGuarded
+dart:async/stream_impl.dart 381:11                                 _BufferingStreamSubscription._sendData
+dart:async/stream_impl.dart 312:7                                  _BufferingStreamSubscription._add
+dart:async/stream_controller.dart 798:19                           _SyncStreamControllerDispatch._sendData
+dart:async/stream_controller.dart 663:7                            _StreamController._add
+dart:async/stream_controller.dart 618:5                            _StreamController.add
+dart:async/stream_controller.dart 898:13                           _StreamSinkWrapper.add
+dart:async/zone.dart 1778:10                                       _RootZone.runUnaryGuarded
+dart:async/stream_impl.dart 381:11                                 _BufferingStreamSubscription._sendData
+dart:async/stream_impl.dart 312:7                                  _BufferingStreamSubscription._add
+dart:async/stream_pipe.dart 154:11                                 _ForwardingStreamSubscription._add
+dart:async/stream_pipe.dart 252:10                                 _MapStream._handleData
+dart:async/stream_pipe.dart 184:13                                 _ForwardingStreamSubscription._handleData
+dart:async/zone.dart 1778:10                                       _RootZone.runUnaryGuarded
+dart:async/stream_impl.dart 381:11                                 _BufferingStreamSubscription._sendData
+dart:async/stream_impl.dart 312:7                                  _BufferingStreamSubscription._add
+dart:async/stream_controller.dart 798:19                           _SyncStreamControllerDispatch._sendData
+dart:async/stream_controller.dart 663:7                            _StreamController._add
+dart:async/stream_controller.dart 618:5                            _StreamController.add
+dart:_http/websocket_impl.dart 1252:27                             new _WebSocketImpl._fromSocket.<fn>
+dart:async/zone.dart 1778:10                                       _RootZone.runUnaryGuarded
+dart:async/stream_impl.dart 381:11                                 _BufferingStreamSubscription._sendData
+dart:async/stream_impl.dart 312:7                                  _BufferingStreamSubscription._add
+dart:async/stream_transformers.dart 67:11                          _SinkTransformerStreamSubscription._add
+dart:async/stream_transformers.dart 13:11                          _EventSinkWrapper.add
+dart:_http/websocket_impl.dart 348:23                              _WebSocketProtocolTransformer._messageFrameEnd
+dart:_http/websocket_impl.dart 238:46                              _WebSocketProtocolTransformer.add
+dart:async/stream_transformers.dart 115:24                         _SinkTransformerStreamSubscription._handleData
+dart:async/zone.dart 1778:10                                       _RootZone.runUnaryGuarded
+dart:async/stream_impl.dart 381:11                                 _BufferingStreamSubscription._sendData
+dart:async/stream_impl.dart 312:7                                  _BufferingStreamSubscription._add
+dart:async/stream_controller.dart 798:19                           _SyncStreamControllerDispatch._sendData
+dart:async/stream_controller.dart 663:7                            _StreamController._add
+dart:async/stream_controller.dart 618:5                            _StreamController.add
+dart:io-patch/socket_patch.dart 2912:41                            _Socket._onData
+dart:async/zone.dart 1778:10                                       _RootZone.runUnaryGuarded
+dart:async/stream_impl.dart 381:11                                 _BufferingStreamSubscription._sendData
+dart:async/stream_impl.dart 312:7                                  _BufferingStreamSubscription._add
+dart:async/stream_controller.dart 798:19                           _SyncStreamControllerDispatch._sendData
+dart:async/stream_controller.dart 663:7                            _StreamController._add
+dart:async/stream_controller.dart 618:5                            _StreamController.add
+dart:io-patch/socket_patch.dart 2331:31                            new _RawSocket.<fn>
+dart:io-patch/socket_patch.dart 1655:14                            _NativeSocket.issueReadEvent.issue
+dart:async/schedule_microtask.dart 40:35                           _microtaskLoop
+dart:async/schedule_microtask.dart 49:5                            _startMicrotaskLoop
+[0m
+BGM error: PlatformException(decode-failed, null, null, null)
+00:08 +24: /workspace/scratch/0a11930073d3/work80/flutter_app/test/pastel_garden_shell_test.dart: all five pages swipe forward and back
+00:08 +25: /workspace/scratch/0a11930073d3/work80/flutter_app/test/pastel_garden_shell_test.dart: all five pages swipe forward and back
+00:08 +26: /workspace/scratch/0a11930073d3/work80/flutter_app/test/pastel_garden_shell_test.dart: all five pages swipe forward and back
+00:09 +27: /workspace/scratch/0a11930073d3/work80/flutter_app/test/pastel_garden_shell_test.dart: all five pages swipe forward and back
+00:09 +28: /workspace/scratch/0a11930073d3/work80/flutter_app/test/pastel_garden_shell_test.dart: all five pages swipe forward and back
+00:10 +29: /workspace/scratch/0a11930073d3/work80/flutter_app/test/pastel_garden_shell_test.dart: all five pages swipe forward and back
+00:11 +30: /workspace/scratch/0a11930073d3/work80/flutter_app/test/pastel_garden_shell_test.dart: all five pages swipe forward and back
+00:11 +31: /workspace/scratch/0a11930073d3/work80/flutter_app/test/pastel_garden_shell_test.dart: all five pages swipe forward and back
+00:12 +32: /workspace/scratch/0a11930073d3/work80/flutter_app/test/pastel_garden_shell_test.dart: all five pages swipe forward and back
+00:13 +33: /workspace/scratch/0a11930073d3/work80/flutter_app/test/pastel_garden_shell_test.dart: all five pages swipe forward and back
+00:13 +34: /workspace/scratch/0a11930073d3/work80/flutter_app/test/pastel_garden_shell_test.dart: all five pages swipe forward and back
+00:13 +35: /workspace/scratch/0a11930073d3/work80/flutter_app/test/background_music_test.dart: sound sheet is tappable at 360.0px and large text
+00:14 +36: /workspace/scratch/0a11930073d3/work80/flutter_app/test/background_music_test.dart: sound sheet is tappable at 360.0px and large text
+00:14 +37: /workspace/scratch/0a11930073d3/work80/flutter_app/test/garden_pagination_test.dart: empty filtered public page still advances; errors retain visible gardens
+00:14 +38: /workspace/scratch/0a11930073d3/work80/flutter_app/test/garden_pagination_test.dart: empty filtered public page still advances; errors retain visible gardens
+00:15 +39: /workspace/scratch/0a11930073d3/work80/flutter_app/test/garden_pagination_test.dart: empty filtered public page still advances; errors retain visible gardens
+00:16 +40: /workspace/scratch/0a11930073d3/work80/flutter_app/test/pastel_garden_shell_test.dart: approved five pages remain interactive Size(390.0, 844.0) 1.0
+00:16 +41: /workspace/scratch/0a11930073d3/work80/flutter_app/test/background_music_test.dart: sound sheet is tappable at 390.0px and large text
+00:16 +42: /workspace/scratch/0a11930073d3/work80/flutter_app/test/background_music_test.dart: sound sheet is tappable at 390.0px and large text
+00:17 +43: /workspace/scratch/0a11930073d3/work80/flutter_app/test/background_music_test.dart: sound sheet is tappable at 390.0px and large text
+00:17 +44: /workspace/scratch/0a11930073d3/work80/flutter_app/test/home_companion_welcome_test.dart: petting ignores repeated taps and stops for coat, tab, background and reduced motion
+
+Warning: A call to tap() with finder "Found 1 widget with text "내 정원" (ignoring all but first): [
+  Text("내 정원", inherit: true, color: Color(alpha: 1.0000, red: 0.4667, green: 0.4588, blue: 0.4353, colorSpace: ColorSpace.sRGB), family: GowunDodum, familyFallback: [NotoColorEmoji, Apple Color Emoji, Segoe UI Emoji], size: 12.0, weight: 400, letterSpacing: 0.3, height: 1.6x, textAlign: center, dependencies: [DefaultSelectionStyle, DefaultTextStyle, MediaQuery]),
+]" derived an Offset (Offset(241.6, 569.5)) that would not hit test on the specified widget.
+Maybe the widget is actually off-screen, or another widget is obscuring it, or the widget cannot receive pointer events.
+The finder corresponds to this RenderBox: RenderParagraph#4e705 relayoutBoundary=up15
+The hit test result at that offset is: HitTestResult(HitTestEntry<HitTestTarget>#4120c(TextSpan(inherit: true, color: Color(alpha: 1.0000, red: 1.0000, green: 1.0000, blue: 1.0000, colorSpace: ColorSpace.sRGB), family: GowunDodum, familyFallback: [NotoColorEmoji, Apple Color Emoji, Segoe UI Emoji], size: 14.0, weight: 400, letterSpacing: 0.3, height: 1.6x, "오늘의 행운은 츄르! 출석 완료 · 빛의 정수 5개와 츄르 1개")), RenderParagraph#94872@Offset(210.6, 15.5), RenderPadding#93194@Offset(210.6, 29.5), RenderFlex#3bf4f@Offset(210.6, 29.5), RenderWrap#ed430@Offset(210.6, 29.5), RenderPadding#2f9c7@Offset(226.6, 29.5), _RenderInkFeatures#bed99@Offset(226.6, 29.5), RenderCustomPaint#33662@Offset(226.6, 29.5), RenderPhysicalShape#0e1c9@Offset(226.6, 29.5), RenderPadding#4df90@Offset(241.6, 34.5), RenderPadding#a231f@Offset(241.6, 34.5), RenderPointerListener#57c45@Offset(241.6, 34.5), RenderSemanticsGestureHandler#beb6b@Offset(241.6, 34.5), RenderSemanticsAnnotations#7c91b@Offset(241.6, 34.5), RenderPositionedBox#500cd@Offset(241.6, 34.5), RenderAnimatedOpacity#295d0@Offset(241.6, 34.5), RenderClipRect#e94f0@Offset(241.6, 34.5), RenderOffstage#fb396@Offset(241.6, 34.5), RenderConstrainedBox#7e108@Offset(241.6, 34.5), RenderCustomMultiChildLayoutBox#95cb8@Offset(241.6, 569.5), _RenderInkFeatures#8655e@Offset(241.6, 569.5), RenderPhysicalModel#bbe19@Offset(241.6, 569.5), RenderSemanticsAnnotations#39847@Offset(241.6, 569.5), RenderRepaintBoundary#dd666@Offset(241.6, 569.5), RenderIgnorePointer#ea75a@Offset(241.6, 569.5), _RenderSnapshotWidget#3c3ec@Offset(241.6, 569.5), _RenderSnapshotWidget#6bff2@Offset(241.6, 569.5), _RenderSnapshotWidget#47e35@Offset(241.6, 569.5), _RenderSnapshotWidget#e9f13@Offset(241.6, 569.5), RenderRepaintBoundary#1eb21@Offset(241.6, 569.5), RenderSemanticsAnnotations#1b807@Offset(241.6, 569.5), RenderOffstage#78faa@Offset(241.6, 569.5), RenderSemanticsAnnotations#bc682@Offset(241.6, 569.5), _RenderTheater#66b30@Offset(241.6, 569.5), RenderAbsorbPointer#1415b@Offset(241.6, 569.5), RenderPointerListener#c9ba0@Offset(241.6, 569.5), RenderSemanticsAnnotations#e690e@Offset(241.6, 569.5), RenderSemanticsAnnotations#a52d4@Offset(241.6, 569.5), RenderSemanticsAnnotations#c4cc0@Offset(241.6, 569.5), RenderTapRegionSurface#ece97@Offset(241.6, 569.5), RenderSemanticsAnnotations#e2736@Offset(241.6, 569.5), RenderSemanticsAnnotations#9877c@Offset(241.6, 569.5), RenderSemanticsAnnotations#e12e7@Offset(241.6, 569.5), RenderRepaintBoundary#05d71@Offset(241.6, 569.5), HitTestEntry<HitTestTarget>#2916c(_ReusableRenderView#f875d), HitTestEntry<HitTestTarget>#35f88(<AutomatedTestWidgetsFlutterBinding>))
+#0      WidgetController._getElementPoint (package:flutter_test/src/controller.dart:2077:25)
+#1      WidgetController.getCenter (package:flutter_test/src/controller.dart:1861:12)
+#2      WidgetController.tap (package:flutter_test/src/controller.dart:1041:7)
+#3      main.<anonymous closure> (file:///workspace/scratch/0a11930073d3/work80/flutter_app/test/home_companion_welcome_test.dart:360:15)
+<asynchronous suspension>
+#4      testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:15)
+<asynchronous suspension>
+#5      TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1059:5)
+<asynchronous suspension>
+#6      StackZoneSpecification._registerCallback.<anonymous closure> (package:stack_trace/src/stack_zone_specification.dart:114:42)
+<asynchronous suspension>
+To silence this warning, pass "warnIfMissed: false" to "tap()".
+To make this warning fatal, set WidgetController.hitTestWarningShouldBeFatal to true.
+
+
+Warning: A call to tap() with finder "Found 1 widget with text "홈" (ignoring all but first): [
+  Text("홈", inherit: true, color: Color(alpha: 1.0000, red: 0.4275, green: 0.5333, blue: 0.4118, colorSpace: ColorSpace.sRGB), family: GowunDodum, familyFallback: [NotoColorEmoji, Apple Color Emoji, Segoe UI Emoji], size: 12.0, weight: 400, letterSpacing: 0.3, height: 1.6x, textAlign: center, dependencies: [DefaultSelectionStyle, DefaultTextStyle, MediaQuery]),
+]" derived an Offset (Offset(83.2, 569.5)) that would not hit test on the specified widget.
+Maybe the widget is actually off-screen, or another widget is obscuring it, or the widget cannot receive pointer events.
+The finder corresponds to this RenderBox: RenderParagraph#48f10 relayoutBoundary=up15
+The hit test result at that offset is: HitTestResult(HitTestEntry<HitTestTarget>#b1024(TextSpan(inherit: true, color: Color(alpha: 1.0000, red: 1.0000, green: 1.0000, blue: 1.0000, colorSpace: ColorSpace.sRGB), family: GowunDodum, familyFallback: [NotoColorEmoji, Apple Color Emoji, Segoe UI Emoji], size: 14.0, weight: 400, letterSpacing: 0.3, height: 1.6x, "오늘의 행운은 츄르! 출석 완료 · 빛의 정수 5개와 츄르 1개")), RenderParagraph#94872@Offset(52.2, 15.5), RenderPadding#93194@Offset(52.2, 29.5), RenderFlex#3bf4f@Offset(52.2, 29.5), RenderWrap#ed430@Offset(52.2, 29.5), RenderPadding#2f9c7@Offset(68.2, 29.5), _RenderInkFeatures#bed99@Offset(68.2, 29.5), RenderCustomPaint#33662@Offset(68.2, 29.5), RenderPhysicalShape#0e1c9@Offset(68.2, 29.5), RenderPadding#4df90@Offset(83.2, 34.5), RenderPadding#a231f@Offset(83.2, 34.5), RenderPointerListener#57c45@Offset(83.2, 34.5), RenderSemanticsGestureHandler#beb6b@Offset(83.2, 34.5), RenderSemanticsAnnotations#7c91b@Offset(83.2, 34.5), RenderPositionedBox#500cd@Offset(83.2, 34.5), RenderAnimatedOpacity#295d0@Offset(83.2, 34.5), RenderClipRect#e94f0@Offset(83.2, 34.5), RenderOffstage#fb396@Offset(83.2, 34.5), RenderConstrainedBox#7e108@Offset(83.2, 34.5), RenderCustomMultiChildLayoutBox#95cb8@Offset(83.2, 569.5), _RenderInkFeatures#8655e@Offset(83.2, 569.5), RenderPhysicalModel#bbe19@Offset(83.2, 569.5), RenderSemanticsAnnotations#39847@Offset(83.2, 569.5), RenderRepaintBoundary#dd666@Offset(83.2, 569.5), RenderIgnorePointer#ea75a@Offset(83.2, 569.5), _RenderSnapshotWidget#3c3ec@Offset(83.2, 569.5), _RenderSnapshotWidget#6bff2@Offset(83.2, 569.5), _RenderSnapshotWidget#47e35@Offset(83.2, 569.5), _RenderSnapshotWidget#e9f13@Offset(83.2, 569.5), RenderRepaintBoundary#1eb21@Offset(83.2, 569.5), RenderSemanticsAnnotations#1b807@Offset(83.2, 569.5), RenderOffstage#78faa@Offset(83.2, 569.5), RenderSemanticsAnnotations#bc682@Offset(83.2, 569.5), _RenderTheater#66b30@Offset(83.2, 569.5), RenderAbsorbPointer#1415b@Offset(83.2, 569.5), RenderPointerListener#c9ba0@Offset(83.2, 569.5), RenderSemanticsAnnotations#e690e@Offset(83.2, 569.5), RenderSemanticsAnnotations#a52d4@Offset(83.2, 569.5), RenderSemanticsAnnotations#c4cc0@Offset(83.2, 569.5), RenderTapRegionSurface#ece97@Offset(83.2, 569.5), RenderSemanticsAnnotations#e2736@Offset(83.2, 569.5), RenderSemanticsAnnotations#9877c@Offset(83.2, 569.5), RenderSemanticsAnnotations#e12e7@Offset(83.2, 569.5), RenderRepaintBoundary#05d71@Offset(83.2, 569.5), HitTestEntry<HitTestTarget>#ee21b(_ReusableRenderView#f875d), HitTestEntry<HitTestTarget>#e9538(<AutomatedTestWidgetsFlutterBinding>))
+#0      WidgetController._getElementPoint (package:flutter_test/src/controller.dart:2077:25)
+#1      WidgetController.getCenter (package:flutter_test/src/controller.dart:1861:12)
+#2      WidgetController.tap (package:flutter_test/src/controller.dart:1041:7)
+#3      main.<anonymous closure> (file:///workspace/scratch/0a11930073d3/work80/flutter_app/test/home_companion_welcome_test.dart:367:15)
+<asynchronous suspension>
+#4      testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:15)
+<asynchronous suspension>
+#5      TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1059:5)
+<asynchronous suspension>
+#6      StackZoneSpecification._registerCallback.<anonymous closure> (package:stack_trace/src/stack_zone_specification.dart:114:42)
+<asynchronous suspension>
+To silence this warning, pass "warnIfMissed: false" to "tap()".
+To make this warning fatal, set WidgetController.hitTestWarningShouldBeFatal to true.
+
+00:18 +45: /workspace/scratch/0a11930073d3/work80/flutter_app/test/pastel_garden_shell_test.dart: approved five pages remain interactive Size(390.0, 844.0) 2.0
+00:18 +46: /workspace/scratch/0a11930073d3/work80/flutter_app/test/background_music_test.dart: native launch plays without tap; route changes keep one player
+00:20 +47: /workspace/scratch/0a11930073d3/work80/flutter_app/test/background_music_test.dart: native launch plays without tap; route changes keep one player
+00:20 +48: /workspace/scratch/0a11930073d3/work80/flutter_app/test/background_music_test.dart: native launch plays without tap; route changes keep one player
+00:21 +49: /workspace/scratch/0a11930073d3/work80/flutter_app/test/background_music_test.dart: native launch plays without tap; route changes keep one player
+00:21 +50: /workspace/scratch/0a11930073d3/work80/flutter_app/test/account_entry_test.dart: account entry opens all four login choices at 360.0 px
+00:21 +51: /workspace/scratch/0a11930073d3/work80/flutter_app/test/account_entry_test.dart: account entry opens all four login choices at 360.0 px
+00:22 +52: /workspace/scratch/0a11930073d3/work80/flutter_app/test/account_entry_test.dart: account entry opens all four login choices at 360.0 px
+00:22 +53: /workspace/scratch/0a11930073d3/work80/flutter_app/test/background_music_test.dart: privacy lock blocks automatic music until unlock including return (variant: TargetPlatform.android)
+00:22 +54: /workspace/scratch/0a11930073d3/work80/flutter_app/test/home_companion_welcome_test.dart: home keeps blinking with garden effects off and obeys its own switch
+00:23 +55: /workspace/scratch/0a11930073d3/work80/flutter_app/test/pastel_garden_shell_test.dart: approved five pages remain interactive Size(844.0, 390.0) 1.0
+00:23 +56: /workspace/scratch/0a11930073d3/work80/flutter_app/test/pastel_garden_shell_test.dart: approved five pages remain interactive Size(844.0, 390.0) 1.0
+00:24 +57: /workspace/scratch/0a11930073d3/work80/flutter_app/test/pastel_garden_shell_test.dart: approved five pages remain interactive Size(844.0, 390.0) 1.0
+00:25 +58: /workspace/scratch/0a11930073d3/work80/flutter_app/test/account_entry_test.dart: account entry opens all four login choices at 390.0 px
+00:25 +59: /workspace/scratch/0a11930073d3/work80/flutter_app/test/account_entry_test.dart: account entry opens all four login choices at 390.0 px
+00:25 +60: /workspace/scratch/0a11930073d3/work80/flutter_app/test/pastel_garden_shell_test.dart: approved five pages remain interactive Size(844.0, 390.0) 2.0
+00:26 +61: /workspace/scratch/0a11930073d3/work80/flutter_app/test/pastel_garden_shell_test.dart: approved five pages remain interactive Size(844.0, 390.0) 2.0
+00:26 +62: /workspace/scratch/0a11930073d3/work80/flutter_app/test/pastel_garden_shell_test.dart: approved five pages remain interactive Size(844.0, 390.0) 2.0
+00:27 +63: /workspace/scratch/0a11930073d3/work80/flutter_app/test/pastel_garden_shell_test.dart: approved five pages remain interactive Size(844.0, 390.0) 2.0
+00:28 +64: /workspace/scratch/0a11930073d3/work80/flutter_app/test/pastel_garden_shell_test.dart: approved five pages remain interactive Size(844.0, 390.0) 2.0
+00:28 +65: /workspace/scratch/0a11930073d3/work80/flutter_app/test/backup_safety_test.dart: encrypted backup roundtrip preserves Korean records
+00:29 +66: /workspace/scratch/0a11930073d3/work80/flutter_app/test/backup_safety_test.dart: encrypted backup roundtrip preserves Korean records
+00:29 +67: /workspace/scratch/0a11930073d3/work80/flutter_app/test/backup_safety_test.dart: encrypted backup roundtrip preserves Korean records
+00:29 +68: /workspace/scratch/0a11930073d3/work80/flutter_app/test/backup_safety_test.dart: encrypted backup roundtrip preserves Korean records
+00:29 +69: /workspace/scratch/0a11930073d3/work80/flutter_app/test/backup_safety_test.dart: encrypted backup roundtrip preserves Korean records
+00:29 +70: /workspace/scratch/0a11930073d3/work80/flutter_app/test/backup_safety_test.dart: encrypted backup roundtrip preserves Korean records
+00:29 +71: /workspace/scratch/0a11930073d3/work80/flutter_app/test/backup_safety_test.dart: encrypted backup roundtrip preserves Korean records
+00:29 +72: /workspace/scratch/0a11930073d3/work80/flutter_app/test/backup_safety_test.dart: encrypted backup roundtrip preserves Korean records
+00:29 +73: /workspace/scratch/0a11930073d3/work80/flutter_app/test/backup_safety_test.dart: encrypted backup roundtrip preserves Korean records
+00:30 +74: /workspace/scratch/0a11930073d3/work80/flutter_app/test/backup_safety_test.dart: encrypted backup roundtrip preserves Korean records
+00:30 +75: /workspace/scratch/0a11930073d3/work80/flutter_app/test/backup_safety_test.dart: encrypted backup roundtrip preserves Korean records
+00:37 +76: /workspace/scratch/0a11930073d3/work80/flutter_app/test/backup_safety_test.dart: wrong password and changed authentication tag cannot restore
+00:50 +77: /workspace/scratch/0a11930073d3/work80/flutter_app/test/backup_safety_test.dart: backup validates an ordinary snapshot
+00:50 +78: /workspace/scratch/0a11930073d3/work80/flutter_app/test/backup_safety_test.dart: care and garden books restore as personal records, never entitlements
+00:50 +79: /workspace/scratch/0a11930073d3/work80/flutter_app/test/backup_safety_test.dart: invalid care completion fails backup validation before restoration
+00:50 +80: /workspace/scratch/0a11930073d3/work80/flutter_app/test/backup_safety_test.dart: import cannot restore premium rights
+00:50 +81: /workspace/scratch/0a11930073d3/work80/flutter_app/test/backup_safety_test.dart: known preference cannot be restored with an incompatible type
+00:50 +82: /workspace/scratch/0a11930073d3/work80/flutter_app/test/backup_safety_test.dart: duplicate IDs and unknown record boxes fail before any write
+00:50 +83: /workspace/scratch/0a11930073d3/work80/flutter_app/test/backup_safety_test.dart: unknown preferences are excluded from export
+00:50 +84: All tests passed!

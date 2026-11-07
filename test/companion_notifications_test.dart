@@ -1,3 +1,4 @@
+import 'package:flutter_app/l10n/app_language.dart';
 import 'package:flutter_app/models/cat_accessory.dart';
 import 'dart:async';
 import 'dart:convert';
@@ -42,6 +43,7 @@ void main() {
 
   setUp(() async {
     SharedPreferences.setMockInitialValues({});
+    await AppLanguage.instance.select('ko');
     CatCareService.setCurrentUser('local_user');
     SoundService().sfxEnabled = false;
     now = DateTime.now().add(const Duration(days: 2));
@@ -227,7 +229,7 @@ void main() {
   );
 
   test(
-    'failed time edit restores old time; failed disable keeps old preference',
+    'failed time edit restores old time; failed disable preserves OFF and tracks native cancellation',
     () async {
       await service.changeCompanionReminders(enabled: true, hour: 19);
       failNextSchedules = 1;
@@ -236,10 +238,14 @@ void main() {
       expect(pending.length, 7);
       failCancel = true;
       expect(await service.changeCompanionReminders(enabled: false), false);
-      expect((await service.getCompanionReminderSettings()).enabled, true);
+      expect((await service.getCompanionReminderSettings()).enabled, false);
+      expect((await service.getCompanionReminderSettings()).hour, 19);
+      expect(service.cancellationPending.value, contains('companion'));
+      expect(pending.length, 7);
       failCancel = false;
       expect(await service.changeCompanionReminders(enabled: false), true);
       expect(pending, isEmpty);
+      expect(service.cancellationPending.value, isNot(contains('companion')));
     },
   );
 
@@ -322,6 +328,34 @@ void main() {
           jsonDecode(prefs.getString(CompanionNotifications.ledgerKey)!)
               as List;
       expect(ledger.length, 7);
+    },
+  );
+  test(
+    'language refresh replaces companion copy without changing dates or name',
+    () async {
+      final prefs = await SharedPreferences.getInstance();
+      await StorageService.setCompanionName('Mochi');
+      expect(
+        await service.changeCompanionReminders(enabled: true, hour: 18),
+        true,
+      );
+      final before = prefs.getString(CompanionNotifications.ledgerKey);
+      await AppLanguage.instance.select('en');
+      calls.clear();
+      await service.refreshLanguage();
+      expect(prefs.getString(CompanionNotifications.ledgerKey), before);
+      expect(pending, isNotEmpty);
+      for (final message in pending.values) {
+        expect(message['title'], contains('Mochi'));
+        expect(
+          RegExp('[가-힣]').hasMatch('${message['title']} ${message['body']}'),
+          false,
+        );
+      }
+      expect(
+        calls.any((c) => c.method == 'requestNotificationsPermission'),
+        false,
+      );
     },
   );
 }

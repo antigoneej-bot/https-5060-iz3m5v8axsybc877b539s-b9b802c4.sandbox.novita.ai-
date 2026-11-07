@@ -1,3 +1,4 @@
+import '../../l10n/app_language.dart';
 import 'package:flutter/material.dart';
 
 /// 마음정원을 꾸미는 장식 아이템(벤치/분수대/오솔길/조명 등).
@@ -15,13 +16,15 @@ import 'package:flutter/material.dart';
 /// 새 장식을 추가할 때 씬 코드는 건드릴 필요 없이 좌표만 정해주면 된다.
 class GardenDecoration {
   final String id;
-  final String label;
+  final String _label;
+  String get label => tr(_label);
   final String emoji;
   final bool isPremium;
 
   /// 무료 아이템: 어떻게 잠금 해제되는지 설명.
   /// 프리미엄 아이템: 어떤 팩을 구매하면 되는지 설명.
-  final String unlockHint;
+  final String _unlockHint;
+  String get unlockHint => tr(_unlockHint);
 
   /// 정원 씬 안에서의 위치 (-1.0 ~ 1.0 상대 좌표, Alignment 규칙과 동일).
   final Alignment sceneAnchor;
@@ -31,15 +34,22 @@ class GardenDecoration {
 
   const GardenDecoration({
     required this.id,
-    required this.label,
+    required String label,
     required this.emoji,
     required this.isPremium,
-    required this.unlockHint,
+    required String unlockHint,
     this.sceneAnchor = Alignment.center,
     this.sceneScale = 1.0,
-  });
+  }) : _label = label,
+       _unlockHint = unlockHint;
 
-  static const newPlacementIds = {'cat_basket', 'spring_wreath', 'summer_parasol', 'autumn_leaf_pile', 'winter_snowman'};
+  static const newPlacementIds = {
+    'cat_basket',
+    'spring_wreath',
+    'summer_parasol',
+    'autumn_leaf_pile',
+    'winter_snowman',
+  };
 
   static GardenDecoration byId(String id) {
     return all.firstWhere((d) => d.id == id, orElse: () => all.first);
@@ -212,10 +222,40 @@ class GardenDecoration {
       isPremium: false,
       unlockHint: '빛의 정수 60개로 얻을 수 있어요',
     ),
-    GardenDecoration(id: 'cat_basket', label: '고양이 바구니', emoji: '🧺', isPremium: false, unlockHint: '빛의 정수 60개로 얻을 수 있어요'),
-    GardenDecoration(id: 'spring_wreath', label: '봄 꽃장식', emoji: '🌸', isPremium: false, unlockHint: '빛의 정수 60개로 얻을 수 있어요'),
-    GardenDecoration(id: 'summer_parasol', label: '여름 파라솔', emoji: '⛱️', isPremium: false, unlockHint: '빛의 정수 60개로 얻을 수 있어요'),
-    GardenDecoration(id: 'autumn_leaf_pile', label: '가을 낙엽 더미', emoji: '🍂', isPremium: false, unlockHint: '빛의 정수 60개로 얻을 수 있어요'),
-    GardenDecoration(id: 'winter_snowman', label: '겨울 눈사람', emoji: '⛄', isPremium: false, unlockHint: '빛의 정수 60개로 얻을 수 있어요'),
+    GardenDecoration(
+      id: 'cat_basket',
+      label: '고양이 바구니',
+      emoji: '🧺',
+      isPremium: false,
+      unlockHint: '빛의 정수 60개로 얻을 수 있어요',
+    ),
+    GardenDecoration(
+      id: 'spring_wreath',
+      label: '봄 꽃장식',
+      emoji: '🌸',
+      isPremium: false,
+      unlockHint: '빛의 정수 60개로 얻을 수 있어요',
+    ),
+    GardenDecoration(
+      id: 'summer_parasol',
+      label: '여름 파라솔',
+      emoji: '⛱️',
+      isPremium: false,
+      unlockHint: '빛의 정수 60개로 얻을 수 있어요',
+    ),
+    GardenDecoration(
+      id: 'autumn_leaf_pile',
+      label: '가을 낙엽 더미',
+      emoji: '🍂',
+      isPremium: false,
+      unlockHint: '빛의 정수 60개로 얻을 수 있어요',
+    ),
+    GardenDecoration(
+      id: 'winter_snowman',
+      label: '겨울 눈사람',
+      emoji: '⛄',
+      isPremium: false,
+      unlockHint: '빛의 정수 60개로 얻을 수 있어요',
+    ),
   ];
 }

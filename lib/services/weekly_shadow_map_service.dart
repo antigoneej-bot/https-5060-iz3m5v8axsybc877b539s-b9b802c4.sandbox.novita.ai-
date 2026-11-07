@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import '../models/letter_entry.dart';
 import '../models/buried_emotion_entry.dart';
 
@@ -80,7 +81,9 @@ class WeeklyShadowMapService {
     final lastMonthStart = DateTime(ref.year, ref.month - 1, 1);
     final candidateEnd = lastMonthStart.add(Duration(days: daysSoFar));
     final previousEnd = DateTime(ref.year, ref.month, 0);
-    final lastMonthEnd = candidateEnd.isAfter(previousEnd) ? previousEnd : candidateEnd;
+    final lastMonthEnd = candidateEnd.isAfter(previousEnd)
+        ? previousEnd
+        : candidateEnd;
     return comparePeriods(
       history,
       aStart: thisMonthStart,
@@ -101,7 +104,9 @@ class WeeklyShadowMapService {
     final lastQuarterStart = DateTime(ref.year, quarterStartMonth - 3, 1);
     final candidateEnd = lastQuarterStart.add(Duration(days: daysSoFar));
     final previousEnd = thisQuarterStart.subtract(const Duration(days: 1));
-    final lastQuarterEnd = candidateEnd.isAfter(previousEnd) ? previousEnd : candidateEnd;
+    final lastQuarterEnd = candidateEnd.isAfter(previousEnd)
+        ? previousEnd
+        : candidateEnd;
     return comparePeriods(
       history,
       aStart: thisQuarterStart,
@@ -138,15 +143,32 @@ class WeeklyShadowMapService {
     final currentTop = topOf(currentFreq);
     final previousTop = topOf(previousFreq);
     if (currentTop == null && previousTop != null) {
-      return '$previousLabel엔 ${catNameFor(previousTop)}가 자주 보였지만,\n$periodLabel엔 아직 기록이 없어요.';
+      return tr("{0}엔 {1}가 자주 보였지만,\n{2}엔 아직 기록이 없어요.", [
+        previousLabel,
+        catNameFor(previousTop),
+        periodLabel,
+      ]);
     }
     if (currentTop != null && previousTop == null) {
-      return '$previousLabel엔 기록이 없었지만,\n$periodLabel엔 ${catNameFor(currentTop)}가 자주 보였어요.';
+      return tr("{0}엔 기록이 없었지만,\n{1}엔 {2}가 자주 보였어요.", [
+        previousLabel,
+        periodLabel,
+        catNameFor(currentTop),
+      ]);
     }
     if (currentTop == previousTop) {
-      return '$previousLabel과 $periodLabel 모두,\n${catNameFor(currentTop!)}가 가장 자주 나타났어요.';
+      return tr("{0}과 {1} 모두,\n{2}가 가장 자주 나타났어요.", [
+        previousLabel,
+        periodLabel,
+        catNameFor(currentTop!),
+      ]);
     }
-    return '$previousLabel엔 ${catNameFor(previousTop!)}가,\n$periodLabel엔 ${catNameFor(currentTop!)}가 가장 자주 나타났어요.';
+    return tr("{0}엔 {1}가,\n{2}엔 {3}가 가장 자주 나타났어요.", [
+      previousLabel,
+      catNameFor(previousTop!),
+      periodLabel,
+      catNameFor(currentTop!),
+    ]);
   }
 
   // ── 프리미엄 티어: 요일별 / 시간대별 패턴 ──
@@ -178,20 +200,20 @@ class WeeklyShadowMapService {
 
   /// 시(hour, 0~23)를 4개의 한글 시간대 라벨로 변환합니다.
   static String timeSlotFor(int hour) {
-    if (hour >= 0 && hour < 6) return '새벽';
-    if (hour >= 6 && hour < 12) return '오전';
-    if (hour >= 12 && hour < 18) return '오후';
-    return '저녁';
+    if (hour >= 0 && hour < 6) return tr("새벽");
+    if (hour >= 6 && hour < 12) return tr("오전");
+    if (hour >= 12 && hour < 18) return tr("오후");
+    return tr("저녁");
   }
 
-  static const List<String> _weekdayLabels = [
-    '월',
-    '화',
-    '수',
-    '목',
-    '금',
-    '토',
-    '일',
+  static List<String> get _weekdayLabels => [
+    tr("월"),
+    tr("화"),
+    tr("수"),
+    tr("목"),
+    tr("금"),
+    tr("토"),
+    tr("일"),
   ];
 
   /// weekday(1~7, DateTime.monday=1 기준)를 한글 요일 라벨로 변환합니다.
@@ -229,7 +251,10 @@ class WeeklyShadowMapService {
     final weekdayLabel = weekdayLabelFor(bestKey!.$1);
     final slotLabel = bestKey!.$2;
     final name = catNameFor(bestCatId!);
-    return '최근 $days일 동안 $weekdayLabel요일 $slotLabel에\n$name 감정을 $bestCount번 기록했어요. 감정을 느낀 시간이 아닌 기록한 시간 기준이에요.';
+    return tr(
+      "최근 {0}일 동안 {1}요일 {2}에\n{3} 감정을 {4}번 기록했어요. 감정을 느낀 시간이 아닌 기록한 시간 기준이에요.",
+      [days, weekdayLabel, slotLabel, name, bestCount],
+    );
   }
 
   // ── 프리미엄 티어: 다시 떠오른 감정(묻어두기 아카이빙 연동) ──
@@ -285,20 +310,24 @@ class WeeklyShadowMapService {
       final target = withReflection.first;
       final name = catNameFor(target.catId);
       final then = target.letterSnippet.trim().isEmpty
-          ? '(그날 남긴 짧은 문장은 따로 없어요)'
+          ? tr("(그날 남긴 짧은 문장은 따로 없어요)")
           : target.letterSnippet.trim();
       final nowText = target.currentReflectionText!.trim();
       final countNote = resurfacedInPeriod.length > 1
-          ? '\n(이 기간 동안 총 ${resurfacedInPeriod.length}번 다시 떠올랐어요.)'
+          ? tr("\n(이 기간 동안 총 {0}번 다시 떠올랐어요.)", [resurfacedInPeriod.length])
           : '';
-      return '묻어두었던 $name 감정이 다시 떠올랐어요.\n'
-          '그때는 "$then"이었는데,\n'
-          '지금은 "$nowText"라고 적었어요.$countNote';
+      return tr(
+        "묻어두었던 {0} 감정이 다시 떠올랐어요.\n그때는 \"{1}\"이었는데,\n지금은 \"{2}\"라고 적었어요.{3}",
+        [name, then, nowText, countNote],
+      );
     }
 
     final count = resurfacedInPeriod.length;
     final names = resurfacedInPeriod.map((e) => catNameFor(e.catId)).toSet();
     final nameList = names.take(2).join(', ');
-    return '이 기간 동안, 묻어두었던 $nameList 감정이\n총 $count번 새싹으로 다시 떠올랐어요.';
+    return tr("이 기간 동안, 묻어두었던 {0} 감정이\n총 {1}번 새싹으로 다시 떠올랐어요.", [
+      nameList,
+      count,
+    ]);
   }
 }

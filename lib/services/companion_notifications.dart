@@ -16,7 +16,7 @@ extension CompanionNotifications on NotificationService {
   ) async {
     final prefs = await SharedPreferences.getInstance();
     if (!await prefs.setString(settingsKey, settings.encode())) {
-      throw StateError('고양이 소식 설정을 저장하지 못했어요.');
+      throw StateError(tr("고양이 소식 설정을 저장하지 못했어요."));
     }
   }
 
@@ -55,7 +55,7 @@ extension CompanionNotifications on NotificationService {
       }
     }
     if (consumed != null && !await prefs.setString(consumedKey, consumed)) {
-      throw StateError('알림 횟수를 저장하지 못했어요.');
+      throw StateError(tr("알림 횟수를 저장하지 못했어요."));
     }
     return consumed;
   }
@@ -83,17 +83,16 @@ extension CompanionNotifications on NotificationService {
       ledgerKey,
       jsonEncode(slots.map((s) => s.toLedger()).toList()),
     )) {
-      throw StateError('알림 예약을 저장하지 못했어요.');
+      throw StateError(tr("알림 예약을 저장하지 못했어요."));
     }
     if (kIsWeb || !settings.enabled) return;
     final name = companionDisplayName(await StorageService.getCompanionName());
     for (final slot in slots) {
       await _plugin.zonedSchedule(
         slot.id,
-        '$name의 작은 부탁 🐾',
+        tr("{0}의 작은 부탁 🐾", [name]),
         CompanionInvitation.message(slot.invitation.action),
-        // Keep the user's local-clock instant even though legacy reminders
-        // use the Seoul timezone. No additional permission or server is needed.
+        // Keep the user's local-clock instant in the current device timezone.
         tz.TZDateTime.from(slot.when, tz.local),
         await _reminderBellDetails(),
         androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
@@ -120,6 +119,15 @@ extension CompanionNotifications on NotificationService {
         minute: minute ?? old.minute,
       );
       if (!next.validTime) return false;
+      if (!next.enabled) {
+        final result = await _requestOff(
+          'companion',
+          ids,
+          () => _saveCompanionSettings(next),
+        );
+        companionReminderChanges.fire();
+        return result;
+      }
       if (next.enabled) {
         if (kIsWeb) return false;
         await init();
@@ -130,6 +138,7 @@ extension CompanionNotifications on NotificationService {
       }
       await _applyCompanionSchedule(next);
       await _saveCompanionSettings(next);
+      _pendingCancellation('companion', false);
       companionReminderChanges.fire();
       return true;
     } catch (_) {
@@ -155,6 +164,9 @@ extension CompanionNotifications on NotificationService {
   Future<bool> _refreshCompanionSafely() async {
     try {
       final settings = await getCompanionReminderSettings();
+      // Care/rename refresh must not wait for an optional native plugin when
+      // reminders are off. Startup, foreground and the retry button reconcile
+      // saved opt-outs through _reconcileOffReminders instead.
       if (!settings.enabled) return true;
       if (kIsWeb) return false;
       await init();

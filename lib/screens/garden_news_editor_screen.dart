@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import 'package:uuid/uuid.dart';
 import 'dart:async';
 import 'dart:convert';
@@ -61,7 +62,7 @@ class _GardenNewsEditorScreenState extends State<GardenNewsEditorScreen>
   bool _changed = false;
   bool _published = false;
   String _lastSnapshot = '';
-  String _draftStatus = '작성 내용 확인 중…';
+  String _draftStatus = tr("작성 내용 확인 중…");
   final _titleFocus = FocusNode();
   final _bodyFocus = FocusNode();
 
@@ -190,11 +191,11 @@ class _GardenNewsEditorScreenState extends State<GardenNewsEditorScreen>
         _changed = true;
       }
       _draftStatus = saved == null
-          ? '제목과 내용만 적으면 저장할 수 있어요.'
-          : '이전에 작성하던 내용을 불러왔어요.';
+          ? tr("제목과 내용만 적으면 저장할 수 있어요.")
+          : tr("이전에 작성하던 내용을 불러왔어요.");
     } catch (_) {
       _draftReadFailed = true;
-      _draftStatus = '이전 저장 결과를 확인하지 못했어요. 화면을 다시 열어 주세요.';
+      _draftStatus = tr("이전 저장 결과를 확인하지 못했어요. 화면을 다시 열어 주세요.");
     } finally {
       if (mounted) {
         setState(() {
@@ -227,11 +228,11 @@ class _GardenNewsEditorScreenState extends State<GardenNewsEditorScreen>
     try {
       await _drafts.save(key, snapshot);
       if (mounted && !_published) {
-        setState(() => _draftStatus = '이 기기에 임시저장됨 · 아직 공개되지 않았어요.');
+        setState(() => _draftStatus = tr("이 기기에 임시저장됨 · 아직 공개되지 않았어요."));
       }
     } catch (_) {
       if (mounted && !_published) {
-        setState(() => _draftStatus = '임시저장 실패 · 화면을 닫기 전에 내용을 복사해 주세요.');
+        setState(() => _draftStatus = tr("임시저장 실패 · 화면을 닫기 전에 내용을 복사해 주세요."));
       }
     }
   }
@@ -258,7 +259,9 @@ class _GardenNewsEditorScreenState extends State<GardenNewsEditorScreen>
         uri.userInfo.isNotEmpty ||
         RegExp(r'\s').hasMatch(value) ||
         value.length > maxLength) {
-      throw FormatException('$label 주소를 확인해 주세요. 링크가 없으면 비워두어도 괜찮아요.');
+      throw FormatException(
+        tr("{0} 주소를 확인해 주세요. 링크가 없으면 비워두어도 괜찮아요.", [label]),
+      );
     }
     return value;
   }
@@ -266,40 +269,40 @@ class _GardenNewsEditorScreenState extends State<GardenNewsEditorScreen>
   Future<void> _save() async {
     if (_busy || _restoring) return;
     if (_draftReadFailed) {
-      _showError('이전 저장 결과를 확인하려면 화면을 다시 열어 주세요.');
+      _showError(tr("이전 저장 결과를 확인하려면 화면을 다시 열어 주세요."));
       return;
     }
     if (_title.text.trim().isEmpty) {
-      _showError('제목을 입력해 주세요.', _titleFocus);
+      _showError(tr("제목을 입력해 주세요."), _titleFocus);
       return;
     }
     if (_body.text.trim().isEmpty) {
-      _showError('내용을 입력해 주세요.', _bodyFocus);
+      _showError(tr("내용을 입력해 주세요."), _bodyFocus);
       return;
     }
     if (_owner == null || _service.currentOwner != _owner) {
-      _showError('작성한 내용은 유지돼요. 운영자 계정으로 로그인한 뒤 다시 열어 주세요.');
+      _showError(tr("작성한 내용은 유지돼요. 운영자 계정으로 로그인한 뒤 다시 열어 주세요."));
       return;
     }
     int? capacity;
     if (_sessions.isEmpty && _capacity.text.trim().isNotEmpty) {
       capacity = int.tryParse(_capacity.text.trim());
       if (capacity == null || capacity < 0 || capacity > 100000) {
-        _showError('모집 정원은 0~100000 사이 숫자로 입력하거나 비워 주세요.');
+        _showError(tr("모집 정원은 0~100000 사이 숫자로 입력하거나 비워 주세요."));
         return;
       }
     }
     if (_sessions.isEmpty &&
         (widget.existing?.reservedCount ?? 0) > 0 &&
         (capacity == null || capacity < widget.existing!.reservedCount)) {
-      _showError('이미 신청한 분들이 있어요. 모집 정원을 신청 인원 이상으로 유지해 주세요.');
+      _showError(tr("이미 신청한 분들이 있어요. 모집 정원을 신청 인원 이상으로 유지해 주세요."));
       return;
     }
     String? applyUrl, meetingUrl;
     try {
-      applyUrl = _link(_applyUrl.text, '외부 신청 링크', 300);
+      applyUrl = _link(_applyUrl.text, tr("외부 신청 링크"), 300);
       meetingUrl = _eventMode == 'online'
-          ? _link(_meetingUrl.text, '모임 접속 링크', 1000)
+          ? _link(_meetingUrl.text, tr("모임 접속 링크"), 1000)
           : null;
     } on FormatException catch (e) {
       _showError(e.message);
@@ -356,7 +359,7 @@ class _GardenNewsEditorScreenState extends State<GardenNewsEditorScreen>
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(const SnackBar(content: Text('저장했어요. 정원소식에 공개됐어요.')));
+        ).showSnackBar(SnackBar(content: Text(tr("저장했어요. 정원소식에 공개됐어요."))));
         Navigator.of(context).pop(true);
       }
     } catch (e) {
@@ -375,14 +378,18 @@ class _GardenNewsEditorScreenState extends State<GardenNewsEditorScreen>
       await _persistDraft();
       if (mounted) {
         _showError(switch (e) {
-          CloudException(code: 'backend-not-configured') =>
-            '서버 연결 설정이 없는 앱이에요. 최신 버전으로 업데이트해 주세요.',
-          CloudException(code: 'account-busy') =>
-            '다른 작업이 진행 중이에요. 잠시 후 저장을 다시 눌러 주세요.',
+          CloudException(code: 'backend-not-configured') => tr(
+            "서버 연결 설정이 없는 앱이에요. 최신 버전으로 업데이트해 주세요.",
+          ),
+          CloudException(code: 'account-busy') => tr(
+            "다른 작업이 진행 중이에요. 잠시 후 저장을 다시 눌러 주세요.",
+          ),
           CloudException(code: 'news-confirmation-missing') ||
-          TimeoutException() => '저장 결과를 확인하지 못했어요. 다시 저장하면 같은 소식으로 이어서 확인해요.',
+          TimeoutException() => tr(
+            "저장 결과를 확인하지 못했어요. 다시 저장하면 같은 소식으로 이어서 확인해요.",
+          ),
           CloudException() => GardenEventException(e.code).toString(),
-          _ => '저장을 확인하지 못했어요. 내용은 유지돼요. 연결 상태와 소식 목록을 확인해 주세요.',
+          _ => tr("저장을 확인하지 못했어요. 내용은 유지돼요. 연결 상태와 소식 목록을 확인해 주세요."),
         });
       }
     } finally {
@@ -395,15 +402,15 @@ class _GardenNewsEditorScreenState extends State<GardenNewsEditorScreen>
       final replace = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
-          title: const Text('작성 중인 제목과 내용을 초안으로 바꿀까요?'),
+          title: Text(tr("작성 중인 제목과 내용을 초안으로 바꿀까요?")),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('유지하기'),
+              child: Text(tr("유지하기")),
             ),
             FilledButton(
               onPressed: () => Navigator.pop(context, true),
-              child: const Text('초안 불러오기'),
+              child: Text(tr("초안 불러오기")),
             ),
           ],
         ),
@@ -411,12 +418,10 @@ class _GardenNewsEditorScreenState extends State<GardenNewsEditorScreen>
       if (replace != true || !mounted) return;
     }
     setState(() {
-      _title.text = '함께 편지 쓰는 저녁';
-      _body.text =
-          '약 20분 동안 각자의 속도로 편지를 쓰고 정원에서 쉬어요.\n\n'
-          '오늘의 질문: 지금 내 마음에 남아 있는 것은 무엇인가요?\n\n'
-          '카메라 켜기와 편지 내용 공유는 필요하지 않아요. 듣기만 하거나 중간에 쉬어도 괜찮아요.\n'
-          '이 모임은 함께 기록하는 시간이며 개인 상담이나 치료를 제공하지 않아요.';
+      _title.text = tr("함께 편지 쓰는 저녁");
+      _body.text = tr(
+        "약 20분 동안 각자의 속도로 편지를 쓰고 정원에서 쉬어요.\n\n오늘의 질문: 지금 내 마음에 남아 있는 것은 무엇인가요?\n\n카메라 켜기와 편지 내용 공유는 필요하지 않아요. 듣기만 하거나 중간에 쉬어도 괜찮아요.\n이 모임은 함께 기록하는 시간이며 개인 상담이나 치료를 제공하지 않아요.",
+      );
       _emoji.text = '🌙';
       _type = NoticeType.event;
       _status = NoticeStatus.recruiting;
@@ -452,7 +457,7 @@ class _GardenNewsEditorScreenState extends State<GardenNewsEditorScreen>
       canPop: !_busy,
       child: Scaffold(
         backgroundColor: AppColors.bg0,
-        appBar: AppBar(title: Text(_isEditing ? '정원소식 수정' : '정원소식 작성')),
+        appBar: AppBar(title: Text(_isEditing ? tr("정원소식 수정") : tr("정원소식 작성"))),
         bottomNavigationBar: Padding(
           padding: EdgeInsets.only(
             bottom: MediaQuery.viewInsetsOf(context).bottom,
@@ -492,7 +497,7 @@ class _GardenNewsEditorScreenState extends State<GardenNewsEditorScreen>
                       key: const Key('save-garden-news'),
                       onPressed: _busy || _restoring ? null : _save,
                       child: _busy
-                          ? const Row(
+                          ? Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 SizedBox(
@@ -503,14 +508,14 @@ class _GardenNewsEditorScreenState extends State<GardenNewsEditorScreen>
                                   ),
                                 ),
                                 SizedBox(width: 8),
-                                Text('저장 중…'),
+                                Text(tr("저장 중…")),
                               ],
                             )
-                          : const Text('저장하기'),
+                          : Text(tr("저장하기")),
                     ),
                   ),
-                  const Text(
-                    '저장하면 정원소식에 공개돼요.',
+                  Text(
+                    tr("저장하면 정원소식에 공개돼요."),
                     style: TextStyle(fontSize: 12, color: AppColors.inkSoft),
                   ),
                 ],
@@ -526,10 +531,15 @@ class _GardenNewsEditorScreenState extends State<GardenNewsEditorScreen>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      _field('제목', _title, maxLength: 80, focus: _titleFocus),
+                      _field(
+                        tr("제목"),
+                        _title,
+                        maxLength: 80,
+                        focus: _titleFocus,
+                      ),
                       const SizedBox(height: 12),
                       _field(
-                        '내용',
+                        tr("내용"),
                         _body,
                         maxLines: 5,
                         maxLength: 4000,
@@ -540,35 +550,35 @@ class _GardenNewsEditorScreenState extends State<GardenNewsEditorScreen>
                         OutlinedButton.icon(
                           onPressed: _busy ? null : _loadLetterEveningTemplate,
                           icon: const Icon(Icons.edit_note_rounded),
-                          label: const Text('함께 편지 쓰는 저녁 · 초안 불러오기'),
+                          label: Text(tr("함께 편지 쓰는 저녁 · 초안 불러오기")),
                         ),
                       ExpansionTile(
                         key: const Key('news-booking-settings'),
                         initiallyExpanded:
                             widget.existing?.isReservable == true,
                         tilePadding: EdgeInsets.zero,
-                        title: const Text('예약 받기 (선택)'),
+                        title: Text(tr("예약 받기 (선택)")),
                         subtitle: Text(
                           _sessions.isEmpty
-                              ? '날짜 없이 안내만 저장해도 괜찮아요.'
-                              : '예약 일정 ${_sessions.length}개',
+                              ? tr("날짜 없이 안내만 저장해도 괜찮아요.")
+                              : tr("예약 일정 {0}개", [_sessions.length]),
                         ),
                         children: [
                           DropdownButtonFormField<String>(
                             key: ValueKey('mode-$_eventMode'),
                             initialValue: _eventMode ?? 'offline',
-                            decoration: const InputDecoration(
-                              labelText: '진행 방식',
+                            decoration: InputDecoration(
+                              labelText: tr("진행 방식"),
                               border: OutlineInputBorder(),
                             ),
-                            items: const [
+                            items: [
                               DropdownMenuItem(
                                 value: 'offline',
-                                child: Text('오프라인'),
+                                child: Text(tr("오프라인")),
                               ),
                               DropdownMenuItem(
                                 value: 'online',
-                                child: Text('온라인'),
+                                child: Text(tr("온라인")),
                               ),
                             ],
                             onChanged: _busy
@@ -579,24 +589,35 @@ class _GardenNewsEditorScreenState extends State<GardenNewsEditorScreen>
                                   },
                           ),
                           const SizedBox(height: 12),
-                          _field('장소 (선택)', _location, maxLength: 60),
+                          _field(tr("장소 (선택)"), _location, maxLength: 60),
                           if (_eventMode == 'online') ...[
                             const SizedBox(height: 12),
-                            _field('모임 접속 링크 (선택 · 신청자에게만 표시)', _meetingUrl),
+                            _field(
+                              tr("모임 접속 링크 (선택 · 신청자에게만 표시)"),
+                              _meetingUrl,
+                            ),
                           ],
                           const SizedBox(height: 12),
                           for (final slot in _sessions)
                             Card(
                               child: ListTile(
                                 title: Text(
-                                  '${DateFormat('M월 d일 HH:mm').format(slot.startsAt.toLocal())} · ${slot.capacity}명',
+                                  tr("{0} · {1}명", [
+                                    DateFormat(
+                                      tr("M월 d일 HH:mm"),
+                                    ).format(slot.startsAt.toLocal()),
+                                    slot.capacity,
+                                  ]),
                                 ),
                                 subtitle: Text(
-                                  '${slot.reservedCount}명 신청 · ${slot.availabilityAt(DateTime.now())}',
+                                  tr("{0}명 신청 · {1}", [
+                                    slot.reservedCount,
+                                    slot.availabilityAt(DateTime.now()),
+                                  ]),
                                 ),
                                 onTap: _busy ? null : () => _editSession(slot),
                                 trailing: IconButton(
-                                  tooltip: '일정 삭제',
+                                  tooltip: tr("일정 삭제"),
                                   icon: const Icon(Icons.delete_outline),
                                   onPressed: _busy || slot.reservedCount > 0
                                       ? null
@@ -619,17 +640,17 @@ class _GardenNewsEditorScreenState extends State<GardenNewsEditorScreen>
                                 ? null
                                 : () => _editSession(),
                             icon: const Icon(Icons.calendar_month),
-                            label: const Text('예약 날짜 추가'),
+                            label: Text(tr("예약 날짜 추가")),
                           ),
                           if (_sessions.isEmpty) ...[
                             const SizedBox(height: 12),
                             _field(
-                              '날짜 없이 신청받을 인원 (선택)',
+                              tr("날짜 없이 신청받을 인원 (선택)"),
                               _capacity,
                               numeric: true,
                             ),
-                            const Text(
-                              '날짜나 인원을 정하지 않으면 예약 버튼 없이 안내만 공개돼요.',
+                            Text(
+                              tr("날짜나 인원을 정하지 않으면 예약 버튼 없이 안내만 공개돼요."),
                               style: TextStyle(fontSize: 12),
                             ),
                           ],
@@ -639,15 +660,15 @@ class _GardenNewsEditorScreenState extends State<GardenNewsEditorScreen>
                       ExpansionTile(
                         key: const Key('news-extra-settings'),
                         tilePadding: EdgeInsets.zero,
-                        title: const Text('추가 정보 (선택)'),
+                        title: Text(tr("추가 정보 (선택)")),
                         children: [
-                          _field('이모지', _emoji, maxLength: 8),
+                          _field(tr("이모지"), _emoji, maxLength: 8),
                           const SizedBox(height: 12),
                           DropdownButtonFormField<NoticeType>(
                             key: ValueKey(_type),
                             initialValue: _type,
-                            decoration: const InputDecoration(
-                              labelText: '종류',
+                            decoration: InputDecoration(
+                              labelText: tr("종류"),
                               border: OutlineInputBorder(),
                             ),
                             items: NoticeType.values
@@ -669,14 +690,14 @@ class _GardenNewsEditorScreenState extends State<GardenNewsEditorScreen>
                           DropdownButtonFormField<NoticeStatus?>(
                             key: ValueKey(_status),
                             initialValue: _status,
-                            decoration: const InputDecoration(
-                              labelText: '진행 상태',
+                            decoration: InputDecoration(
+                              labelText: tr("진행 상태"),
                               border: OutlineInputBorder(),
                             ),
                             items: [
-                              const DropdownMenuItem(
+                              DropdownMenuItem(
                                 value: null,
-                                child: Text('상태 표시 안 함'),
+                                child: Text(tr("상태 표시 안 함")),
                               ),
                               ...NoticeStatus.values.map(
                                 (s) => DropdownMenuItem(
@@ -693,11 +714,11 @@ class _GardenNewsEditorScreenState extends State<GardenNewsEditorScreen>
                                   },
                           ),
                           const SizedBox(height: 12),
-                          _field('기간 안내 (선택)', _period, maxLength: 60),
+                          _field(tr("기간 안내 (선택)"), _period, maxLength: 60),
                           const SizedBox(height: 12),
-                          _field('비용 안내 (선택)', _cost, maxLength: 60),
+                          _field(tr("비용 안내 (선택)"), _cost, maxLength: 60),
                           const SizedBox(height: 12),
-                          _field('외부 신청 링크 (선택)', _applyUrl),
+                          _field(tr("외부 신청 링크 (선택)"), _applyUrl),
                         ],
                       ),
                     ],

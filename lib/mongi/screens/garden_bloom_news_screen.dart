@@ -1,3 +1,4 @@
+import '../../l10n/app_language.dart';
 import 'package:flutter/material.dart';
 import '../../services/cloud_service.dart';
 import '../models/garden_gifts.dart';
@@ -41,47 +42,54 @@ class _GardenBloomNewsScreenState extends State<GardenBloomNewsScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('내가 건넨 꽃 소식')),
-    body: _loading
-        ? const Center(child: CircularProgressIndicator())
-        : RefreshIndicator(
-            onRefresh: _load,
-            child: ListView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.all(20),
-              children: [
-                if (_error != null) ...[
-                  Text(_error!),
-                  TextButton(onPressed: _load, child: const Text('다시 확인')),
-                ] else if (_news.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 50),
-                    child: Text(
-                      '이웃이 선물한 꽃을 심으면 여기에 소식이 도착해요.',
-                      textAlign: TextAlign.center,
-                    ),
-                  )
-                else
-                  ..._news.map((n) {
-                    final date = DateTime.tryParse(
-                      n['createdAt']?.toString() ?? '',
-                    )?.toLocal();
-                    return ListTile(
-                      contentPadding: const EdgeInsets.symmetric(vertical: 10),
-                      leading: SizedBox(
-                        width: 64,
-                        height: 64,
-                        child: GardenFlowerArt(kind: n['flowerKind'] as String),
+  Widget build(BuildContext context) {
+    Localizations.localeOf(context);
+    return Scaffold(
+      appBar: AppBar(title: Text(tr("내가 건넨 꽃 소식"))),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : RefreshIndicator(
+              onRefresh: _load,
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(20),
+                children: [
+                  if (_error != null) ...[
+                    Text(_error!),
+                    TextButton(onPressed: _load, child: const Text('다시 확인')),
+                  ] else if (_news.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 50),
+                      child: Text(
+                        '이웃이 선물한 꽃을 심으면 여기에 소식이 도착해요.',
+                        textAlign: TextAlign.center,
                       ),
-                      title: Text('당신이 건넨 마음이 이웃의 정원에 피었어요.'),
-                      subtitle: Text(
-                        '${gardenFlowerNames[n['flowerKind']]}${date == null ? '' : ' · ${date.month}월 ${date.day}일'}',
-                      ),
-                    );
-                  }),
-              ],
+                    )
+                  else
+                    ..._news.map((n) {
+                      final date = DateTime.tryParse(
+                        n['createdAt']?.toString() ?? '',
+                      )?.toLocal();
+                      return ListTile(
+                        contentPadding: const EdgeInsets.symmetric(
+                          vertical: 10,
+                        ),
+                        leading: SizedBox(
+                          width: 64,
+                          height: 64,
+                          child: GardenFlowerArt(
+                            kind: n['flowerKind'] as String,
+                          ),
+                        ),
+                        title: Text('당신이 건넨 마음이 이웃의 정원에 피었어요.'),
+                        subtitle: Text(
+                          '${gardenFlowerNames[n['flowerKind']]}${date == null ? '' : ' · ${date.month}월 ${date.day}일'}',
+                        ),
+                      );
+                    }),
+                ],
+              ),
             ),
-          ),
-  );
+    );
+  }
 }

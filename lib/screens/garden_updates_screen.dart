@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../services/cloud_service.dart';
@@ -39,7 +40,9 @@ class _GardenUpdatesScreenState extends State<GardenUpdatesScreen> {
       );
     } catch (_) {
       if (mounted)
-        setState(() => _error = '변경 소식을 확인하지 못했어요. 로그인과 연결을 확인한 뒤 다시 시도해 주세요.');
+        setState(
+          () => _error = tr("변경 소식을 확인하지 못했어요. 로그인과 연결을 확인한 뒤 다시 시도해 주세요."),
+        );
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -47,7 +50,7 @@ class _GardenUpdatesScreenState extends State<GardenUpdatesScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('예약 변경 소식')),
+    appBar: AppBar(title: Text(tr("예약 변경 소식"))),
     body: StreamBuilder(
       stream: CloudService.enabled
           ? FirebaseAuth.instance.authStateChanges()
@@ -57,7 +60,7 @@ class _GardenUpdatesScreenState extends State<GardenUpdatesScreen> {
         return ListView(
           padding: const EdgeInsets.all(20),
           children: [
-            const Text('최근 30일의 모임 변경·취소 안내예요.'),
+            Text(tr("최근 30일의 모임 변경·취소 안내예요.")),
             FilledButton.tonal(
               onPressed: !same
                   ? null
@@ -67,15 +70,15 @@ class _GardenUpdatesScreenState extends State<GardenUpdatesScreen> {
                         builder: (_) => const MyGardenReservationsScreen(),
                       ),
                     ),
-              child: const Text('내 신청 내역 보기'),
+              child: Text(tr("내 신청 내역 보기")),
             ),
             if (_busy) const LinearProgressIndicator(),
             if (!same)
-              const Text('로그인한 계정을 확인해 주세요.')
+              Text(tr("로그인한 계정을 확인해 주세요."))
             else ...[
               if (_error != null) Text(_error!),
               if (!_busy && _error == null && _updates.isEmpty)
-                const Text('새로운 변경 소식이 없어요.'),
+                Text(tr("새로운 변경 소식이 없어요.")),
               for (final row in _updates)
                 Card(
                   child: Padding(
@@ -90,9 +93,11 @@ class _GardenUpdatesScreenState extends State<GardenUpdatesScreen> {
                         if (DateTime.tryParse('${row['sessionStartsAt']}')
                             case final DateTime date)
                           Text(
-                            '예약 일정 · ${date.toLocal().toString().substring(0, 16)}',
+                            tr("예약 일정 · {0}", [
+                              date.toLocal().toString().substring(0, 16),
+                            ]),
                           ),
-                        Text('${row['notice']}'),
+                        Text(tr('${row['notice']}')),
                       ],
                     ),
                   ),
@@ -100,7 +105,7 @@ class _GardenUpdatesScreenState extends State<GardenUpdatesScreen> {
             ],
             TextButton(
               onPressed: _busy ? null : _load,
-              child: const Text('다시 확인'),
+              child: Text(tr("다시 확인")),
             ),
           ],
         );

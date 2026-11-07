@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import 'dart:convert';
 import 'companion_journey.dart';
 
@@ -28,14 +29,14 @@ class CompanionReminderSettings {
         raw['enabled'] is! bool ||
         raw['hour'] is! int ||
         raw['minute'] is! int) {
-      throw const FormatException('고양이 소식 설정을 읽지 못했어요.');
+      throw FormatException(tr("고양이 소식 설정을 읽지 못했어요."));
     }
     final result = CompanionReminderSettings(
       enabled: raw['enabled'],
       hour: raw['hour'],
       minute: raw['minute'],
     );
-    if (!result.validTime) throw const FormatException('알림 시간을 확인해 주세요.');
+    if (!result.validTime) throw FormatException(tr("알림 시간을 확인해 주세요."));
     return result;
   }
 }
@@ -68,17 +69,17 @@ class CompanionInvitation {
   }
 
   static String message(CompanionMoment action) => switch (action) {
-    CompanionMoment.feed => '조금 출출해졌어. 밥 먹고 같이 쉴까? 🐾',
-    CompanionMoment.play => '나랑 잠깐 놀아 줄래? 장난감을 찾았어!',
-    CompanionMoment.pet => '오늘은 네 손길이 좋아. 살짝 쓰다듬어 줄래?',
-    _ => '내 옆에서 잠깐 쉬어 갈래? 오늘도 함께 있고 싶어.',
+    CompanionMoment.feed => tr("조금 출출해졌어. 밥 먹고 같이 쉴까? 🐾"),
+    CompanionMoment.play => tr("나랑 잠깐 놀아 줄래? 장난감을 찾았어!"),
+    CompanionMoment.pet => tr("오늘은 네 손길이 좋아. 살짝 쓰다듬어 줄래?"),
+    _ => tr("내 옆에서 잠깐 쉬어 갈래? 오늘도 함께 있고 싶어."),
   };
 
   static String label(CompanionMoment action) => switch (action) {
-    CompanionMoment.feed => '밥 주기',
-    CompanionMoment.play => '놀아주기',
-    CompanionMoment.pet => '쓰다듬기',
-    _ => '같이 쉬기',
+    CompanionMoment.feed => tr("밥 주기"),
+    CompanionMoment.play => tr("놀아주기"),
+    CompanionMoment.pet => tr("쓰다듬기"),
+    _ => tr("같이 쉬기"),
   };
 }
 

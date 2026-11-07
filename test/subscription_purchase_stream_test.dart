@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter_app/l10n/app_language.dart';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_app/services/cloud_service.dart';
@@ -18,6 +19,8 @@ ProductDetails product(
   int? annualPrice,
   String? annualPeriod,
   bool trial = false,
+  String trialPeriod = 'P7D',
+  int trialCycles = 1,
 }) {
   final isYearly = id == yearly;
   return GooglePlayProductDetails.fromProductDetails(
@@ -34,9 +37,9 @@ ProductDetails product(
           offerIdToken: 'offer-$id',
           pricingPhases: [
             if (trial)
-              const PricingPhaseWrapper(
-                billingCycleCount: 1,
-                billingPeriod: 'P7D',
+              PricingPhaseWrapper(
+                billingCycleCount: trialCycles,
+                billingPeriod: trialPeriod,
                 formattedPrice: '₩0',
                 priceAmountMicros: 0,
                 priceCurrencyCode: 'KRW',
@@ -302,6 +305,34 @@ void main() {
       expect(verified, ['alice:new-receipt']);
     },
   );
+
+  test('English trial periods use natural singular and plural units', () async {
+    await AppLanguage.instance.select('en');
+    addTearDown(() => AppLanguage.instance.select('ko'));
+    for (final example in [
+      ('P1D', 1, '1 day free trial'),
+      ('P1D', 7, '7 days free trial'),
+      ('P1W', 1, '1 week free trial'),
+      ('P2W', 1, '2 weeks free trial'),
+      ('P1M', 1, '1 month free trial'),
+      ('P1M', 3, '3 months free trial'),
+      ('P1Y', 1, '1 year free trial'),
+      ('P2Y', 1, '2 years free trial'),
+    ]) {
+      store.offeredProducts = [
+        product(monthly),
+        product(yearly, trial: true, trialPeriod: example.$1,
+            trialCycles: example.$2),
+      ];
+      await service.refreshProducts();
+      final text = service.offerLabelFor(SubscriptionPlan.yearly);
+      expect(text, contains(example.$3));
+      expect(text, contains('₩29000/year'));
+      expect(text, isNot(contains('(s)')));
+      expect(service.hasProduct(SubscriptionPlan.yearly), isTrue);
+      expect(store.buys, isEmpty);
+    }
+  });
 
   test(
     'missing annual product is queried again even when monthly is loaded',

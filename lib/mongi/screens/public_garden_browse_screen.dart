@@ -1,3 +1,4 @@
+import '../../l10n/app_language.dart';
 import 'dart:async';
 
 import 'package:firebase_auth/firebase_auth.dart';
@@ -153,6 +154,7 @@ class _PublicGardenBrowseScreenState extends State<PublicGardenBrowseScreen> {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     final content = RefreshIndicator(onRefresh: _load, child: _body());
     return widget.embedded
         ? content
@@ -193,7 +195,7 @@ class _PublicGardenBrowseScreenState extends State<PublicGardenBrowseScreen> {
           const SizedBox(height: 16),
           Text(_error!, textAlign: TextAlign.center),
           const SizedBox(height: 16),
-          OutlinedButton(onPressed: _load, child: const Text('다시 연결하기')),
+          OutlinedButton(onPressed: _load, child: Text(tr("다시 연결하기"))),
         ],
       );
     }
@@ -204,7 +206,7 @@ class _PublicGardenBrowseScreenState extends State<PublicGardenBrowseScreen> {
         if (_loading) const LinearProgressIndicator(),
         if (_error != null) ...[
           Text(_error!),
-          TextButton(onPressed: _load, child: const Text('새로고침 다시 시도')),
+          TextButton(onPressed: _load, child: Text(tr("새로고침 다시 시도"))),
         ],
         const Card(
           child: Padding(

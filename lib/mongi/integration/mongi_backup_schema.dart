@@ -80,15 +80,24 @@ class MongiBackupSchema {
     if (value is int && value < -1) throw const FormatException('잘못된 몽이 수치');
     if (value is List) {
       if (key == 'diary_entries' || key == 'gratitude_log_entries') {
-        if (value.any((row) => row is! Map || row['date'] is! String)) throw const FormatException('잘못된 몽이 일기');
-      } else if (key == 'season_pass_claimed_free' || key == 'season_pass_claimed_premium') {
-        if (value.any((row) => row is! int || row < 1)) throw const FormatException('잘못된 시즌 기록');
+        if (value.any((row) => row is! Map || row['date'] is! String))
+          throw const FormatException('잘못된 몽이 일기');
+      } else if (key == 'season_pass_claimed_free' ||
+          key == 'season_pass_claimed_premium') {
+        if (value.any((row) => row is! int || row < 1))
+          throw const FormatException('잘못된 시즌 기록');
       } else if (value.any((row) => row is! String)) {
         throw const FormatException('잘못된 몽이 목록');
       }
     }
-    if (value is Map && value.entries.any((entry) => entry.key is! String ||
-        (key == 'safety_plan_data' ? entry.value is! String : entry.value is! int || (entry.value as int) < 0))) {
+    if (value is Map &&
+        value.entries.any(
+          (entry) =>
+              entry.key is! String ||
+              (key == 'safety_plan_data'
+                  ? entry.value is! String
+                  : entry.value is! int || (entry.value as int) < 0),
+        )) {
       throw const FormatException('잘못된 몽이 기록');
     }
   }

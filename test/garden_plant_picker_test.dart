@@ -123,7 +123,7 @@ void main() {
     );
     expect(find.byKey(const Key('plant-selected')), findsNothing);
     await t.tap(find.byKey(const Key('locate-plant')));
-    await t.tap(find.text('돌보기'));
+    await t.tap(find.text('추억 보기'));
     expect(located, 'pine');
     expect(cared, 'pine');
     expect(plants, 0);

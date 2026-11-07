@@ -1,3 +1,4 @@
+import '../../l10n/app_language.dart';
 import 'dart:async';
 import '../../models/companion_coat.dart';
 
@@ -325,186 +326,189 @@ class _PublicGardenSettingsScreenState
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    backgroundColor: AppColors.bg0,
-    appBar: AppBar(
-      title: const Text('정원 공개와 받기 설정'),
+  Widget build(BuildContext context) {
+    Localizations.localeOf(context);
+    return Scaffold(
       backgroundColor: AppColors.bg0,
-    ),
-    body: _loading
-        ? const Center(child: CircularProgressIndicator())
-        : ListView(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
-            children: [
-              AccountEntryCard(
-                onChanged: () async {
-                  _service = widget.service ?? GardenVillageService();
-                  await _load();
-                },
-              ),
-              const SizedBox(height: 16),
-              if (_needsAccount)
-                const Text('로그인하면 내 정원의 공개 범위와 선물 받기를 정할 수 있어요.')
-              else if (_error != null) ...[
-                Text(_error!),
-                const SizedBox(height: 8),
-                const Text('현재 서버의 공개 범위를 확인하지 못했어요. 정원이 공개 중일 수 있어요.'),
-                OutlinedButton(
-                  onPressed: _busy ? null : _load,
-                  child: const Text('다시 확인하기'),
-                ),
-                TextButton.icon(
-                  onPressed: _busy ? null : _makePrivate,
-                  icon: const Icon(Icons.visibility_off_outlined),
-                  label: const Text('공개 상태 확인 없이 나만 보기로 변경'),
-                ),
-              ] else ...[
-                const Text(
-                  '공개되는 것은 내가 가꾼 정원 모습과 정원사 이름이에요. 편지, 감정 통계, 식물에 남긴 개인적인 추억은 공개되지 않아요.',
-                  style: TextStyle(height: 1.6, color: AppColors.inkSoft),
-                ),
-                const SizedBox(height: 20),
-                _appearanceStatus(),
-                const SizedBox(height: 20),
-                TextField(
-                  controller: _nickname,
-                  enabled: !_busy,
-                  maxLength: 20,
-                  onChanged: (_) => setState(() {}),
-                  decoration: const InputDecoration(
-                    labelText: '정원사 이름',
-                    hintText: '이웃에게 보여줄 이름',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                const Text(
-                  '누가 내 정원에 방문할 수 있나요?',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-                ),
-                RadioGroup<GardenVisibility>(
-                  groupValue: _visibility,
-                  onChanged: (value) {
-                    if (_busy || value == null) return;
-                    setState(() {
-                      _visibility = value;
-                      if (value != GardenVisibility.public)
-                        _randomVisits = false;
-                      if (_visibility != GardenVisibility.public) {
-                        _discovery = false;
-                      }
-                    });
+      appBar: AppBar(
+        title: Text(tr("정원 공개와 받기 설정")),
+        backgroundColor: AppColors.bg0,
+      ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : ListView(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+              children: [
+                AccountEntryCard(
+                  onChanged: () async {
+                    _service = widget.service ?? GardenVillageService();
+                    await _load();
                   },
-                  child: Column(
-                    children:
-                        [
-                              (
-                                GardenVisibility.private,
-                                '나만 보기',
-                                '다른 사람은 내 정원에 방문할 수 없어요.',
-                              ),
-                              (
-                                GardenVisibility.neighbors,
-                                '이웃에게 공개',
-                                '서로 수락한 이웃만 내 정원에 방문해요.',
-                              ),
-                              (
-                                GardenVisibility.public,
-                                '모두에게 공개',
-                                '로그인한 정원사들이 내 정원에 방문할 수 있어요.',
-                              ),
-                            ]
-                            .map(
-                              (option) => RadioListTile<GardenVisibility>(
-                                contentPadding: EdgeInsets.zero,
-                                value: option.$1,
-                                enabled: !_busy,
-                                title: Text(option.$2),
-                                subtitle: Text(option.$3),
-                              ),
-                            )
-                            .toList(),
-                  ),
-                ),
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(
-                    _savedProfile?.supportsRandomVisits == true
-                        ? '무작위 이웃 방문 허용'
-                        : '둘러보기에 내 정원 소개',
-                  ),
-                  subtitle: Text(
-                    _visibility == GardenVisibility.public
-                        ? (_savedProfile?.supportsRandomVisits == true
-                              ? '직접 허용한 정원 모습·공개용 닉네임·고양이만 보여요. 편지·감정 기록·기억의 나무 날짜와 내용은 공개되지 않아요. 언제든 해제할 수 있어요.'
-                              : '처음 만나는 정원사도 내 정원을 발견할 수 있어요. 무작위 방문은 서버 업데이트 후 별도로 허용할 수 있어요.')
-                        : '모두에게 공개할 때만 선택할 수 있어요.',
-                  ),
-                  value:
-                      _visibility == GardenVisibility.public &&
-                      (_savedProfile?.supportsRandomVisits == true
-                          ? _randomVisits
-                          : _discovery),
-                  onChanged: _busy || _visibility != GardenVisibility.public
-                      ? null
-                      : (value) => setState(() {
-                          _discovery = value;
-                          if (_savedProfile?.supportsRandomVisits == true)
-                            _randomVisits = value;
-                        }),
-                ),
-                if (_savedProfile?.supportsRandomVisits == true)
-                  DropdownButtonFormField<CompanionCoat>(
-                    initialValue: _publicCoat,
-                    decoration: const InputDecoration(
-                      labelText: '정원에 보일 고양이 외형',
-                    ),
-                    items: CompanionCoat.values
-                        .map(
-                          (coat) => DropdownMenuItem(
-                            value: coat,
-                            child: Text(coat.label),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: _busy
-                        ? null
-                        : (coat) {
-                            if (coat != null)
-                              setState(() {
-                                _publicCoat = coat;
-                                _catChanged = true;
-                              });
-                          },
-                  ),
-                const Divider(height: 28),
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('이웃의 꽃 선물 받기'),
-                  subtitle: const Text(
-                    '새 꽃 선물을 받을지 정해요. 이미 받은 꽃은 그대로 남아요. 원치 않는 이웃은 방문 화면에서 차단할 수 있어요.',
-                  ),
-                  value: _receiveGifts,
-                  onChanged: _busy
-                      ? null
-                      : (value) => setState(() => _receiveGifts = value),
                 ),
                 const SizedBox(height: 16),
-                FilledButton(
-                  onPressed: _busy ? null : _save,
-                  child: Text(_busy ? '저장하고 있어요…' : '설정과 지금 정원 모습 저장'),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  '정원을 가꾼 뒤 다시 저장하면 이웃에게 새 배치를 보여줄 수 있어요.',
-                  style: TextStyle(
-                    fontSize: 12,
-                    height: 1.5,
-                    color: AppColors.inkSoft,
+                if (_needsAccount)
+                  const Text('로그인하면 내 정원의 공개 범위와 선물 받기를 정할 수 있어요.')
+                else if (_error != null) ...[
+                  Text(_error!),
+                  const SizedBox(height: 8),
+                  const Text('현재 서버의 공개 범위를 확인하지 못했어요. 정원이 공개 중일 수 있어요.'),
+                  OutlinedButton(
+                    onPressed: _busy ? null : _load,
+                    child: const Text('다시 확인하기'),
                   ),
-                ),
+                  TextButton.icon(
+                    onPressed: _busy ? null : _makePrivate,
+                    icon: const Icon(Icons.visibility_off_outlined),
+                    label: const Text('공개 상태 확인 없이 나만 보기로 변경'),
+                  ),
+                ] else ...[
+                  const Text(
+                    '공개되는 것은 내가 가꾼 정원 모습과 정원사 이름이에요. 편지, 감정 통계, 식물에 남긴 개인적인 추억은 공개되지 않아요.',
+                    style: TextStyle(height: 1.6, color: AppColors.inkSoft),
+                  ),
+                  const SizedBox(height: 20),
+                  _appearanceStatus(),
+                  const SizedBox(height: 20),
+                  TextField(
+                    controller: _nickname,
+                    enabled: !_busy,
+                    maxLength: 20,
+                    onChanged: (_) => setState(() {}),
+                    decoration: const InputDecoration(
+                      labelText: '정원사 이름',
+                      hintText: '이웃에게 보여줄 이름',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    '누가 내 정원에 방문할 수 있나요?',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                  ),
+                  RadioGroup<GardenVisibility>(
+                    groupValue: _visibility,
+                    onChanged: (value) {
+                      if (_busy || value == null) return;
+                      setState(() {
+                        _visibility = value;
+                        if (value != GardenVisibility.public)
+                          _randomVisits = false;
+                        if (_visibility != GardenVisibility.public) {
+                          _discovery = false;
+                        }
+                      });
+                    },
+                    child: Column(
+                      children:
+                          [
+                                (
+                                  GardenVisibility.private,
+                                  '나만 보기',
+                                  '다른 사람은 내 정원에 방문할 수 없어요.',
+                                ),
+                                (
+                                  GardenVisibility.neighbors,
+                                  '이웃에게 공개',
+                                  '서로 수락한 이웃만 내 정원에 방문해요.',
+                                ),
+                                (
+                                  GardenVisibility.public,
+                                  '모두에게 공개',
+                                  '로그인한 정원사들이 내 정원에 방문할 수 있어요.',
+                                ),
+                              ]
+                              .map(
+                                (option) => RadioListTile<GardenVisibility>(
+                                  contentPadding: EdgeInsets.zero,
+                                  value: option.$1,
+                                  enabled: !_busy,
+                                  title: Text(option.$2),
+                                  subtitle: Text(option.$3),
+                                ),
+                              )
+                              .toList(),
+                    ),
+                  ),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(
+                      _savedProfile?.supportsRandomVisits == true
+                          ? '무작위 이웃 방문 허용'
+                          : '둘러보기에 내 정원 소개',
+                    ),
+                    subtitle: Text(
+                      _visibility == GardenVisibility.public
+                          ? (_savedProfile?.supportsRandomVisits == true
+                                ? '직접 허용한 정원 모습·공개용 닉네임·고양이만 보여요. 편지·감정 기록·기억의 나무 날짜와 내용은 공개되지 않아요. 언제든 해제할 수 있어요.'
+                                : '처음 만나는 정원사도 내 정원을 발견할 수 있어요. 무작위 방문은 서버 업데이트 후 별도로 허용할 수 있어요.')
+                          : '모두에게 공개할 때만 선택할 수 있어요.',
+                    ),
+                    value:
+                        _visibility == GardenVisibility.public &&
+                        (_savedProfile?.supportsRandomVisits == true
+                            ? _randomVisits
+                            : _discovery),
+                    onChanged: _busy || _visibility != GardenVisibility.public
+                        ? null
+                        : (value) => setState(() {
+                            _discovery = value;
+                            if (_savedProfile?.supportsRandomVisits == true)
+                              _randomVisits = value;
+                          }),
+                  ),
+                  if (_savedProfile?.supportsRandomVisits == true)
+                    DropdownButtonFormField<CompanionCoat>(
+                      initialValue: _publicCoat,
+                      decoration: const InputDecoration(
+                        labelText: '정원에 보일 고양이 외형',
+                      ),
+                      items: CompanionCoat.values
+                          .map(
+                            (coat) => DropdownMenuItem(
+                              value: coat,
+                              child: Text(coat.label),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: _busy
+                          ? null
+                          : (coat) {
+                              if (coat != null)
+                                setState(() {
+                                  _publicCoat = coat;
+                                  _catChanged = true;
+                                });
+                            },
+                    ),
+                  const Divider(height: 28),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('이웃의 꽃 선물 받기'),
+                    subtitle: const Text(
+                      '새 꽃 선물을 받을지 정해요. 이미 받은 꽃은 그대로 남아요. 원치 않는 이웃은 방문 화면에서 차단할 수 있어요.',
+                    ),
+                    value: _receiveGifts,
+                    onChanged: _busy
+                        ? null
+                        : (value) => setState(() => _receiveGifts = value),
+                  ),
+                  const SizedBox(height: 16),
+                  FilledButton(
+                    onPressed: _busy ? null : _save,
+                    child: Text(_busy ? '저장하고 있어요…' : '설정과 지금 정원 모습 저장'),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    '정원을 가꾼 뒤 다시 저장하면 이웃에게 새 배치를 보여줄 수 있어요.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      height: 1.5,
+                      color: AppColors.inkSoft,
+                    ),
+                  ),
+                ],
               ],
-            ],
-          ),
-  );
+            ),
+    );
+  }
 }

@@ -744,7 +744,8 @@ class StorageService {
 
   static Future<void> setCrisisEnabled(bool v) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_crisisEnabledKey, v);
+    if (!await prefs.setBool(_crisisEnabledKey, v))
+      throw StateError('reminder-save');
   }
 
   // -- 스트릭 임박 알림 (오늘 미완료일 때 조건부 발송, 신규 사용자는 명시 동의) --
@@ -755,7 +756,8 @@ class StorageService {
 
   static Future<void> setStreakEnabled(bool v) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_streakEnabledKey, v);
+    if (!await prefs.setBool(_streakEnabledKey, v))
+      throw StateError('reminder-save');
   }
 
   // ── 감정 인식 루프: 설치일(가입일) 기록 ──

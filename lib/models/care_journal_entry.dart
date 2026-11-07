@@ -1,3 +1,5 @@
+import '../l10n/app_language.dart';
+
 enum AfterWritingFeeling { lighter, same, complex, unknown }
 
 enum CareActionKind { rest, walk, meditation, custom }
@@ -6,28 +8,28 @@ enum CareHelpfulness { helped, same, harder, unknown }
 
 extension AfterWritingFeelingLabel on AfterWritingFeeling {
   String get label => switch (this) {
-    AfterWritingFeeling.lighter => '조금 가벼워졌어요',
-    AfterWritingFeeling.same => '비슷해요',
-    AfterWritingFeeling.complex => '더 복잡해졌어요',
-    AfterWritingFeeling.unknown => '아직 잘 모르겠어요',
+    AfterWritingFeeling.lighter => tr("조금 가벼워졌어요"),
+    AfterWritingFeeling.same => tr("비슷해요"),
+    AfterWritingFeeling.complex => tr("더 복잡해졌어요"),
+    AfterWritingFeeling.unknown => tr("아직 잘 모르겠어요"),
   };
 }
 
 extension CareActionKindLabel on CareActionKind {
   String get label => switch (this) {
-    CareActionKind.rest => '잠깐 쉬기',
-    CareActionKind.walk => '가볍게 걷기',
-    CareActionKind.meditation => '명상하기',
-    CareActionKind.custom => '내가 정한 돌봄',
+    CareActionKind.rest => tr("잠깐 쉬기"),
+    CareActionKind.walk => tr("가볍게 걷기"),
+    CareActionKind.meditation => tr("명상하기"),
+    CareActionKind.custom => tr("내가 정한 돌봄"),
   };
 }
 
 extension CareHelpfulnessLabel on CareHelpfulness {
   String get label => switch (this) {
-    CareHelpfulness.helped => '도움이 됐어요',
-    CareHelpfulness.same => '비슷했어요',
-    CareHelpfulness.harder => '더 힘들었어요',
-    CareHelpfulness.unknown => '잘 모르겠어요',
+    CareHelpfulness.helped => tr("도움이 됐어요"),
+    CareHelpfulness.same => tr("비슷했어요"),
+    CareHelpfulness.harder => tr("더 힘들었어요"),
+    CareHelpfulness.unknown => tr("잘 모르겠어요"),
   };
 }
 

@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import '../widgets/subscription_gate.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -41,7 +42,7 @@ class _MonthlyShadowReflectionScreenState
   @override
   Widget build(BuildContext context) {
     return SubscriptionGate(
-      message: '월간 감정 분석은 마음냥 구독에 포함돼요.',
+      message: tr("월간 감정 분석은 마음냥 구독에 포함돼요."),
       builder: (_) => _content(context),
     );
   }
@@ -72,7 +73,7 @@ class _MonthlyShadowReflectionScreenState
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          '이번 달 돌아보기',
+                          tr("이번 달 돌아보기"),
                           style: titleFont(
                             fontSize: 19,
                             color: AppColors.titlePastelGreen,
@@ -128,12 +129,12 @@ class _NoMonthlyDataYet extends StatelessWidget {
           const Text('🌙', style: TextStyle(fontSize: 40)),
           const SizedBox(height: 14),
           Text(
-            '아직 이번 달 기록이 없어요',
+            tr("아직 이번 달 기록이 없어요"),
             style: bodyFont(fontSize: 13.5, color: AppColors.inkSoft),
           ),
           const SizedBox(height: 6),
           Text(
-            '그림자 고양이를 만나 편지를 쓰면\n이곳에서 이번 달을 돌아볼 수 있어요',
+            tr("그림자 고양이를 만나 편지를 쓰면\n이곳에서 이번 달을 돌아볼 수 있어요"),
             textAlign: TextAlign.center,
             style: bodyFont(fontSize: 12.5, color: AppColors.inkSoft),
           ),
@@ -185,7 +186,7 @@ class _MonthlySummaryCard extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           Text(
-            '이번 달 1일부터 오늘까지 남긴 기록을 살펴봤어요',
+            tr("이번 달 1일부터 오늘까지 남긴 기록을 살펴봤어요"),
             textAlign: TextAlign.center,
             style: bodyFont(fontSize: 11.5, color: accent),
           ),
@@ -220,7 +221,7 @@ class _ShareMonthlyButton extends StatelessWidget {
               sentence: sentence,
               accentCatId: accentCatId,
             ),
-            shareText: '이번 달 나의 그림자 정원 이야기 🌙 #마음냥정원',
+            shareText: tr("이번 달 나의 그림자 정원 이야기 🌙 #마음냥정원"),
           );
         },
         icon: Icon(
@@ -239,7 +240,7 @@ class _ShareMonthlyButton extends StatelessWidget {
           ),
         ),
         label: Text(
-          '이번 달 이야기 공유하기',
+          tr("이번 달 이야기 공유하기"),
           style: pathLabelFont(
             fontSize: 13,
             color: AppColors.blobLavenderAccent,
@@ -272,14 +273,16 @@ class _UnconsciousPatternCard extends StatelessWidget {
           const Text('🌘', style: TextStyle(fontSize: 28)),
           const SizedBox(height: 12),
           Text(
-            '이번 달, 우연히\n만난 고양이들',
+            tr("이번 달, 우연히\n만난 고양이들"),
             textAlign: TextAlign.center,
             style: titleFont(fontSize: 18, color: AppColors.ink, height: 1.5),
           ),
           const SizedBox(height: 10),
           Text(
             sentence ??
-                '아직 데일리 카드뽑기 기록이 충분하지 않아요.\n무작위 카드 기록이에요. 실제 감정의 빈도를 뜻하지 않아요.',
+                tr(
+                  "아직 데일리 카드뽑기 기록이 충분하지 않아요.\n무작위 카드 기록이에요. 실제 감정의 빈도를 뜻하지 않아요.",
+                ),
             textAlign: TextAlign.center,
             style: bodyFont(fontSize: 13, color: AppColors.moon, height: 1.5),
           ),
@@ -305,13 +308,13 @@ class _ReflectionLetterInviteCard extends StatelessWidget {
           const Text('✉️', style: TextStyle(fontSize: 28)),
           const SizedBox(height: 12),
           Text(
-            '한 달간의 그림자들에게,\n답장을 써볼까요?',
+            tr("한 달간의 그림자들에게,\n답장을 써볼까요?"),
             textAlign: TextAlign.center,
             style: titleFont(fontSize: 18, color: AppColors.ink, height: 1.5),
           ),
           const SizedBox(height: 8),
           Text(
-            '리플렉션 레터 열기',
+            tr("리플렉션 레터 열기"),
             textAlign: TextAlign.center,
             style: bodyFont(fontSize: 12, color: AppColors.blobLavenderAccent),
           ),
@@ -336,7 +339,7 @@ class _ReflectionLetterInviteCard extends StatelessWidget {
                 ),
               ),
               child: Text(
-                '답장 쓰러 가기',
+                tr("답장 쓰러 가기"),
                 style: serifFont(fontSize: 14.5, color: Colors.white),
               ),
             ),

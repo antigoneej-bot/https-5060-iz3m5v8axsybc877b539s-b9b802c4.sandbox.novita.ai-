@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import '../mongi/integration/mongi_garden_store.dart';
 import '../mongi/models/seed.dart';
 import 'dart:ui' as ui;
@@ -78,23 +79,61 @@ class _EmotionComicBookState extends State<EmotionComicBook> {
       final events = [...data.lifeEvents];
       // A saved planting date is evidence; never infer growth dates from today's size.
       for (final e in data.plantedOn.entries) {
-        if (!events.any((v) => v['kind'] == 'plant' && v['plant'] == e.key && v['at'] == e.value)) {
-          events.add({'kind': 'plant', 'plant': e.key, 'at': e.value, 'level': 1});
+        if (!events.any(
+          (v) =>
+              v['kind'] == 'plant' && v['plant'] == e.key && v['at'] == e.value,
+        )) {
+          events.add({
+            'kind': 'plant',
+            'plant': e.key,
+            'at': e.value,
+            'level': 1,
+          });
         }
       }
       events.sort((a, b) => (a['at'] as String).compareTo(b['at'] as String));
-      if (mounted) setState(() { _events = events; _eventError = null; });
-    } catch (_) { if (mounted) setState(() => _eventError = '정원 이야기를 불러오지 못했어요.'); }
+      if (mounted)
+        setState(() {
+          _events = events;
+          _eventError = null;
+        });
+    } catch (_) {
+      if (mounted) setState(() => _eventError = tr("정원 이야기를 불러오지 못했어요."));
+    }
   }
-  Widget _gardenScenes(List<Map<String, dynamic>> events, {Key? key}) => Column(key: key, children: [
-    heading('내 정원이 자란 날'),
-    for (final event in events) Card(child: Padding(padding: const EdgeInsets.all(16), child: Column(children: [
-      Icon(event['kind'] == 'plant' ? Icons.spa_outlined : Icons.park_outlined, size: 64, color: const Color(0xFF82A58A)),
-      Text('${event['at']} · ${SeedType.byId(event['plant'] as String).label}'),
-      Text(event['kind'] == 'plant' ? '이날 내 정원에 심었어요.' : '${event['level']}단계로 자랐어요.'),
-    ]))),
-    note('실제로 저장된 심기·성장 기록이에요. 최근 1,000건의 사건을 보관해요.'),
-  ]);
+
+  Widget _gardenScenes(List<Map<String, dynamic>> events, {Key? key}) => Column(
+    key: key,
+    children: [
+      heading(tr("내 정원이 자란 날")),
+      for (final event in events)
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                Icon(
+                  event['kind'] == 'plant'
+                      ? Icons.spa_outlined
+                      : Icons.park_outlined,
+                  size: 64,
+                  color: const Color(0xFF82A58A),
+                ),
+                Text(
+                  '${event['at']} · ${SeedType.byId(event['plant'] as String).label}',
+                ),
+                Text(
+                  event['kind'] == 'plant'
+                      ? tr("이날 내 정원에 심었어요.")
+                      : tr("{0}단계로 자랐어요.", [event['level']]),
+                ),
+              ],
+            ),
+          ),
+        ),
+      note(tr("실제로 저장된 심기·성장 기록이에요. 최근 1,000건의 사건을 보관해요.")),
+    ],
+  );
 
   @override
   void dispose() {
@@ -126,9 +165,9 @@ class _EmotionComicBookState extends State<EmotionComicBook> {
             children: [
               heading(title),
               if (records.isEmpty)
-                const Padding(
+                Padding(
                   padding: EdgeInsets.all(24),
-                  child: Text('이날 남긴 기록은 없어요.'),
+                  child: Text(tr("이날 남긴 기록은 없어요.")),
                 ),
               for (final r in records)
                 Card(
@@ -146,7 +185,7 @@ class _EmotionComicBookState extends State<EmotionComicBook> {
                         ),
                         const SizedBox(height: 12),
                         SelectableText(
-                          r.note.isEmpty ? '감정만 남긴 기록이에요.' : r.note,
+                          r.note.isEmpty ? tr("감정만 남긴 기록이에요.") : r.note,
                         ),
                       ],
                     ),
@@ -154,7 +193,7 @@ class _EmotionComicBookState extends State<EmotionComicBook> {
                 ),
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('닫기'),
+                child: Text(tr("닫기")),
               ),
             ],
           ),
@@ -167,18 +206,18 @@ class _EmotionComicBookState extends State<EmotionComicBook> {
     final consent = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('이 장을 이미지로 내보낼까요?'),
-        content: const Text(
-          '화면에 보이는 감정, 기록 문장과 직접 쓴 제목이 이미지에 담겨요. 공유 대상을 직접 선택할 수 있어요.',
+        title: Text(tr("이 장을 이미지로 내보낼까요?")),
+        content: Text(
+          tr("화면에 보이는 감정, 기록 문장과 직접 쓴 제목이 이미지에 담겨요. 공유 대상을 직접 선택할 수 있어요."),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('취소'),
+            child: Text(tr("취소")),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('이미지 내보내기'),
+            child: Text(tr("이미지 내보내기")),
           ),
         ],
       ),
@@ -207,7 +246,7 @@ class _EmotionComicBookState extends State<EmotionComicBook> {
                   'mindnyang-comic-${widget.start.year}-${widget.start.month}-${_page + 1}.png',
             ),
           ],
-          text: '마음냥 정원 · 나의 작은 이야기',
+          text: tr("마음냥 정원 · 나의 작은 이야기"),
           sharePositionOrigin: box.localToGlobal(Offset.zero) & box.size,
         ),
       );
@@ -215,7 +254,7 @@ class _EmotionComicBookState extends State<EmotionComicBook> {
       if (mounted)
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(const SnackBar(content: Text('이미지 내보내기를 다시 시도해 주세요.')));
+        ).showSnackBar(SnackBar(content: Text(tr("이미지 내보내기를 다시 시도해 주세요."))));
     } finally {
       if (mounted) setState(() => _sharing = false);
     }
@@ -223,13 +262,16 @@ class _EmotionComicBookState extends State<EmotionComicBook> {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     final pages = comicPages(widget.summary.records);
     final events = _events.where((e) {
       final day = DateTime.parse(e['at'] as String);
-      return !day.isBefore(DateUtils.dateOnly(widget.start)) && !day.isAfter(DateUtils.dateOnly(widget.end));
+      return !day.isBefore(DateUtils.dateOnly(widget.start)) &&
+          !day.isAfter(DateUtils.dateOnly(widget.end));
     }).toList();
     final gardenPages = <List<Map<String, dynamic>>>[
-      for (var i = 0; i < events.length; i += 4) events.sublist(i, (i + 4).clamp(0, events.length).toInt()),
+      for (var i = 0; i < events.length; i += 4)
+        events.sublist(i, (i + 4).clamp(0, events.length).toInt()),
     ];
     final totalScenes = pages.length + gardenPages.length;
     final page = _page.clamp(0, totalScenes);
@@ -237,12 +279,16 @@ class _EmotionComicBookState extends State<EmotionComicBook> {
     final reduced = MediaQuery.disableAnimationsOf(context);
     return Column(
       children: [
-        if (_eventError != null) TextButton(onPressed: _loadEvents, child: Text('$_eventError 다시 시도')),
+        if (_eventError != null)
+          TextButton(
+            onPressed: _loadEvents,
+            child: Text(tr("{0} 다시 시도", [_eventError])),
+          ),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             IconButton(
-              tooltip: '이전 장',
+              tooltip: tr("이전 장"),
               onPressed: page > 0
                   ? () => setState(() => _page = page - 1)
                   : null,
@@ -251,12 +297,12 @@ class _EmotionComicBookState extends State<EmotionComicBook> {
             Expanded(
               child: note(
                 last
-                    ? '마지막 장 · ${page + 1} / ${totalScenes + 1}'
-                    : '${page + 1} / ${totalScenes + 1} · 나의 이야기',
+                    ? tr("마지막 장 · {0} / {1}", [page + 1, totalScenes + 1])
+                    : tr("{0} / {1} · 나의 이야기", [page + 1, totalScenes + 1]),
               ),
             ),
             IconButton(
-              tooltip: '다음 장',
+              tooltip: tr("다음 장"),
               onPressed: last ? null : () => setState(() => _page = page + 1),
               icon: const Icon(Icons.chevron_right),
             ),
@@ -287,25 +333,33 @@ class _EmotionComicBookState extends State<EmotionComicBook> {
               ),
               child: Column(
                 children: [
-                  note('마음냥 정원'),
+                  note(tr("마음냥 정원")),
                   heading(
                     last
-                        ? (widget.monthly ? '이번 달의 마음냥' : '이번 주의 마음냥')
-                        : '마음냥 만화책',
+                        ? (widget.monthly ? tr("이번 달의 마음냥") : tr("이번 주의 마음냥"))
+                        : tr("마음냥 만화책"),
                   ),
                   note(
-                    '${widget.start.year}년 ${date(widget.start)}–${date(widget.end)}',
+                    tr("{0}년 {1}–{2}", [
+                      widget.start.year,
+                      date(widget.start),
+                      date(widget.end),
+                    ]),
                   ),
                   const SizedBox(height: 16),
                   AnimatedSwitcher(
                     duration: Duration(milliseconds: reduced ? 0 : 220),
                     child: last
                         ? _summary(key: const ValueKey('summary'))
-                        : page < pages.length ? _scenes(pages[page], key: ValueKey(page))
-                        : _gardenScenes(gardenPages[page - pages.length], key: ValueKey(page)),
+                        : page < pages.length
+                        ? _scenes(pages[page], key: ValueKey(page))
+                        : _gardenScenes(
+                            gardenPages[page - pages.length],
+                            key: ValueKey(page),
+                          ),
                   ),
                   const SizedBox(height: 12),
-                  note('내가 남긴 기록으로 엮은 이야기'),
+                  note(tr("내가 남긴 기록으로 엮은 이야기")),
                 ],
               ),
             ),
@@ -315,15 +369,15 @@ class _EmotionComicBookState extends State<EmotionComicBook> {
         if (!last)
           TextButton(
             onPressed: () => setState(() => _page = totalScenes),
-            child: const Text('마지막 장 · 마음 모아 보기'),
+            child: Text(tr("마지막 장 · 마음 모아 보기")),
           ),
         FilledButton.icon(
           onPressed: _sharing ? null : _share,
           icon: const Icon(Icons.ios_share),
-          label: Text(_sharing ? '이미지를 준비하고 있어요' : '이 장 간직하기 · 공유'),
+          label: Text(_sharing ? tr("이미지를 준비하고 있어요") : tr("이 장 간직하기 · 공유")),
         ),
         const SizedBox(height: 8),
-        note('좌우로 넘겨 읽어요. 그림은 감정의 표현이며 실제 사건을 재현하지 않아요.'),
+        note(tr("좌우로 넘겨 읽어요. 그림은 감정의 표현이며 실제 사건을 재현하지 않아요.")),
         const SizedBox(height: 20),
       ],
     );
@@ -348,7 +402,8 @@ class _EmotionComicBookState extends State<EmotionComicBook> {
                   width: width,
                   child: InkWell(
                     borderRadius: BorderRadius.circular(18),
-                    onTap: () => _openRecords('${date(r.date)}의 마음', [r]),
+                    onTap: () =>
+                        _openRecords(tr("{0}의 마음", [date(r.date)]), [r]),
                     child: Container(
                       decoration: BoxDecoration(
                         color: r.background,
@@ -380,7 +435,9 @@ class _EmotionComicBookState extends State<EmotionComicBook> {
                               borderRadius: BorderRadius.circular(15),
                             ),
                             child: Text(
-                              r.note.isEmpty ? '${r.label}을 느낀 날' : r.note,
+                              r.note.isEmpty
+                                  ? tr("{0}을 느낀 날", [r.label])
+                                  : r.note,
                               maxLines: 4,
                               overflow: TextOverflow.ellipsis,
                               style: bodyFont(fontSize: 15, color: ink),
@@ -389,7 +446,7 @@ class _EmotionComicBookState extends State<EmotionComicBook> {
                           Padding(
                             padding: const EdgeInsets.only(bottom: 9),
                             child: Text(
-                              '${r.sourceLabel} · 눌러서 전체 읽기',
+                              tr("{0} · 눌러서 전체 읽기", [r.sourceLabel]),
                               style: bodyFont(fontSize: 11, color: ink),
                             ),
                           ),
@@ -469,8 +526,8 @@ class _EmotionComicBookState extends State<EmotionComicBook> {
             size: 64,
             color: Color(0xFFBC9177),
           ),
-          heading('첫 이야기를 기다려요', 24),
-          note('편지나 정원 일기에 마음을 남기면 이 책에 모여요.'),
+          heading(tr("첫 이야기를 기다려요"), 24),
+          note(tr("편지나 정원 일기에 마음을 남기면 이 책에 모여요.")),
         ] else ...[
           ClipRRect(
             borderRadius: BorderRadius.circular(20),
@@ -480,7 +537,7 @@ class _EmotionComicBookState extends State<EmotionComicBook> {
             ),
           ),
           const SizedBox(height: 10),
-          heading('자주 만난 마음 친구들', 23),
+          heading(tr("자주 만난 마음 친구들"), 23),
           for (final item in top)
             Card(
               color: item.emotion.background,
@@ -494,7 +551,7 @@ class _EmotionComicBookState extends State<EmotionComicBook> {
                   item.emotion.displayLabel,
                   style: bodyFont(fontSize: 16, color: ink),
                 ),
-                subtitle: Text('${item.count}번 만났어요'),
+                subtitle: Text(tr("{0}번 만났어요", [item.count])),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () => _openRecords(
                   item.emotion.displayLabel,
@@ -506,18 +563,24 @@ class _EmotionComicBookState extends State<EmotionComicBook> {
             ),
           if (widget.detailed && summary.ranked.length > top.length)
             note(
-              '그 밖의 마음 ${summary.records.length - top.fold<int>(0, (n, e) => n + e.count)}번',
+              tr("그 밖의 마음 {0}번", [
+                summary.records.length -
+                    top.fold<int>(0, (n, e) => n + e.count),
+              ]),
             ),
         ],
         const SizedBox(height: 20),
-        heading('차곡차곡 남긴 발자국', 25),
+        heading(tr("차곡차곡 남긴 발자국"), 25),
         note(
-          '${summary.recordedDays}일 동안, ${summary.records.length}개의 마음을 남겼어요',
+          tr("{0}일 동안, {1}개의 마음을 남겼어요", [
+            summary.recordedDays,
+            summary.records.length,
+          ]),
         ),
         const SizedBox(height: 12),
         _calendar(),
         const SizedBox(height: 20),
-        heading(widget.monthly ? '나에게 이번 달은' : '나에게 이번 주는', 24),
+        heading(widget.monthly ? tr("나에게 이번 달은") : tr("나에게 이번 주는"), 24),
         TextField(
           controller: _title,
           maxLength: 60,
@@ -528,8 +591,8 @@ class _EmotionComicBookState extends State<EmotionComicBook> {
             color: ink,
           ),
           textAlign: TextAlign.center,
-          decoration: const InputDecoration(
-            hintText: '나의 이야기 제목을 적어 주세요',
+          decoration: InputDecoration(
+            hintText: tr("나의 이야기 제목을 적어 주세요"),
             filled: true,
             fillColor: Color(0xFFFFE7DF),
             border: OutlineInputBorder(
@@ -539,9 +602,10 @@ class _EmotionComicBookState extends State<EmotionComicBook> {
         ),
         ValueListenableBuilder<String>(
           valueListenable: _title.saveStatus,
-          builder: (_, value, __) => note(value.replaceAll('임시저장', '저장')),
+          builder: (_, value, __) =>
+              note(value.replaceAll(tr("임시저장"), tr("저장"))),
         ),
-        note('제목은 이 기기에 저장되며 기록 백업에 포함돼요.'),
+        note(tr("제목은 이 기기에 저장되며 기록 백업에 포함돼요.")),
       ],
     );
   }
@@ -561,7 +625,15 @@ class _EmotionComicBookState extends State<EmotionComicBook> {
       children: [
         Row(
           children: [
-            for (final s in ['월', '화', '수', '목', '금', '토', '일'])
+            for (final s in [
+              tr("월"),
+              tr("화"),
+              tr("수"),
+              tr("목"),
+              tr("금"),
+              tr("토"),
+              tr("일"),
+            ])
               Expanded(child: note(s)),
           ],
         ),
@@ -580,12 +652,12 @@ class _EmotionComicBookState extends State<EmotionComicBook> {
             final records = days[d] ?? <UnifiedEmotionRecord>[];
             final future = d.isAfter(widget.end);
             return Semantics(
-              label: '${date(d)}, ${records.length}개 기록',
+              label: tr("{0}, {1}개 기록", [date(d), records.length]),
               button: !future,
               child: InkWell(
                 onTap: future
                     ? null
-                    : () => _openRecords('${date(d)}의 마음', records),
+                    : () => _openRecords(tr("{0}의 마음", [date(d)]), records),
                 child: Container(
                   margin: const EdgeInsets.all(2),
                   decoration: BoxDecoration(

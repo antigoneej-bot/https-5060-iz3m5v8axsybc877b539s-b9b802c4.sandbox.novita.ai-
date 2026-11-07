@@ -23,6 +23,7 @@ import 'support/fake_global_audioplayers_platform.dart';
 void main() {
   final binding = TestWidgetsFlutterBinding.ensureInitialized();
   const channel = MethodChannel('dexterous.com/flutter/local_notifications');
+  const timezoneChannel = MethodChannel('garden/device_timezone');
   late NotificationService service;
   bool permission = true;
   setUpAll(() {
@@ -36,6 +37,10 @@ void main() {
     SoundService().sfxEnabled = false;
     permission = true;
     AndroidFlutterLocalNotificationsPlugin.registerWith();
+    binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      timezoneChannel,
+      (_) async => {'id': 'Asia/Seoul', 'offsetSeconds': 32400},
+    );
     binding.defaultBinaryMessenger.setMockMethodCallHandler(channel, (
       call,
     ) async {
@@ -51,6 +56,10 @@ void main() {
   tearDown(() {
     service.dispose();
     binding.defaultBinaryMessenger.setMockMethodCallHandler(channel, null);
+    binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      timezoneChannel,
+      null,
+    );
   });
 
   Future<void> ready(WidgetTester tester, Finder button) async {

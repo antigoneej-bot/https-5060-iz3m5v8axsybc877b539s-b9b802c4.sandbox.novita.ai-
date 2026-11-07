@@ -1,3 +1,4 @@
+import '../../l10n/app_language.dart';
 import '../../theme.dart' show AppColors;
 import '../integration/session_transaction.dart';
 import 'package:flutter/material.dart';
@@ -129,7 +130,7 @@ class _QuietModeScreenState extends State<QuietModeScreen>
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
         builder: (_) => FeatureScaffold(
-          title: '나의 정원',
+          title: tr("나의 정원"),
           child: MyGardenScreen(
             onGoMeetCat: () =>
                 Navigator.of(context).popUntil((route) => route.isFirst),
@@ -141,6 +142,7 @@ class _QuietModeScreenState extends State<QuietModeScreen>
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     return Scaffold(
       body: Container(
         width: double.infinity,

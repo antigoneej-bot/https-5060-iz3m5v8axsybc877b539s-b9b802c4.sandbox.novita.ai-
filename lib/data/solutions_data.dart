@@ -1,4 +1,5 @@
 export 'meditation_media_data.dart';
+
 /// 카테고리별 대처 가이드 (솔루션 탭 콘텐츠)
 class SolutionGuide {
   final String title;

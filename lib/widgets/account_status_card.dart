@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../screens/data_safety_screen.dart';
@@ -70,7 +71,7 @@ class _AccountStatusCardState extends State<AccountStatusCard>
           unawaited(_reload());
           return;
         }
-        setState(() => _error = '최신 상태를 확인하지 못했어요. 연결 후 다시 확인해 주세요.');
+        setState(() => _error = tr("최신 상태를 확인하지 못했어요. 연결 후 다시 확인해 주세요."));
       }
     } finally {
       if (mounted && request == _generation) {
@@ -126,13 +127,15 @@ class _AccountStatusCardState extends State<AccountStatusCard>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '구독과 기록 보관',
+            tr("구독과 기록 보관"),
             style: titleFont(fontSize: 19, color: AppColors.ink),
           ),
           const SizedBox(height: 8),
           if (data != null) ...[
             Text(
-              data.owner == null ? data.provider : '${data.provider} 로그인 계정',
+              data.owner == null
+                  ? data.provider
+                  : tr("{0} 로그인 계정", [data.provider]),
             ),
             const SizedBox(height: 12),
             Text(
@@ -148,18 +151,18 @@ class _AccountStatusCardState extends State<AccountStatusCard>
             Text(data.backup.detail),
           ],
           if (_loading)
-            const Padding(
+            Padding(
               padding: EdgeInsets.symmetric(vertical: 8),
-              child: Text('상태를 확인하고 있어요…'),
+              child: Text(tr("상태를 확인하고 있어요…")),
             ),
           if (_error != null) ...[
             const SizedBox(height: 8),
-            if (data != null) const Text('표시된 내용은 마지막으로 확인한 상태예요.'),
+            if (data != null) Text(tr("표시된 내용은 마지막으로 확인한 상태예요.")),
             Text(_error!, key: const ValueKey('account-status-error')),
           ],
           const SizedBox(height: 10),
-          const Text(
-            '로그인만으로 기록이 다른 기기로 옮겨지지는 않아요.',
+          Text(
+            tr("로그인만으로 기록이 다른 기기로 옮겨지지는 않아요."),
             style: TextStyle(fontSize: 12),
           ),
           const SizedBox(height: 8),
@@ -169,15 +172,15 @@ class _AccountStatusCardState extends State<AccountStatusCard>
             children: [
               OutlinedButton(
                 onPressed: () => _open(backup: false),
-                child: const Text('구독 관리·구매 복원'),
+                child: Text(tr("구독 관리·구매 복원")),
               ),
               OutlinedButton(
                 onPressed: () => _open(backup: true),
-                child: const Text('기록 백업·복원'),
+                child: Text(tr("기록 백업·복원")),
               ),
               TextButton(
                 onPressed: _loading ? null : () => _reload(refresh: true),
-                child: const Text('상태 새로고침'),
+                child: Text(tr("상태 새로고침")),
               ),
             ],
           ),

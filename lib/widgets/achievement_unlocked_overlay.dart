@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import '../theme.dart';
@@ -131,7 +132,7 @@ class _AchievementUnlockedOverlayState extends State<AchievementUnlockedOverlay>
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          '🎉 새 뱃지 달성!',
+                          tr("🎉 새 뱃지 달성!"),
                           style: bodyFont(
                             fontSize: 10.5,
                             fontWeight: FontWeight.w700,

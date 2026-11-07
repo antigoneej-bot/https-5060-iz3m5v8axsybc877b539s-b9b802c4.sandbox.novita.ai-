@@ -137,11 +137,7 @@ class _MongiCheerScreenState extends State<MongiCheerScreen> {
                 ],
               ),
             ),
-            const Icon(
-              Icons.chevron_right,
-              color: AppColors.inkSoft,
-              size: 20,
-            ),
+            const Icon(Icons.chevron_right, color: AppColors.inkSoft, size: 20),
           ],
         ),
       ),

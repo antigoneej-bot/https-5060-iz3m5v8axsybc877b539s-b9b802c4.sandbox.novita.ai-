@@ -1,0 +1,35 @@
+const mindPlantingEnglishCatalog = <String, String>{
+  '마음 심기': 'Plant a feeling',
+  '오늘은 어떤 마음을 심어둘까?': 'What feeling would you like to plant?',
+  '지친 마음도 그대로 괜찮아.': "It's okay to feel tired. You can be yourself here.",
+  '다른 마음 찾아보기': 'Explore more feelings',
+  '이 마음 담아두기': 'Make room for this feeling',
+  '잘 정리되지 않아도 괜찮아요.': "You don't have to have it all figured out.",
+  '마음을 담을 식물': 'Choose a plant for your feeling',
+  '나를 지켜주는 마음을 심어요.': 'Plant a little reminder to be on your own side.',
+  '간직하고 싶은 작은 기쁨을 심어요.': 'Give a small happy moment a place to stay.',
+  '변해가는 나를 천천히 받아들여요.': 'Give yourself time to grow into who you are becoming.',
+  '아직 풀리지 않은 마음을 잠시 놓아두어요.': "Let something unresolved rest here for a while.",
+  '나와 소중한 사람을 아끼는 마음을 심어요.':
+      'Plant a little love for yourself and those you care about.',
+  '내 마음이 잠깐 쉴 자리를 만들어요.': 'Make a little room for your heart to rest.',
+  '담아둘 마음 · {0}': 'Your feeling · {0}',
+  '담아둔 마음 · {0}': 'The feeling you planted · {0}',
+  '남기고 싶은 한마디 · 선택': 'A few words to keep · optional',
+  '오늘도 하루를 보낸 나에게…': 'A few words for the me who made it through today…',
+  '나만 보는 마음 기록': 'A private memory, just for you',
+  '글 없이 심어도 괜찮아요.': "You can plant without writing anything.",
+  '마음 검색': 'Find a feeling',
+  '다른 말로 마음을 찾아보세요.': 'Try another word for how you feel.',
+  '여기에 마음 심기 · 씨앗 1개': 'Plant here · 1 seed',
+  '마음 다시 읽기': 'Revisit this memory',
+  '이 식물에 담아둔 마음': 'The feeling this plant holds',
+  '그날의 나에게, 오늘의 다정함을 조금.':
+      'A little kindness today for the you who planted this.',
+  '마음 기록을 불러오지 못했어요. 다시 열어 주세요.':
+      "Your memory couldn't load. Please open it again.",
+  '계정이 바뀌었어요. 마음 심기를 다시 열어 주세요.':
+      'Your account changed. Please start planting again.',
+  '오늘의 마음이 이곳에 자리 잡았어요.': "Today's feeling has a place here now.",
+  '이 마음이 머물 자리를 골라요.': 'Choose a spot for this feeling to rest.',
+};

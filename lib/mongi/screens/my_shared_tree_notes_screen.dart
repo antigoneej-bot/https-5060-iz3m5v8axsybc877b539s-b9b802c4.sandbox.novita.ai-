@@ -1,3 +1,4 @@
+import '../../l10n/app_language.dart';
 import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -83,7 +84,7 @@ class _MySharedTreeNotesScreenState extends State<MySharedTreeNotesScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('취소'),
+            child: Text(tr("취소")),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
@@ -115,57 +116,65 @@ class _MySharedTreeNotesScreenState extends State<MySharedTreeNotesScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    backgroundColor: AppColors.bg0,
-    appBar: AppBar(title: const Text('내가 남긴 공동 메모')),
-    body: RefreshIndicator(
-      onRefresh: _load,
-      child: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          const Text(
-            '이웃 연결이 끝나거나 차단된 뒤에도 내가 쓴 메모를 삭제할 수 있어요. 여기에는 상대의 메모가 표시되지 않아요.',
-            style: TextStyle(height: 1.6),
-          ),
-          const SizedBox(height: 16),
-          if (_error != null) ...[
-            Text(_error!),
-            TextButton(
-              onPressed: _loading ? null : _load,
-              child: const Text('다시 확인하기'),
+  Widget build(BuildContext context) {
+    Localizations.localeOf(context);
+    return Scaffold(
+      backgroundColor: AppColors.bg0,
+      appBar: AppBar(title: const Text('내가 남긴 공동 메모')),
+      body: RefreshIndicator(
+        onRefresh: _load,
+        child: ListView(
+          padding: const EdgeInsets.all(20),
+          children: [
+            const Text(
+              '이웃 연결이 끝나거나 차단된 뒤에도 내가 쓴 메모를 삭제할 수 있어요. 여기에는 상대의 메모가 표시되지 않아요.',
+              style: TextStyle(height: 1.6),
             ),
-          ],
-          for (final note in _notes)
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(note.text, style: const TextStyle(height: 1.6)),
-                    if (note.createdAt != null)
-                      Text(
-                        '${note.createdAt!.toLocal().year}.${note.createdAt!.toLocal().month}.${note.createdAt!.toLocal().day}',
-                        style: const TextStyle(color: AppColors.inkSoft),
+            const SizedBox(height: 16),
+            if (_error != null) ...[
+              Text(_error!),
+              TextButton(
+                onPressed: _loading ? null : _load,
+                child: const Text('다시 확인하기'),
+              ),
+            ],
+            for (final note in _notes)
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(note.text, style: const TextStyle(height: 1.6)),
+                      if (note.createdAt != null)
+                        Text(
+                          '${note.createdAt!.toLocal().year}.${note.createdAt!.toLocal().month}.${note.createdAt!.toLocal().day}',
+                          style: const TextStyle(color: AppColors.inkSoft),
+                        ),
+                      TextButton(
+                        onPressed: _deleting == null
+                            ? () => _delete(note)
+                            : null,
+                        child: Text(_deleting == note.id ? '삭제 중…' : '이 메모 삭제'),
                       ),
-                    TextButton(
-                      onPressed: _deleting == null ? () => _delete(note) : null,
-                      child: Text(_deleting == note.id ? '삭제 중…' : '이 메모 삭제'),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
-            ),
-          if (_loading) const Center(child: CircularProgressIndicator()),
-          if (!_loading && _error == null && _notes.isEmpty && _cursor == null)
-            const Text('내가 남긴 공동 메모가 없어요.'),
-          if (!_loading && _cursor != null)
-            OutlinedButton(
-              onPressed: () => _load(more: true),
-              child: const Text('더 보기'),
-            ),
-        ],
+            if (_loading) const Center(child: CircularProgressIndicator()),
+            if (!_loading &&
+                _error == null &&
+                _notes.isEmpty &&
+                _cursor == null)
+              const Text('내가 남긴 공동 메모가 없어요.'),
+            if (!_loading && _cursor != null)
+              OutlinedButton(
+                onPressed: () => _load(more: true),
+                child: const Text('더 보기'),
+              ),
+          ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 }

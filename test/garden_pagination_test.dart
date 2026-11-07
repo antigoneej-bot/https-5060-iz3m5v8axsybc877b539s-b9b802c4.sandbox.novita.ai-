@@ -216,17 +216,17 @@ void main() {
         ),
         provider: pages,
       );
-      expect(find.text('first님이 응원을 보냈어요'), findsOneWidget);
+      expect(find.text('first · 응원'), findsOneWidget);
       await more(tester, 'received-cheers-more');
-      expect(find.text('first님이 응원을 보냈어요'), findsOneWidget);
+      expect(find.text('first · 응원'), findsOneWidget);
       expect(find.textContaining('이전 목록 연결 실패'), findsOneWidget);
       pages.pages['older'] = () async => ReceivedCheerBatch(
         cheers: [cheer('first'), cheer('ancient')],
         retiredIds: ['first'],
       );
       await more(tester, 'received-cheers-more');
-      expect(find.text('first님이 응원을 보냈어요'), findsNothing);
-      expect(find.text('ancient님이 응원을 보냈어요'), findsOneWidget);
+      expect(find.text('first · 응원'), findsNothing);
+      expect(find.text('ancient · 응원'), findsOneWidget);
       expect(find.byKey(const Key('received-cheers-more')), findsNothing);
       expect(pages.cursors, [null, 'older', 'older']);
       expect(tester.takeException(), isNull);
@@ -263,9 +263,9 @@ void main() {
       await tester.pump(const Duration(milliseconds: 350));
       old.complete(ReceivedCheerBatch(cheers: [cheer('secret-alice')]));
       await tester.pump();
-      expect(find.text('bob님이 응원을 보냈어요'), findsOneWidget);
-      expect(find.text('alice님이 응원을 보냈어요'), findsNothing);
-      expect(find.text('secret-alice님이 응원을 보냈어요'), findsNothing);
+      expect(find.text('bob · 응원'), findsOneWidget);
+      expect(find.text('alice · 응원'), findsNothing);
+      expect(find.text('secret-alice · 응원'), findsNothing);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox.shrink());
     },

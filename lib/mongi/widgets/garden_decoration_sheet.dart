@@ -1,3 +1,4 @@
+import '../../l10n/app_language.dart';
 import '../../widgets/subscription_gate.dart';
 import '../../screens/account_screen.dart';
 import '../../services/subscription_service.dart';
@@ -41,12 +42,12 @@ class _GardenDecorationSheetState extends State<GardenDecorationSheet> {
   String _status(GardenProvider garden, GardenDecoration deco) {
     if (garden.isDecorationUnlocked(deco)) {
       return garden.isDecorationEquipped(deco)
-          ? '정원에 놓여 있어요 · 눌러서 보관'
-          : '사용할 수 있어요 · 눌러서 배치';
+          ? tr("정원에 놓여 있어요 · 눌러서 보관")
+          : tr("사용할 수 있어요 · 눌러서 배치");
     }
     return deco.isPremium
-        ? '구독자를 위한 선물 · 한 번 받으면 계속 소유해요'
-        : '빛의 정수 60개 · 눌러서 받고 배치';
+        ? tr("구독자를 위한 선물 · 한 번 받으면 계속 소유해요")
+        : tr("빛의 정수 60개 · 눌러서 받고 배치");
   }
 
   Future<void> _onTapDecoration(GardenDecoration deco) async {
@@ -62,12 +63,14 @@ class _GardenDecorationSheetState extends State<GardenDecorationSheet> {
         await _showPurchaseConfirm();
       } else {
         await garden.obtainDecoration(deco);
-        if (mounted) _showSnack('${deco.label}을 정원에 놓았어요.');
+        if (mounted) _showSnack(tr('{0}을 정원에 놓았어요.', [deco.label]));
       }
     } catch (error) {
       if (mounted) {
         _showSnack(
-          error is StateError ? error.message : '장식을 저장하지 못했어요. 다시 시도해 주세요.',
+          error is StateError
+              ? error.message
+              : tr("장식을 저장하지 못했어요. 다시 시도해 주세요."),
         );
       }
     } finally {
@@ -147,7 +150,9 @@ class _GardenDecorationSheetState extends State<GardenDecorationSheet> {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Text(
-                  '빛의 정수 ${garden.lightEssence}개 · 기록이나 명상을 마치면 하루 한 번 20개를 받아요.',
+                  tr('빛의 정수 {0}개 · 기록이나 명상을 마치면 하루 한 번 20개를 받아요.', [
+                    garden.lightEssence,
+                  ]),
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     fontSize: 12,
@@ -161,13 +166,13 @@ class _GardenDecorationSheetState extends State<GardenDecorationSheet> {
                   controller: scrollController,
                   padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
                   children: [
-                    _sectionLabel('기본 장식 · 빛의 정수로 꾸미기'),
+                    _sectionLabel(tr("기본 장식 · 빛의 정수로 꾸미기")),
                     const SizedBox(height: 8),
                     ...GardenDecoration.all
                         .where((d) => !d.isPremium)
                         .map((d) => _decorationTile(garden, d, l10n)),
                     const SizedBox(height: 20),
-                    _sectionLabel('구독자 정원 선물'),
+                    _sectionLabel(tr("구독자 정원 선물")),
                     const SizedBox(height: 8),
                     ...GardenDecoration.all
                         .where((d) => d.isPremium)
@@ -177,7 +182,7 @@ class _GardenDecorationSheetState extends State<GardenDecorationSheet> {
                       Center(
                         child: TextButton(
                           onPressed: _purchasing ? null : _onRestore,
-                          child: const Text('구독 복원하기'),
+                          child: Text(tr("구독 복원하기")),
                         ),
                       ),
                     if (_purchasing) const SizedBox(height: 8),

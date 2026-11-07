@@ -1,3 +1,5 @@
+import '../l10n/app_language.dart';
+
 enum KeepsakeKind {
   love('사랑', '소중한 사랑을 오래 간직해요'),
   forgiveness('용서', '내 마음의 속도로 놓아주어요'),
@@ -6,8 +8,10 @@ enum KeepsakeKind {
   hope('희망', '새로운 시작을 응원해요'),
   memory('추억', '잊고 싶지 않은 하루를 담아요');
 
-  const KeepsakeKind(this.label, this.description);
-  final String label, description;
+  const KeepsakeKind(this._label, this._description);
+  final String _label, _description;
+  String get label => tr(_label);
+  String get description => tr(_description);
 }
 
 enum KeepsakeMetal {
@@ -15,8 +19,9 @@ enum KeepsakeMetal {
   silver('은빛', 0xFF9DADB9),
   rose('장밋빛', 0xFFD294A0);
 
-  const KeepsakeMetal(this.label, this.color);
-  final String label;
+  const KeepsakeMetal(this._label, this.color);
+  final String _label;
+  String get label => tr(_label);
   final int color;
 }
 
@@ -79,7 +84,7 @@ class KeepsakeTree {
       ? 1
       : 0;
   String get stageLabel =>
-      ['기억의 씨앗', '작은 새싹', '어린 나무', '빛나는 나무', '추억의 보석나무'][stage];
+      tr(['기억의 씨앗', '작은 새싹', '어린 나무', '빛나는 나무', '추억의 보석나무'][stage]);
   int? get nextCare =>
       stage == 4 ? null : [3, 7, 14, 30][stage] - careDays.length;
   bool canCare(DateTime now) =>

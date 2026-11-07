@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import '../widgets/subscription_gate.dart';
 import 'dart:ui';
 import 'package:flutter/material.dart';
@@ -49,7 +50,7 @@ class _WeeklyShadowMapScreenState extends State<WeeklyShadowMapScreen> {
 
   @override
   Widget build(BuildContext context) => SubscriptionGate(
-    message: '상세 주간 분석은 마음냥 구독으로 이용해요. 기본 주간 통계는 무료예요.',
+    message: tr("상세 주간 분석은 마음냥 구독으로 이용해요. 기본 주간 통계는 무료예요."),
     builder: (_) => _content(context),
   );
 
@@ -79,7 +80,7 @@ class _WeeklyShadowMapScreenState extends State<WeeklyShadowMapScreen> {
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          '감정 통계 · 확장 보기',
+                          tr("감정 통계 · 확장 보기"),
                           style: titleFont(
                             fontSize: 19,
                             color: AppColors.titlePastelGreen,
@@ -134,12 +135,12 @@ class _NoWeeklyMapDataYet extends StatelessWidget {
           const Text('🗺️', style: TextStyle(fontSize: 40)),
           const SizedBox(height: 14),
           Text(
-            '아직 이번 주 기록이 없어요',
+            tr("아직 이번 주 기록이 없어요"),
             style: bodyFont(fontSize: 13.5, color: AppColors.inkSoft),
           ),
           const SizedBox(height: 6),
           Text(
-            '감정체크나 방울 터뜨리기를 하면\n이곳에서 이번 주 감정 지도를 볼 수 있어요',
+            tr("감정체크나 방울 터뜨리기를 하면\n이곳에서 이번 주 감정 지도를 볼 수 있어요"),
             textAlign: TextAlign.center,
             style: bodyFont(fontSize: 12.5, color: AppColors.inkSoft),
           ),
@@ -158,7 +159,7 @@ class _MapIntroCaption extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Text(
-        '방울 터뜨리기와 감정체크로 쌓인 기록을\n지도처럼 펼쳐본 모습이에요',
+        tr("방울 터뜨리기와 감정체크로 쌓인 기록을\n지도처럼 펼쳐본 모습이에요"),
         textAlign: TextAlign.center,
         style: bodyFont(fontSize: 12, color: AppColors.inkSoft, height: 1.6),
       ),
@@ -188,7 +189,7 @@ class _TopEmotionsCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '최근 7일, 날짜별 기록',
+            tr("최근 7일, 날짜별 기록"),
             style: pathLabelFont(
               fontSize: 15.5,
               fontWeight: FontWeight.w700,
@@ -197,14 +198,14 @@ class _TopEmotionsCard extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            '하루 마지막 기록의 색이에요. 순위는 모든 편지를 세어요',
+            tr("하루 마지막 기록의 색이에요. 순위는 모든 편지를 세어요"),
             style: bodyFont(fontSize: 11.5, color: AppColors.inkSoft),
           ),
           const SizedBox(height: 14),
           _WeekdayColorTiles(days: last7Days),
           const SizedBox(height: 22),
           Text(
-            '자주 마주한 감정 Top 3',
+            tr("자주 마주한 감정 Top 3"),
             style: pathLabelFont(
               fontSize: 15.5,
               fontWeight: FontWeight.w700,
@@ -213,7 +214,7 @@ class _TopEmotionsCard extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            '가장 자주 등장한 순서대로 보여드려요',
+            tr("가장 자주 등장한 순서대로 보여드려요"),
             style: bodyFont(fontSize: 11.5, color: AppColors.inkSoft),
           ),
           const SizedBox(height: 18),
@@ -242,7 +243,15 @@ class _WeekdayColorTiles extends StatelessWidget {
   final List<MapEntry<DateTime, String?>> days;
   const _WeekdayColorTiles({required this.days});
 
-  static const _weekdayLabels = ['월', '화', '수', '목', '금', '토', '일'];
+  static List<String> get _weekdayLabels => [
+    tr("월"),
+    tr("화"),
+    tr("수"),
+    tr("목"),
+    tr("금"),
+    tr("토"),
+    tr("일"),
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -358,7 +367,7 @@ class _TopEmotionRow extends StatelessWidget {
           ),
         ),
         Text(
-          '$count번 · $percent%',
+          tr("{0}번 · {1}%", [count, percent]),
           style: bodyFont(fontSize: 12, color: AppColors.inkSoft),
         ),
       ],
@@ -406,15 +415,15 @@ class _DeeperInsightContent extends StatelessWidget {
       currentFreq: thisMonth,
       previousFreq: lastMonth,
       catNameFor: ReflectionService.catNameFor,
-      periodLabel: '이번 달',
-      previousLabel: '지난 달',
+      periodLabel: tr("이번 달"),
+      previousLabel: tr("지난 달"),
     );
     final quarterSentence = WeeklyShadowMapService.periodComparisonSentence(
       currentFreq: thisQuarter,
       previousFreq: lastQuarter,
       catNameFor: ReflectionService.catNameFor,
-      periodLabel: '이번 분기',
-      previousLabel: '지난 분기',
+      periodLabel: tr("이번 분기"),
+      previousLabel: tr("지난 분기"),
     );
     final weekdayInsight = WeeklyShadowMapService.weekdayTimeInsightSentence(
       app.history,
@@ -439,7 +448,7 @@ class _DeeperInsightContent extends StatelessWidget {
               const Text('📊', style: TextStyle(fontSize: 26)),
               const SizedBox(height: 10),
               Text(
-                '지난 기간과 비교해보기',
+                tr("지난 기간과 비교해보기"),
                 style: pathLabelFont(
                   fontSize: 15.5,
                   fontWeight: FontWeight.w700,
@@ -450,12 +459,12 @@ class _DeeperInsightContent extends StatelessWidget {
               _ComparisonBars(
                 currentFreq: thisMonth,
                 previousFreq: lastMonth,
-                currentLabel: '이번 달',
-                previousLabel: '지난 달',
+                currentLabel: tr("이번 달"),
+                previousLabel: tr("지난 달"),
               ),
               const SizedBox(height: 10),
               Text(
-                monthSentence ?? '아직 비교할 만큼의 기록이 쌓이지 않았어요.',
+                monthSentence ?? tr("아직 비교할 만큼의 기록이 쌓이지 않았어요."),
                 style: bodyFont(
                   fontSize: 12.5,
                   color: AppColors.moon,
@@ -466,12 +475,12 @@ class _DeeperInsightContent extends StatelessWidget {
               _ComparisonBars(
                 currentFreq: thisQuarter,
                 previousFreq: lastQuarter,
-                currentLabel: '이번 분기',
-                previousLabel: '지난 분기',
+                currentLabel: tr("이번 분기"),
+                previousLabel: tr("지난 분기"),
               ),
               const SizedBox(height: 10),
               Text(
-                quarterSentence ?? '아직 분기 단위로 비교할 기록이 쌓이지 않았어요.',
+                quarterSentence ?? tr("아직 분기 단위로 비교할 기록이 쌓이지 않았어요."),
                 style: bodyFont(
                   fontSize: 12.5,
                   color: AppColors.moon,
@@ -493,7 +502,7 @@ class _DeeperInsightContent extends StatelessWidget {
               const Text('🕰️', style: TextStyle(fontSize: 26)),
               const SizedBox(height: 10),
               Text(
-                '요일 · 시간대 패턴',
+                tr("요일 · 시간대 패턴"),
                 style: pathLabelFont(
                   fontSize: 15.5,
                   fontWeight: FontWeight.w700,
@@ -502,7 +511,7 @@ class _DeeperInsightContent extends StatelessWidget {
               ),
               const SizedBox(height: 10),
               Text(
-                weekdayInsight ?? '아직 뚜렷한 요일·시간대 패턴을 찾기엔\n기록이 조금 더 필요해요.',
+                weekdayInsight ?? tr("아직 뚜렷한 요일·시간대 패턴을 찾기엔\n기록이 조금 더 필요해요."),
                 style: bodyFont(
                   fontSize: 13,
                   color: AppColors.moon,
@@ -524,7 +533,7 @@ class _DeeperInsightContent extends StatelessWidget {
               const Text('🌗', style: TextStyle(fontSize: 26)),
               const SizedBox(height: 10),
               Text(
-                '다시 떠오른 감정',
+                tr("다시 떠오른 감정"),
                 style: pathLabelFont(
                   fontSize: 15.5,
                   fontWeight: FontWeight.w700,
@@ -534,7 +543,9 @@ class _DeeperInsightContent extends StatelessWidget {
               const SizedBox(height: 10),
               Text(
                 resurfaced ??
-                    '아직 다시 떠오른 감정이 없어요.\n무거운 마음이 있을 때 방울을 잠시 묻어두면,\n며칠 뒤 새싹으로 다시 만날 수 있어요.',
+                    tr(
+                      "아직 다시 떠오른 감정이 없어요.\n무거운 마음이 있을 때 방울을 잠시 묻어두면,\n며칠 뒤 새싹으로 다시 만날 수 있어요.",
+                    ),
                 style: bodyFont(
                   fontSize: 13,
                   color: AppColors.moon,
@@ -681,7 +692,7 @@ class _DeeperInsightLockedPreview extends StatelessWidget {
                   const Text('📊', style: TextStyle(fontSize: 28)),
                   const SizedBox(height: 12),
                   Text(
-                    '지난 달과 비교하면,\n요일마다 다른 감정의 흐름이 보여요',
+                    tr("지난 달과 비교하면,\n요일마다 다른 감정의 흐름이 보여요"),
                     textAlign: TextAlign.center,
                     style: titleFont(
                       fontSize: 17,
@@ -691,7 +702,7 @@ class _DeeperInsightLockedPreview extends StatelessWidget {
                   ),
                   const SizedBox(height: 10),
                   Text(
-                    '지난 달/분기 비교, 요일·시간대 패턴,\n다시 떠오른 감정까지 함께 살펴볼 수 있어요.',
+                    tr("지난 달/분기 비교, 요일·시간대 패턴,\n다시 떠오른 감정까지 함께 살펴볼 수 있어요."),
                     textAlign: TextAlign.center,
                     style: bodyFont(
                       fontSize: 13,
@@ -715,7 +726,7 @@ class _DeeperInsightLockedPreview extends StatelessWidget {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    '더 깊이 들여다보기',
+                    tr("더 깊이 들여다보기"),
                     style: bodyFont(
                       fontSize: 13,
                       color: AppColors.blobPeriwinkleAccent,

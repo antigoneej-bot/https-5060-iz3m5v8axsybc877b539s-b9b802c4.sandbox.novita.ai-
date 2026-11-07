@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import 'dart:io';
 import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
@@ -74,7 +75,7 @@ class _ShareReflectionCardDialogState
       if (kIsWeb) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('카드 이미지가 만들어졌어요 (모바일 앱에서 저장 가능해요)')),
+          SnackBar(content: Text(tr("카드 이미지가 만들어졌어요 (모바일 앱에서 저장 가능해요)"))),
         );
         return;
       }
@@ -90,13 +91,13 @@ class _ShareReflectionCardDialogState
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('카드를 사진첩에 저장했어요 📷')));
+      ).showSnackBar(SnackBar(content: Text(tr("카드를 사진첩에 저장했어요 📷"))));
     } catch (e) {
-      if (kDebugMode) debugPrint('카드 저장 실패: $e');
+      if (kDebugMode) debugPrint(tr("카드 저장 실패: {0}", [e]));
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('저장 권한을 확인해주세요')));
+      ).showSnackBar(SnackBar(content: Text(tr("저장 권한을 확인해주세요"))));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -114,7 +115,7 @@ class _ShareReflectionCardDialogState
         // 성공 여부만 안내합니다(모바일 앱(APK)에서 정상 공유됩니다).
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('카드 이미지가 만들어졌어요 (모바일 앱에서 공유 가능해요)')),
+          SnackBar(content: Text(tr("카드 이미지가 만들어졌어요 (모바일 앱에서 공유 가능해요)"))),
         );
         return;
       }
@@ -138,7 +139,7 @@ class _ShareReflectionCardDialogState
           'card_type': 'reflection_card',
         });
       } catch (e) {
-        if (kDebugMode) debugPrint('갤러리 저장 실패: $e');
+        if (kDebugMode) debugPrint(tr("갤러리 저장 실패: {0}", [e]));
       }
 
       await SharePlus.instance.share(
@@ -151,14 +152,14 @@ class _ShareReflectionCardDialogState
       if (savedToGallery && mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(const SnackBar(content: Text('사진첩에도 저장했어요 📷')));
+        ).showSnackBar(SnackBar(content: Text(tr("사진첩에도 저장했어요 📷"))));
       }
     } catch (e) {
-      if (kDebugMode) debugPrint('회고 공유 카드 생성 실패: $e');
+      if (kDebugMode) debugPrint(tr("회고 공유 카드 생성 실패: {0}", [e]));
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('카드를 만드는 데 문제가 있었어요')));
+      ).showSnackBar(SnackBar(content: Text(tr("카드를 만드는 데 문제가 있었어요"))));
     } finally {
       if (mounted) setState(() => _sharing = false);
     }
@@ -166,6 +167,7 @@ class _ShareReflectionCardDialogState
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     return Dialog(
       backgroundColor: Colors.transparent,
       insetPadding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
@@ -182,19 +184,19 @@ class _ShareReflectionCardDialogState
               children: [
                 _RoundButton(
                   icon: Icons.close_rounded,
-                  label: '닫기',
+                  label: tr("닫기"),
                   filled: false,
                   onTap: () => Navigator.pop(context),
                 ),
                 _RoundButton(
                   icon: Icons.download_rounded,
-                  label: _saving ? '저장 중...' : '폰에 저장',
+                  label: _saving ? tr("저장 중...") : tr("폰에 저장"),
                   filled: false,
                   onTap: (_sharing || _saving) ? null : _saveOnly,
                 ),
                 _RoundButton(
                   icon: Icons.ios_share_rounded,
-                  label: _sharing ? '만드는 중...' : '공유하기',
+                  label: _sharing ? tr("만드는 중...") : tr("공유하기"),
                   filled: true,
                   onTap: (_sharing || _saving) ? null : _share,
                 ),
@@ -221,6 +223,7 @@ class _RoundButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     return Material(
       color: Colors.transparent,
       borderRadius: BorderRadius.circular(999),
@@ -270,6 +273,7 @@ class _ShareCardFrame extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     return Container(
       width: 300,
       padding: const EdgeInsets.fromLTRB(22, 28, 22, 24),
@@ -300,7 +304,7 @@ class _ShareCardFrame extends StatelessWidget {
           child,
           const SizedBox(height: 18),
           Text(
-            '🐈‍⬛  마음냥 정원',
+            tr("🐈‍⬛  마음냥 정원"),
             textAlign: TextAlign.center,
             style: brandFont(fontSize: 15, color: AppColors.inkSoft),
           ),
@@ -317,10 +321,19 @@ class _WeekdayDots extends StatelessWidget {
   final List<MapEntry<DateTime, String?>> days;
   const _WeekdayDots({required this.days});
 
-  static const _weekdayLabels = ['월', '화', '수', '목', '금', '토', '일'];
+  static List<String> get _weekdayLabels => [
+    tr("월"),
+    tr("화"),
+    tr("수"),
+    tr("목"),
+    tr("금"),
+    tr("토"),
+    tr("일"),
+  ];
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
@@ -368,6 +381,7 @@ class ShareWeeklyCardContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     final hasCat = topCatId != null;
     final cat = hasCat ? shadowCatById(topCatId!) : null;
     final accent = hasCat
@@ -383,7 +397,7 @@ class ShareWeeklyCardContent extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            '이번 주 그림자 지도',
+            tr("이번 주 그림자 지도"),
             textAlign: TextAlign.center,
             style: titleFont(fontSize: 18, color: AppColors.ink),
           ),
@@ -403,14 +417,14 @@ class ShareWeeklyCardContent extends StatelessWidget {
           const SizedBox(height: 16),
           Text(
             cat != null
-                ? "이번 주, 나는\n'${cat.nameKr}'과\n가장 자주 함께 있었어요"
-                : '이번 주 기록을 살펴보고 있어요',
+                ? tr("이번 주, 나는\n'{0}'과\n가장 자주 함께 있었어요", [cat.displayName])
+                : tr("이번 주 기록을 살펴보고 있어요"),
             textAlign: TextAlign.center,
             style: titleFont(fontSize: 17, color: AppColors.ink, height: 1.5),
           ),
           const SizedBox(height: 6),
           Text(
-            '7일 중 $recordedDays일 · 관찰 결과입니다',
+            tr("7일 중 {0}일 · 관찰 결과입니다", [recordedDays]),
             textAlign: TextAlign.center,
             style: bodyFont(fontSize: 11.5, color: accent),
           ),
@@ -434,6 +448,7 @@ class ShareMonthlyCardContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     final accent = accentCatId != null
         ? CatPalette.accentFor(accentCatId!)
         : AppColors.blobLavenderAccent;
@@ -447,7 +462,7 @@ class ShareMonthlyCardContent extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            '이번 달 돌아보기',
+            tr("이번 달 돌아보기"),
             textAlign: TextAlign.center,
             style: titleFont(fontSize: 18, color: AppColors.ink),
           ),
@@ -461,7 +476,7 @@ class ShareMonthlyCardContent extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           Text(
-            '4주간의 기록을 살펴본 관찰 결과입니다',
+            tr("4주간의 기록을 살펴본 관찰 결과입니다"),
             textAlign: TextAlign.center,
             style: bodyFont(fontSize: 11.5, color: accent),
           ),

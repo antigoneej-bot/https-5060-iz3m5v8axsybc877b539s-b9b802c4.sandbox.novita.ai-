@@ -1,14 +1,15 @@
+import '../l10n/app_language.dart';
 import 'package:flutter/material.dart';
 import '../models/companion_coat.dart';
 import 'companion_coat_art.dart';
 
-const memoryThemes = {
-  'rain': '비 오는 날의 낮잠',
-  'apple': '사과 향기 가득',
-  'moon': '달빛 산책',
-  'friends': '둘이어서 따뜻해',
-  'artist': '작은 화가',
-  'blossom': '꽃잎 속의 쉼',
+Map<String, String> get memoryThemes => {
+  'rain': tr("비 오는 날의 낮잠"),
+  'apple': tr("사과 향기 가득"),
+  'moon': tr("달빛 산책"),
+  'friends': tr("둘이어서 따뜻해"),
+  'artist': tr("작은 화가"),
+  'blossom': tr("꽃잎 속의 쉼"),
 };
 const memorySymbols = {
   'rain': '☔',
@@ -24,6 +25,7 @@ class MemoryCardArt extends StatelessWidget {
   const MemoryCardArt(this.id, {super.key});
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     final parts = id.split('.');
     final theme = parts.first,
         coat =
@@ -49,7 +51,7 @@ class MemoryCardArt extends StatelessWidget {
         child: Column(
           children: [
             Text(
-              ['햇살 테두리', '물빛 테두리', '별빛 테두리'][frame.clamp(0, 2)],
+              [tr("햇살 테두리"), tr("물빛 테두리"), tr("별빛 테두리")][frame.clamp(0, 2)],
               style: const TextStyle(fontSize: 10, color: Color(0xFF75677F)),
             ),
             Expanded(
@@ -61,7 +63,18 @@ class MemoryCardArt extends StatelessWidget {
                   Positioned.fill(child: CustomPaint(painter: _Scene(theme))),
                   Align(
                     alignment: Alignment.topRight,
-                    child: Icon({'rain':Icons.umbrella_rounded,'apple':Icons.apple,'moon':Icons.nightlight_round,'friends':Icons.favorite_rounded,'artist':Icons.palette_rounded,'blossom':Icons.local_florist_rounded}[theme],size:28,color:const Color(0xFFAD839E)),
+                    child: Icon(
+                      {
+                        'rain': Icons.umbrella_rounded,
+                        'apple': Icons.apple,
+                        'moon': Icons.nightlight_round,
+                        'friends': Icons.favorite_rounded,
+                        'artist': Icons.palette_rounded,
+                        'blossom': Icons.local_florist_rounded,
+                      }[theme],
+                      size: 28,
+                      color: const Color(0xFFAD839E),
+                    ),
                   ),
                   Padding(
                     padding: const EdgeInsets.only(top: 18),
@@ -86,8 +99,8 @@ class MemoryCardArt extends StatelessWidget {
               style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
             ),
             Text(coat.label, style: const TextStyle(fontSize: 10)),
-            const Text(
-              '마음냥 정원',
+            Text(
+              tr("마음냥 정원"),
               style: TextStyle(fontSize: 9, color: Color(0xFF867A91)),
             ),
           ],

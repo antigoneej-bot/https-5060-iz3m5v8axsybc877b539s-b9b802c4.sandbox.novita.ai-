@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -66,7 +67,7 @@ class _WeeklyReflectionScreenState extends State<WeeklyReflectionScreen> {
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          '이번 주 돌아보기',
+                          tr("이번 주 돌아보기"),
                           style: titleFont(
                             fontSize: 19,
                             color: AppColors.titlePastelGreen,
@@ -126,12 +127,12 @@ class _NoDataYet extends StatelessWidget {
           const Text('🌙', style: TextStyle(fontSize: 40)),
           const SizedBox(height: 14),
           Text(
-            '아직 이번 주 편지 기록이 없어요',
+            tr("아직 이번 주 편지 기록이 없어요"),
             style: bodyFont(fontSize: 13.5, color: AppColors.inkSoft),
           ),
           const SizedBox(height: 6),
           Text(
-            '그림자 고양이를 만나 편지를 쓰면\n이곳에서 이번 주를 돌아볼 수 있어요',
+            tr("그림자 고양이를 만나 편지를 쓰면\n이곳에서 이번 주를 돌아볼 수 있어요"),
             textAlign: TextAlign.center,
             style: bodyFont(fontSize: 12.5, color: AppColors.inkSoft),
           ),
@@ -170,8 +171,8 @@ class _ShareWeeklyButton extends StatelessWidget {
               days: days,
             ),
             shareText: catName != null
-                ? '이번 주 나의 그림자 고양이는 $catName였어요 🐾 #마음냥정원'
-                : '이번 주 그림자 지도를 살펴보고 있어요 🐾 #마음냥정원',
+                ? tr("이번 주 나의 그림자 고양이는 {0}였어요 🐾 #마음냥정원", [catName])
+                : tr("이번 주 그림자 지도를 살펴보고 있어요 🐾 #마음냥정원"),
           );
         },
         icon: Icon(
@@ -190,7 +191,7 @@ class _ShareWeeklyButton extends StatelessWidget {
           ),
         ),
         label: Text(
-          '이번 주 지도 공유하기',
+          tr("이번 주 지도 공유하기"),
           style: pathLabelFont(fontSize: 13, color: AppColors.blobMintAccent),
         ),
       ),
@@ -232,13 +233,13 @@ class _WeeklyTopCatCard extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           Text(
-            "이번 주, 당신은\n'${cat.nameKr}'과\n가장 자주 함께 있었어요",
+            tr("이번 주, 당신은\n'{0}'과\n가장 자주 함께 있었어요", [cat.displayName]),
             textAlign: TextAlign.center,
             style: titleFont(fontSize: 19, color: AppColors.ink, height: 1.5),
           ),
           const SizedBox(height: 10),
           Text(
-            '7일 중 $recordedDays일 · 관찰 결과입니다',
+            tr("7일 중 {0}일 · 관찰 결과입니다", [recordedDays]),
             textAlign: TextAlign.center,
             style: bodyFont(fontSize: 12, color: accent),
           ),
@@ -257,7 +258,12 @@ class _WeeklyFlowCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final weekdayLabels = days
-        .map((e) => DateFormat('E', 'ko_KR').format(e.key))
+        .map(
+          (e) => DateFormat(
+            'E',
+            AppLanguage.instance.isEnglish ? 'en_US' : 'ko_KR',
+          ).format(e.key),
+        )
         .toList();
     return GlassBlob(
       accent: AppColors.blobMintAccent,
@@ -268,7 +274,7 @@ class _WeeklyFlowCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '이번 주 흐름 보기',
+            tr("이번 주 흐름 보기"),
             style: pathLabelFont(
               fontSize: 15,
               fontWeight: FontWeight.w700,
@@ -287,7 +293,7 @@ class _WeeklyFlowCard extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           Text(
-            '${weekdayLabels.join(' · ')} · 요일별 감정 색으로 표시',
+            tr("{0} · 요일별 감정 색으로 표시", [weekdayLabels.join(' · ')]),
             textAlign: TextAlign.center,
             style: bodyFont(fontSize: 11, color: AppColors.inkSoft),
           ),
@@ -308,7 +314,10 @@ class _DayBar extends StatelessWidget {
     final color = hasRecord
         ? CatPalette.accentFor(catId!)
         : CatPalette.emptyDay;
-    final weekdayLabel = DateFormat('E', 'ko_KR').format(date);
+    final weekdayLabel = DateFormat(
+      'E',
+      AppLanguage.instance.isEnglish ? 'en_US' : 'ko_KR',
+    ).format(date);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 4),
       child: GestureDetector(
@@ -378,7 +387,7 @@ class _DayBar extends StatelessWidget {
                 children: [
                   Expanded(
                     child: Text(
-                      cat.nameKr,
+                      cat.displayName,
                       style: titleFont(fontSize: 20, color: AppColors.ink),
                     ),
                   ),
@@ -394,7 +403,10 @@ class _DayBar extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                DateFormat('yyyy년 M월 d일 (E)', 'ko_KR').format(entry.date),
+                DateFormat(
+                  tr("yyyy년 M월 d일 (E)"),
+                  AppLanguage.instance.isEnglish ? 'en_US' : 'ko_KR',
+                ).format(entry.date),
                 style: bodyFont(fontSize: 11.5, color: AppColors.inkSoft),
               ),
               const SizedBox(height: 14),
@@ -416,7 +428,9 @@ class _DayBar extends StatelessWidget {
                   borderRadius: BorderRadius.circular(18),
                 ),
                 child: Text(
-                  entry.letterText.isEmpty ? '(기록된 내용이 없어요)' : entry.letterText,
+                  entry.letterText.isEmpty
+                      ? tr("(기록된 내용이 없어요)")
+                      : entry.letterText,
                   style: bodyFont(
                     fontSize: 13.5,
                     color: AppColors.moon,

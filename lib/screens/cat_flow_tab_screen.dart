@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_state_provider.dart';
@@ -33,7 +34,7 @@ class CatFlowTabScreen extends StatelessWidget {
             color: AppColors.inkSoft,
           ),
           label: Text(
-            '다른 고양이 고르기',
+            tr("다른 고양이 고르기"),
             style: bodyFont(fontSize: 13, color: AppColors.inkSoft),
           ),
         ),

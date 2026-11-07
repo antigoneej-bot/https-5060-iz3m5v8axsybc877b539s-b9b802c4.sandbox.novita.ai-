@@ -1,4 +1,5 @@
 import '../../screens/keepsake_forest_screen.dart';
+import '../../l10n/app_language.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../theme.dart' show AppColors;
@@ -8,7 +9,7 @@ import '../screens/diary_screen.dart';
 import '../../screens/emotion_archive_screen.dart';
 import '../../screens/memory_cards_screen.dart';
 import '../screens/growth_milestone_screen.dart';
-import '../screens/mind_report_screen.dart';
+import '../../screens/emotion_statistics_screen.dart';
 import '../screens/garden_care_entry_screen.dart';
 import '../../screens/care_journal_screen.dart';
 import '../../screens/garden_memory_book_screen.dart';
@@ -159,10 +160,12 @@ class _GardenActivitySheet extends StatelessWidget {
             _tile(
               context,
               emoji: '💗',
-              title: '마음 리포트',
+              title: tr('감정 통계'),
               subtitle: '주간 리포트·마음 흐름·요일별 패턴을 한눈에',
               onTap: () => Navigator.of(navigationContext).push(
-                MaterialPageRoute(builder: (_) => const MindReportScreen()),
+                MaterialPageRoute(
+                  builder: (_) => const EmotionStatisticsScreen(),
+                ),
               ),
             ),
             _tile(

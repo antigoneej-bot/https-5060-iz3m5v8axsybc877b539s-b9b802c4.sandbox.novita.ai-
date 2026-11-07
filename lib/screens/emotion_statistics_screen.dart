@@ -1,3 +1,5 @@
+import '../l10n/app_language.dart';
+import '../mongi/screens/mind_report_screen.dart';
 import '../widgets/subscription_gate.dart';
 import '../widgets/emotion_comic_book.dart';
 import '../widgets/period_reflection_card.dart';
@@ -149,18 +151,18 @@ class _EmotionStatisticsScreenState extends State<EmotionStatisticsScreen> {
             padding: const EdgeInsets.all(20),
             children: [
               Text(
-                '${_label(day)}의 기록 ${entries.length}개',
+                tr("{0}의 기록 {1}개", [_label(day), entries.length]),
                 style: bodyFont(fontSize: 19),
               ),
               const SizedBox(height: 12),
-              if (entries.isEmpty) const Text('이날은 남긴 기록이 없어요.'),
+              if (entries.isEmpty) Text(tr("이날은 남긴 기록이 없어요.")),
               for (final entry in entries)
                 ListTile(
                   title: Text(
-                    '${entry.emoji} ${entry.displayLabel}${entry.hasTime ? ' · ${entry.date.hour.toString().padLeft(2, '0')}:${entry.date.minute.toString().padLeft(2, '0')}' : ' · 시간 미기록'}',
+                    '${entry.emoji} ${entry.displayLabel}${entry.hasTime ? ' · ${entry.date.hour.toString().padLeft(2, '0')}:${entry.date.minute.toString().padLeft(2, '0')}' : tr(" · 시간 미기록")}',
                   ),
                   subtitle: Text(
-                    '${entry.note.isEmpty ? '감정을 남겼어요.' : entry.note}${entry.intensity == null ? '' : '\n직접 남긴 강도 ${entry.intensity}/5'}',
+                    '${entry.note.isEmpty ? tr("감정을 남겼어요.") : entry.note}${entry.intensity == null ? '' : tr("\n직접 남긴 강도 {0}/5", [entry.intensity])}',
                   ),
                 ),
             ],
@@ -170,8 +172,20 @@ class _EmotionStatisticsScreenState extends State<EmotionStatisticsScreen> {
     );
   }
 
+  Widget _reportEntry() => TextButton.icon(
+    key: const Key('open-garden-report-details'),
+    onPressed: () => Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => const MindReportScreen(detailsFirst: true),
+      ),
+    ),
+    icon: const Icon(Icons.insights_outlined),
+    label: Text(tr('정원 일기 자세히 살펴보기')),
+  );
+
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     final history = UnifiedEmotionSummaryService.read(
       letters: context.watch<AppStateProvider>().history,
       gardenDiary: context.watch<GardenProvider>().diaryEntries,
@@ -203,7 +217,7 @@ class _EmotionStatisticsScreenState extends State<EmotionStatisticsScreen> {
         backgroundColor: const Color(0xFFEDF5EE),
         surfaceTintColor: Colors.transparent,
         title: Text(
-          '마음냥 만화책',
+          tr("마음냥 만화책"),
           style: titleFont(fontSize: 28, color: AppColors.titlePastelGreen),
         ),
       ),
@@ -212,14 +226,16 @@ class _EmotionStatisticsScreenState extends State<EmotionStatisticsScreen> {
               child: ListView(
                 padding: const EdgeInsets.all(20),
                 children: [
+                  _reportEntry(),
                   SubscriptionNotice(
-                    message:
-                        '월간 감정 분석은 마음냥 구독에 포함돼요. 직접 쓴 회고와 기존 기록은 계속 볼 수 있어요.',
+                    message: tr(
+                      "월간 감정 분석은 마음냥 구독에 포함돼요. 직접 쓴 회고와 기존 기록은 계속 볼 수 있어요.",
+                    ),
                     onReturn: _loadPremium,
                   ),
                   TextButton(
                     onPressed: () => setState(() => _monthly = false),
-                    child: const Text('무료 주간 통계 보기'),
+                    child: Text(tr("무료 주간 통계 보기")),
                   ),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -231,7 +247,12 @@ class _EmotionStatisticsScreenState extends State<EmotionStatisticsScreen> {
                         ),
                         icon: const Icon(Icons.chevron_left),
                       ),
-                      Text('${_month.year}년 ${_month.month}월의 내 회고'),
+                      Expanded(
+                        child: Text(
+                          tr("{0}년 {1}월의 내 회고", [_month.year, _month.month]),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
                       IconButton(
                         onPressed: _month.isBefore(currentMonth)
                             ? () => setState(
@@ -261,10 +282,11 @@ class _EmotionStatisticsScreenState extends State<EmotionStatisticsScreen> {
                     padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
                     children: [
                       Text(
-                        '내 기록으로 보는 주간·월간 감정 통계',
+                        tr("내 기록으로 보는 주간·월간 감정 통계"),
                         style: bodyFont(fontSize: 14, color: AppColors.inkSoft),
                       ),
                       const SizedBox(height: 12),
+                      _reportEntry(),
                       Container(
                         padding: const EdgeInsets.all(5),
                         decoration: BoxDecoration(
@@ -273,9 +295,9 @@ class _EmotionStatisticsScreenState extends State<EmotionStatisticsScreen> {
                         ),
                         child: Row(
                           children: [
-                            _periodTab('주간', false),
+                            _periodTab(tr("주간"), false),
                             const SizedBox(width: 4),
-                            _periodTab('월간', true),
+                            _periodTab(tr("월간"), true),
                           ],
                         ),
                       ),
@@ -285,7 +307,7 @@ class _EmotionStatisticsScreenState extends State<EmotionStatisticsScreen> {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             IconButton(
-                              tooltip: '이전 달',
+                              tooltip: tr("이전 달"),
                               onPressed: () => setState(
                                 () => _month = DateTime(
                                   _month.year,
@@ -296,7 +318,7 @@ class _EmotionStatisticsScreenState extends State<EmotionStatisticsScreen> {
                             ),
                             Flexible(
                               child: Text(
-                                '${_month.year}년 ${_month.month}월',
+                                tr("{0}년 {1}월", [_month.year, _month.month]),
                                 textAlign: TextAlign.center,
                                 style: bodyFont(
                                   fontSize: 18,
@@ -305,7 +327,7 @@ class _EmotionStatisticsScreenState extends State<EmotionStatisticsScreen> {
                               ),
                             ),
                             IconButton(
-                              tooltip: '다음 달',
+                              tooltip: tr("다음 달"),
                               onPressed: _month.isBefore(currentMonth)
                                   ? () => setState(
                                       () => _month = DateTime(
@@ -323,7 +345,7 @@ class _EmotionStatisticsScreenState extends State<EmotionStatisticsScreen> {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             IconButton(
-                              tooltip: '이전 주',
+                              tooltip: tr("이전 주"),
                               onPressed: () => setState(
                                 () => _week = DateTime(
                                   _week.year,
@@ -344,7 +366,7 @@ class _EmotionStatisticsScreenState extends State<EmotionStatisticsScreen> {
                               ),
                             ),
                             IconButton(
-                              tooltip: '다음 주',
+                              tooltip: tr("다음 주"),
                               onPressed: periodEnd.isBefore(today)
                                   ? () => setState(
                                       () => _week = DateTime(
@@ -362,13 +384,13 @@ class _EmotionStatisticsScreenState extends State<EmotionStatisticsScreen> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           ChoiceChip(
-                            label: const Text('만화책으로 보기'),
+                            label: Text(tr("만화책으로 보기")),
                             selected: _comic,
                             onSelected: (_) => setState(() => _comic = true),
                           ),
                           const SizedBox(width: 8),
                           ChoiceChip(
-                            label: const Text('통계 자세히'),
+                            label: Text(tr("통계 자세히")),
                             selected: !_comic,
                             onSelected: (_) => setState(() => _comic = false),
                           ),
@@ -379,7 +401,7 @@ class _EmotionStatisticsScreenState extends State<EmotionStatisticsScreen> {
                         if (_gardenFailed)
                           TextButton(
                             onPressed: _loadGarden,
-                            child: const Text('정원 일기 불러오기 재시도'),
+                            child: Text(tr("정원 일기 불러오기 재시도")),
                           ),
                         EmotionComicBook(
                           key: ValueKey(
@@ -404,31 +426,39 @@ class _EmotionStatisticsScreenState extends State<EmotionStatisticsScreen> {
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
                               Text(
-                                '차곡차곡 모인 마음',
+                                tr("차곡차곡 모인 마음"),
                                 style: titleFont(
                                   fontSize: 27,
                                   color: AppColors.titlePastelGreen,
                                 ),
                               ),
                               _note(
-                                '${start.year}년 ${_label(start)} – ${_label(end)} · $days일',
+                                tr("{0}년 {1} – {2} · {3}일", [
+                                  start.year,
+                                  _label(start),
+                                  _label(end),
+                                  days,
+                                ]),
                               ),
                               const SizedBox(height: 8),
                               Row(
                                 children: [
                                   Expanded(
-                                    child: _metric('${byDay.length}일', '기록한 날'),
-                                  ),
-                                  Expanded(
                                     child: _metric(
-                                      '${records.length}번',
-                                      '남긴 기록',
+                                      tr("{0}일", [byDay.length]),
+                                      tr("기록한 날"),
                                     ),
                                   ),
                                   Expanded(
                                     child: _metric(
-                                      '${ranked.length}개',
-                                      '감정 항목',
+                                      tr("{0}번", [records.length]),
+                                      tr("남긴 기록"),
+                                    ),
+                                  ),
+                                  Expanded(
+                                    child: _metric(
+                                      tr("{0}개", [ranked.length]),
+                                      tr("감정 항목"),
                                     ),
                                   ),
                                 ],
@@ -441,39 +471,49 @@ class _EmotionStatisticsScreenState extends State<EmotionStatisticsScreen> {
                           TextButton.icon(
                             onPressed: _loadGarden,
                             icon: const Icon(Icons.refresh),
-                            label: const Text('정원 일기를 불러오지 못했어요. 다시 시도'),
+                            label: Text(tr("정원 일기를 불러오지 못했어요. 다시 시도")),
                           ),
-                        _section('함께 모은 기록', [
+                        _section(tr("함께 모은 기록"), [
                           Text(
-                            '편지 ${summary.letterCount}개 · 정원 일기 ${summary.gardenCount}개',
+                            tr("편지 {0}개 · 정원 일기 {1}개", [
+                              summary.letterCount,
+                              summary.gardenCount,
+                            ]),
                           ),
                           const SizedBox(height: 8),
                           _note(
-                            '각 기록에서 직접 고른 감정을 모았어요. 선택 항목이 달라 출처별로 구분하며, 돌봄 온기나 게임 점수는 포함하지 않아요.',
+                            tr(
+                              "각 기록에서 직접 고른 감정을 모았어요. 선택 항목이 달라 출처별로 구분하며, 돌봄 온기나 게임 점수는 포함하지 않아요.",
+                            ),
                           ),
                           if (summary.averageIntensity != null) ...[
                             const SizedBox(height: 12),
                             Text(
-                              '직접 남긴 감정 강도 평균 ${summary.averageIntensity!.toStringAsFixed(1)}/5',
+                              tr("직접 남긴 감정 강도 평균 {0}/5", [
+                                summary.averageIntensity!.toStringAsFixed(1),
+                              ]),
                             ),
                             _note(
-                              '강도를 입력한 정원 일기 ${summary.intensities.length}개만 계산했어요. 편지나 강도 미입력 기록은 평균에 넣지 않아요. 강도는 감정의 좋고 나쁨이나 건강 점수가 아니에요.',
+                              tr(
+                                "강도를 입력한 정원 일기 {0}개만 계산했어요. 편지나 강도 미입력 기록은 평균에 넣지 않아요. 강도는 감정의 좋고 나쁨이나 건강 점수가 아니에요.",
+                                [summary.intensities.length],
+                              ),
                             ),
                           ],
                         ]),
-                        _section(_monthly ? '감정 달력' : '날짜별 기록', [
-                          _note('날짜를 누르면 그날의 모든 기록을 볼 수 있어요.'),
+                        _section(_monthly ? tr("감정 달력") : tr("날짜별 기록"), [
+                          _note(tr("날짜를 누르면 그날의 모든 기록을 볼 수 있어요.")),
                           const SizedBox(height: 12),
                           Row(
                             children: [
                               for (final day in [
-                                '월',
-                                '화',
-                                '수',
-                                '목',
-                                '금',
-                                '토',
-                                '일',
+                                tr("월"),
+                                tr("화"),
+                                tr("수"),
+                                tr("목"),
+                                tr("금"),
+                                tr("토"),
+                                tr("일"),
                               ])
                                 Expanded(
                                   child: Center(
@@ -519,7 +559,10 @@ class _EmotionStatisticsScreenState extends State<EmotionStatisticsScreen> {
                               final future = date.isAfter(today);
                               final cat = entries.isEmpty ? null : entries.last;
                               return Semantics(
-                                label: '${_label(date)}, ${entries.length}개 기록',
+                                label: tr("{0}, {1}개 기록", [
+                                  _label(date),
+                                  entries.length,
+                                ]),
                                 button: !future,
                                 child: InkWell(
                                   borderRadius: BorderRadius.circular(14),
@@ -579,23 +622,25 @@ class _EmotionStatisticsScreenState extends State<EmotionStatisticsScreen> {
                           ),
                           const SizedBox(height: 8),
                           _note(
-                            '아이콘은 그날 남긴 감정 중 하나예요. 시간 없이 저장된 정원 일기도 있어 순서를 추정하지 않아요. 빈칸은 기록이 없는 날이에요.',
+                            tr(
+                              "아이콘은 그날 남긴 감정 중 하나예요. 시간 없이 저장된 정원 일기도 있어 순서를 추정하지 않아요. 빈칸은 기록이 없는 날이에요.",
+                            ),
                           ),
                         ]),
                         if (!_premium)
-                          _section('이번 주의 대표 감정', [
+                          _section(tr("이번 주의 대표 감정"), [
                             Text(
                               ranked.isEmpty
-                                  ? '기록이 아직 없어요.'
+                                  ? tr("기록이 아직 없어요.")
                                   : ranked.first.emotion.displayLabel,
                             ),
                             SubscriptionNotice(
-                              message: '상세 주간·월간 분석은 마음냥 구독으로 이용해요.',
+                              message: tr("상세 주간·월간 분석은 마음냥 구독으로 이용해요."),
                               onReturn: _loadPremium,
                             ),
                           ]),
                         if (_premium)
-                          _section('자주 기록한 감정', [
+                          _section(tr("자주 기록한 감정"), [
                             if (records.isEmpty)
                               Container(
                                 padding: const EdgeInsets.all(20),
@@ -612,11 +657,11 @@ class _EmotionStatisticsScreenState extends State<EmotionStatisticsScreen> {
                                     ),
                                     const SizedBox(height: 8),
                                     Text(
-                                      '아직 남긴 기록이 없어요',
+                                      tr("아직 남긴 기록이 없어요"),
                                       style: bodyFont(fontSize: 16),
                                     ),
                                     const SizedBox(height: 4),
-                                    _note('편지와 정원 일기에 남긴 마음이 이곳에 모여요.'),
+                                    _note(tr("편지와 정원 일기에 남긴 마음이 이곳에 모여요.")),
                                   ],
                                 ),
                               ),
@@ -640,7 +685,7 @@ class _EmotionStatisticsScreenState extends State<EmotionStatisticsScreen> {
                                         ),
                                         const SizedBox(width: 8),
                                         Text(
-                                          '${item.count}번',
+                                          tr("{0}번", [item.count]),
                                           style: bodyFont(
                                             fontSize: 15,
                                             color: AppColors.inkSoft,
@@ -650,8 +695,11 @@ class _EmotionStatisticsScreenState extends State<EmotionStatisticsScreen> {
                                     ),
                                     const SizedBox(height: 6),
                                     Semantics(
-                                      label:
-                                          '${item.emotion.displayLabel}, 전체 ${records.length}번 중 ${item.count}번',
+                                      label: tr("{0}, 전체 {1}번 중 {2}번", [
+                                        item.emotion.displayLabel,
+                                        records.length,
+                                        item.count,
+                                      ]),
                                       child: ClipRRect(
                                         borderRadius: BorderRadius.circular(8),
                                         child: LinearProgressIndicator(
@@ -668,15 +716,23 @@ class _EmotionStatisticsScreenState extends State<EmotionStatisticsScreen> {
                               ),
                             if (ranked.length > 3)
                               Text(
-                                '그 밖의 감정 ${records.length - top.fold<int>(0, (sum, item) => sum + item.count)}번',
+                                tr("그 밖의 감정 {0}번", [
+                                  records.length -
+                                      top.fold<int>(
+                                        0,
+                                        (sum, item) => sum + item.count,
+                                      ),
+                                ]),
                               ),
                             if (records.isNotEmpty)
-                              _note('기록에서 선택한 횟수예요. 감정의 강도나 전체 생활의 비율은 아니에요.'),
+                              _note(
+                                tr("기록에서 선택한 횟수예요. 감정의 강도나 전체 생활의 비율은 아니에요."),
+                              ),
                           ], background: AppColors.catPeachBg),
                         if (_monthly)
-                          _section('지난달과 나란히 보기', [
+                          _section(tr("지난달과 나란히 보기"), [
                             if (!_premium) ...[
-                              const Text('구독으로 같은 기간의 기록량과 감정을 비교할 수 있어요.'),
+                              Text(tr("구독으로 같은 기간의 기록량과 감정을 비교할 수 있어요.")),
                               TextButton(
                                 onPressed: () async {
                                   await Navigator.of(context).push(
@@ -686,7 +742,7 @@ class _EmotionStatisticsScreenState extends State<EmotionStatisticsScreen> {
                                   );
                                   await _loadPremium();
                                 },
-                                child: const Text('정원 플러스 보기'),
+                                child: Text(tr("정원 플러스 보기")),
                               ),
                             ] else
                               ..._comparison(history, start, end, records),
@@ -710,7 +766,7 @@ class _EmotionStatisticsScreenState extends State<EmotionStatisticsScreen> {
                                   const MonthlyShadowReflectionScreen(),
                             ),
                           ),
-                          child: const Text('이번 달 회고와 마무리 편지'),
+                          child: Text(tr("이번 달 회고와 마무리 편지")),
                         ),
                       TextButton(
                         onPressed: () => Navigator.of(context).push(
@@ -718,13 +774,13 @@ class _EmotionStatisticsScreenState extends State<EmotionStatisticsScreen> {
                             builder: (_) => const WeeklyShadowMapScreen(),
                           ),
                         ),
-                        child: const Text('편지 기록의 확장 통계 보기'),
+                        child: Text(tr("편지 기록의 확장 통계 보기")),
                       ),
                       TextButton(
                         onPressed: () => Navigator.of(context).push(
                           MaterialPageRoute(
                             builder: (_) => Scaffold(
-                              appBar: AppBar(title: const Text('재미로 뽑는 카드')),
+                              appBar: AppBar(title: Text(tr("재미로 뽑는 카드"))),
                               body: const SingleChildScrollView(
                                 padding: EdgeInsets.all(20),
                                 child: DailyCardScreen(),
@@ -732,7 +788,7 @@ class _EmotionStatisticsScreenState extends State<EmotionStatisticsScreen> {
                             ),
                           ),
                         ),
-                        child: const Text('재미용 카드 따로 보기'),
+                        child: Text(tr("재미용 카드 따로 보기")),
                       ),
                     ],
                   ),
@@ -768,17 +824,30 @@ class _EmotionStatisticsScreenState extends State<EmotionStatisticsScreen> {
     final currentSummary = UnifiedEmotionPeriod(current);
     return [
       Text(
-        '이번 기간 ${_label(start)}–${_label(end)}: ${currentSummary.recordedDays}일, ${current.length}번 기록',
+        tr("이번 기간 {0}–{1}: {2}일, {3}번 기록", [
+          _label(start),
+          _label(end),
+          currentSummary.recordedDays,
+          current.length,
+        ]),
       ),
       Text(
-        '지난 기간 ${_label(previousStart)}–${_label(previousEnd)}: ${previousSummary.recordedDays}일, ${previous.length}번 기록',
+        tr("지난 기간 {0}–{1}: {2}일, {3}번 기록", [
+          _label(previousStart),
+          _label(previousEnd),
+          previousSummary.recordedDays,
+          previous.length,
+        ]),
       ),
       const SizedBox(height: 8),
       if (currentSummary.recordedDays < 3 || previousSummary.recordedDays < 3)
-        const Text('비교할 기록이 아직 적어요. 지금은 기록량만 살펴봐요.')
+        Text(tr("비교할 기록이 아직 적어요. 지금은 기록량만 살펴봐요."))
       else
         Text(
-          '지난 기간에는 ${ranked.first.emotion.displayLabel}을(를) ${ranked.first.count}번 기록했어요. 기록량이 다르므로 감정이 더 심해졌거나 나아졌다는 뜻은 아니에요.',
+          tr(
+            "지난 기간에는 {0}을(를) {1}번 기록했어요. 기록량이 다르므로 감정이 더 심해졌거나 나아졌다는 뜻은 아니에요.",
+            [ranked.first.emotion.displayLabel, ranked.first.count],
+          ),
         ),
     ];
   }

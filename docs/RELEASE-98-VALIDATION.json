@@ -1,0 +1,45 @@
+{
+  "version": "1.0.95+98",
+  "package": "com.mysticcat.journal",
+  "commit": "e83f81bcd7d601be5095e1fa6346ec8162428358",
+  "baseline": "01aa875c33030913e00a7e062dfce5854428c76f",
+  "flutterTests": 1174,
+  "analysis": {
+    "errors": 0,
+    "warnings": 4,
+    "infos": 652,
+    "exitCode": 1,
+    "note": "Existing warnings/info remain; not a clean analyzer exit."
+  },
+  "backendPrivacyTests": 10,
+  "walkingTests": 9,
+  "realDeviceTested": false,
+  "serverDeployed": false,
+  "storeUploaded": false,
+  "publicMindData": "Excluded from existing public snapshot; private encrypted plant memory only",
+  "screens": "Current Flutter widget renders, not physical device or emulator",
+  "changedScope": "Six follow-up corrections and three nonworking/redundant UI removals; existing records and economy preserved",
+  "focusedUiTests": 26,
+  "mindStorageTests": 17,
+  "baselineOriginalPreserved": true,
+  "sourceFiles": 1711,
+  "validatedLocalSourceCommit": "e83f81bcd7d601be5095e1fa6346ec8162428358",
+  "gitHubBaseCommit": "d2025d0e34a5605c151dbad354ba46e70e3ec8ba",
+  "artifacts": [
+    {
+      "file": "Mindnyang-1.0.95-98-Validated-Test.apk",
+      "bytes": 282876649,
+      "sha256": "5cad942f1537253ed528389a03714180ea617c3d4c3ff7f9a583cc5fbedbc3e6"
+    },
+    {
+      "file": "Mindnyang-1.0.95-98-Internal-Test.aab",
+      "bytes": 261833787,
+      "sha256": "36a7cb2b4365aab3164db36792e31facf43940e8c4ffa4e3a7cad26a48809f3b"
+    },
+    {
+      "file": "Mindnyang-1.0.95-98-Followup-Full-Source.zip",
+      "bytes": 276065845,
+      "sha256": "e56464bce86b35eb930fc00d1829dbedfc9965769697443114568fe5eb9de6d4"
+    }
+  ]
+}

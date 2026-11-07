@@ -52,6 +52,14 @@ class MainActivity : FlutterActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "garden/device_timezone")
+            .setMethodCallHandler { call, result ->
+                if (call.method == "read") {
+                    val zone = java.util.TimeZone.getDefault()
+                    result.success(mapOf("id" to zone.id,
+                        "offsetSeconds" to zone.getOffset(System.currentTimeMillis()) / 1000))
+                } else result.notImplemented()
+            }
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "garden/walk_fullscreen")
             .setMethodCallHandler { call, result ->
                 if (call.method == "set") {

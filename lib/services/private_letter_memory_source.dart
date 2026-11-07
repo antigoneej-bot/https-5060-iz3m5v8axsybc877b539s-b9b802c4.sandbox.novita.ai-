@@ -30,8 +30,12 @@ class PrivateLetterMemorySource {
       final entry = matches.single;
       final date = DateTime.tryParse(entry['date']?.toString() ?? '');
       if (date == null || entry['note'] is! String) return null;
-      return PrivateLetterMemorySource(id: sourceId, text: entry['note'] as String,
-        label: '정원에 남긴 마음 일지', writtenAt: date);
+      return PrivateLetterMemorySource(
+        id: sourceId,
+        text: entry['note'] as String,
+        label: '정원에 남긴 마음 일지',
+        writtenAt: date,
+      );
     }
     final heart = sourceId.startsWith('heart:');
     final id = heart ? sourceId.substring(6) : sourceId;

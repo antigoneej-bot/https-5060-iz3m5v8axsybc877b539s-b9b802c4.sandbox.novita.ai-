@@ -2,6 +2,8 @@
 /// Legacy enum/field names stay compatible; all display labels describe numbers.
 library;
 
+import '../l10n/app_language.dart';
+
 import 'dart:math';
 
 /// Activity-counter bands. Names remain for compatibility, not mood inference.
@@ -83,26 +85,26 @@ class TemperatureInsight {
   String get bandLabel {
     switch (band) {
       case TempBand.warm:
-        return '평균 온기 75~100';
+        return tr("평균 온기 75~100");
       case TempBand.calm:
-        return '평균 온기 50 이상 75 미만';
+        return tr("평균 온기 50 이상 75 미만");
       case TempBand.tired:
-        return '평균 온기 25 이상 50 미만';
+        return tr("평균 온기 25 이상 50 미만");
       case TempBand.recovering:
-        return '평균 온기 0 이상 25 미만';
+        return tr("평균 온기 0 이상 25 미만");
     }
   }
 
   String get trendLabel {
     switch (trend) {
       case TempTrend.rising:
-        return '기록된 온기 값이 늘었어요';
+        return tr("기록된 온기 값이 늘었어요");
       case TempTrend.falling:
-        return '기록된 온기 값이 낮아졌어요 · 보상 적립 여부를 함께 확인해요';
+        return tr("기록된 온기 값이 낮아졌어요 · 보상 적립 여부를 함께 확인해요");
       case TempTrend.stable:
-        return '기록된 온기 값이 비슷해요';
+        return tr("기록된 온기 값이 비슷해요");
       case TempTrend.volatile:
-        return '기록된 온기 값에 차이가 있어요 · 보상 후 다시 쌓일 수 있어요';
+        return tr("기록된 온기 값에 차이가 있어요 · 보상 후 다시 쌓일 수 있어요");
     }
   }
 
@@ -240,28 +242,26 @@ class TemperatureInsightService {
     return TempTrend.stable;
   }
 
-  static const activityExplanation =
-      '돌봄 온기는 출석·편지·돌봄 같은 활동으로 쌓는 값이에요. '
-      '감정이나 심리 상태를 측정한 점수가 아니에요. '
-      '구독자는 100에 도달하면 포인트를 받고 0부터 다시 쌓아요. '
-      '값이 낮아져도 마음이 나빠졌다는 뜻은 아니에요.';
+  static String get activityExplanation => tr(
+    "돌봄 온기는 출석·편지·돌봄 같은 활동으로 쌓는 값이에요. 감정이나 심리 상태를 측정한 점수가 아니에요. 구독자는 100에 도달하면 포인트를 받고 0부터 다시 쌓아요. 값이 낮아져도 마음이 나빠졌다는 뜻은 아니에요.",
+  );
 
   static String _stateDescription(
     TempBand band,
     TempTrend trend,
     double average,
-  ) =>
-      '이 기간에 저장된 온기의 평균은 ${average.toStringAsFixed(1)}이에요. $activityExplanation';
+  ) => tr("이 기간에 저장된 온기의 평균은 {0}이에요. {1}", [
+    average.toStringAsFixed(1),
+    activityExplanation,
+  ]);
 
-  static String _solution(TempBand band, TempTrend trend) =>
-      '내 마음을 돌아보고 싶다면 직접 고른 감정과 남긴 편지를 살펴보세요. '
-      '감정 통계에서 기록과 주간·월간 회고를 다시 볼 수 있어요.';
+  static String _solution(TempBand band, TempTrend trend) => tr(
+    "내 마음을 돌아보고 싶다면 직접 고른 감정과 남긴 편지를 살펴보세요. 감정 통계에서 기록과 주간·월간 회고를 다시 볼 수 있어요.",
+  );
 
   static String _comfort(TempBand band, TempTrend trend) =>
-      '온기를 얼마나 모았는지로 마음이나 노력을 평가하지 않아요. '
-      '쉬었던 날에도 이전 돌봄이 사라지지 않아요.';
+      tr("온기를 얼마나 모았는지로 마음이나 노력을 평가하지 않아요. 쉬었던 날에도 이전 돌봄이 사라지지 않아요.");
 
   static String _meditation(TempBand band, TempTrend trend) =>
-      '쉬고 싶을 때는 명상이나 호흡을 선택해도 좋아요. '
-      '온기 값에 따라 특정 활동이 필요하다고 판단하지 않아요.';
+      tr("쉬고 싶을 때는 명상이나 호흡을 선택해도 좋아요. 온기 값에 따라 특정 활동이 필요하다고 판단하지 않아요.");
 }

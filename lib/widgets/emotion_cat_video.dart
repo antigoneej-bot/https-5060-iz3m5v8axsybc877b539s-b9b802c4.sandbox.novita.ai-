@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 
@@ -178,10 +179,10 @@ class _EmotionCatVideoState extends State<EmotionCatVideo>
             bottom: 2,
             child: IconButton.filledTonal(
               tooltip: _failed
-                  ? '영상 다시 불러오기'
+                  ? tr("영상 다시 불러오기")
                   : playing
-                  ? '움직임 멈추기'
-                  : '움직임 보기',
+                  ? tr("움직임 멈추기")
+                  : tr("움직임 보기"),
               onPressed: _loading ? null : _toggle,
               iconSize: 20,
               icon: Icon(

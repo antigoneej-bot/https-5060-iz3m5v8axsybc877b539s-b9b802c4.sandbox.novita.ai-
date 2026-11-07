@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/notice.dart';
@@ -80,10 +81,10 @@ class _GardenBookingCalendarState extends State<GardenBookingCalendar> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Text('1  날짜 선택', style: TextStyle(fontWeight: FontWeight.bold)),
+        Text(tr("1  날짜 선택"), style: TextStyle(fontWeight: FontWeight.bold)),
         const SizedBox(height: 4),
-        const Text(
-          '일정이 있는 날짜만 선택할 수 있어요.',
+        Text(
+          tr("일정이 있는 날짜만 선택할 수 있어요."),
           style: TextStyle(fontSize: 12, color: AppColors.inkSoft),
         ),
         AbsorbPointer(
@@ -102,7 +103,7 @@ class _GardenBookingCalendarState extends State<GardenBookingCalendar> {
           ),
         ),
         Text(
-          '2  ${DateFormat('M월 d일').format(_day)} 시간 선택',
+          tr("2  {0} 시간 선택", [DateFormat(tr("M월 d일")).format(_day)]),
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 10),
@@ -138,7 +139,9 @@ class _GardenBookingCalendarState extends State<GardenBookingCalendar> {
                     if (slot.label != null) Text(slot.label!, softWrap: true),
                     Text(
                       slot.canBookAt(now)
-                          ? '남은 자리 ${slot.capacity - slot.reservedCount}명'
+                          ? tr("남은 자리 {0}명", [
+                              slot.capacity - slot.reservedCount,
+                            ])
                           : slot.availabilityAt(now),
                       style: const TextStyle(fontSize: 12),
                     ),
@@ -148,8 +151,8 @@ class _GardenBookingCalendarState extends State<GardenBookingCalendar> {
           ],
         ),
         const SizedBox(height: 12),
-        const Text(
-          '시간은 이 기기의 현지 시간이에요.',
+        Text(
+          tr("시간은 이 기기의 현지 시간이에요."),
           style: TextStyle(fontSize: 12, color: AppColors.inkSoft),
         ),
       ],

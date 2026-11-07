@@ -200,7 +200,7 @@ class GardenSceneView extends StatelessWidget {
                   children: cats
                       .map(
                         (cat) => Tooltip(
-                          message: cat.nameKr,
+                          message: cat.displayName,
                           child: _GroundShadowWrap(
                             scale: contentScale,
                             child: SizedBox(
@@ -484,8 +484,7 @@ class _DriftingCloudsOverlay extends StatefulWidget {
   const _DriftingCloudsOverlay({required this.height, this.animate = true});
 
   @override
-  State<_DriftingCloudsOverlay> createState() =>
-      _DriftingCloudsOverlayState();
+  State<_DriftingCloudsOverlay> createState() => _DriftingCloudsOverlayState();
 }
 
 class _DriftingCloudsOverlayState extends State<_DriftingCloudsOverlay>
@@ -635,7 +634,8 @@ class _SeedPotState extends State<_SeedPot>
         animation: _controller,
         builder: (context, _) {
           final sway = widget.animate
-              ? (_controller.value - 0.5) * 0.10 // 살짝 좌우로 흔들림
+              ? (_controller.value - 0.5) *
+                    0.10 // 살짝 좌우로 흔들림
               : 0.0;
           return Transform.rotate(
             angle: widget.count > 0 ? sway : 0.0,

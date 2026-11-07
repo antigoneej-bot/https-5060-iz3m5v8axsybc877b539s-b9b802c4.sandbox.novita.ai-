@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import '../services/hive_encryption.dart';
 import '../services/storage_service.dart';
 import '../widgets/letter_care_closing_card.dart';
@@ -35,21 +36,22 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     final app = context.watch<AppStateProvider>();
     if (app.history.isEmpty) {
       return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 60),
+        padding: EdgeInsets.symmetric(vertical: 60),
         child: Column(
           children: [
-            const Text('🌙', style: TextStyle(fontSize: 40)),
-            const SizedBox(height: 14),
+            Text('🌙', style: TextStyle(fontSize: 40)),
+            SizedBox(height: 14),
             Text(
-              '아직 기록된 편지가 없어요',
+              tr('아직 기록된 편지가 없어요'),
               style: bodyFont(fontSize: 13.5, color: AppColors.inkSoft),
             ),
-            const SizedBox(height: 6),
+            SizedBox(height: 6),
             Text(
-              '그림자 고양이를 만나 첫 편지를 써보세요',
+              tr('그림자 고양이를 만나 첫 편지를 써보세요'),
               style: bodyFont(fontSize: 12.5, color: AppColors.inkSoft),
             ),
           ],
@@ -68,14 +70,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const _ReflectionEntryRow(),
-        const SizedBox(height: 20),
+        _ReflectionEntryRow(),
+        SizedBox(height: 20),
         _CatMeetingSummaryTable(history: history),
-        const SizedBox(height: 20),
+        SizedBox(height: 20),
         Padding(
-          padding: const EdgeInsets.only(left: 4, bottom: 8),
+          padding: EdgeInsets.only(left: 4, bottom: 8),
           child: Text(
-            '편지 기록 (총 ${history.length}통)',
+            tr("편지 기록 (총 {0}통)", [history.length]),
             style: pathLabelFont(
               fontSize: 13.5,
               fontWeight: FontWeight.w700,
@@ -91,12 +93,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
             .map((e) => _HistoryItem(entry: e.value, seed: e.key)),
         if (hiddenCount > 0)
           Padding(
-            padding: const EdgeInsets.only(top: 4, bottom: 8),
+            padding: EdgeInsets.only(top: 4, bottom: 8),
             child: Center(
               child: TextButton(
                 onPressed: () => setState(() => _showAll = true),
                 child: Text(
-                  '이전 기록 $hiddenCount통 더보기',
+                  tr("이전 기록 {0}통 더보기", [hiddenCount]),
                   style: bodyFont(
                     fontSize: 12.5,
                     fontWeight: FontWeight.w700,
@@ -108,12 +110,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
           )
         else if (_showAll && history.length > _kInitialVisibleCount)
           Padding(
-            padding: const EdgeInsets.only(top: 4, bottom: 8),
+            padding: EdgeInsets.only(top: 4, bottom: 8),
             child: Center(
               child: TextButton(
                 onPressed: () => setState(() => _showAll = false),
                 child: Text(
-                  '접기',
+                  tr('접기'),
                   style: bodyFont(
                     fontSize: 12.5,
                     fontWeight: FontWeight.w700,
@@ -138,6 +140,7 @@ class _CatMeetingSummaryTable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     final counts = <String, int>{};
     for (final e in history) {
       counts[e.catId] = (counts[e.catId] ?? 0) + 1;
@@ -148,18 +151,18 @@ class _CatMeetingSummaryTable extends StatelessWidget {
     return GlassBlob(
       accent: AppColors.blobLavenderAccent,
       background: AppColors.blobLavender,
-      padding: const EdgeInsets.all(18),
+      padding: EdgeInsets.all(18),
       floatSeed: 5,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Text('🐾', style: TextStyle(fontSize: 18)),
-              const SizedBox(width: 8),
+              Text('🐾', style: TextStyle(fontSize: 18)),
+              SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  '지금까지 만난 그림자 고양이',
+                  tr('지금까지 만난 그림자 고양이'),
                   style: pathLabelFont(
                     fontSize: 14.5,
                     fontWeight: FontWeight.w700,
@@ -168,30 +171,30 @@ class _CatMeetingSummaryTable extends StatelessWidget {
                 ),
               ),
               Text(
-                '총 ${rows.length}종 · ${history.length}회',
+                tr("총 {0}종 · {1}회", [rows.length, history.length]),
                 style: bodyFont(fontSize: 11, color: AppColors.inkSoft),
               ),
             ],
           ),
-          const SizedBox(height: 4),
+          SizedBox(height: 4),
           Text(
-            '편지 카드 대신, 어떤 고양이를 몇 번 만났는지 숫자로 정리했어요',
+            tr('편지 카드 대신, 어떤 고양이를 몇 번 만났는지 숫자로 정리했어요'),
             style: bodyFont(fontSize: 11, color: AppColors.inkSoft),
           ),
-          const SizedBox(height: 14),
+          SizedBox(height: 14),
           ...rows.map((e) {
             final cat = shadowCatById(e.key);
             final ratio = history.isEmpty ? 0.0 : e.value / history.length;
             return Padding(
-              padding: const EdgeInsets.only(bottom: 10),
+              padding: EdgeInsets.only(bottom: 10),
               child: Row(
                 children: [
-                  Text(cat.emoji, style: const TextStyle(fontSize: 16)),
-                  const SizedBox(width: 8),
+                  Text(cat.emoji, style: TextStyle(fontSize: 16)),
+                  SizedBox(width: 8),
                   SizedBox(
                     width: 82,
                     child: Text(
-                      cat.nameKr,
+                      cat.displayName,
                       style: bodyFont(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
@@ -221,11 +224,11 @@ class _CatMeetingSummaryTable extends StatelessWidget {
                       ),
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  SizedBox(width: 10),
                   SizedBox(
                     width: 42,
                     child: Text(
-                      '${e.value}회',
+                      tr("{0}회", [e.value]),
                       textAlign: TextAlign.right,
                       style: numberFont(
                         fontSize: 12.5,
@@ -251,32 +254,33 @@ class _ReflectionEntryRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     return Column(
       children: [
         GardenPathCard(
           emoji: '🌡️',
-          title: '돌봄 온기 기록',
-          subtitle: '활동으로 모은 온기를 살펴보세요 · 심리 점수가 아니에요',
+          title: tr('돌봄 온기 기록'),
+          subtitle: tr('활동으로 모은 온기를 살펴보세요 · 심리 점수가 아니에요'),
           accent: AppColors.blobPeachAccent,
           background: AppColors.blobPeach,
           floatSeed: 40,
           onTap: () => pushFullScreen(
             context,
-            '돌봄 온기 기록',
-            const MindTemperatureHistoryScreen(),
+            tr('돌봄 온기 기록'),
+            MindTemperatureHistoryScreen(),
           ),
         ),
-        const SizedBox(height: 12),
+        SizedBox(height: 12),
         GardenPathCard(
           emoji: '🗓️',
-          title: '감정 통계',
-          subtitle: '주간·월간 기록과 회고를 한곳에서 살펴보세요',
+          title: tr("감정 통계"),
+          subtitle: tr('주간·월간 기록과 회고를 한곳에서 살펴보세요'),
           accent: AppColors.blobMintAccent,
           background: AppColors.blobMint,
           floatSeed: 41,
-          onTap: () => Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const EmotionStatisticsScreen()),
-          ),
+          onTap: () => Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (_) => EmotionStatisticsScreen())),
         ),
       ],
     );
@@ -319,7 +323,7 @@ class _HistoryItemState extends State<_HistoryItem>
     super.initState();
     _hoverController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 220),
+      duration: Duration(milliseconds: 220),
     );
   }
 
@@ -341,32 +345,33 @@ class _HistoryItemState extends State<_HistoryItem>
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     final entry = widget.entry;
     final cat = shadowCatById(entry.catId);
     final dateStr = DateFormat(
       'yyyy.MM.dd (E) HH:mm',
-      'ko_KR',
+      AppLanguage.instance.isEnglish ? 'en_US' : 'ko_KR',
     ).format(entry.date);
     final accent = _accents[widget.seed % _accents.length];
     final background = _backgrounds[widget.seed % _backgrounds.length];
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: EdgeInsets.only(bottom: 12),
       child: MouseRegion(
         onEnter: (_) => _setHover(true),
         onExit: (_) => _setHover(false),
         cursor: SystemMouseCursors.click,
         child: GestureDetector(
           onTap: () {
-            _showDetail(context, entry, cat.imageAsset, cat.nameKr);
+            _showDetail(context, entry, cat.imageAsset, cat.displayName);
           },
           child: AnimatedScale(
             scale: _hovering ? 1.015 : 1.0,
-            duration: const Duration(milliseconds: 200),
+            duration: Duration(milliseconds: 200),
             child: GlassBlob(
               accent: accent,
               background: background,
               floatSeed: widget.seed * 61 + 13,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Row(
                 children: [
                   LivelyCatImage(
@@ -375,7 +380,7 @@ class _HistoryItemState extends State<_HistoryItem>
                     height: 40,
                     borderRadius: BorderRadius.circular(14),
                   ),
-                  const SizedBox(width: 12),
+                  SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -390,7 +395,7 @@ class _HistoryItemState extends State<_HistoryItem>
                         Row(
                           children: [
                             Text(
-                              '${cat.emoji} ${cat.nameKr}',
+                              '${cat.emoji} ${cat.displayName}',
                               style: pathLabelFont(
                                 fontSize: 14.5,
                                 fontWeight: FontWeight.w700,
@@ -398,10 +403,10 @@ class _HistoryItemState extends State<_HistoryItem>
                               ),
                             ),
                             if (entry.moodEmoji != null) ...[
-                              const SizedBox(width: 6),
+                              SizedBox(width: 6),
                               Text(
                                 entry.moodEmoji!,
-                                style: const TextStyle(fontSize: 15),
+                                style: TextStyle(fontSize: 15),
                               ),
                             ],
                           ],
@@ -411,7 +416,7 @@ class _HistoryItemState extends State<_HistoryItem>
                   ),
                   if (entry.meditationKey != null)
                     Padding(
-                      padding: const EdgeInsets.only(right: 6),
+                      padding: EdgeInsets.only(right: 6),
                       child: Icon(
                         Icons.self_improvement_rounded,
                         color: accent,
@@ -447,13 +452,13 @@ class _HistoryItemState extends State<_HistoryItem>
         // 넘어설 수 있으므로, 화면 높이의 85%로 제한하고 그 안에서는
         // 스크롤로 끝까지 읽을 수 있게 합니다(답장 글이 화면 밖으로
         // 밀려 안 보이던 문제 수정).
-        insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+        insetPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 24),
         child: ConstrainedBox(
           constraints: BoxConstraints(
             maxHeight: MediaQuery.of(ctx).size.height * 0.85,
           ),
           child: Container(
-            padding: const EdgeInsets.all(22),
+            padding: EdgeInsets.all(22),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(28),
               gradient: LinearGradient(
@@ -484,7 +489,7 @@ class _HistoryItemState extends State<_HistoryItem>
                       ),
                       GestureDetector(
                         onTap: () => Navigator.pop(ctx),
-                        child: const Icon(
+                        child: Icon(
                           Icons.close,
                           color: AppColors.inkSoft,
                           size: 20,
@@ -492,12 +497,15 @@ class _HistoryItemState extends State<_HistoryItem>
                       ),
                     ],
                   ),
-                  const SizedBox(height: 4),
+                  SizedBox(height: 4),
                   Text(
-                    DateFormat('yyyy년 M월 d일 HH:mm', 'ko_KR').format(entry.date),
+                    DateFormat(
+                      tr('yyyy년 M월 d일 HH:mm'),
+                      AppLanguage.instance.isEnglish ? 'en_US' : 'ko_KR',
+                    ).format(entry.date),
                     style: bodyFont(fontSize: 11.5, color: AppColors.inkSoft),
                   ),
-                  const SizedBox(height: 14),
+                  SizedBox(height: 14),
                   ClipRRect(
                     borderRadius: BorderRadius.circular(20),
                     child: Image.asset(
@@ -507,20 +515,20 @@ class _HistoryItemState extends State<_HistoryItem>
                       fit: BoxFit.cover,
                     ),
                   ),
-                  const SizedBox(height: 14),
+                  SizedBox(height: 14),
                   Text(
                     entry.meditationKey != null
-                        ? '편지를 보내고 명상까지 실천해 마음 온도가 2도 올랐어요 🌱'
-                        : '편지를 보내 마음 온도가 1도 올랐어요 🌱',
+                        ? tr('편지를 보내고 명상까지 실천해 마음 온도가 2도 올랐어요 🌱')
+                        : tr('편지를 보내 마음 온도가 1도 올랐어요 🌱'),
                     style: bodyFont(
                       fontSize: 12.5,
                       color: AppColors.blobPeachAccent,
                     ),
                   ),
                   if (entry.moodEmoji != null) ...[
-                    const SizedBox(height: 10),
+                    SizedBox(height: 10),
                     Container(
-                      padding: const EdgeInsets.symmetric(
+                      padding: EdgeInsets.symmetric(
                         horizontal: 14,
                         vertical: 8,
                       ),
@@ -538,11 +546,11 @@ class _HistoryItemState extends State<_HistoryItem>
                         children: [
                           Text(
                             entry.moodEmoji!,
-                            style: const TextStyle(fontSize: 18),
+                            style: TextStyle(fontSize: 18),
                           ),
-                          const SizedBox(width: 8),
+                          SizedBox(width: 8),
                           Text(
-                            '오늘 기분: ${moodLabelFor(entry.moodEmoji!)}',
+                            tr("오늘 기분: {0}", [moodLabelFor(entry.moodEmoji!)]),
                             style: bodyFont(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
@@ -553,10 +561,10 @@ class _HistoryItemState extends State<_HistoryItem>
                       ),
                     ),
                   ],
-                  const SizedBox(height: 10),
+                  SizedBox(height: 10),
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.all(16),
+                    padding: EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       color: Colors.white.withValues(alpha: 0.55),
                       borderRadius: BorderRadius.circular(18),
@@ -564,8 +572,8 @@ class _HistoryItemState extends State<_HistoryItem>
                     child: Text(
                       entry.letterText.isEmpty
                           ? (entry.moodEmoji != null
-                                ? '(오늘은 이모티콘으로만 마음을 남겼어요)'
-                                : '(기록된 내용이 없어요)')
+                                ? tr('(오늘은 이모티콘으로만 마음을 남겼어요)')
+                                : tr('(기록된 내용이 없어요)'))
                           : entry.letterText,
                       style: bodyFont(
                         fontSize: 13.5,
@@ -574,11 +582,11 @@ class _HistoryItemState extends State<_HistoryItem>
                       ),
                     ),
                   ),
-                  const SizedBox(height: 14),
+                  SizedBox(height: 14),
                   LetterCareClosingCard(letter: entry),
-                  const SizedBox(height: 12),
+                  SizedBox(height: 12),
                   _CatReplySection(entry: entry, catName: name),
-                  const SizedBox(height: 16),
+                  SizedBox(height: 16),
                   Align(
                     alignment: Alignment.centerRight,
                     child: TextButton(
@@ -591,15 +599,15 @@ class _HistoryItemState extends State<_HistoryItem>
                         } catch (_) {
                           if (ctx.mounted) {
                             ScaffoldMessenger.of(ctx).showSnackBar(
-                              const SnackBar(
-                                content: Text('삭제를 완료하지 못했어요. 다시 시도해 주세요.'),
+                              SnackBar(
+                                content: Text(tr('삭제를 완료하지 못했어요. 다시 시도해 주세요.')),
                               ),
                             );
                           }
                         }
                       },
                       child: Text(
-                        '편지 삭제 · 나무 성장은 유지',
+                        tr('편지 삭제 · 나무 성장은 유지'),
                         style: bodyFont(fontSize: 12.5, color: AppColors.rose),
                       ),
                     ),
@@ -660,6 +668,7 @@ class _CatReplySectionState extends State<_CatReplySection> {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     if (ReplySafety.assess(widget.entry.letterText) != ReplySupportNeed.none) {
       return ReplySupportActions(letterText: widget.entry.letterText);
     }
@@ -669,16 +678,16 @@ class _CatReplySectionState extends State<_CatReplySection> {
         if (snapshot.hasError) {
           return TextButton(
             onPressed: () => setState(() => _archive = _read()),
-            child: const Text('이전에 받은 답장 다시 읽기'),
+            child: Text(tr('이전에 받은 답장 다시 읽기')),
           );
         }
         final text = snapshot.data;
-        if (text == null) return const SizedBox.shrink();
+        if (text == null) return SizedBox.shrink();
         return ExpansionTile(
           tilePadding: EdgeInsets.zero,
-          title: const Text('이전에 받은 답장'),
-          subtitle: const Text('과거에 저장된 내용이에요'),
-          childrenPadding: const EdgeInsets.only(bottom: 12),
+          title: Text(tr('이전에 받은 답장')),
+          subtitle: Text(tr('과거에 저장된 내용이에요')),
+          childrenPadding: EdgeInsets.only(bottom: 12),
           children: [
             SelectableText(
               text,

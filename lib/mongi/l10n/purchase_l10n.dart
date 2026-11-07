@@ -19,7 +19,9 @@ String purchaseMessageText(AppLocalizations l10n, PurchaseMessage message) {
     case PurchaseMessageKind.webRestoreNotSupported:
       return l10n.purchaseMessageWebRestoreNotSupported;
     case PurchaseMessageKind.serviceUnavailable:
-      return PurchaseService.instance.billingConfigured ? l10n.purchaseMessageServiceUnavailable : '통합 앱의 실제 결제는 준비 중이에요. 게임에서 모은 빛의 정수는 사용할 수 있어요.';
+      return PurchaseService.instance.billingConfigured
+          ? l10n.purchaseMessageServiceUnavailable
+          : '통합 앱의 실제 결제는 준비 중이에요. 게임에서 모은 빛의 정수는 사용할 수 있어요.';
     case PurchaseMessageKind.productNotFound:
       return l10n.purchaseMessageProductNotFound;
     case PurchaseMessageKind.requestFailed:

@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import '../widgets/companion_care_panel.dart';
 import 'dart:math';
 import 'package:flutter/material.dart';
@@ -49,6 +50,7 @@ class _PetCareScreenState extends State<PetCareScreen> {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     final care = context.watch<CatCareProvider>();
 
     if (care.isLoading) {
@@ -107,11 +109,11 @@ class _PetCareScreenState extends State<PetCareScreen> {
   }
 
   void _openShop(BuildContext context) {
-    pushFullScreen(context, '정원 플러스 상점', const CatShopScreen());
+    pushFullScreen(context, tr("정원 플러스 상점"), const CatShopScreen());
   }
 
   void _openAchievements(BuildContext context) {
-    pushFullScreen(context, '뱃지 컬렉션', const CatAchievementsScreen());
+    pushFullScreen(context, tr("뱃지 컬렉션"), const CatAchievementsScreen());
   }
 
   Widget _buildBody(CatCareProvider care, ShadowCat companion, String name) {
@@ -121,13 +123,13 @@ class _PetCareScreenState extends State<PetCareScreen> {
         _MochiGreetingHero(name: name),
         const SizedBox(height: 18),
         Text(
-          '마음 돌보기',
+          tr("마음 돌보기"),
           textAlign: TextAlign.center,
           style: titleFont(fontSize: 24, color: AppColors.ink),
         ),
         const SizedBox(height: 6),
         Text(
-          '몸과 마음을 함께 돌보며 $name${topicParticle(name)} 돌봄 온기를 지켜주세요',
+          tr("몸과 마음을 함께 돌보며 {0}{1} 돌봄 온기를 지켜주세요", [name, topicParticle(name)]),
           textAlign: TextAlign.center,
           style: bodyFont(fontSize: 12.5, color: AppColors.inkSoft),
         ),
@@ -163,7 +165,7 @@ class _PetCareScreenState extends State<PetCareScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        '뱃지 컬렉션',
+                        tr("뱃지 컬렉션"),
                         style: pathLabelFont(
                           fontSize: 13.5,
                           fontWeight: FontWeight.w700,
@@ -171,7 +173,10 @@ class _PetCareScreenState extends State<PetCareScreen> {
                         ),
                       ),
                       Text(
-                        '${care.unlockedAchievementIds.length} / ${catAchievements.length}개 달성했어요',
+                        tr("{0} / {1}개 달성했어요", [
+                          care.unlockedAchievementIds.length,
+                          catAchievements.length,
+                        ]),
                         style: bodyFont(
                           fontSize: 10.5,
                           color: AppColors.inkSoft,
@@ -204,13 +209,16 @@ class _PetCareScreenState extends State<PetCareScreen> {
         const SizedBox(height: 30),
         _CareSectionSignpost(
           emoji: '🐾',
-          title: '몸을 돌보기',
-          subtitle: '$name${subjectParticle(name)} 건강하게 지낼 수 있도록 챙겨주세요',
+          title: tr("몸을 돌보기"),
+          subtitle: tr("{0}{1} 건강하게 지낼 수 있도록 챙겨주세요", [
+            name,
+            subjectParticle(name),
+          ]),
         ),
         const SizedBox(height: 12),
         _CareTaskTile(
           emoji: '🍚',
-          label: '밥 주기',
+          label: tr("밥 주기"),
           done: care.state.fedToday,
           seed: 1,
           onTap: care.state.fedToday
@@ -220,7 +228,7 @@ class _PetCareScreenState extends State<PetCareScreen> {
         const SizedBox(height: 10),
         _CareTaskTile(
           emoji: '💧',
-          label: '물 주기',
+          label: tr("물 주기"),
           done: care.state.wateredToday,
           seed: 2,
           onTap: care.state.wateredToday
@@ -230,7 +238,7 @@ class _PetCareScreenState extends State<PetCareScreen> {
         const SizedBox(height: 10),
         _CareTaskTile(
           emoji: '🛁',
-          label: '목욕 시키기',
+          label: tr("목욕 시키기"),
           done: care.state.bathedToday,
           seed: 3,
           onTap: care.state.bathedToday
@@ -240,7 +248,7 @@ class _PetCareScreenState extends State<PetCareScreen> {
         const SizedBox(height: 10),
         _CareTaskTile(
           emoji: '🧹',
-          label: '집 청소하기',
+          label: tr("집 청소하기"),
           done: care.state.cleanedToday,
           seed: 4,
           onTap: care.state.cleanedToday
@@ -250,16 +258,19 @@ class _PetCareScreenState extends State<PetCareScreen> {
         const SizedBox(height: 28),
         _CareSectionSignpost(
           emoji: '🦋',
-          title: '마음을 돌보기',
-          subtitle: '당신의 마음을 돌보는 것이 곧 $name${topicParticle(name)} 돌보는 일이에요',
+          title: tr("마음을 돌보기"),
+          subtitle: tr("당신의 마음을 돌보는 것이 곧 {0}{1} 돌보는 일이에요", [
+            name,
+            topicParticle(name),
+          ]),
         ),
         const SizedBox(height: 12),
         _CareTaskTile(
           emoji: '🌬',
-          label: '5분 호흡 명상',
+          label: tr("5분 호흡 명상"),
           subtitle: care.state.breathingDoneToday
               ? null
-              : '편지쓰기에서 호흡 명상을 실천하면 자동으로 체크돼요',
+              : tr("편지쓰기에서 호흡 명상을 실천하면 자동으로 체크돼요"),
           done: care.state.breathingDoneToday,
           seed: 5,
           onTap: care.state.breathingDoneToday
@@ -269,10 +280,10 @@ class _PetCareScreenState extends State<PetCareScreen> {
         const SizedBox(height: 10),
         _CareTaskTile(
           emoji: '🚶',
-          label: '걷기 명상',
+          label: tr("걷기 명상"),
           subtitle: care.state.walkingDoneToday
               ? null
-              : '편지쓰기에서 움직임 명상을 실천하면 자동으로 체크돼요',
+              : tr("편지쓰기에서 움직임 명상을 실천하면 자동으로 체크돼요"),
           done: care.state.walkingDoneToday,
           seed: 6,
           onTap: care.state.walkingDoneToday
@@ -282,10 +293,10 @@ class _PetCareScreenState extends State<PetCareScreen> {
         const SizedBox(height: 10),
         _CareTaskTile(
           emoji: '📖',
-          label: '오늘의 마음 기록',
+          label: tr("오늘의 마음 기록"),
           subtitle: care.state.journalingDoneToday
               ? null
-              : '오늘의 편지를 쓰면 자동으로 체크돼요',
+              : tr("오늘의 편지를 쓰면 자동으로 체크돼요"),
           done: care.state.journalingDoneToday,
           seed: 7,
           onTap: care.state.journalingDoneToday
@@ -295,7 +306,7 @@ class _PetCareScreenState extends State<PetCareScreen> {
         const SizedBox(height: 10),
         _CareTaskTile(
           emoji: '❤️',
-          label: '감사 3가지 쓰기',
+          label: tr("감사 3가지 쓰기"),
           done: care.state.gratitudeDoneToday,
           seed: 8,
           onTap: care.state.gratitudeDoneToday
@@ -314,7 +325,7 @@ class _PetCareScreenState extends State<PetCareScreen> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    '오늘의 작은 돌봄을 마쳤어요! 돌봄 온기가 올라갔어요.',
+                    tr("오늘의 작은 돌봄을 마쳤어요! 돌봄 온기가 올라갔어요."),
                     style: pathLabelFont(
                       fontSize: 13.5,
                       fontWeight: FontWeight.w700,
@@ -340,7 +351,10 @@ class _PetCareScreenState extends State<PetCareScreen> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    '오늘 ${care.state.completedCountToday}가지 실천 · 한 가지면 충분해요. 나머지는 선택이에요.\n돌봄 온기는 돌봄 활동의 표시이며 심리 점수가 아니에요.',
+                    tr(
+                      "오늘 {0}가지 실천 · 한 가지면 충분해요. 나머지는 선택이에요.\n돌봄 온기는 돌봄 활동의 표시이며 심리 점수가 아니에요.",
+                      [care.state.completedCountToday],
+                    ),
                     style: bodyFont(fontSize: 11.5, color: AppColors.inkSoft),
                   ),
                 ),
@@ -359,17 +373,18 @@ class _PetCareScreenState extends State<PetCareScreen> {
 class _MochiEmotionDebugPanel extends StatelessWidget {
   const _MochiEmotionDebugPanel();
 
-  static const List<(String, int?)> _options = [
-    ('실제 값', null),
-    ('오늘 방문 (해맑음)', 0),
-    ('1일째 (해맑음)', 1),
-    ('2일째 (기다림)', 2),
-    ('4일째 (그리움)', 4),
-    ('8일째 (걱정)', 8),
+  static List<(String, int?)> get _options => [
+    (tr("실제 값"), null),
+    (tr("오늘 방문 (해맑음)"), 0),
+    (tr("1일째 (해맑음)"), 1),
+    (tr("2일째 (기다림)"), 2),
+    (tr("4일째 (그리움)"), 4),
+    (tr("8일째 (걱정)"), 8),
   ];
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     final appState = context.watch<AppStateProvider>();
     final override = appState.debugDaysAwayOverride;
     final effective = appState.effectiveDaysAway;
@@ -394,7 +409,7 @@ class _MochiEmotionDebugPanel extends StatelessWidget {
               ),
               const SizedBox(width: 6),
               Text(
-                '디버그: 모찌 결석 감정 미리보기',
+                tr("디버그: 모찌 결석 감정 미리보기"),
                 style: pathLabelFont(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
@@ -405,9 +420,11 @@ class _MochiEmotionDebugPanel extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            '실제 결석일수: ${appState.daysAwayOnOpen}일'
-            '${override != null ? " · 미리보기 중: $override일" : ""}'
-            ' → 현재 감정: ${emotion.label}',
+            tr("실제 결석일수: {0}일{1} → 현재 감정: {2}", [
+              appState.daysAwayOnOpen,
+              override != null ? tr(" · 미리보기 중: {0}일", [override]) : "",
+              emotion.label,
+            ]),
             style: bodyFont(fontSize: 11, color: AppColors.inkSoft),
           ),
           const SizedBox(height: 10),
@@ -447,16 +464,17 @@ class _MochiGreetingHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     return Column(
       children: [
         Text(
-          '오늘 마음은 어떠세요?',
+          tr("오늘 마음은 어떠세요?"),
           textAlign: TextAlign.center,
           style: titleFont(fontSize: 18, color: AppColors.ink),
         ),
         const SizedBox(height: 4),
         Text(
-          '$name${topicParticle(name)} 함께 있어드릴게요 🌸',
+          tr("{0}{1} 함께 있어드릴게요 🌸", [name, topicParticle(name)]),
           textAlign: TextAlign.center,
           style: bodyFont(fontSize: 12.5, color: AppColors.inkSoft),
         ),
@@ -479,6 +497,7 @@ class _PointsBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     return GlassBlob(
       accent: AppColors.gold,
       background: const Color(0xFFFCEFD2),
@@ -501,20 +520,22 @@ class _PointsBadge extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '정원 플러스 포인트',
+                  tr("정원 플러스 포인트"),
                   style: bodyFont(fontSize: 11, color: AppColors.inkSoft),
                 ),
                 Text(
                   isPremium
-                      ? '돌봄 온기가 100도에 닿을 때마다, 또 오늘의 방울 터뜨리기로도 포인트가 쌓여요'
-                      : '오늘의 그림자 방울 터뜨리기로 포인트를 모을 수 있어요 · 정원 플러스 구독 시 온도로도 쌓여요',
+                      ? tr("돌봄 온기가 100도에 닿을 때마다, 또 오늘의 방울 터뜨리기로도 포인트가 쌓여요")
+                      : tr(
+                          "오늘의 그림자 방울 터뜨리기로 포인트를 모을 수 있어요 · 정원 플러스 구독 시 온도로도 쌓여요",
+                        ),
                   style: bodyFont(fontSize: 10.5, color: AppColors.inkSoft),
                 ),
               ],
             ),
           ),
           Text(
-            '$points점',
+            tr("{0}점", [points]),
             style: numberFont(
               fontSize: 18,
               fontWeight: FontWeight.w800,
@@ -535,7 +556,7 @@ class _PointsBadge extends StatelessWidget {
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: Text(
-                  '상점',
+                  tr("상점"),
                   style: pathLabelFont(
                     fontSize: 11.5,
                     fontWeight: FontWeight.w700,
@@ -564,6 +585,7 @@ class _CareSectionSignpost extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     return Row(
       children: [
         Text(emoji, style: const TextStyle(fontSize: 18)),
@@ -606,33 +628,36 @@ class _CompanionCard extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) => GlassBlob(
-    accent: AppColors.blobPeachAccent,
-    background: AppColors.blobPeach,
-    padding: const EdgeInsets.all(16),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const CompanionCarePanel(),
-        const Divider(),
-        Text(
-          '돌봄 온기 ${state.temperature}° · 활동으로 모은 온기예요',
-          textAlign: TextAlign.center,
-        ),
-        if (equippedAccessories.isNotEmpty) ...[
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: [
-              for (final item in equippedAccessories)
-                Chip(label: Text('${item.emoji} ${item.label}')),
-            ],
+  Widget build(BuildContext context) {
+    Localizations.localeOf(context);
+    return GlassBlob(
+      accent: AppColors.blobPeachAccent,
+      background: AppColors.blobPeach,
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const CompanionCarePanel(),
+          const Divider(),
+          Text(
+            tr("돌봄 온기 {0}° · 활동으로 모은 온기예요", [state.temperature]),
+            textAlign: TextAlign.center,
           ),
+          if (equippedAccessories.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                for (final item in equippedAccessories)
+                  Chip(label: Text('${item.emoji} ${item.label}')),
+              ],
+            ),
+          ],
         ],
-      ],
-    ),
-  );
+      ),
+    );
+  }
 }
 
 /// 구매한 가구(캣타워/캣베드/스크래처 등)를 보여주는 "우리 집" 영역.
@@ -644,6 +669,7 @@ class _FurnitureRoomBlob extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     return GlassBlob(
       accent: AppColors.blobMintAccent,
       background: AppColors.blobMint,
@@ -657,7 +683,7 @@ class _FurnitureRoomBlob extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '우리 집',
+                  tr("우리 집"),
                   style: pathLabelFont(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
@@ -774,6 +800,7 @@ class _CareTaskTileState extends State<_CareTaskTile>
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     final accent = widget.done
         ? AppColors.blobMintAccent
         : AppColors.blobLavenderAccent;

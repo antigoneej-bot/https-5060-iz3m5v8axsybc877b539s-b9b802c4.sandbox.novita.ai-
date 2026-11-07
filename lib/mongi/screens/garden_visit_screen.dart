@@ -1,3 +1,5 @@
+import '../../l10n/garden_copy.dart';
+import '../../l10n/app_language.dart';
 import 'dart:ui' as ui;
 import 'package:flutter/rendering.dart';
 import 'package:gal/gal.dart';
@@ -141,7 +143,7 @@ class _GardenVisitScreenState extends State<GardenVisitScreen>
           : await _service.getCatVisit(widget.visitId!);
       if (visit != null &&
           (visit.hostId != widget.gardenId || visit.guestCat == null)) {
-        throw const FormatException('초대받은 정원을 확인하지 못했어요.');
+        throw FormatException(tr('초대받은 정원을 확인하지 못했어요.'));
       }
       final garden = widget.publicDiscovery
           ? await _service.getPublicVisitGarden(widget.gardenId)
@@ -191,7 +193,7 @@ class _GardenVisitScreenState extends State<GardenVisitScreen>
         setState(() {
           _visit = null;
           _garden = null;
-          _error = '방문이 끝났어요. 우리 고양이와 돌아가요.';
+          _error = tr('방문이 끝났어요. 우리 고양이와 돌아가요.');
         });
     }
   }
@@ -206,11 +208,11 @@ class _GardenVisitScreenState extends State<GardenVisitScreen>
       final boundary =
           _photoKey.currentContext?.findRenderObject()
               as RenderRepaintBoundary?;
-      if (boundary == null) throw StateError('사진을 다시 찍어 주세요.');
+      if (boundary == null) throw StateError(tr('사진을 다시 찍어 주세요.'));
       final image = await boundary.toImage(pixelRatio: 2);
       try {
         final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
-        if (bytes == null) throw StateError('사진을 만들지 못했어요.');
+        if (bytes == null) throw StateError(tr('사진을 만들지 못했어요.'));
         if (!mounted || request != _request) return;
         await Gal.putImageBytes(
           bytes.buffer.asUint8List(),
@@ -219,7 +221,7 @@ class _GardenVisitScreenState extends State<GardenVisitScreen>
       } finally {
         image.dispose();
       }
-    }, '함께 찍은 사진을 휴대폰 사진첩에 저장했어요.');
+    }, tr('함께 찍은 사진을 휴대폰 사진첩에 저장했어요.'));
   }
 
   void _message(String message) {
@@ -250,7 +252,7 @@ class _GardenVisitScreenState extends State<GardenVisitScreen>
             error.code == 'garden-not-found')
           setState(() {
             _garden = null;
-            _error = '공개가 해제되었거나 지금 방문할 수 없는 정원이에요.';
+            _error = tr('공개가 해제되었거나 지금 방문할 수 없는 정원이에요.');
           });
         _message(error.toString());
       }
@@ -264,24 +266,29 @@ class _GardenVisitScreenState extends State<GardenVisitScreen>
     final request = _request;
     final picked = await composeGardenCheer(context, includeFlower: gift);
     if (picked == null || !mounted || request != _request) return;
-    await _perform(() async {
-      await _service.sendCheer(
-        gardenId: widget.gardenId,
-        messageIndex: picked.message,
-        flowerKind: picked.flower,
-        reaction: picked.reaction,
-        deliveryKind: gift ? 'gift' : 'cheer',
-      );
-      if (mounted && request == _request) {
-        setState(() {
-          if (gift) {
-            _gifted = true;
-          } else {
-            _cheered = true;
-          }
-        });
-      }
-    }, gift ? '꽃 선물을 보냈어요. 이웃이 원하는 때 심을 수 있어요.' : '응원을 보냈어요. 정원에 24시간 머물러요.');
+    await _perform(
+      () async {
+        await _service.sendCheer(
+          gardenId: widget.gardenId,
+          messageIndex: picked.message,
+          flowerKind: picked.flower,
+          reaction: picked.reaction,
+          deliveryKind: gift ? 'gift' : 'cheer',
+        );
+        if (mounted && request == _request) {
+          setState(() {
+            if (gift) {
+              _gifted = true;
+            } else {
+              _cheered = true;
+            }
+          });
+        }
+      },
+      gift
+          ? tr('꽃 선물을 보냈어요. 이웃이 원하는 때 심을 수 있어요.')
+          : tr('응원을 보냈어요. 정원에 24시간 머물러요.'),
+    );
   }
 
   Future<void> _gifts() async {
@@ -296,12 +303,12 @@ class _GardenVisitScreenState extends State<GardenVisitScreen>
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text(
-                '이웃에게 꽃 선물하기',
+              Text(
+                tr('이웃에게 꽃 선물하기'),
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 10),
-              const Text('받은 꽃은 이웃이 원하는 때 정원에 심어요. 선물을 꼭 돌려주지 않아도 괜찮아요.'),
+              Text(tr('받은 꽃은 이웃이 원하는 때 정원에 심어요. 선물을 꼭 돌려주지 않아도 괜찮아요.')),
               const SizedBox(height: 12),
               FilledButton.icon(
                 onPressed: _gifted
@@ -311,7 +318,7 @@ class _GardenVisitScreenState extends State<GardenVisitScreen>
                         if (mounted && request == _request) _cheer(gift: true);
                       },
                 icon: const Icon(Icons.local_florist_outlined),
-                label: Text(_gifted ? '오늘의 꽃을 보냈어요' : '오늘의 꽃 보내기 · 무료'),
+                label: Text(_gifted ? tr('오늘의 꽃을 보냈어요') : tr('오늘의 꽃 보내기 · 무료')),
               ),
               OutlinedButton.icon(
                 onPressed: () {
@@ -319,7 +326,7 @@ class _GardenVisitScreenState extends State<GardenVisitScreen>
                   if (mounted && request == _request) _storedGift();
                 },
                 icon: const Icon(Icons.inventory_2_outlined),
-                label: const Text('보관한 꽃 선물하기'),
+                label: Text(tr('보관한 꽃 선물하기')),
               ),
             ],
           ),
@@ -350,18 +357,20 @@ class _GardenVisitScreenState extends State<GardenVisitScreen>
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('이 꽃을 선물할까요?'),
+        title: Text(tr('이 꽃을 선물할까요?')),
         content: Text(
-          '${gardenFlowerNames[selected.flowerKind] ?? '응원 꽃'} 한 송이가 내 보관함에서 이웃에게 옮겨져요.',
+          gardenCopy('giftTransfer', [
+            tr(gardenFlowerNames[selected.flowerKind] ?? '응원 꽃'),
+          ]),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('취소'),
+            child: Text(tr("취소")),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('선물 보내기'),
+            child: Text(tr('선물 보내기')),
           ),
         ],
       ),
@@ -386,15 +395,15 @@ class _GardenVisitScreenState extends State<GardenVisitScreen>
       );
       if (!mounted || request != _request) return;
       _giftRequests.remove(sourceId);
-      _message('꽃 선물을 보냈어요. 내 보관함에서도 반영했어요.');
+      _message(tr('꽃 선물을 보냈어요. 내 보관함에서도 반영했어요.'));
     } catch (error) {
       if (!mounted || request != _request) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('${error.toString()} 전송 결과를 다시 확인할 수 있어요.'),
+          content: Text(gardenCopy('deliveryCheck', [error.toString()])),
           duration: const Duration(seconds: 10),
           action: SnackBarAction(
-            label: '전송 확인',
+            label: tr('전송 확인'),
             onPressed: () {
               if (mounted && request == _request) {
                 _transferGift(sourceId, requestId);
@@ -412,16 +421,16 @@ class _GardenVisitScreenState extends State<GardenVisitScreen>
     if (_busy) return;
     final request = _request;
     if (action == 'report') {
-      const reasons = {
-        'inappropriate_name': '부적절한 이름',
-        'harassment': '괴롭힘',
-        'spam': '반복적인 원치 않는 활동',
-        'other': '기타',
+      final reasons = {
+        'inappropriate_name': tr('부적절한 이름'),
+        'harassment': tr('괴롭힘'),
+        'spam': tr('반복적인 원치 않는 활동'),
+        'other': tr('기타'),
       };
       final reason = await showDialog<String>(
         context: context,
         builder: (context) => SimpleDialog(
-          title: const Text('신고 사유'),
+          title: Text(tr('신고 사유')),
           children: reasons.entries
               .map(
                 (r) => SimpleDialogOption(
@@ -435,7 +444,7 @@ class _GardenVisitScreenState extends State<GardenVisitScreen>
       if (reason != null && mounted && request == _request) {
         await _perform(
           () => _service.reportGarden(widget.gardenId, reason: reason),
-          '신고를 접수했어요.',
+          tr('신고를 접수했어요.'),
         );
       }
       return;
@@ -444,20 +453,20 @@ class _GardenVisitScreenState extends State<GardenVisitScreen>
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(block ? '이 이웃을 차단할까요?' : '이웃 연결을 해제할까요?'),
+        title: Text(block ? tr("이 이웃을 차단할까요?") : tr("이웃 연결을 해제할까요?")),
         content: Text(
           block
-              ? '이웃 연결이 해제되고 서로 정원 방문과 응원·선물을 할 수 없게 돼요.'
-              : '다시 연결하려면 이웃 신청과 수락이 필요해요.',
+              ? tr('이웃 연결이 해제되고 서로 정원 방문과 응원·선물을 할 수 없게 돼요.')
+              : tr("다시 연결하려면 이웃 신청과 수락이 필요해요."),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('취소'),
+            child: Text(tr("취소")),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: Text(block ? '차단' : '연결 해제'),
+            child: Text(block ? tr("차단") : tr("연결 해제")),
           ),
         ],
       ),
@@ -473,7 +482,7 @@ class _GardenVisitScreenState extends State<GardenVisitScreen>
         await widget.onNextGarden!();
       } else if (mounted)
         Navigator.pop(context);
-    }, block ? '이웃을 차단했어요.' : '이웃 연결을 해제했어요.');
+    }, block ? tr("이웃을 차단했어요.") : tr("이웃 연결을 해제했어요."));
   }
 
   @override
@@ -509,8 +518,8 @@ class _GardenVisitScreenState extends State<GardenVisitScreen>
         setState(() {
           _garden = null;
           _error = error is CloudException && error.code == 'garden-not-found'
-              ? '공개가 해제되었거나 지금 방문할 수 없는 정원이에요.'
-              : '정원 상태를 확인하지 못했어요. 연결을 확인하고 다시 시도해 주세요.';
+              ? tr('공개가 해제되었거나 지금 방문할 수 없는 정원이에요.')
+              : tr('정원 상태를 확인하지 못했어요. 연결을 확인하고 다시 시도해 주세요.');
         });
     } finally {
       _publicChecking = false;
@@ -524,7 +533,7 @@ class _GardenVisitScreenState extends State<GardenVisitScreen>
     await _perform(() async {
       await _service.setFavorite(widget.gardenId, next);
       if (mounted) setState(() => _favorite = next);
-    }, next ? '즐겨찾기에 담았어요. 이웃 연결이나 기록 공유는 생기지 않아요.' : '즐겨찾기를 해제했어요.');
+    }, next ? tr('즐겨찾기에 담았어요. 이웃 연결이나 기록 공유는 생기지 않아요.') : tr('즐겨찾기를 해제했어요.'));
   }
 
   Future<void> _rotatePublic() async {
@@ -541,42 +550,42 @@ class _GardenVisitScreenState extends State<GardenVisitScreen>
               ],
       );
     } catch (_) {
-      if (mounted) _message('기기의 화면 회전 설정을 확인해 주세요.');
+      if (mounted) _message(tr('기기의 화면 회전 설정을 확인해 주세요.'));
     }
   }
 
   Widget _publicView() {
     final garden = _garden;
-    final name = garden?.nickname ?? '이웃';
+    final name = garden?.nickname ?? tr("이웃");
     final cat = garden?.publicCoat == null
         ? null
         : VisitingCat(
             coat: garden!.publicCoat!,
             stage: garden.publicCatStage,
-            name: '이웃 고양이',
+            name: tr('이웃 고양이'),
           );
     return Scaffold(
       backgroundColor: AppColors.bg0,
       appBar: AppBar(
         backgroundColor: AppColors.bg0,
         title: Text(
-          garden == null ? '이웃 정원' : '$name의 정원',
+          garden == null ? tr("이웃 정원") : gardenCopy('neighborGarden', [name]),
           overflow: TextOverflow.ellipsis,
         ),
         actions: [
           IconButton(
             key: const Key('public-garden-favorite'),
-            tooltip: _favorite ? '즐겨찾기 해제' : '즐겨찾기',
+            tooltip: _favorite ? tr("즐겨찾기 해제") : tr("즐겨찾기"),
             onPressed: _busy || garden == null ? null : _toggleFavorite,
             icon: Icon(_favorite ? Icons.star : Icons.star_border),
           ),
           PopupMenuButton<String>(
-            tooltip: '신고와 차단',
+            tooltip: tr('신고와 차단'),
             enabled: !_busy && garden != null,
             onSelected: _manage,
-            itemBuilder: (_) => const [
-              PopupMenuItem(value: 'block', child: Text('차단')),
-              PopupMenuItem(value: 'report', child: Text('신고')),
+            itemBuilder: (_) => [
+              PopupMenuItem(value: 'block', child: Text(tr("차단"))),
+              PopupMenuItem(value: 'report', child: Text(tr('신고'))),
             ],
           ),
         ],
@@ -599,24 +608,24 @@ class _GardenVisitScreenState extends State<GardenVisitScreen>
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
-                            _error ?? '지금 방문할 수 없는 정원이에요.',
+                            _error ?? tr('지금 방문할 수 없는 정원이에요.'),
                             textAlign: TextAlign.center,
                           ),
                           OutlinedButton(
                             onPressed: _load,
-                            child: const Text('다시 확인하기'),
+                            child: Text(tr('다시 확인하기')),
                           ),
                           if (widget.onNextGarden != null)
                             FilledButton(
                               onPressed: widget.onNextGarden,
-                              child: const Text('다른 정원으로'),
+                              child: Text(tr('다른 정원으로')),
                             ),
                         ],
                       ),
                     ),
                   )
                 : garden.layout == null
-                ? const Center(child: Text('이웃이 정원 모습을 아직 갱신하지 않았어요.'))
+                ? Center(child: Text(tr('이웃이 정원 모습을 아직 갱신하지 않았어요.')))
                 : GardenWorldView(
                     key: ValueKey(
                       'public-world:${_service.accountOwner}:${widget.gardenId}',
@@ -626,7 +635,7 @@ class _GardenVisitScreenState extends State<GardenVisitScreen>
                     immersive: true,
                     overviewRequested: _overview,
                     visitingHost: cat,
-                    companionName: cat?.name ?? '이웃 고양이',
+                    companionName: cat?.name ?? tr('이웃 고양이'),
                     companionScale: cat?.scale ?? 1,
                     companionBondStage: cat?.stage ?? 0,
                     publicMemoryStage: garden.memoryTreeStage,
@@ -660,20 +669,20 @@ class _GardenVisitScreenState extends State<GardenVisitScreen>
                       children: [
                         IconButton(
                           key: const Key('public-garden-overview'),
-                          tooltip: '전체 보기',
+                          tooltip: tr("전체 보기"),
                           onPressed: () =>
                               setState(() => _overview = !_overview),
                           icon: const Icon(Icons.zoom_out_map),
                         ),
                         IconButton(
                           key: const Key('public-garden-rotate'),
-                          tooltip: '가로·세로 전환',
+                          tooltip: tr("가로·세로 전환"),
                           onPressed: _rotatePublic,
                           icon: const Icon(Icons.screen_rotation_outlined),
                         ),
                         IconButton(
                           key: const Key('public-garden-cheer'),
-                          tooltip: _cheered ? '응원 보냈어요' : '응원꽃 보내기',
+                          tooltip: _cheered ? tr('응원 보냈어요') : tr('응원꽃 보내기'),
                           onPressed: _busy || _cheered ? null : () => _cheer(),
                           icon: Icon(
                             _cheered ? Icons.favorite : Icons.favorite_border,
@@ -687,7 +696,7 @@ class _GardenVisitScreenState extends State<GardenVisitScreen>
                             child: FilledButton(
                               key: const Key('public-garden-next'),
                               onPressed: _busy ? null : widget.onNextGarden,
-                              child: const Text('다른 정원으로', maxLines: 1),
+                              child: Text(tr('다른 정원으로'), maxLines: 1),
                             ),
                           ),
                       ],
@@ -710,23 +719,24 @@ class _GardenVisitScreenState extends State<GardenVisitScreen>
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     if (widget.publicDiscovery) return _publicView();
-    final name = _garden?.nickname ?? widget.nickname ?? '이웃';
+    final name = _garden?.nickname ?? widget.nickname ?? tr("이웃");
     return Scaffold(
       backgroundColor: AppColors.bg0,
       appBar: AppBar(
-        title: Text('$name의 정원'),
+        title: Text(gardenCopy('neighborGarden', [name])),
         backgroundColor: AppColors.bg0,
         actions: [
           PopupMenuButton<String>(
             enabled: !_busy && _garden != null,
-            tooltip: '이웃 관리',
+            tooltip: tr("이웃 관리"),
             onSelected: _manage,
             itemBuilder: (_) => [
               if (_neighbor)
-                const PopupMenuItem(value: 'remove', child: Text('이웃 연결 해제')),
-              const PopupMenuItem(value: 'block', child: Text('차단')),
-              const PopupMenuItem(value: 'report', child: Text('신고')),
+                PopupMenuItem(value: 'remove', child: Text(tr("이웃 연결 해제"))),
+              PopupMenuItem(value: 'block', child: Text(tr("차단"))),
+              PopupMenuItem(value: 'report', child: Text(tr('신고'))),
             ],
           ),
         ],
@@ -737,7 +747,7 @@ class _GardenVisitScreenState extends State<GardenVisitScreen>
           ? ListView(
               padding: const EdgeInsets.all(20),
               children: [
-                const Text('로그인하면 이웃 정원에 방문할 수 있어요.'),
+                Text(tr('로그인하면 이웃 정원에 방문할 수 있어요.')),
                 AccountEntryCard(
                   onChanged: () async {
                     _service = widget.service ?? GardenVillageService();
@@ -757,7 +767,7 @@ class _GardenVisitScreenState extends State<GardenVisitScreen>
                     const SizedBox(height: 12),
                     OutlinedButton(
                       onPressed: _load,
-                      child: const Text('다시 확인하기'),
+                      child: Text(tr('다시 확인하기')),
                     ),
                   ],
                 ),
@@ -767,10 +777,10 @@ class _GardenVisitScreenState extends State<GardenVisitScreen>
               children: [
                 Expanded(
                   child: _garden!.layout == null
-                      ? const Center(
+                      ? Center(
                           child: Padding(
                             padding: EdgeInsets.all(24),
-                            child: Text('이웃이 정원 모습을 아직 갱신하지 않았어요.'),
+                            child: Text(tr('이웃이 정원 모습을 아직 갱신하지 않았어요.')),
                           ),
                         )
                       : RepaintBoundary(
@@ -786,7 +796,8 @@ class _GardenVisitScreenState extends State<GardenVisitScreen>
                               visitingHost: _visit?.hostCat,
                               visitingGuest: _visit?.guestCat,
                               visitActivity: _visitActivity,
-                              companionName: _visit?.hostCat.name ?? '이웃 고양이',
+                              companionName:
+                                  _visit?.hostCat.name ?? tr('이웃 고양이'),
                               companionScale: _visit?.hostCat.scale ?? 1,
                               companionBondStage: _visit?.hostCat.stage ?? 0,
                               publicMemoryStage: _garden!.memoryTreeStage,
@@ -814,16 +825,18 @@ class _GardenVisitScreenState extends State<GardenVisitScreen>
                       children: [
                         if (_visit != null) ...[
                           Text(
-                            '${_visit!.guestCat!.name}와 함께 방문 중 · 초대 당시의 고양이 모습이에요',
+                            gardenCopy('guestSnapshot', [
+                              _visit!.guestCat!.name,
+                            ]),
                           ),
                           Wrap(
                             spacing: 6,
                             runSpacing: 4,
                             children: [
-                              for (final activity in const {
-                                'greet': '인사하기',
-                                'walk': '함께 산책',
-                                'rest': '함께 쉬기',
+                              for (final activity in {
+                                'greet': tr('인사하기'),
+                                'walk': tr('함께 산책'),
+                                'rest': tr('함께 쉬기'),
                               }.entries)
                                 ChoiceChip(
                                   label: Text(activity.value),
@@ -836,7 +849,7 @@ class _GardenVisitScreenState extends State<GardenVisitScreen>
                                 ),
                               IconButton(
                                 key: const Key('visit-photo'),
-                                tooltip: '함께 사진 찍기',
+                                tooltip: tr('함께 사진 찍기'),
                                 onPressed: _busy ? null : _photo,
                                 icon: const Icon(Icons.camera_alt_outlined),
                               ),
@@ -844,7 +857,7 @@ class _GardenVisitScreenState extends State<GardenVisitScreen>
                                 onPressed: _busy
                                     ? null
                                     : () => Navigator.pop(context),
-                                child: const Text('방문 마치기'),
+                                child: Text(tr('방문 마치기')),
                               ),
                             ],
                           ),
@@ -862,16 +875,18 @@ class _GardenVisitScreenState extends State<GardenVisitScreen>
                                         : _service.requestNeighbor(
                                             gardenId: widget.gardenId,
                                           ),
-                                    _incoming ? '이웃으로 연결됐어요.' : '이웃 신청을 보냈어요.',
+                                    _incoming
+                                        ? tr("이웃으로 연결됐어요.")
+                                        : tr('이웃 신청을 보냈어요.'),
                                     reload: true,
                                   ),
                             icon: const Icon(Icons.person_add_alt_1),
                             label: Text(
                               _outgoing
-                                  ? '이웃 신청을 기다리고 있어요'
+                                  ? tr('이웃 신청을 기다리고 있어요')
                                   : _incoming
-                                  ? '이웃 신청 수락'
-                                  : '이웃 신청',
+                                  ? tr('이웃 신청 수락')
+                                  : tr("이웃 신청"),
                             ),
                           ),
                         Row(
@@ -882,7 +897,9 @@ class _GardenVisitScreenState extends State<GardenVisitScreen>
                                     ? null
                                     : () => _cheer(),
                                 icon: const Text('💛'),
-                                label: Text(_cheered ? '응원 보냈어요' : '응원'),
+                                label: Text(
+                                  _cheered ? tr('응원 보냈어요') : tr('응원'),
+                                ),
                               ),
                             ),
                             const SizedBox(width: 8),
@@ -896,16 +913,16 @@ class _GardenVisitScreenState extends State<GardenVisitScreen>
                                     ? null
                                     : _gifts,
                                 icon: const Icon(Icons.card_giftcard, size: 18),
-                                label: const Text('선물'),
+                                label: Text(tr("선물")),
                               ),
                             ),
                           ],
                         ),
                         if (_garden!.receiveGifts == false)
-                          const Padding(
+                          Padding(
                             padding: EdgeInsets.only(top: 4),
                             child: Text(
-                              '이웃이 지금은 꽃 선물을 쉬고 있어요.',
+                              tr('이웃이 지금은 꽃 선물을 쉬고 있어요.'),
                               style: TextStyle(
                                 fontSize: 12,
                                 color: AppColors.inkSoft,
@@ -913,10 +930,10 @@ class _GardenVisitScreenState extends State<GardenVisitScreen>
                             ),
                           ),
                         if (!_neighbor)
-                          const Padding(
+                          Padding(
                             padding: EdgeInsets.only(top: 4),
                             child: Text(
-                              '선물은 이웃 신청을 서로 수락한 뒤 보낼 수 있어요.',
+                              tr('선물은 이웃 신청을 서로 수락한 뒤 보낼 수 있어요.'),
                               style: TextStyle(
                                 fontSize: 12,
                                 color: AppColors.inkSoft,
@@ -982,14 +999,14 @@ class _StoredGiftPickerState extends State<_StoredGiftPicker> {
     });
     try {
       final owner = _owner;
-      if (owner == null) throw StateError('로그인 상태를 다시 확인해 주세요.');
+      if (owner == null) throw StateError(tr("로그인 상태를 다시 확인해 주세요."));
       final batch = await widget.service.listReceivedCheers(
         cursor: cursor,
         pageSize: 30,
       );
       if (!_active) return;
       if (cursor != null && cursor == batch.nextCursor) {
-        throw const FormatException('이전 꽃을 불러오지 못했어요. 다시 시도해 주세요.');
+        throw FormatException(tr('이전 꽃을 불러오지 못했어요. 다시 시도해 주세요.'));
       }
       await CheerFlowerStore.instance.remember(
         owner,
@@ -1023,55 +1040,62 @@ class _StoredGiftPickerState extends State<_StoredGiftPicker> {
   }
 
   @override
-  Widget build(BuildContext context) => SafeArea(
-    child: SizedBox(
-      height: MediaQuery.sizeOf(context).height * .7,
-      child: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          const Text(
-            '보관한 꽃 선물하기',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: 10),
-          const Text('아직 심지 않은 꽃만 보낼 수 있어요. 보내면 내 보관함에서 빠지고 상대에게 옮겨져요.'),
-          if (_loading) const LinearProgressIndicator(),
-          if (!_loading && _error == null && _gifts.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 24),
-              child: Text(
-                _cursor == null
-                    ? '보낼 수 있는 꽃이 아직 없어요. 오늘의 꽃은 무료로 선물할 수 있어요.'
-                    : '이 구간에는 보낼 수 있는 꽃이 없어요. 이전에 받은 꽃도 확인해 보세요.',
+  Widget build(BuildContext context) {
+    Localizations.localeOf(context);
+    return SafeArea(
+      child: SizedBox(
+        height: MediaQuery.sizeOf(context).height * .7,
+        child: ListView(
+          padding: const EdgeInsets.all(20),
+          children: [
+            Text(
+              tr('보관한 꽃 선물하기'),
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 10),
+            Text(tr('아직 심지 않은 꽃만 보낼 수 있어요. 보내면 내 보관함에서 빠지고 상대에게 옮겨져요.')),
+            if (_loading) const LinearProgressIndicator(),
+            if (!_loading && _error == null && _gifts.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 24),
+                child: Text(
+                  _cursor == null
+                      ? tr('보낼 수 있는 꽃이 아직 없어요. 오늘의 꽃은 무료로 선물할 수 있어요.')
+                      : tr('이 구간에는 보낼 수 있는 꽃이 없어요. 이전에 받은 꽃도 확인해 보세요.'),
+                ),
+              ),
+            ..._gifts.map(
+              (gift) => ListTile(
+                leading: SizedBox(
+                  width: 48,
+                  height: 48,
+                  child: GardenFlowerArt(kind: gift.flowerKind),
+                ),
+                title: Text(tr(gardenFlowerNames[gift.flowerKind] ?? '응원 꽃')),
+                subtitle: Text(
+                  gardenCopy('flowerFrom', [gift.senderNickname ?? tr('이웃')]),
+                ),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: _loading
+                    ? null
+                    : () {
+                        if (_active) Navigator.pop(context, gift);
+                      },
               ),
             ),
-          ..._gifts.map(
-            (gift) => ListTile(
-              leading: SizedBox(
-                width: 48,
-                height: 48,
-                child: GardenFlowerArt(kind: gift.flowerKind),
+            if (_error != null) Text(_error!),
+            if (_cursor != null || _error != null)
+              OutlinedButton.icon(
+                key: const Key('stored-gifts-more'),
+                onPressed: _loading ? null : () => _load(more: _cursor != null),
+                icon: const Icon(Icons.expand_more),
+                label: Text(
+                  _error != null ? tr("다시 불러오기") : tr('이전에 받은 꽃 더 보기'),
+                ),
               ),
-              title: Text(gardenFlowerNames[gift.flowerKind] ?? '응원 꽃'),
-              subtitle: Text('${gift.senderNickname ?? '이웃'}님에게 받은 꽃'),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: _loading
-                  ? null
-                  : () {
-                      if (_active) Navigator.pop(context, gift);
-                    },
-            ),
-          ),
-          if (_error != null) Text(_error!),
-          if (_cursor != null || _error != null)
-            OutlinedButton.icon(
-              key: const Key('stored-gifts-more'),
-              onPressed: _loading ? null : () => _load(more: _cursor != null),
-              icon: const Icon(Icons.expand_more),
-              label: Text(_error != null ? '다시 불러오기' : '이전에 받은 꽃 더 보기'),
-            ),
-        ],
+          ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 }

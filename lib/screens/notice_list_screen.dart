@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import 'package:flutter/material.dart';
 import '../models/notice.dart';
 import '../services/cloud_service.dart';
@@ -68,7 +69,7 @@ class _NoticeListScreenState extends State<NoticeListScreen> {
           ? e.toString()
           : e is StateError
           ? e.message.toString()
-          : '소식을 불러오지 못했어요. 연결을 확인한 뒤 다시 시도해 주세요.';
+          : tr("소식을 불러오지 못했어요. 연결을 확인한 뒤 다시 시도해 주세요.");
       if (mounted) setState(() => _error = message);
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -113,20 +114,24 @@ class _NoticeListScreenState extends State<NoticeListScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(notice.deleting ? '소식 삭제를 마무리할까요?' : '이 소식을 삭제할까요?'),
+        title: Text(
+          notice.deleting ? tr("소식 삭제를 마무리할까요?") : tr("이 소식을 삭제할까요?"),
+        ),
         content: Text(
           notice.deleting
-              ? '${notice.title}\n신청 내역 정리를 이어서 진행해요. 다른 이용자에게는 이미 숨겨져 있어요.'
+              ? tr("{0}\n신청 내역 정리를 이어서 진행해요. 다른 이용자에게는 이미 숨겨져 있어요.", [
+                  notice.title,
+                ])
               : notice.title,
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('취소'),
+            child: Text(tr("취소")),
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('삭제', style: TextStyle(color: Colors.redAccent)),
+            child: Text(tr("삭제"), style: TextStyle(color: Colors.redAccent)),
           ),
         ],
       ),
@@ -180,6 +185,7 @@ class _NoticeListScreenState extends State<NoticeListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     final isAdmin = _admin.canManage;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -191,7 +197,7 @@ class _NoticeListScreenState extends State<NoticeListScreen> {
                 child: OutlinedButton.icon(
                   onPressed: () => _openEditor(),
                   icon: const Icon(Icons.add_rounded, size: 18),
-                  label: const Text('새 소식 작성'),
+                  label: Text(tr("새 소식 작성")),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.blobMintAccent,
                     side: BorderSide(color: AppColors.blobMintAccent),
@@ -207,7 +213,7 @@ class _NoticeListScreenState extends State<NoticeListScreen> {
             IconButton(
               onPressed: _loading ? null : _load,
               icon: const Icon(Icons.refresh_rounded, color: AppColors.inkSoft),
-              tooltip: '새로고침',
+              tooltip: tr("새로고침"),
             ),
           ],
         ),
@@ -224,7 +230,7 @@ class _NoticeListScreenState extends State<NoticeListScreen> {
             );
           },
           icon: const Icon(Icons.event_available_outlined),
-          label: const Text('내 신청 내역'),
+          label: Text(tr("내 신청 내역")),
         ),
         const SizedBox(height: 4),
         if (_error != null)
@@ -239,13 +245,13 @@ class _NoticeListScreenState extends State<NoticeListScreen> {
                 ),
                 if (_notices.isNotEmpty)
                   Text(
-                    '이전에 불러온 소식을 보여드리고 있어요.',
+                    tr("이전에 불러온 소식을 보여드리고 있어요."),
                     style: bodyFont(fontSize: 12, color: AppColors.inkSoft),
                   ),
                 TextButton.icon(
                   onPressed: _loading ? null : _load,
                   icon: const Icon(Icons.refresh_rounded, size: 18),
-                  label: const Text('다시 불러오기'),
+                  label: Text(tr("다시 불러오기")),
                 ),
               ],
             ),
@@ -260,7 +266,7 @@ class _NoticeListScreenState extends State<NoticeListScreen> {
             padding: const EdgeInsets.only(top: 60),
             child: Center(
               child: Text(
-                '아직 등록된 소식이 없어요',
+                tr("아직 등록된 소식이 없어요"),
                 style: bodyFont(fontSize: 13, color: AppColors.inkSoft),
               ),
             ),
@@ -383,11 +389,11 @@ class _NoticeListScreenState extends State<NoticeListScreen> {
                     ),
                     if (isAdmin && notice.deleting) ...[
                       const SizedBox(height: 10),
-                      const Text('삭제 정리를 마치지 못했어요. 다른 이용자에게는 숨겨져 있어요.'),
+                      Text(tr("삭제 정리를 마치지 못했어요. 다른 이용자에게는 숨겨져 있어요.")),
                       OutlinedButton.icon(
                         onPressed: () => _delete(notice),
                         icon: const Icon(Icons.delete_outline),
-                        label: const Text('삭제 마무리하기'),
+                        label: Text(tr("삭제 마무리하기")),
                       ),
                     ],
                     if (notice.isReservable ||
@@ -398,8 +404,8 @@ class _NoticeListScreenState extends State<NoticeListScreen> {
                         children: [
                           Text(
                             notice.isReservable || notice.hasReservations
-                                ? '예약 보기'
-                                : '자세히 보기',
+                                ? tr("예약 보기")
+                                : tr("자세히 보기"),
                             style: bodyFont(
                               fontSize: 11.5,
                               fontWeight: FontWeight.w700,

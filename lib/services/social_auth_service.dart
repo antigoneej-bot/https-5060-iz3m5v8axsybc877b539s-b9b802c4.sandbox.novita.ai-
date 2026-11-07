@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import 'garden_push_service.dart';
 import 'dart:async';
 import 'dart:convert';
@@ -21,44 +22,60 @@ class SocialAuthException implements Exception {
   final String code;
 
   String get message => switch (code) {
-    'firebase-not-ready' =>
-      '앱의 계정 연결을 시작하지 못했어요. 앱을 다시 실행해 주세요. 계속되면 오류 코드 AUTH-01을 알려 주세요.',
-    'server-url-missing' =>
-      '이 앱에 로그인 서버 주소가 설정되지 않았어요. 수정된 앱으로 업데이트해 주세요. (AUTH-02)',
-    'provider-disabled' =>
-      '선택한 로그인 서비스의 서버 설정이 아직 완료되지 않았어요. 오류 코드 AUTH-03을 알려 주세요.',
+    'firebase-not-ready' => tr(
+      "앱의 계정 연결을 시작하지 못했어요. 앱을 다시 실행해 주세요. 계속되면 오류 코드 AUTH-01을 알려 주세요.",
+    ),
+    'server-url-missing' => tr(
+      "이 앱에 로그인 서버 주소가 설정되지 않았어요. 수정된 앱으로 업데이트해 주세요. (AUTH-02)",
+    ),
+    'provider-disabled' => tr(
+      "선택한 로그인 서비스의 서버 설정이 아직 완료되지 않았어요. 오류 코드 AUTH-03을 알려 주세요.",
+    ),
     'not-configured' ||
-    'client-configuration' => '이 로그인 방식은 아직 연결 준비 중이에요. 다른 방법을 선택해 주세요.',
-    'unsupported-platform' => '간편로그인은 현재 안드로이드 앱에서 이용할 수 있어요.',
-    'already-signed-in' => '현재 계정을 먼저 로그아웃한 뒤 다른 계정으로 로그인해 주세요.',
-    'account-changed' => '로그인 계정이 바뀌었어요. 현재 계정을 확인해 주세요.',
-    'session-expired' || 'session-used' => '로그인 시간이 지났어요. 다시 시작해 주세요.',
-    'invalid-callback' || 'invalid-proof' => '로그인 확인에 실패했어요. 앱에서 다시 시작해 주세요.',
-    'app-check-required' =>
-      '설치된 앱의 인증을 확인하지 못해 로그인을 계속할 수 없어요. 오류 코드 AUTH-04를 알려 주세요.',
-    'app-check-timeout' => '앱 인증 확인이 지연되고 있어요. 연결을 확인하고 다시 시도해 주세요. (AUTH-05)',
-    'auth-server-unreachable' =>
-      '로그인 서버에 연결하지 못했어요. 인터넷 연결을 확인하고 다시 시도해 주세요. (AUTH-06)',
-    'auth-server-not-found' => '로그인 서버를 찾지 못했어요. 오류 코드 AUTH-07을 알려 주세요.',
-    'auth-server-rejected' =>
-      '로그인 서버가 앱의 요청을 받아들이지 못했어요. 오류 코드 AUTH-08을 알려 주세요.',
-    'auth-server-response-invalid' =>
-      '로그인 서버의 응답을 확인하지 못했어요. 오류 코드 AUTH-09를 알려 주세요.',
-    'auth-server-timeout' => '로그인 서버의 응답이 늦어지고 있어요. 잠시 후 다시 시도해 주세요. (AUTH-10)',
-    'provider-error' => '선택한 서비스에서 로그인 인증을 완료하지 못했어요. 다시 시도해 주세요. (AUTH-11)',
-    'browser-open-failed' =>
-      '로그인 창을 열거나 앱으로 돌아오는 중 오류가 발생했어요. 오류 코드 AUTH-12를 알려 주세요.',
-    'identity-not-verified' => '계정 인증을 확인하지 못했어요. 로그아웃 후 다시 로그인해 주세요.',
-    'provider-credential-invalid' =>
-      '선택한 로그인 계정의 인증이 만료되었어요. 간편로그인을 다시 시작해 주세요.',
+    'client-configuration' => tr("이 로그인 방식은 아직 연결 준비 중이에요. 다른 방법을 선택해 주세요."),
+    'unsupported-platform' => tr("간편로그인은 현재 안드로이드 앱에서 이용할 수 있어요."),
+    'already-signed-in' => tr("현재 계정을 먼저 로그아웃한 뒤 다른 계정으로 로그인해 주세요."),
+    'account-changed' => tr("로그인 계정이 바뀌었어요. 현재 계정을 확인해 주세요."),
+    'session-expired' || 'session-used' => tr("로그인 시간이 지났어요. 다시 시작해 주세요."),
+    'invalid-callback' ||
+    'invalid-proof' => tr("로그인 확인에 실패했어요. 앱에서 다시 시작해 주세요."),
+    'app-check-required' => tr(
+      "설치된 앱의 인증을 확인하지 못해 로그인을 계속할 수 없어요. 오류 코드 AUTH-04를 알려 주세요.",
+    ),
+    'app-check-timeout' => tr(
+      "앱 인증 확인이 지연되고 있어요. 연결을 확인하고 다시 시도해 주세요. (AUTH-05)",
+    ),
+    'auth-server-unreachable' => tr(
+      "로그인 서버에 연결하지 못했어요. 인터넷 연결을 확인하고 다시 시도해 주세요. (AUTH-06)",
+    ),
+    'auth-server-not-found' => tr("로그인 서버를 찾지 못했어요. 오류 코드 AUTH-07을 알려 주세요."),
+    'auth-server-rejected' => tr(
+      "로그인 서버가 앱의 요청을 받아들이지 못했어요. 오류 코드 AUTH-08을 알려 주세요.",
+    ),
+    'auth-server-response-invalid' => tr(
+      "로그인 서버의 응답을 확인하지 못했어요. 오류 코드 AUTH-09를 알려 주세요.",
+    ),
+    'auth-server-timeout' => tr(
+      "로그인 서버의 응답이 늦어지고 있어요. 잠시 후 다시 시도해 주세요. (AUTH-10)",
+    ),
+    'provider-error' => tr(
+      "선택한 서비스에서 로그인 인증을 완료하지 못했어요. 다시 시도해 주세요. (AUTH-11)",
+    ),
+    'browser-open-failed' => tr(
+      "로그인 창을 열거나 앱으로 돌아오는 중 오류가 발생했어요. 오류 코드 AUTH-12를 알려 주세요.",
+    ),
+    'identity-not-verified' => tr("계정 인증을 확인하지 못했어요. 로그아웃 후 다시 로그인해 주세요."),
+    'provider-credential-invalid' => tr(
+      "선택한 로그인 계정의 인증이 만료되었어요. 간편로그인을 다시 시작해 주세요.",
+    ),
     'account-deleting' ||
-    'account-busy' => '계정 처리가 진행 중이에요. 잠시 후 로그인을 다시 시작해 주세요.',
-    'account-disabled' => '이용이 중지된 계정이에요. 문의해 주세요.',
-    'rate-limit' => '요청이 많아요. 잠시 후 로그인을 다시 시작해 주세요.',
-    'login-restart-required' => '로그인을 처음부터 다시 시작해 주세요.',
-    'account-deleted' => '삭제된 계정이에요. 계정 복구가 필요하면 문의해 주세요.',
-    'login-in-progress' => '로그인이 진행 중이에요.',
-    _ => '로그인을 완료하지 못했어요. 연결을 확인하고 다시 시도해 주세요.',
+    'account-busy' => tr("계정 처리가 진행 중이에요. 잠시 후 로그인을 다시 시작해 주세요."),
+    'account-disabled' => tr("이용이 중지된 계정이에요. 문의해 주세요."),
+    'rate-limit' => tr("요청이 많아요. 잠시 후 로그인을 다시 시작해 주세요."),
+    'login-restart-required' => tr("로그인을 처음부터 다시 시작해 주세요."),
+    'account-deleted' => tr("삭제된 계정이에요. 계정 복구가 필요하면 문의해 주세요."),
+    'login-in-progress' => tr("로그인이 진행 중이에요."),
+    _ => tr("로그인을 완료하지 못했어요. 연결을 확인하고 다시 시도해 주세요."),
   };
 
   @override
@@ -101,9 +118,9 @@ class SocialAuthService {
 
   static Future<String> providerLabel() async {
     final user = currentUser;
-    if (user == null) return '로그인 전';
+    if (user == null) return tr("로그인 전");
     final token = await user.getIdTokenResult();
-    if (currentUser?.uid != user.uid) return '계정';
+    if (currentUser?.uid != user.uid) return tr("계정");
     return AccountIdentityPolicy.providerLabel(
       signInProvider: token.signInProvider,
       claims: token.claims,
@@ -413,26 +430,29 @@ class SocialAuthService {
     if (error is SocialAuthException) return error.message;
     if (error is FirebaseAuthException) {
       return switch (error.code) {
-        'invalid-email' => '이메일 주소를 확인해 주세요.',
+        'invalid-email' => tr("이메일 주소를 확인해 주세요."),
         'invalid-credential' ||
         'wrong-password' ||
-        'user-not-found' => '이메일과 비밀번호를 확인해 주세요.',
+        'user-not-found' => tr("이메일과 비밀번호를 확인해 주세요."),
         'account-exists-with-different-credential' || 'email-already-in-use' =>
-          '이미 이용하던 계정이 있어요. 기존 로그인 방법으로 접속해 주세요. 계정과 구매 내역은 자동으로 합치지 않아요.',
-        'credential-already-in-use' =>
-          '이 Google 계정은 다른 마음냥 계정에 연결되어 있어요. 기존 계정으로 로그인해 주세요.',
-        'provider-already-linked' => '이 계정에는 이미 Google 로그인이 연결되어 있어요.',
-        'invalid-custom-token' || 'custom-token-mismatch' =>
-          '로그인 서버 연결을 확인하지 못했어요. 최신 앱인지 확인한 뒤 다시 시도해 주세요.',
-        'requires-recent-login' => '안전한 처리를 위해 로그아웃한 뒤 다시 로그인해 주세요.',
-        'too-many-requests' => '잠시 쉬었다가 다시 시도해 주세요.',
-        'user-disabled' => '이용이 중지된 계정이에요. 문의해 주세요.',
-        'operation-not-allowed' => '이 로그인 방식은 아직 연결 준비 중이에요.',
-        'network-request-failed' => '인터넷 연결을 확인하고 다시 시도해 주세요.',
-        _ => '로그인을 완료하지 못했어요. 다시 시도해 주세요.',
+          tr("이미 이용하던 계정이 있어요. 기존 로그인 방법으로 접속해 주세요. 계정과 구매 내역은 자동으로 합치지 않아요."),
+        'credential-already-in-use' => tr(
+          "이 Google 계정은 다른 마음냥 계정에 연결되어 있어요. 기존 계정으로 로그인해 주세요.",
+        ),
+        'provider-already-linked' => tr("이 계정에는 이미 Google 로그인이 연결되어 있어요."),
+        'invalid-custom-token' || 'custom-token-mismatch' => tr(
+          "로그인 서버 연결을 확인하지 못했어요. 최신 앱인지 확인한 뒤 다시 시도해 주세요.",
+        ),
+        'requires-recent-login' => tr("안전한 처리를 위해 로그아웃한 뒤 다시 로그인해 주세요."),
+        'too-many-requests' => tr("잠시 쉬었다가 다시 시도해 주세요."),
+        'user-disabled' => tr("이용이 중지된 계정이에요. 문의해 주세요."),
+        'operation-not-allowed' => tr("이 로그인 방식은 아직 연결 준비 중이에요."),
+        'network-request-failed' => tr("인터넷 연결을 확인하고 다시 시도해 주세요."),
+        _ => tr("로그인을 완료하지 못했어요. 다시 시도해 주세요."),
       };
     }
-    if (error is TimeoutException) return '응답이 늦어지고 있어요. 연결을 확인하고 다시 시도해 주세요.';
-    return '완료하지 못했어요. 연결을 확인하고 다시 시도해 주세요.';
+    if (error is TimeoutException)
+      return tr("응답이 늦어지고 있어요. 연결을 확인하고 다시 시도해 주세요.");
+    return tr("완료하지 못했어요. 연결을 확인하고 다시 시도해 주세요.");
   }
 }

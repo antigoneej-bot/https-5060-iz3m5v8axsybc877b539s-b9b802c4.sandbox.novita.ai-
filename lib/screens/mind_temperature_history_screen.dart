@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -69,6 +70,7 @@ class _MindTemperatureHistoryScreenState
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     if (_loading) {
       return const Padding(
         padding: EdgeInsets.only(top: 80),
@@ -84,13 +86,13 @@ class _MindTemperatureHistoryScreenState
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-          '돌봄 온기 기록',
+          tr("돌봄 온기 기록"),
           textAlign: TextAlign.center,
           style: titleFont(fontSize: 22, color: AppColors.ink),
         ),
         const SizedBox(height: 6),
         Text(
-          '활동으로 차곡차곡 모은 온기를 살펴보세요',
+          tr("활동으로 차곡차곡 모은 온기를 살펴보세요"),
           textAlign: TextAlign.center,
           style: bodyFont(fontSize: 12.5, color: AppColors.inkSoft),
         ),
@@ -109,14 +111,14 @@ class _MindTemperatureHistoryScreenState
             MaterialPageRoute(builder: (_) => const EmotionStatisticsScreen()),
           ),
           icon: const Icon(Icons.auto_stories_outlined),
-          label: const Text('내가 남긴 감정과 회고 보기'),
+          label: Text(tr("내가 남긴 감정과 회고 보기")),
         ),
         const SizedBox(height: 20),
         Row(
           children: [
             Expanded(
               child: _RangeToggleButton(
-                label: '최근 7일',
+                label: tr("최근 7일"),
                 selected: _range == _TempHistoryRange.weekly,
                 onTap: () => setState(() => _range = _TempHistoryRange.weekly),
               ),
@@ -124,7 +126,7 @@ class _MindTemperatureHistoryScreenState
             const SizedBox(width: 10),
             Expanded(
               child: _RangeToggleButton(
-                label: '최근 30일',
+                label: tr("최근 30일"),
                 selected: _range == _TempHistoryRange.monthly,
                 onTap: () => setState(() => _range = _TempHistoryRange.monthly),
               ),
@@ -140,7 +142,7 @@ class _MindTemperatureHistoryScreenState
                 const Text('🌡️', style: TextStyle(fontSize: 36)),
                 const SizedBox(height: 12),
                 Text(
-                  '아직 저장된 돌봄 온기가 없어요',
+                  tr("아직 저장된 돌봄 온기가 없어요"),
                   style: bodyFont(fontSize: 13, color: AppColors.inkSoft),
                 ),
               ],
@@ -149,7 +151,9 @@ class _MindTemperatureHistoryScreenState
         else ...[
           _TempTierSummaryCard(
             breakdown: TemperatureInsightService.tierBreakdown(filtered),
-            rangeLabel: _range == _TempHistoryRange.weekly ? '최근 7일' : '최근 30일',
+            rangeLabel: _range == _TempHistoryRange.weekly
+                ? tr("최근 7일")
+                : tr("최근 30일"),
           ),
           const SizedBox(height: 18),
           GlassBlob(
@@ -161,7 +165,9 @@ class _MindTemperatureHistoryScreenState
           const SizedBox(height: 18),
           _TempInsightCard(
             insight: TemperatureInsightService.analyze(filtered),
-            rangeLabel: _range == _TempHistoryRange.weekly ? '최근 7일' : '최근 30일',
+            rangeLabel: _range == _TempHistoryRange.weekly
+                ? tr("최근 7일")
+                : tr("최근 30일"),
           ),
           const SizedBox(height: 18),
           ...filtered.reversed.map((e) => _TempHistoryRow(entry: e)),
@@ -186,6 +192,7 @@ class _TempInsightCardState extends State<_TempInsightCard> {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     final insight = widget.insight;
     if (insight == null) return const SizedBox.shrink();
 
@@ -237,13 +244,13 @@ class _TempInsightCardState extends State<_TempInsightCard> {
             const SizedBox(height: 14),
             _InsightSection(
               icon: '🔍',
-              title: '이 기록의 의미',
+              title: tr("이 기록의 의미"),
               body: insight.stateDescription,
             ),
             const SizedBox(height: 12),
             _InsightSection(
               icon: '🌿',
-              title: '내 감정을 돌아보려면',
+              title: tr("내 감정을 돌아보려면"),
               body: insight.solution,
             ),
           ],
@@ -265,6 +272,7 @@ class _InsightSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -312,6 +320,7 @@ class _RangeToggleButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
@@ -347,6 +356,7 @@ class _TempTierSummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     final total = breakdown.totalDays;
     return GlassBlob(
       accent: AppColors.blobMintAccent,
@@ -357,7 +367,7 @@ class _TempTierSummaryCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '$rangeLabel 온기 구간',
+            tr("{0} 온기 구간", [rangeLabel]),
             style: pathLabelFont(
               fontSize: 15,
               fontWeight: FontWeight.w700,
@@ -366,7 +376,7 @@ class _TempTierSummaryCard extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            '저장된 $total일의 온기 값을 숫자 구간으로 나눴어요',
+            tr("저장된 {0}일의 온기 값을 숫자 구간으로 나눴어요", [total]),
             style: bodyFont(fontSize: 11.5, color: AppColors.inkSoft),
           ),
           const SizedBox(height: 16),
@@ -441,8 +451,9 @@ class _TempTierSummaryCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(14),
             ),
             child: Text(
-              '구간은 마음의 좋고 나쁨을 뜻하지 않아요. 하루의 마지막 온기 값을 표시하며, '
-              '보상 적립 후 0부터 다시 쌓인 날도 포함돼요.',
+              tr(
+                "구간은 마음의 좋고 나쁨을 뜻하지 않아요. 하루의 마지막 온기 값을 표시하며, 보상 적립 후 0부터 다시 쌓인 날도 포함돼요.",
+              ),
               style: bodyFont(fontSize: 11, color: AppColors.moon, height: 1.6),
             ),
           ),
@@ -464,6 +475,7 @@ class _TierCountBox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     final color = colorForTempTier(tier);
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 6),
@@ -486,7 +498,7 @@ class _TierCountBox extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            '$days일',
+            tr("{0}일", [days]),
             style: numberFont(
               fontSize: 17,
               fontWeight: FontWeight.w700,
@@ -510,6 +522,7 @@ class _TempHistoryChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     final maxBars = entries.length > 14 ? 14 : entries.length;
     final shown = entries.length > maxBars
         ? entries.sublist(entries.length - maxBars)
@@ -518,7 +531,7 @@ class _TempHistoryChart extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          '날짜별 돌봄 온기 (0~100)',
+          tr("날짜별 돌봄 온기 (0~100)"),
           style: pathLabelFont(
             fontSize: 13,
             fontWeight: FontWeight.w700,
@@ -599,8 +612,10 @@ class _TempHistoryChart extends StatelessWidget {
         ),
         const SizedBox(height: 10),
         Text(
-          '최근 ${shown.length}개의 저장 값을 표시해요. 색은 온기 값의 구간이에요. '
-          '보상 적립으로 값이 줄어들 수 있어 감정의 변화로 해석하지 않아요.',
+          tr(
+            "최근 {0}개의 저장 값을 표시해요. 색은 온기 값의 구간이에요. 보상 적립으로 값이 줄어들 수 있어 감정의 변화로 해석하지 않아요.",
+            [shown.length],
+          ),
           style: bodyFont(
             fontSize: 10.5,
             color: AppColors.inkSoft,
@@ -619,6 +634,7 @@ class _ChartLegendDot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -640,7 +656,11 @@ class _TempHistoryRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dateStr = DateFormat('yyyy.MM.dd (E)', 'ko_KR').format(entry.key);
+    Localizations.localeOf(context);
+    final dateStr = DateFormat(
+      'yyyy.MM.dd (E)',
+      AppLanguage.instance.isEnglish ? 'en_US' : 'ko_KR',
+    ).format(entry.key);
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Container(

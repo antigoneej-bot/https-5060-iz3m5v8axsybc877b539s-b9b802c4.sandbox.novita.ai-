@@ -182,6 +182,7 @@ export const gardenApi = onRequest({region:'asia-northeast3', maxInstances:3, ti
       ...orchardActions,
       ...memoryCardActions,
       getVillageProfile: village.getVillageProfile,
+      getVillageEntry: village.getVillageEntry,
       updateVillageProfile: village.updateVillageProfile,
       listNeighbors: village.listNeighbors,
       lookupNeighbor: village.lookupNeighbor,
@@ -192,6 +193,7 @@ export const gardenApi = onRequest({region:'asia-northeast3', maxInstances:3, ti
       blockNeighbor: village.blockNeighbor,
       reportGarden: village.reportGarden,
       sendGardenGift: village.sendGardenGift,
+      listSentGardenGifts: village.listSentGardenGifts,
     };
     if (Object.hasOwn(orchardActions, action) && !(await featurePremium(uid))) {
       res.status(403).json({error:'subscription-required'});return;

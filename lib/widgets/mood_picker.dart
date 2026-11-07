@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import 'package:flutter/material.dart';
 import '../theme.dart';
 import 'garden_path_card.dart';
@@ -6,23 +7,24 @@ import 'garden_path_card.dart';
 /// 마음과 가장 닮은 하나를 선택할 수 있습니다.
 class MoodOption {
   final String emoji;
-  final String label;
-  const MoodOption(this.emoji, this.label);
+  final String _label;
+  String get label => tr(_label);
+  const MoodOption(this.emoji, this._label);
 }
 
 const List<MoodOption> kMoodOptions = [
-  MoodOption('☀️', '맑음'),
-  MoodOption('🌤️', '괜찮음'),
-  MoodOption('⛅', '그저 그럼'),
-  MoodOption('🌧️', '우울함'),
-  MoodOption('⛈️', '힘듦'),
-  MoodOption('🌪️', '화남'),
-  MoodOption('❄️', '지침'),
-  MoodOption('🌈', '설렘'),
-  MoodOption('😊', '행복'),
-  MoodOption('😢', '슬픔'),
-  MoodOption('😴', '무기력'),
-  MoodOption('😌', '평온'),
+  MoodOption('☀️', "맑음"),
+  MoodOption('🌤️', "괜찮음"),
+  MoodOption('⛅', "그저 그럼"),
+  MoodOption('🌧️', "우울함"),
+  MoodOption('⛈️', "힘듦"),
+  MoodOption('🌪️', "화남"),
+  MoodOption('❄️', "지침"),
+  MoodOption('🌈', "설렘"),
+  MoodOption('😊', "행복"),
+  MoodOption('😢', "슬픔"),
+  MoodOption('😴', "무기력"),
+  MoodOption('😌', "평온"),
 ];
 
 /// 날씨처럼 오늘의 기분을 고르는 이모티콘 선택 위젯. 글을 쓰기 힘들거나
@@ -47,7 +49,7 @@ class MoodPicker extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '오늘 기분은 날씨처럼 어땠나요?',
+            tr("오늘 기분은 날씨처럼 어땠나요?"),
             style: pathLabelFont(
               fontSize: 14,
               fontWeight: FontWeight.w700,
@@ -56,7 +58,7 @@ class MoodPicker extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            '글쓰기가 힘들거나 귀찮다면, 이모티콘 하나로 대신 남겨보세요',
+            tr("글쓰기가 힘들거나 귀찮다면, 이모티콘 하나로 대신 남겨보세요"),
             style: bodyFont(fontSize: 11.5, color: AppColors.inkSoft),
           ),
           const SizedBox(height: 14),

@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import '../services/access_policy.dart';
 import 'subscription_gate.dart';
 import 'meditation_sleep_controls.dart';
@@ -50,7 +51,7 @@ class _MeditationAudioPlayerState extends State<MeditationAudioPlayer> {
   }
 
   Future<void> _run(Future<void> Function() action) async {
-    if (_busy) return;
+    if (_busy || AppLanguage.instance.isEnglish) return;
     setState(() => _busy = true);
     try {
       await action();
@@ -76,6 +77,8 @@ class _MeditationAudioPlayerState extends State<MeditationAudioPlayer> {
       '${d.inMinutes}:${(d.inSeconds % 60).toString().padLeft(2, '0')}';
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
+    if (AppLanguage.instance.isEnglish) return const EnglishMeditationNotice();
     if (!_available) return const SizedBox.shrink();
     return ListenableBuilder(
       listenable: Listenable.merge([_audio.playing, _audio.changes]),

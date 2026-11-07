@@ -1,3 +1,5 @@
+import '../l10n/app_language.dart';
+import '../widgets/home_moments.dart';
 import 'emotion_archive_screen.dart';
 import '../mongi/screens/garden_discovery_screen.dart';
 import '../services/cat_care_service.dart';
@@ -16,7 +18,6 @@ import 'account_screen.dart';
 import 'companion_coat_screen.dart';
 import 'emotion_statistics_screen.dart';
 import 'keepsake_forest_screen.dart';
-import 'coloring_healing_screen.dart';
 import 'memory_cards_screen.dart';
 import 'self_care_screen.dart';
 import 'orchard_screen.dart';
@@ -62,7 +63,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   bool _careRefreshing = false;
   int _activeStoryPage = 0;
   int? _pendingMood;
-  static const _moodGroups = ['기쁘고 기대돼요', '편안해요', null, '슬프고 외로워요', '지치고 막막해요'];
+  static List<String?> get _moodGroups => [
+    tr("기쁘고 기대돼요"),
+    tr("편안해요"),
+    null,
+    tr("슬프고 외로워요"),
+    tr("지치고 막막해요"),
+  ];
   bool _selecting = false;
   bool _closed = false;
   bool _exiting = false;
@@ -84,7 +91,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       if (mounted)
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(const SnackBar(content: Text('종료하지 못했어요. 다시 시도해 주세요.')));
+        ).showSnackBar(SnackBar(content: Text(tr("종료하지 못했어요. 다시 시도해 주세요."))));
     } finally {
       if (mounted) setState(() => _exiting = false);
     }
@@ -140,18 +147,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       final booking = target == 'gardenPush:booking';
       pushFullScreen(
         context,
-        booking ? '내 예약' : '받은 응원·선물',
+        booking ? tr("내 예약") : tr("받은 응원·선물"),
         booking ? const GardenUpdatesScreen() : const PublicGardenInboxScreen(),
       );
       return;
     }
     switch (target) {
       case 'gardenNotice':
-        pushFullScreen(context, '공지사항', const NoticeListScreen());
+        pushFullScreen(context, tr("공지사항"), const NoticeListScreen());
         break;
       case 'evening':
         // 저녁 알림 → 하루 닫기 화면으로 바로 이동
-        pushFullScreen(context, '하루 닫기', const DayCloseScreen());
+        pushFullScreen(context, tr("하루 닫기"), const DayCloseScreen());
         break;
       case 'morning':
       case 'crisis':
@@ -173,20 +180,24 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       case 1:
         final group = _pendingMood == null ? null : _moodGroups[_pendingMood!];
         _pendingMood = null;
+        // A completed save must not reopen its receipt as a new journal entry.
+        // Unsent text stays in the existing per-cat draft store.
+        final app = context.read<AppStateProvider>();
+        if (app.currentLetterId != null) app.restartFlow();
         pushFullScreen(
           context,
-          '마음 기록하기',
+          tr("마음 기록하기"),
           CatFlowTabScreen(initialGroup: group),
         );
         break;
       case 2:
-        pushFullScreen(context, '명상 · 힐링', const MindCareHub());
+        pushFullScreen(context, tr("명상·호흡·자연음"), const MindCareHub());
         break;
       case 3:
-        pushFullScreen(context, '편지 기록', const HistoryScreen());
+        pushFullScreen(context, tr("편지 기록"), const HistoryScreen());
         break;
       case 4:
-        pushFullScreen(context, '마이 · 설정', const MyScreen());
+        pushFullScreen(context, tr("마이 · 설정"), const MyScreen());
         break;
     }
   }
@@ -198,12 +209,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       await context.read<CatCareProvider>().selectCoat(coat);
       if (mounted)
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${coat.label}와 정원과 마음돌보기에 함께해요.')),
+          SnackBar(content: Text(tr("{0}와 정원과 마음돌보기에 함께해요.", [coat.label]))),
         );
     } catch (_) {
       if (mounted)
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('선택을 저장하지 못했어요. 다시 눌러 주세요.')),
+          SnackBar(content: Text(tr("선택을 저장하지 못했어요. 다시 눌러 주세요."))),
         );
     } finally {
       if (mounted) setState(() => _selecting = false);
@@ -244,11 +255,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       if (!mounted || owner != CatCareService.localOwner) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('돌봄을 기록했어요.')));
+      ).showSnackBar(SnackBar(content: Text(tr("돌봄을 기록했어요."))));
     } catch (_) {
       if (mounted && owner == CatCareService.localOwner)
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('돌봄을 저장하지 못했어요. 다시 시도해 주세요.')),
+          SnackBar(content: Text(tr("돌봄을 저장하지 못했어요. 다시 시도해 주세요."))),
         );
     } finally {
       if (mounted) setState(() => _careSaving = false);
@@ -263,7 +274,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     } catch (_) {
       if (mounted)
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('돌봄 상태를 불러오지 못했어요. 다시 눌러 주세요.')),
+          SnackBar(content: Text(tr("돌봄 상태를 불러오지 못했어요. 다시 눌러 주세요."))),
         );
     } finally {
       if (mounted) setState(() => _careRefreshing = false);
@@ -308,9 +319,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       case PastelAction.meditation:
         _goTo(2);
         break;
-      case PastelAction.coloring:
-        _open(const ColoringHealingScreen());
-        break;
       case PastelAction.care:
         _open(const SelfCareScreen());
         break;
@@ -331,16 +339,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         _goTo(4);
         break;
       case PastelAction.tutorial:
-        pushFullScreen(context, '사용법', const AppTutorialScreen());
+        pushFullScreen(context, tr("사용법"), const AppTutorialScreen());
         break;
       case PastelAction.all:
         openAllFeatures(context);
         break;
       case PastelAction.notices:
-        pushFullScreen(context, '공지사항', const NoticeListScreen());
+        pushFullScreen(context, tr("공지사항"), const NoticeListScreen());
         break;
       case PastelAction.petCare:
-        pushFullScreen(context, '고양이 돌보기', const PetCareScreen());
+        pushFullScreen(context, tr("고양이 돌보기"), const PetCareScreen());
         break;
       case PastelAction.premium:
         _open(const PremiumScreen());
@@ -377,6 +385,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     if (_closed)
       return Scaffold(
         body: GardenScaffoldBackground(
@@ -385,15 +394,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  '오늘도 수고했어요 🌿',
+                  tr("오늘도 수고했어요 🌿"),
                   style: titleFont(
                     fontSize: 24,
                     color: AppColors.titlePastelGreen,
                   ),
                 ),
                 const SizedBox(height: 12),
-                const Text('정원을 닫았어요. 편안하게 쉬어가세요.'),
-                if (kIsWeb) const Text('이 창을 닫아도 괜찮아요.'),
+                Text(tr("정원을 닫았어요. 편안하게 쉬어가세요.")),
+                if (kIsWeb) Text(tr("이 창을 닫아도 괜찮아요.")),
                 const SizedBox(height: 20),
                 TextButton(
                   onPressed: () {
@@ -401,7 +410,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     unawaited(SoundService().tryStartBgm());
                     setState(() => _closed = false);
                   },
-                  child: const Text('정원 다시 열기'),
+                  child: Text(tr("정원 다시 열기")),
                 ),
               ],
             ),
@@ -424,6 +433,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     return Stack(
       children: [
         PastelGardenShell(
+          homeMoments: HomeMoments(
+            letters: app.history,
+            onRecords: () => _action(PastelAction.records),
+            onReview: () => _action(PastelAction.comic),
+            onMemoryBook: () => _action(PastelAction.memoryBook),
+            onPlant: (id) =>
+                _open(GardenWorldScreen.owned(initialFocusPlantId: id)),
+          ),
           actualGarden: const GardenWorldScreen.owned(embedded: true),
           motionEnabled: context.watch<GardenProvider>().gardenMotionEnabled,
           onAction: _action,
@@ -498,6 +515,7 @@ class _FirstMeetingBannerState extends State<_FirstMeetingBanner> {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     return AnimatedOpacity(
       duration: const Duration(milliseconds: 400),
       opacity: _visible ? 1.0 : 0.0,
@@ -527,7 +545,7 @@ class _FirstMeetingBannerState extends State<_FirstMeetingBanner> {
           ],
         ),
         child: Text(
-          '한 줄을 남겨도, 잠깐 쉬어가도 괜찮아요 🌿',
+          tr("한 줄을 남겨도, 잠깐 쉬어가도 괜찮아요 🌿"),
           style: pathLabelFont(
             fontSize: 13,
             fontWeight: FontWeight.w600,

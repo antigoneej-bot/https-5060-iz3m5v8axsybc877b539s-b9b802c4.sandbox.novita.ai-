@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import '../utils/feature_flags.dart';
 import '../widgets/premium_test_access.dart';
 import '../mongi/services/ad_service.dart';
@@ -79,7 +80,7 @@ class _PremiumScreenState extends State<PremiumScreen>
     with WidgetsBindingObserver {
   late final _billing = widget.billing ?? PremiumScreenBilling();
   bool _isPremium = false;
-  String _statusLabel = '무료 이용 중';
+  String _statusLabel = tr("무료 이용 중");
   bool _loading = true;
   bool _purchasing = false;
   bool _refreshingStatus = false;
@@ -100,7 +101,7 @@ class _PremiumScreenState extends State<PremiumScreen>
 
   String get _billingCaption {
     if (!_supportedStore) {
-      return '구독 구매와 복원은 Google Play에서 설치한 Android 앱에서 이용할 수 있어요.';
+      return tr("구독 구매와 복원은 Google Play에서 설치한 Android 앱에서 이용할 수 있어요.");
     }
     if (!SubscriptionService.storeBillingEnabled || !_billing.backendEnabled) {
       return SubscriptionService.billingComingSoonCaption;
@@ -108,7 +109,7 @@ class _PremiumScreenState extends State<PremiumScreen>
     if (!_billing.hasProduct(_selectedPlan)) {
       return _billing.productAvailabilityLabel(_selectedPlan);
     }
-    return '언제든 해지할 수 있어요 · 구독은 자동 갱신됩니다';
+    return tr("언제든 해지할 수 있어요 · 구독은 자동 갱신됩니다");
   }
 
   @override
@@ -165,9 +166,9 @@ class _PremiumScreenState extends State<PremiumScreen>
     } catch (_) {
       if (mounted && _sameOwner(owner)) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text(
-              '최신 구독 상태를 확인하지 못했어요. 기존 이용 상태는 유지돼요. 잠시 후 다시 확인해 주세요.',
+              tr("최신 구독 상태를 확인하지 못했어요. 기존 이용 상태는 유지돼요. 잠시 후 다시 확인해 주세요."),
             ),
           ),
         );
@@ -193,7 +194,7 @@ class _PremiumScreenState extends State<PremiumScreen>
         if (_displayOwner != owner) {
           _isPremium = false;
           _activePlan = null;
-          _statusLabel = '무료 이용 중';
+          _statusLabel = tr("무료 이용 중");
           _displayOwner = owner;
         }
       });
@@ -214,7 +215,7 @@ class _PremiumScreenState extends State<PremiumScreen>
       });
     } catch (_) {
       if (isCurrent()) {
-        setState(() => _statusLabel = '이용 상태를 확인하지 못했어요. 다시 확인해 주세요.');
+        setState(() => _statusLabel = tr("이용 상태를 확인하지 못했어요. 다시 확인해 주세요."));
       }
     } finally {
       if (mounted && generation == _loadGeneration) {
@@ -240,18 +241,21 @@ class _PremiumScreenState extends State<PremiumScreen>
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('연간 구독으로 바꿀까요?'),
+        title: Text(tr("연간 구독으로 바꿀까요?")),
         content: Text(
-          '연간 ${_billing.priceLabelFor(SubscriptionPlan.yearly)}를 지금 결제하는 방식이에요. 남은 월간 이용분은 Google Play가 새 이용 기간에 반영해요. 최종 금액과 다음 결제일을 Play 결제 화면에서 확인한 뒤 승인해 주세요. 기존 월간 구독을 대체하며, 취소하면 현재 구독이 유지돼요.',
+          tr(
+            "연간 {0}를 지금 결제하는 방식이에요. 남은 월간 이용분은 Google Play가 새 이용 기간에 반영해요. 최종 금액과 다음 결제일을 Play 결제 화면에서 확인한 뒤 승인해 주세요. 기존 월간 구독을 대체하며, 취소하면 현재 구독이 유지돼요.",
+            [_billing.priceLabelFor(SubscriptionPlan.yearly)],
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('돌아가기'),
+            child: Text(tr("돌아가기")),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Play에서 확인'),
+            child: Text(tr("Play에서 확인")),
           ),
         ],
       ),
@@ -285,11 +289,11 @@ class _PremiumScreenState extends State<PremiumScreen>
       if (!ok) {
         // A cancelled/failed new transaction does not revoke existing access.
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('구매가 완료되지 않았어요. 잠시 후 다시 확인해 주세요.')),
+          SnackBar(content: Text(tr("구매가 완료되지 않았어요. 잠시 후 다시 확인해 주세요."))),
         );
         return;
       }
-      var statusLabel = '마음냥 구독 이용 중';
+      var statusLabel = tr("마음냥 구독 이용 중");
       try {
         statusLabel = await _billing.statusLabel();
       } catch (_) {
@@ -308,7 +312,7 @@ class _PremiumScreenState extends State<PremiumScreen>
       unawaited(_billing.logPurchase(plan).catchError((Object _) {}));
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('마음냥 구독 멤버십이 시작되었어요 🌷')));
+      ).showSnackBar(SnackBar(content: Text(tr("마음냥 구독 멤버십이 시작되었어요 🌷"))));
     } on CloudException catch (error) {
       final expectedOwner = owner ?? initialOwner;
       if (!mounted || !_sameOwner(expectedOwner)) return;
@@ -324,7 +328,7 @@ class _PremiumScreenState extends State<PremiumScreen>
     } catch (_) {
       if (mounted && (owner == null || _sameOwner(owner))) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('구매가 완료되지 않았어요. 잠시 후 다시 확인해 주세요.')),
+          SnackBar(content: Text(tr("구매가 완료되지 않았어요. 잠시 후 다시 확인해 주세요."))),
         );
       }
     } finally {
@@ -352,9 +356,11 @@ class _PremiumScreenState extends State<PremiumScreen>
       _awaitingManagementReturn = false;
       if (mounted && _sameOwner(owner)) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text(
-              '구독 관리 화면을 열지 못했어요. Play 스토어 → 프로필 → 결제 및 정기 결제 → 정기 결제에서 해지할 수 있어요.',
+              tr(
+                "구독 관리 화면을 열지 못했어요. Play 스토어 → 프로필 → 결제 및 정기 결제 → 정기 결제에서 해지할 수 있어요.",
+              ),
             ),
           ),
         );
@@ -391,7 +397,7 @@ class _PremiumScreenState extends State<PremiumScreen>
       final active = result.active;
       final plan = await _billing.currentPlan();
       if (!mounted || !_sameOwner(owner)) return;
-      var statusLabel = active ? '마음냥 구독 이용 중' : '무료 이용 중';
+      var statusLabel = active ? tr("마음냥 구독 이용 중") : tr("무료 이용 중");
       try {
         statusLabel = await _billing.statusLabel();
       } catch (_) {}
@@ -428,6 +434,7 @@ class _PremiumScreenState extends State<PremiumScreen>
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     if (FeatureFlags.debugUnlockAllPremium) return const MembershipTestScreen();
     return Scaffold(
       body: GardenScaffoldBackground(
@@ -451,7 +458,7 @@ class _PremiumScreenState extends State<PremiumScreen>
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          '마음냥 구독',
+                          tr("마음냥 구독"),
                           style: titleFont(
                             fontSize: 20,
                             color: AppColors.titlePastelGreen,
@@ -488,7 +495,7 @@ class _PremiumScreenState extends State<PremiumScreen>
                                           );
                                           if (mounted) await _load();
                                         },
-                                  child: const Text('간편 로그인 · 구매 계정 관리'),
+                                  child: Text(tr("간편 로그인 · 구매 계정 관리")),
                                 ),
                                 if (!_isPremium) ...[
                                   _PlanSelector(
@@ -517,7 +524,7 @@ class _PremiumScreenState extends State<PremiumScreen>
                                 if (_isPremium) ...[
                                   Center(
                                     child: Text(
-                                      '이미 마음냥 구독 멤버십을 이용 중이에요 🌿',
+                                      tr("이미 마음냥 구독 멤버십을 이용 중이에요 🌿"),
                                       textAlign: TextAlign.center,
                                       style: bodyFont(
                                         fontSize: 13,
@@ -527,14 +534,16 @@ class _PremiumScreenState extends State<PremiumScreen>
                                   ),
                                   const SizedBox(height: 14),
                                   _SecondaryButton(
-                                    label: '멤버십 해지하기',
+                                    label: tr("멤버십 해지하기"),
                                     onTap: _purchasing || _refreshingStatus
                                         ? null
                                         : _cancel,
                                   ),
                                   const SizedBox(height: 10),
-                                  const Text(
-                                    'Google Play 화면에서 해지를 완료해 주세요. 해지 후에도 이미 결제한 기간까지 이용할 수 있어요.',
+                                  Text(
+                                    tr(
+                                      "Google Play 화면에서 해지를 완료해 주세요. 해지 후에도 이미 결제한 기간까지 이용할 수 있어요.",
+                                    ),
                                     textAlign: TextAlign.center,
                                   ),
                                   if (_activePlan == SubscriptionPlan.monthly &&
@@ -550,11 +559,17 @@ class _PremiumScreenState extends State<PremiumScreen>
                                           ? null
                                           : _changeToYearly,
                                       child: Text(
-                                        '연간으로 변경 · ${_billing.priceLabelFor(SubscriptionPlan.yearly)}',
+                                        tr("연간으로 변경 · {0}", [
+                                          _billing.priceLabelFor(
+                                            SubscriptionPlan.yearly,
+                                          ),
+                                        ]),
                                       ),
                                     ),
-                                    const Text(
-                                      'Play 결제 화면에서 남은 이용 기간 반영과 금액을 확인할 수 있어요.',
+                                    Text(
+                                      tr(
+                                        "Play 결제 화면에서 남은 이용 기간 반영과 금액을 확인할 수 있어요.",
+                                      ),
                                     ),
                                   ],
                                   TextButton(
@@ -563,8 +578,8 @@ class _PremiumScreenState extends State<PremiumScreen>
                                         : _refreshSubscriptionStatus,
                                     child: Text(
                                       _refreshingStatus
-                                          ? '구독 상태 확인 중…'
-                                          : '구독 상태 다시 확인',
+                                          ? tr("구독 상태 확인 중…")
+                                          : tr("구독 상태 다시 확인"),
                                     ),
                                   ),
                                 ] else ...[
@@ -572,10 +587,10 @@ class _PremiumScreenState extends State<PremiumScreen>
                                     loading: _purchasing,
                                     enabled: _billingReady,
                                     disabledLabel: !_supportedStore
-                                        ? 'Android 앱에서 이용'
+                                        ? tr("Android 앱에서 이용")
                                         : _billing.hasProduct(_selectedPlan)
-                                        ? '결제 연결 준비 중'
-                                        : '구독 상품 확인 필요',
+                                        ? tr("결제 연결 준비 중")
+                                        : tr("구독 상품 확인 필요"),
                                     onTap: _purchase,
                                   ),
                                   if (_supportedStore &&
@@ -583,7 +598,7 @@ class _PremiumScreenState extends State<PremiumScreen>
                                           .storeBillingEnabled) ...[
                                     const SizedBox(height: 10),
                                     _SecondaryButton(
-                                      label: '구매 복원',
+                                      label: tr("구매 복원"),
                                       onTap: _purchasing ? null : _restore,
                                     ),
                                   ],
@@ -601,7 +616,7 @@ class _PremiumScreenState extends State<PremiumScreen>
                                   if (_supportedStore && !_billingReady)
                                     TextButton(
                                       onPressed: _purchasing ? null : _load,
-                                      child: const Text('구독 상품 다시 확인'),
+                                      child: Text(tr("구독 상품 다시 확인")),
                                     ),
                                 ],
                               ],
@@ -630,10 +645,11 @@ class _HeroCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     final activeLabel = switch (activePlan) {
-      SubscriptionPlan.yearly => '현재 이용 중 ✓ (연간)',
-      SubscriptionPlan.monthly => '현재 이용 중 ✓ (월간)',
-      null => '현재 이용 중 ✓',
+      SubscriptionPlan.yearly => tr("현재 이용 중 ✓ (연간)"),
+      SubscriptionPlan.monthly => tr("현재 이용 중 ✓ (월간)"),
+      null => tr("현재 이용 중 ✓"),
     };
     return GlassBlob(
       accent: AppColors.blobButterAccent,
@@ -644,13 +660,15 @@ class _HeroCard extends StatelessWidget {
           const Text('🌷', style: TextStyle(fontSize: 34)),
           const SizedBox(height: 14),
           Text(
-            '정원을 더 깊이\n돌아볼 수 있어요',
+            tr("정원을 더 깊이\n돌아볼 수 있어요"),
             textAlign: TextAlign.center,
             style: titleFont(fontSize: 21, color: AppColors.ink, height: 1.4),
           ),
           const SizedBox(height: 10),
           Text(
-            '기록과 기본 정원은 무료로 시작해요.\n구독으로 장식과 이야기, 돌아보는 경험을 넓혀보세요.\n오프라인 클래스는 현재 구독 혜택에 포함되지 않아요.',
+            tr(
+              "기록과 기본 정원은 무료로 시작해요.\n구독으로 장식과 이야기, 돌아보는 경험을 넓혀보세요.\n오프라인 클래스는 현재 구독 혜택에 포함되지 않아요.",
+            ),
             textAlign: TextAlign.center,
             style: bodyFont(
               fontSize: 12.5,
@@ -721,14 +739,15 @@ class _PlanSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     return Row(
       children: [
         Expanded(
           child: _PlanCard(
             plan: SubscriptionPlan.monthly,
-            title: '월간',
+            title: tr("월간"),
             price: billing.priceLabelFor(SubscriptionPlan.monthly),
-            caption: '언제든 부담 없이',
+            caption: tr("언제든 부담 없이"),
             selected: selected == SubscriptionPlan.monthly,
             onTap: onChanged == null
                 ? null
@@ -739,9 +758,9 @@ class _PlanSelector extends StatelessWidget {
         Expanded(
           child: _PlanCard(
             plan: SubscriptionPlan.yearly,
-            title: '연간',
+            title: tr("연간"),
             price: billing.priceLabelFor(SubscriptionPlan.yearly),
-            caption: '매년 결제',
+            caption: tr("매년 결제"),
             selected: selected == SubscriptionPlan.yearly,
             onTap: onChanged == null
                 ? null
@@ -771,6 +790,7 @@ class _PlanCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
@@ -826,18 +846,29 @@ class _PlanCard extends StatelessWidget {
 class _FeatureList extends StatelessWidget {
   const _FeatureList();
 
-  static const _features = [
-    ('🌳', '내 시간이 쌓이는 정원', '구독 장식과 공개된 정원 이야기를 이어가요. 이미 받은 장식은 구독이 끝나도 남아요.'),
+  static List<(String, String, String)> get _features => [
+    (
+      '🌳',
+      tr("내 시간이 쌓이는 정원"),
+      tr("구독 장식과 공개된 정원 이야기를 이어가요. 이미 받은 장식은 구독이 끝나도 남아요."),
+    ),
     (
       '📚',
-      '나를 돌아보는 월간 기록집',
-      '내가 고른 문장·나무의 기억·돌봄 경험을 한 달씩 모아요. 첫 기본 기록집은 무료이고, 기존 기록집은 계속 볼 수 있어요.',
+      tr("나를 돌아보는 월간 기록집"),
+      tr(
+        "내가 고른 문장·나무의 기억·돌봄 경험을 한 달씩 모아요. 첫 기본 기록집은 무료이고, 기존 기록집은 계속 볼 수 있어요.",
+      ),
     ),
-    ('🌷', '함께 만드는 기억', '이웃을 초대해 기념 나무를 함께 가꿔요. 초대받은 친구는 무료로 참여할 수 있어요.'),
+    (
+      '🌷',
+      tr("함께 만드는 기억"),
+      tr("이웃을 초대해 기념 나무를 함께 가꿔요. 초대받은 친구는 무료로 참여할 수 있어요."),
+    ),
   ];
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     return GlassBlob(
       accent: AppColors.blobLavenderAccent,
       background: AppColors.blobLavender,
@@ -846,7 +877,11 @@ class _FeatureList extends StatelessWidget {
         children: [
           for (final f in [
             if (AdService.instance.configured)
-              ('🌿', '광고 없이 이용', '구독 기간과 구독 무료체험 기간에는 홈 배너 광고가 표시되지 않아요'),
+              (
+                '🌿',
+                tr("광고 없이 이용"),
+                tr("구독 기간과 구독 무료체험 기간에는 홈 배너 광고가 표시되지 않아요"),
+              ),
             ..._features,
           ])
             Padding(
@@ -883,18 +918,18 @@ class _FeatureList extends StatelessWidget {
                 ],
               ),
             ),
-          const ExpansionTile(
+          ExpansionTile(
             tilePadding: EdgeInsets.zero,
-            title: Text('그 밖의 구독 혜택'),
+            title: Text(tr("그 밖의 구독 혜택")),
             children: [
               Padding(
                 padding: EdgeInsets.only(bottom: 16),
                 child: Text(
-                  '상세 주간·월간 통계와 지난달·분기 비교, 요일·시간대 기록 패턴, '
-                  '나에게 도움이 됐던 돌봄의 긴 기간 비교, 감정을 돌아보는 질문, '
-                  '오늘의 카드와 내 마음, 돌봄 온기 포인트, 주제별 실천 여정을 이용할 수 있어요. '
-                  '정원의 다음 이야기는 구독과 기록 3일·5일 조건으로 열려요. '
-                  '오프라인 클래스 참가비는 구독에 포함되지 않아요.',
+                  tr("상세 주간·월간 통계와 지난달·분기 비교, 요일·시간대 기록 패턴, ") +
+                      tr("나에게 도움이 됐던 돌봄의 긴 기간 비교, 감정을 돌아보는 질문, ") +
+                      tr("오늘의 카드와 내 마음, 돌봄 온기 포인트, 주제별 실천 여정을 이용할 수 있어요. ") +
+                      tr("정원의 다음 이야기는 구독과 기록 3일·5일 조건으로 열려요. ") +
+                      tr("오프라인 클래스 참가비는 구독에 포함되지 않아요."),
                 ),
               ),
             ],
@@ -919,6 +954,7 @@ class _PrimaryPurchaseButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     final canTap = enabled && !loading;
     return SizedBox(
       width: double.infinity,
@@ -946,7 +982,7 @@ class _PrimaryPurchaseButton extends StatelessWidget {
                 ),
               )
             : Text(
-                enabled ? '마음냥 구독 시작하기' : disabledLabel,
+                enabled ? tr("마음냥 구독 시작하기") : tr(disabledLabel),
                 style: serifFont(
                   fontSize: 15.5,
                   color: enabled ? Colors.white : AppColors.inkSoft,
@@ -964,6 +1000,7 @@ class _SecondaryButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     return SizedBox(
       width: double.infinity,
       height: 48,

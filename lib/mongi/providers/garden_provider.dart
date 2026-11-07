@@ -1,3 +1,4 @@
+import '../../l10n/app_language.dart';
 import 'dart:async';
 import '../integration/session_transaction.dart';
 import '../integration/cheer_flower_store.dart';
@@ -82,6 +83,7 @@ class GardenProvider extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    AppLanguage.instance.removeListener(_notificationLanguageChanged);
     unawaited(_publicAccountChanges?.cancel());
     MongiGardenStore.instance.removeListener(_sharedChanged);
     super.dispose();
@@ -1120,13 +1122,31 @@ class GardenProvider extends ChangeNotifier {
   /// 에서 `notificationContent(AppLocalizations.of(context))`로 만들어
   /// 넘겨주는 지역화된 알림 콘텐츠. 이 Provider 자체는 [BuildContext]가 없는
   /// [ChangeNotifier]이므로 직접 만들 수 없어 호출부에서 주입받는다. 넘기지
-  /// 않으면 [NotificationService]의 한국어 기본값이 그대로 쓰인다(하위 호환).
+  /// 않으면 [NotificationService]가 현재 앱 언어의 기본값을 사용한다.
+  void _notificationLanguageChanged() {
+    if (!_initialized || _disposed || !notificationsEnabled) return;
+    unawaited(
+      NotificationService.instance
+          .scheduleDaily(
+            notificationHour,
+            notificationMinute,
+            personalizedMessage: AppLanguage.instance.isEnglish
+                ? null
+                : _personalizedReminderMessage,
+            requestPermissions: false,
+          )
+          .catchError((Object _) => false),
+    );
+  }
+
   Future<void> init({NotificationContent? notificationContent}) async {
     await _storage.init();
     await refreshSubscription();
     await _storage.refreshDailyMissionsIfNeeded();
     _loadFromStorage();
     _initialized = true;
+    AppLanguage.instance.removeListener(_notificationLanguageChanged);
+    AppLanguage.instance.addListener(_notificationLanguageChanged);
     _selectPublicAccount(_publicOwner);
     _watchPublicAccount();
     MongiGardenStore.instance.removeListener(_sharedChanged);
@@ -1139,7 +1159,9 @@ class GardenProvider extends ChangeNotifier {
       await NotificationService.instance.scheduleDaily(
         notificationHour,
         notificationMinute,
-        personalizedMessage: _personalizedReminderMessage,
+        personalizedMessage: AppLanguage.instance.isEnglish
+            ? null
+            : _personalizedReminderMessage,
         content: notificationContent,
       );
     }
@@ -1729,7 +1751,9 @@ class GardenProvider extends ChangeNotifier {
       final scheduled = await NotificationService.instance.scheduleDaily(
         notificationHour,
         notificationMinute,
-        personalizedMessage: _personalizedReminderMessage,
+        personalizedMessage: AppLanguage.instance.isEnglish
+            ? null
+            : _personalizedReminderMessage,
         content: notificationContent,
       );
       if (!scheduled) return false;
@@ -1776,7 +1800,9 @@ class GardenProvider extends ChangeNotifier {
       await NotificationService.instance.scheduleDaily(
         hour,
         minute,
-        personalizedMessage: _personalizedReminderMessage,
+        personalizedMessage: AppLanguage.instance.isEnglish
+            ? null
+            : _personalizedReminderMessage,
         content: notificationContent,
       );
     }

@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import 'package:flutter/material.dart';
 import '../screens/cat_walk_screen.dart';
 import 'package:provider/provider.dart';
@@ -22,12 +23,12 @@ enum HealingActivity {
 
 extension HealingActivityInfo on HealingActivity {
   String get title => switch (this) {
-    HealingActivity.walk => '마음냥 산책',
-    HealingActivity.bubbles => '마음 버블 정원',
-    HealingActivity.quiet => '고요하게 마음 마주하기',
-    HealingActivity.encouragement => '혼자 읽는 응원 모음',
-    HealingActivity.gratitude => '감사 한 줄 · 작은 성취',
-    HealingActivity.dayClose => '하루 닫기',
+    HealingActivity.walk => tr("마음냥 산책"),
+    HealingActivity.bubbles => tr("마음 버블 정원"),
+    HealingActivity.quiet => tr("고요하게 마음 마주하기"),
+    HealingActivity.encouragement => tr("혼자 읽는 응원 모음"),
+    HealingActivity.gratitude => tr("감사 한 줄 · 작은 성취"),
+    HealingActivity.dayClose => tr("하루 닫기"),
   };
   IconData get icon => switch (this) {
     HealingActivity.walk => Icons.pets_outlined,
@@ -39,12 +40,12 @@ extension HealingActivityInfo on HealingActivity {
   };
   Widget screen() => switch (this) {
     HealingActivity.walk => const CatWalkScreen(),
-    HealingActivity.bubbles => const FeatureScaffold(
-      title: '마음 버블 정원',
+    HealingActivity.bubbles => FeatureScaffold(
+      title: tr("마음 버블 정원"),
       child: BubbleGardenScreen(),
     ),
-    HealingActivity.dayClose => const FeatureScaffold(
-      title: '하루 닫기',
+    HealingActivity.dayClose => FeatureScaffold(
+      title: tr("하루 닫기"),
       child: DayCloseScreen(),
     ),
     _ => HealingGardenEntry(activity: this),
@@ -54,36 +55,39 @@ extension HealingActivityInfo on HealingActivity {
 class HealingActivities extends StatelessWidget {
   const HealingActivities({super.key});
   @override
-  Widget build(BuildContext context) => Column(
-    children: [
-      for (final activity in HealingActivity.values)
-        Card(
-          color: [
-            AppColors.blobButter,
-            AppColors.blobMint,
-            AppColors.blobLavender,
-            AppColors.blobRose,
-            AppColors.blobButter,
-            AppColors.blobPeach,
-          ][activity.index],
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(25),
-          ),
-          child: ListTile(
-            key: ValueKey('healing-${activity.name}'),
-            leading: Icon(activity.icon, color: AppColors.titlePastelGreen),
-            title: Text(
-              activity.title,
-              style: titleFont(fontSize: 19, color: AppColors.ink),
+  Widget build(BuildContext context) {
+    Localizations.localeOf(context);
+    return Column(
+      children: [
+        for (final activity in HealingActivity.values)
+          Card(
+            color: [
+              AppColors.blobButter,
+              AppColors.blobMint,
+              AppColors.blobLavender,
+              AppColors.blobRose,
+              AppColors.blobButter,
+              AppColors.blobPeach,
+            ][activity.index],
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(25),
             ),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => Navigator.of(
-              context,
-            ).push(MaterialPageRoute(builder: (_) => activity.screen())),
+            child: ListTile(
+              key: ValueKey('healing-${activity.name}'),
+              leading: Icon(activity.icon, color: AppColors.titlePastelGreen),
+              title: Text(
+                activity.title,
+                style: titleFont(fontSize: 19, color: AppColors.ink),
+              ),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => Navigator.of(
+                context,
+              ).push(MaterialPageRoute(builder: (_) => activity.screen())),
+            ),
           ),
-        ),
-    ],
-  );
+      ],
+    );
+  }
 }
 
 /// Initialize existing garden records before opening standalone healing routes.
@@ -118,6 +122,7 @@ class _HealingGardenEntryState extends State<HealingGardenEntry> {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     if (!ready)
       return Scaffold(
         appBar: AppBar(title: Text(widget.activity.title)),
@@ -125,7 +130,7 @@ class _HealingGardenEntryState extends State<HealingGardenEntry> {
           child: failed
               ? TextButton(
                   onPressed: _load,
-                  child: const Text('불러오지 못했어요 · 다시 시도'),
+                  child: Text(tr("불러오지 못했어요 · 다시 시도")),
                 )
               : const CircularProgressIndicator(),
         ),

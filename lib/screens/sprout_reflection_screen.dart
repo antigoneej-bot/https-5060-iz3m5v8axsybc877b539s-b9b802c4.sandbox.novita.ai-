@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../data/shadow_cats_data.dart';
@@ -80,13 +81,13 @@ class _SproutReflectionScreenState extends State<SproutReflectionScreen> {
         ),
         const SizedBox(height: 16),
         Text(
-          '그때 그 감정,\n지금은 어때요?',
+          tr("그때 그 감정,\n지금은 어때요?"),
           textAlign: TextAlign.center,
           style: titleFont(fontSize: 22, color: AppColors.ink, height: 1.4),
         ),
         const SizedBox(height: 10),
         Text(
-          '며칠 전 잠시 땅에 묻어두었던 마음이에요.\n지금 다시 들여다봐도 되고, 그냥 흘려보내도 괜찮아요',
+          tr("며칠 전 잠시 땅에 묻어두었던 마음이에요.\n지금 다시 들여다봐도 되고, 그냥 흘려보내도 괜찮아요"),
           textAlign: TextAlign.center,
           style: bodyFont(fontSize: 12, color: AppColors.inkSoft, height: 1.7),
         ),
@@ -99,7 +100,7 @@ class _SproutReflectionScreenState extends State<SproutReflectionScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '그때 남긴 마음',
+                tr("그때 남긴 마음"),
                 style: pathLabelFont(
                   fontSize: 12.5,
                   fontWeight: FontWeight.w700,
@@ -109,7 +110,7 @@ class _SproutReflectionScreenState extends State<SproutReflectionScreen> {
               const SizedBox(height: 8),
               Text(
                 widget.entry.letterSnippet.isEmpty
-                    ? '(그날의 마음을 조용히 묻어두었어요)'
+                    ? tr("(그날의 마음을 조용히 묻어두었어요)")
                     : widget.entry.letterSnippet,
                 style: bodyFont(
                   fontSize: 12,
@@ -135,7 +136,7 @@ class _SproutReflectionScreenState extends State<SproutReflectionScreen> {
             decoration: InputDecoration(
               contentPadding: const EdgeInsets.all(16),
               border: InputBorder.none,
-              hintText: '지금 떠오르는 마음을 편하게 적어보세요 (선택)',
+              hintText: tr("지금 떠오르는 마음을 편하게 적어보세요 (선택)"),
               hintStyle: bodyFont(fontSize: 12.5, color: AppColors.inkSoft),
             ),
           ),
@@ -145,14 +146,14 @@ class _SproutReflectionScreenState extends State<SproutReflectionScreen> {
           children: [
             Expanded(
               child: _GhostButton(
-                label: '조용히 흘려보내기',
+                label: tr("조용히 흘려보내기"),
                 onTap: _saving ? null : _skip,
               ),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: _FilledButton(
-                label: '기록하기',
+                label: tr("기록하기"),
                 accent: accent,
                 onTap: _saving ? null : _save,
               ),
@@ -161,7 +162,7 @@ class _SproutReflectionScreenState extends State<SproutReflectionScreen> {
         ),
         const SizedBox(height: 16),
         Text(
-          '기록하지 않아도 이 새싹은 조용히 사라질 뿐, 아무 문제가 되지 않아요',
+          tr("기록하지 않아도 이 새싹은 조용히 사라질 뿐, 아무 문제가 되지 않아요"),
           textAlign: TextAlign.center,
           style: bodyFont(
             fontSize: 10.5,

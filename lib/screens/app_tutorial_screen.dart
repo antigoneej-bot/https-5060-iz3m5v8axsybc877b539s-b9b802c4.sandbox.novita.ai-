@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import 'package:flutter/material.dart';
 import '../theme.dart';
 import '../widgets/garden_path_card.dart';
@@ -20,6 +21,8 @@ class AppTutorialScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
+    if (AppLanguage.instance.isEnglish) return _englishTutorial(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -30,7 +33,7 @@ class AppTutorialScreen extends StatelessWidget {
         _TutorialSection(
           emoji: '🐾',
           title: '새 화면 빠르게 익히기',
-          subtitle: '홈 · 정원 · 마음돌보기 · 모든 기능을 좌우로 넘겨요',
+          subtitle: '홈 · 내 정원 · 이웃 · 힐링 · 기록을 좌우로 넘겨요',
           accent: AppColors.blobMintAccent,
           background: AppColors.blobMint,
           startExpanded: true,
@@ -67,7 +70,7 @@ class AppTutorialScreen extends StatelessWidget {
               emoji: '💌',
               title: '기록과 다른 기능 찾기',
               desc:
-                  '마음 기록하기로 오늘의 감정 고양이를 만나요. 지난 편지·감정 통계·수집·설정은 네 번째 모든 기능 화면에서 찾아요.',
+                  '마음 기록하기로 오늘의 감정 고양이를 만나요. 지난 편지와 통계는 기록 화면에서, 수집·설정은 전체 기능에서 찾아요.',
             ),
           ],
         ),
@@ -146,7 +149,7 @@ class AppTutorialScreen extends StatelessWidget {
         ),
         _TutorialSection(
           emoji: '🌡️',
-          title: '기록',
+          title: tr("기록"),
           subtitle: '지나온 마음을 다시 꺼내보는 곳',
           accent: AppColors.blobRoseAccent,
           background: AppColors.blobRose,
@@ -184,11 +187,11 @@ class AppTutorialScreen extends StatelessWidget {
         ),
         _TutorialSection(
           emoji: '🙋',
-          title: '마이',
+          title: tr("마이"),
           subtitle: '나의 여정과 앱 설정을 관리하는 곳',
           accent: AppColors.blobButterAccent,
           background: AppColors.blobButter,
-          items: const [
+          items: [
             _FeatureBullet(
               emoji: '👤',
               title: '프로필 카드',
@@ -201,7 +204,7 @@ class AppTutorialScreen extends StatelessWidget {
             ),
             _FeatureBullet(
               emoji: '🌷',
-              title: '냥이 마을 · 내 이웃',
+              title: tr("냥이 마을 · 내 이웃"),
               desc:
                   '로그인 후 친구 코드로 이웃을 찾거나 공개된 정원을 둘러봐요. '
                   '이웃 신청을 수락하면 서로의 정원을 방문하고 응원과 꽃을 나눌 수 있어요. '
@@ -209,7 +212,7 @@ class AppTutorialScreen extends StatelessWidget {
             ),
             _FeatureBullet(
               emoji: '⚙️',
-              title: '설정',
+              title: tr("설정"),
               desc:
                   '배경음악·효과음 켜고 끄기, 아침/저녁 리마인더 알림을 '
                   '관리해요.',
@@ -280,10 +283,10 @@ class AppTutorialScreen extends StatelessWidget {
         _TutorialSection(
           emoji: '🌱',
           title: '그 외의 작은 의식들',
-          subtitle: '네 번째 모든 기능 화면에서 찾아보세요',
+          subtitle: '전체 기능에서 찾아보세요',
           accent: AppColors.blobPeachAccent,
           background: AppColors.blobPeach,
-          items: const [
+          items: [
             _FeatureBullet(
               emoji: '🔮',
               title: '오늘의 고양이 카드 (카드뽑기)',
@@ -308,7 +311,7 @@ class AppTutorialScreen extends StatelessWidget {
             ),
             _FeatureBullet(
               emoji: '🌙',
-              title: '하루 닫기',
+              title: tr("하루 닫기"),
               desc: '오늘 남긴 약속들을 조용히 돌아보며 하루를 마무리해요.',
               badge: _Badge.free,
             ),
@@ -354,6 +357,7 @@ class _TutorialIntroCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     return GlassBlob(
       accent: AppColors.blobMintAccent,
       background: AppColors.blobMint,
@@ -396,6 +400,7 @@ class _SectionLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     return Padding(
       padding: const EdgeInsets.only(left: 4),
       child: Row(
@@ -434,6 +439,7 @@ class _FeatureBullet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
@@ -484,6 +490,7 @@ class _BadgeChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     final isPlus = badge == _Badge.plus;
     final color = isPlus
         ? AppColors.blobLavenderAccent
@@ -536,6 +543,7 @@ class _TutorialSectionState extends State<_TutorialSection> {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: GlassBlob(
@@ -627,6 +635,7 @@ class _PlusComparisonCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     return GlassBlob(
       accent: AppColors.blobRoseAccent,
       background: AppColors.blobRose,
@@ -699,6 +708,7 @@ class _BasisCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     return GlassBlob(
       accent: AppColors.blobLavenderAccent,
       background: AppColors.blobLavender,
@@ -737,4 +747,186 @@ class _BasisCard extends StatelessWidget {
       ),
     );
   }
+}
+
+/// English guidance follows the current five-page layout and content availability.
+Widget _englishTutorial(BuildContext context) {
+  Widget section(
+    String emoji,
+    String title,
+    String subtitle,
+    List<(String, String)> entries, {
+    bool open = false,
+  }) => _TutorialSection(
+    emoji: emoji,
+    title: title,
+    subtitle: subtitle,
+    accent: AppColors.blobMintAccent,
+    background: AppColors.blobMint,
+    startExpanded: open,
+    items: [
+      for (final e in entries)
+        _FeatureBullet(emoji: '•', title: e.$1, desc: e.$2),
+    ],
+  );
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      Text('Make yourself at home', style: titleFont(fontSize: 26)),
+      const SizedBox(height: 12),
+      const Text(
+        'There is no perfect routine to keep. Start with a cat, a few words, or a quiet moment in your garden.',
+      ),
+      const SizedBox(height: 18),
+      section('🐾', 'Find your way around', 'Five spaces, all at your own pace', [
+        (
+          'Home · My garden · Neighbors · Unwind · Journal',
+          'Swipe left or right, or use the bottom menu to move between all five pages. Scroll up and down within each page.',
+        ),
+        (
+          'Find a feature',
+          'Open All features to browse categories or search for a name, such as backup, breathing, or cards.',
+        ),
+        (
+          'Your account',
+          'Open the account button at the top of Home to sign in and manage your account.',
+        ),
+        (
+          'Your companion and your mood cats',
+          'Choose from six cat coats for your garden companion. The 37 mood cats are a separate collection that helps you put your feelings into words.',
+        ),
+      ], open: true),
+      section('💌', 'Feelings & letters', 'A little space for whatever you feel', [
+        (
+          'Choose a mood cat',
+          'Choose a cat that feels familiar today and read its story. You decide which feeling fits.',
+        ),
+        (
+          'Write a letter',
+          'Write as much or as little as you like. You can also choose a feeling without writing. These are private journal entries, not messages sent to another person.',
+        ),
+        (
+          'Care warmth',
+          'Writing and other activities can add care warmth. It marks participation, not your mental health or how well you are doing.',
+        ),
+        (
+          'Look back',
+          'Find past letters, your mood calendar, and weekly or monthly reflections in Journal. Your comic book gathers entries into pages, with a summary at the end.',
+        ),
+        (
+          'Delete with care',
+          'Read the confirmation before deleting an entry. Check Storage & backup for ways to keep a copy.',
+        ),
+      ]),
+      section('🌱', 'Make your garden your own', 'Plant, care, and remember', [
+        (
+          'Planting and finding plants',
+          'Use your garden tools to plant and care for flowers and trees. Use the plant list to find something you planted.',
+        ),
+        (
+          'A wider view',
+          'Open landscape full screen and turn your phone sideways. Pan or zoom to explore. Use the controls to return or leave the garden.',
+        ),
+        (
+          'Memory seeds',
+          'Plant a seed of love, forgiveness, or peace. Add a date and a few words to keep with it as it grows.',
+        ),
+        (
+          'Photos and artwork',
+          'Use the garden camera to save a moment. Previously displayed artwork stays in your garden. Photos stay private unless you export them.',
+        ),
+        (
+          'Fruit and storage',
+          'Harvest fruit, manage your storage, and use the available sell or gift actions. Check quantities before confirming.',
+        ),
+      ]),
+      section('🤝', 'Meet your neighbors', 'Requests, kind words, and gifts', [
+        (
+          'Connect',
+          'Sign in, share your friend code, or enter a friend’s code. Accept a request to connect. Set your garden visibility if you want neighbors to visit.',
+        ),
+        (
+          'Requests',
+          'Open Neighbors → Requests to see incoming and outgoing requests. Accept, decline, or cancel from there.',
+        ),
+        (
+          'Gifts',
+          'Open Gifts for received and sent gifts. Tap an item to read its details. Collect flower gifts, then plant them when you like. Fruit and treats are stored automatically.',
+        ),
+        (
+          'Privacy',
+          'Your private letters and mood entries are not shared with neighbors. You can change visibility, remove a neighbor, or block someone.',
+        ),
+        (
+          'Updates and bookings',
+          'Read team announcements and check booking changes for your signed-in account. Availability depends on the event.',
+        ),
+      ]),
+      section('🫧', 'Rest & recharge', 'Small moments of care', [
+        (
+          'Walk and explore',
+          'Take a walk with your cat, look for treasures, or let a feeling drift away in a bubble. The walk pouch is a preview feature.',
+        ),
+        (
+          'English meditation',
+          'English meditation and breathing content is still being prepared. It is not available to purchase or play yet.',
+        ),
+        (
+          'Your self-care toolkit',
+          'Save words that helped, activities you want to try, and how you felt afterward. A small promise or a moment of gratitude is enough.',
+        ),
+        (
+          'A card for today',
+          'Cat cards are playful prompts for reflection. They are not psychological tests, diagnoses, or predictions.',
+        ),
+      ]),
+      section('🐈', 'Care & collections', 'Enjoy being together', [
+        (
+          'Everyday care',
+          'Feed your cat, offer water, bathe, or clean using the available care buttons. Taking a break is okay.',
+        ),
+        (
+          'Growth and memories',
+          'Look back at growth stages, cats you have met, badges, and memory cards. Cards can be displayed or traded when eligible.',
+        ),
+        (
+          'Care points',
+          'Care points and Light Essence are separate. Check the shop’s cost and requirements before spending either.',
+        ),
+      ]),
+      section('🔐', 'Keep your entries safe', 'Accounts, backups, and settings', [
+        (
+          'Local storage',
+          'Your entries are saved on this device. You could lose them if you uninstall the app or lose your device, so keep a separate backup.',
+        ),
+        (
+          'Encrypted backups',
+          'Keep both the backup file and its password. The backup password is separate from your sign-in password and is needed to restore on a new device.',
+        ),
+        (
+          'Cloud backup',
+          'Your garden is linked to its backup account. Auto-backup requires an active subscription. Existing backups can still be restored after the subscription ends.',
+        ),
+        (
+          'Sound and reminders',
+          'Manage music, effects, volume, and care reminders in account settings. You can turn reminders off.',
+        ),
+        (
+          'Subscriptions',
+          'Check the subscription screen for current features and prices, and to restore purchases. Deleting the app or your account does not cancel a store subscription.',
+        ),
+      ]),
+      const SizedBox(height: 12),
+      TextButton(
+        onPressed: () => Navigator.of(
+          context,
+        ).push(MaterialPageRoute(builder: (_) => const PremiumScreen())),
+        child: const Text('View subscription details'),
+      ),
+      const SizedBox(height: 12),
+      const Text(
+        'A note about the idea behind the garden: Mindnyang draws on Carl Jung’s concept of the shadow—making room for feelings we might otherwise push away. Choosing a cat is a way to express yourself. Neither the cats nor the cards reveal hidden feelings or diagnose you.',
+      ),
+    ],
+  );
 }

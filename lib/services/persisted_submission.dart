@@ -9,22 +9,34 @@ class PersistedSubmission<T> {
   final Future<void> Function(T) afterSaved;
   bool _saved = false;
   Future<void>? _flight;
-  PersistedSubmission({required this.payload, required this.persist,
-    required this.onSaved, required this.afterSaved});
+  PersistedSubmission({
+    required this.payload,
+    required this.persist,
+    required this.onSaved,
+    required this.afterSaved,
+  });
   Future<void> submit() {
     if (_saved) return Future.value();
     return _flight ??= _run();
   }
+
   Future<void> _run() async {
     try {
       await persist(payload);
       _saved = true;
       // Post-commit callbacks must not trigger a resend of the same letter.
-      try { onSaved(payload); } catch (_) {}
+      try {
+        onSaved(payload);
+      } catch (_) {}
       unawaited(_finish());
-    } finally { _flight = null; }
+    } finally {
+      _flight = null;
+    }
   }
+
   Future<void> _finish() async {
-    try { await afterSaved(payload); } catch (_) {}
+    try {
+      await afterSaved(payload);
+    } catch (_) {}
   }
 }

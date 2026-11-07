@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import '../widgets/saved_heart_reply.dart';
 import '../widgets/letter_care_closing_card.dart';
 import 'package:flutter/material.dart';
@@ -77,15 +78,15 @@ class _HeartLetterHistoryScreenState extends State<HeartLetterHistoryScreen>
           Center(child: Text(type.emoji, style: const TextStyle(fontSize: 30))),
           const SizedBox(height: 8),
           Text(
-            '${type.label} 모음',
+            tr("{0} 모음", [type.label]),
             textAlign: TextAlign.center,
             style: titleFont(fontSize: 21, color: AppColors.ink),
           ),
           const SizedBox(height: 6),
           Text(
             entries.isEmpty
-                ? '아직 쓴 편지가 없어요'
-                : '지금까지 ${entries.length}통의 편지를 썼어요',
+                ? tr("아직 쓴 편지가 없어요")
+                : tr("지금까지 {0}통의 편지를 썼어요", [entries.length]),
             textAlign: TextAlign.center,
             style: bodyFont(fontSize: 12.5, color: AppColors.inkSoft),
           ),
@@ -128,7 +129,7 @@ class _EmptyHistoryHint extends StatelessWidget {
           Text('🌿', style: const TextStyle(fontSize: 26)),
           const SizedBox(height: 10),
           Text(
-            '언제든 짧게 한 통 적어보세요.\n그대로 남겨두어도 괜찮아요.',
+            tr("언제든 짧게 한 통 적어보세요.\n그대로 남겨두어도 괜찮아요."),
             textAlign: TextAlign.center,
             style: bodyFont(
               fontSize: 12.5,
@@ -174,7 +175,7 @@ class _HistoryLetterCardState extends State<_HistoryLetterCard> {
     final entry = widget.entry;
     final dateLabel = DateFormat(
       'yyyy.MM.dd (E) HH:mm',
-      'ko_KR',
+      AppLanguage.instance.isEnglish ? 'en_US' : 'ko_KR',
     ).format(entry.createdAt);
     return GlassBlob(
       accent: widget.accent,

@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import 'reply_style.dart';
 import '../utils/feature_flags.dart';
 
@@ -12,13 +13,13 @@ extension SpecialLetterTypeX on SpecialLetterType {
   String get label {
     switch (this) {
       case SpecialLetterType.gratitude:
-        return '감사 편지';
+        return tr("감사 편지");
       case SpecialLetterType.forgiveness:
-        return '용서 편지';
+        return tr("용서 편지");
       case SpecialLetterType.apology:
-        return '미안한 편지';
+        return tr("미안한 편지");
       case SpecialLetterType.love:
-        return '사랑 편지';
+        return tr("사랑 편지");
     }
   }
 
@@ -26,13 +27,13 @@ extension SpecialLetterTypeX on SpecialLetterType {
   String get shortPrompt {
     switch (this) {
       case SpecialLetterType.gratitude:
-        return '고마운 마음을 짧게 전해보세요';
+        return tr("고마운 마음을 짧게 전해보세요");
       case SpecialLetterType.forgiveness:
-        return '내려놓고 싶은 마음을 적어보세요';
+        return tr("내려놓고 싶은 마음을 적어보세요");
       case SpecialLetterType.apology:
-        return '미안했던 마음을 살짝 꺼내보세요';
+        return tr("미안했던 마음을 살짝 꺼내보세요");
       case SpecialLetterType.love:
-        return '사랑하는 마음을 담아보세요';
+        return tr("사랑하는 마음을 담아보세요");
     }
   }
 
@@ -40,26 +41,26 @@ extension SpecialLetterTypeX on SpecialLetterType {
   String get question {
     switch (this) {
       case SpecialLetterType.gratitude:
-        return '누구에게, 무엇이 고마웠나요?';
+        return tr("누구에게, 무엇이 고마웠나요?");
       case SpecialLetterType.forgiveness:
-        return '누구를(또는 나 자신을) 용서하고 싶나요?';
+        return tr("누구를(또는 나 자신을) 용서하고 싶나요?");
       case SpecialLetterType.apology:
-        return '누구에게, 어떤 마음이 미안한가요?';
+        return tr("누구에게, 어떤 마음이 미안한가요?");
       case SpecialLetterType.love:
-        return '누구에게, 어떤 사랑을 전하고 싶나요?';
+        return tr("누구에게, 어떤 사랑을 전하고 싶나요?");
     }
   }
 
   String get hint {
     switch (this) {
       case SpecialLetterType.gratitude:
-        return '짧아도 괜찮아요. 떠오르는 그대로 적어보세요';
+        return tr("짧아도 괜찮아요. 떠오르는 그대로 적어보세요");
       case SpecialLetterType.forgiveness:
-        return '용서할 준비가 되지 않았어도 괜찮아요. 지금의 마음을 적어보세요';
+        return tr("용서할 준비가 되지 않았어도 괜찮아요. 지금의 마음을 적어보세요");
       case SpecialLetterType.apology:
-        return '누구에게도 보내지 않아도 돼요. 마음을 위한 기록이에요';
+        return tr("누구에게도 보내지 않아도 돼요. 마음을 위한 기록이에요");
       case SpecialLetterType.love:
-        return '나 자신에게 보내는 사랑도 좋아요';
+        return tr("나 자신에게 보내는 사랑도 좋아요");
     }
   }
 
@@ -152,8 +153,13 @@ class SpecialLetterEntry {
   }
 
   SpecialLetterEntry withReplyText(String reply) => SpecialLetterEntry(
-    id: id, type: type, letterText: letterText, replyText: reply,
-    createdAt: createdAt, replySeen: replySeen, replyStyle: replyStyle,
+    id: id,
+    type: type,
+    letterText: letterText,
+    replyText: reply,
+    createdAt: createdAt,
+    replySeen: replySeen,
+    replyStyle: replyStyle,
   );
 
   Map<String, dynamic> toMap() {
@@ -171,10 +177,13 @@ class SpecialLetterEntry {
   factory SpecialLetterEntry.fromMap(Map<dynamic, dynamic> map) {
     return SpecialLetterEntry(
       id: map['id'] as String,
-      type: SpecialLetterTypeX.fromStorageKey(map['type'] as String? ?? 'gratitude'),
+      type: SpecialLetterTypeX.fromStorageKey(
+        map['type'] as String? ?? 'gratitude',
+      ),
       letterText: map['letterText'] as String? ?? '',
       replyText: map['replyText'] as String? ?? '',
-      createdAt: DateTime.tryParse(map['createdAt'] as String? ?? '') ??
+      createdAt:
+          DateTime.tryParse(map['createdAt'] as String? ?? '') ??
           DateTime.now(),
       replySeen: map['replySeen'] as bool? ?? false,
       replyStyle: parseReplyStyle(map['replyStyle']),

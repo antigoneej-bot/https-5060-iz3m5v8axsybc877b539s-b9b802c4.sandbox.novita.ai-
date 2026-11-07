@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import 'package:provider/provider.dart';
 import '../providers/cat_care_provider.dart';
 import 'dart:math';
@@ -8,25 +9,25 @@ import '../theme.dart';
 import 'privacy_policy_screen.dart';
 
 /// 랜덤 이름 추천 후보 목록
-const List<String> kRandomCatNames = [
-  '구름',
-  '별이',
-  '모모',
-  '나비',
-  '콩이',
-  '두부',
-  '보리',
-  '자몽',
-  '몽이',
-  '설이',
-  '루비',
-  '토리',
-  '삐약',
-  '깜지',
-  '솜이',
-  '연두',
-  '초코',
-  '망고',
+List<String> get kRandomCatNames => [
+  tr("구름"),
+  tr("별이"),
+  tr("모모"),
+  tr("나비"),
+  tr("콩이"),
+  tr("두부"),
+  tr("보리"),
+  tr("자몽"),
+  tr("몽이"),
+  tr("설이"),
+  tr("루비"),
+  tr("토리"),
+  tr("삐약"),
+  tr("깜지"),
+  tr("솜이"),
+  tr("연두"),
+  tr("초코"),
+  tr("망고"),
 ];
 
 /// 앱을 처음 설치하고 실행했을 때 딱 한 번 보여주는 프리미엄 웰컴 투어.
@@ -66,21 +67,21 @@ class _WelcomeIntroScreenState extends State<WelcomeIntroScreen> {
   // 온보딩은 딱 3단계로만 구성합니다: ①이름짓기 → ②컨셉 소개(통합) → ③여정
   // 시작. 예전에는 필러성 인사말/프리뷰 페이지가 더 있었지만, 사용자가
   // 앱에 들어오기까지 너무 많은 화면을 거치지 않도록 최소한으로 줄였습니다.
-  static const List<_IntroPageData> _pages = [
+  static List<_IntroPageData> get _pages => [
     _IntroPageData(
       imageAsset: 'assets/onboarding_intro/intro_naming_kitten.png',
-      title: '당신과 함께 성장할 아기고양이에게\n이름을 지어주세요.',
-      subtitle: '이 아이는 당신의 마음을 함께 돌보고,\n명상과 기록을 통해 조금씩 성장합니다.',
+      title: tr("당신과 함께 성장할 아기고양이에게\n이름을 지어주세요."),
+      subtitle: tr("이 아이는 당신의 마음을 함께 돌보고,\n명상과 기록을 통해 조금씩 성장합니다."),
       isNamingPage: true,
     ),
     _IntroPageData(
       imageAsset: 'assets/onboarding_intro/intro_3_growth.png',
-      title: '고양이에게 남긴 한 줄이\n정원의 기억이 됩니다.',
-      subtitle: '기쁜 마음도 힘든 마음도 괜찮아요.\n소중한 기억은 씨앗에 담아 키울 수 있어요.',
+      title: tr("고양이에게 남긴 한 줄이\n정원의 기억이 됩니다."),
+      subtitle: tr("기쁜 마음도 힘든 마음도 괜찮아요.\n소중한 기억은 씨앗에 담아 키울 수 있어요."),
     ),
     _IntroPageData(
       imageAsset: 'assets/onboarding_intro/intro_5_garden_grown.png',
-      title: '이제 당신만의\n마음 정원을 만들어 보세요.',
+      title: tr("이제 당신만의\n마음 정원을 만들어 보세요."),
       isJourneyStartPage: true,
     ),
   ];
@@ -129,7 +130,7 @@ class _WelcomeIntroScreenState extends State<WelcomeIntroScreen> {
     }
     if (!mounted) return;
     setState(() {
-      _greetingName = name.isNotEmpty ? name : '고양이';
+      _greetingName = name.isNotEmpty ? name : tr("고양이");
       _showGreeting = true;
       _saving = false;
     });
@@ -162,6 +163,7 @@ class _WelcomeIntroScreenState extends State<WelcomeIntroScreen> {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     return Scaffold(
       backgroundColor: AppColors.bg0,
       body: Stack(
@@ -193,6 +195,22 @@ class _WelcomeIntroScreenState extends State<WelcomeIntroScreen> {
                     },
                   ),
                 ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: TextButton(
+                    onPressed: () => showModalBottomSheet<void>(
+                      context: context,
+                      isScrollControlled: true,
+                      builder: (_) => const SafeArea(
+                        child: Padding(
+                          padding: EdgeInsets.all(16),
+                          child: LanguageSetting(),
+                        ),
+                      ),
+                    ),
+                    child: Text(tr("한국어 / English")),
+                  ),
+                ),
                 _buildBottomArea(),
                 const SizedBox(height: 8),
                 _DotsIndicator(count: _pages.length, page: _page),
@@ -214,7 +232,7 @@ class _WelcomeIntroScreenState extends State<WelcomeIntroScreen> {
           Expanded(child: _ImageArt(imageAsset: data.imageAsset!)),
           const SizedBox(height: 22),
           Text(
-            data.title,
+            tr(data.title),
             textAlign: TextAlign.center,
             style: titleFont(
               fontSize: 21,
@@ -226,7 +244,7 @@ class _WelcomeIntroScreenState extends State<WelcomeIntroScreen> {
           if (data.subtitle != null) ...[
             const SizedBox(height: 10),
             Text(
-              data.subtitle!,
+              tr(data.subtitle!),
               textAlign: TextAlign.center,
               style: bodyFont(
                 fontSize: 12.5,
@@ -255,7 +273,7 @@ class _WelcomeIntroScreenState extends State<WelcomeIntroScreen> {
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 28),
         child: _PrimaryButton(
-          label: '이름 정해주기',
+          label: tr("이름 정해주기"),
           onTap: _saving ? null : _confirmName,
           loading: _saving,
         ),
@@ -266,7 +284,7 @@ class _WelcomeIntroScreenState extends State<WelcomeIntroScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 28),
         child: Column(
           children: [
-            _PrimaryButton(label: '시작하기', onTap: _finish),
+            _PrimaryButton(label: tr("시작하기"), onTap: _finish),
             const SizedBox(height: 10),
             GestureDetector(
               onTap: () {
@@ -277,7 +295,7 @@ class _WelcomeIntroScreenState extends State<WelcomeIntroScreen> {
                 );
               },
               child: Text(
-                '개인정보처리방침 · 정신건강 안내 보기',
+                tr("개인정보처리방침 · 정신건강 안내 보기"),
                 style: bodyFont(
                   fontSize: 11.5,
                   color: AppColors.inkSoft,
@@ -333,6 +351,7 @@ class _ImageArtState extends State<_ImageArt>
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     return AnimatedBuilder(
       animation: _floatController,
       builder: (context, child) {
@@ -374,6 +393,7 @@ class _NameField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     return Column(
       children: [
         Container(
@@ -393,7 +413,7 @@ class _NameField extends StatelessWidget {
             decoration: InputDecoration(
               border: InputBorder.none,
               contentPadding: const EdgeInsets.symmetric(vertical: 14),
-              hintText: '예) 구름, 별이, 모모, 나비',
+              hintText: tr("예) 구름, 별이, 모모, 나비"),
               hintStyle: bodyFont(fontSize: 13.5, color: AppColors.inkSoft),
             ),
           ),
@@ -418,7 +438,7 @@ class _NameField extends StatelessWidget {
                   const Text('🎲', style: TextStyle(fontSize: 13)),
                   const SizedBox(width: 6),
                   Text(
-                    '랜덤 이름 추천',
+                    tr("랜덤 이름 추천"),
                     style: bodyFont(
                       fontSize: 12.5,
                       fontWeight: FontWeight.w700,
@@ -447,6 +467,7 @@ class _PrimaryButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     return SizedBox(
       width: double.infinity,
       height: 54,
@@ -485,6 +506,7 @@ class _NextArrowButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     return Material(
       color: AppColors.bg2,
       shape: const CircleBorder(),
@@ -523,6 +545,7 @@ class _DotsIndicator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: List.generate(count, (i) {
@@ -583,6 +606,7 @@ class _GreetingOverlayState extends State<_GreetingOverlay>
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     return Positioned.fill(
       child: FadeTransition(
         opacity: _fade,
@@ -626,7 +650,7 @@ class _GreetingOverlayState extends State<_GreetingOverlay>
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        '기다리고 있었어요. 야옹',
+                        tr("기다리고 있었어요. 야옹"),
                         textAlign: TextAlign.center,
                         style: serifFont(
                           fontSize: 20,

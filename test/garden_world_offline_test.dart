@@ -1,3 +1,4 @@
+import 'package:flutter_app/l10n/app_language.dart';
 import 'package:flutter_app/widgets/companion_motion_art.dart';
 import 'package:flutter_app/services/sound_service.dart';
 import 'package:flutter_app/services/garden_personal_gallery_store.dart';
@@ -26,6 +27,8 @@ import 'package:flutter_app/mongi/models/public_garden.dart';
 import 'package:flutter_app/mongi/integration/mongi_garden_store.dart';
 import 'package:flutter_app/mongi/integration/garden_layout_store.dart';
 import 'package:flutter_app/mongi/integration/session_transaction.dart';
+import 'package:flutter_app/mongi/integration/plant_memory_store.dart';
+import 'package:flutter_app/mongi/integration/plant_memory_editor.dart';
 import 'package:flutter_app/mongi/models/garden_layout.dart';
 import 'package:flutter_app/mongi/providers/garden_provider.dart';
 import 'package:flutter_app/mongi/screens/garden_world_screen.dart';
@@ -87,6 +90,7 @@ void main() {
           return null;
         });
     SharedPreferences.setMockInitialValues({});
+    await AppLanguage.instance.select('ko');
     directory = await Directory.systemTemp.createTemp('garden-offline-');
     Hive.init(directory.path);
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
@@ -98,6 +102,25 @@ void main() {
         );
     await StorageService.setCurrentUser('local_user');
   });
+  Future<void> chooseMind(WidgetTester t, {bool note = false}) async {
+    expect(find.byKey(const Key('mind-continue')), findsOneWidget);
+    await t.ensureVisible(find.byKey(const Key('mind-emotion-weary')));
+    await t.tap(find.byKey(const Key('mind-emotion-weary')));
+    await t.pump();
+    await t.ensureVisible(find.byKey(const Key('mind-continue')));
+    await t.tap(find.byKey(const Key('mind-continue')));
+    await t.pumpAndSettle();
+    if (note) {
+      await t.ensureVisible(find.byKey(const Key('mind-note')));
+      await t.enterText(
+        find.byKey(const Key('mind-note')),
+        '많이 지쳤지만, 오늘도 하루를 보냈다.',
+      );
+      t.testTextInput.hide();
+      await t.pumpAndSettle();
+    }
+  }
+
   Future<void> closeFixture() async {
     await LocalRecordTransaction.run(() async {});
     // A route transition may have queued an optional gallery read in the
@@ -138,6 +161,7 @@ void main() {
     bool ownerRoute = false,
     bool fullscreen = false,
     bool resting = false,
+    String? focusPlant,
     Size size = const Size(390, 844),
     double textScale = 1,
   }) async {
@@ -169,7 +193,9 @@ void main() {
                 child: child!,
               ),
               theme: appTheme,
-              home: fullscreen
+              home: focusPlant != null
+                  ? GardenWorldScreen.owned(initialFocusPlantId: focusPlant)
+                  : fullscreen
                   ? GardenWorldScreen(
                       cultivation: true,
                       initialLandscape: true,
@@ -203,11 +229,17 @@ void main() {
       }
       // The real encrypted local stores use filesystem I/O, so let them finish
       // outside the widget test's fake clock. The server promise stays pending.
-      for (var i = 0; i < 100; i++) {
+      final deadline = DateTime.now().add(const Duration(seconds: 30));
+      while (garden.requests.isEmpty) {
+        if (DateTime.now().isAfter(deadline)) {
+          fail(
+            'Garden did not finish its local load before starting the optional network request',
+          );
+        }
         await Future<void>.delayed(const Duration(milliseconds: 5));
         await tester.pump();
-        if (garden.requests.isNotEmpty) break;
       }
+      expect(find.byType(CircularProgressIndicator), findsNothing);
     });
     await tester.pump();
   }
@@ -297,6 +329,89 @@ void main() {
     const Size(844, 390),
   ]) {
     for (final scale in [1.0, 2.0]) {
+      testWidgets('English actual garden, seed picker and plants $size $scale', (
+        t,
+      ) async {
+        await t.runAsync(() async {
+          await AppLanguage.instance.select('en');
+          await (await SharedPreferences.getInstance()).setString(
+            MongiGardenStore.storageKey,
+            jsonEncode(
+              MongiGardenData(seedTokens: 3, seeds: {'pine': 7}).toJson(),
+            ),
+          );
+        });
+        final garden = _Garden();
+        await openGarden(
+          t,
+          garden,
+          cultivation: true,
+          size: size,
+          textScale: scale,
+        );
+        await t.pumpAndSettle();
+        expect(find.text('Plant a feeling'), findsWidgets);
+        expect(find.text('마음 심기'), findsNothing);
+        expect(find.text('My plants'), findsWidgets);
+        await captureSpace(t, 'en-actual-${size.width.toInt()}-$scale');
+        await t.tap(find.byKey(const ValueKey('cultivation-tool-2')));
+        await t.pumpAndSettle();
+        expect(find.text('Pine'), findsWidgets);
+        expect(find.text('소나무'), findsNothing);
+        await captureSpace(t, 'en-plants-${size.width.toInt()}-$scale');
+        final memories = find.text('Memories');
+        await t.ensureVisible(memories);
+        await t.runAsync(() async {
+          await t.tap(memories);
+          final deadline = DateTime.now().add(const Duration(seconds: 30));
+          while (find.text('Pine · Memories').evaluate().isEmpty) {
+            if (DateTime.now().isAfter(deadline)) {
+              fail('Encrypted plant memory did not finish loading');
+            }
+            await Future<void>.delayed(const Duration(milliseconds: 5));
+            await t.pump();
+          }
+        });
+        await t.pumpAndSettle();
+        expect(find.text('Pine · Memories'), findsOneWidget);
+        expect(find.text('나만의 이름'), findsNothing);
+        expect(
+          t
+              .widgetList<Text>(find.byType(Text))
+              .map((w) => w.data ?? w.textSpan?.toPlainText() ?? '')
+              .where((text) => RegExp(r'[가-힣]').hasMatch(text)),
+          isEmpty,
+          reason:
+              'The empty English memory editor must not contain Korean UI copy',
+        );
+        await captureSpace(t, 'en-memory-${size.width.toInt()}-$scale');
+        await t.tap(find.text('Cancel').last);
+        await t.pumpAndSettle();
+        await t.tap(find.byKey(const ValueKey('cultivation-tool-0')));
+        await t.pumpAndSettle();
+        await chooseMind(t);
+        expect(find.text('Fully grown preview'), findsWidgets);
+        await captureSpace(t, 'en-picker-${size.width.toInt()}-$scale');
+        expect(MongiGardenStore.instance.value.seedTokens, 3);
+        expect(MongiGardenStore.instance.value.seeds['pine'], 7);
+        expect(t.takeException(), isNull);
+        await t.pumpWidget(const SizedBox());
+        for (final request in garden.requests) {
+          if (!request.isCompleted) request.complete(<ReceivedCheer>[]);
+        }
+        await flushNetworkFuture(t);
+        await t.runAsync(closeFixture);
+        await AppLanguage.instance.select('ko');
+      });
+    }
+  }
+
+  for (final size in [
+    const Size(320, 640),
+    const Size(390, 844),
+    const Size(844, 390),
+  ]) {
+    for (final scale in [1.0, 2.0]) {
       testWidgets(
         'direct garden tools and planting controls stay usable $size text $scale',
         (t) async {
@@ -328,6 +443,7 @@ void main() {
           );
           await t.tap(find.byKey(const ValueKey('cultivation-tool-0')));
           await t.pumpAndSettle();
+          await chooseMind(t);
           final choose = find.text('소나무 심을 자리 고르기');
           await t.ensureVisible(choose);
           await t.pumpAndSettle();
@@ -704,6 +820,59 @@ void main() {
       }
     }
   }
+  for (final id in ['pine', 'not-a-plant', 'cherry']) {
+    testWidgets('home activity focuses only a saved plant: $id', (t) async {
+      final store = MongiGardenStore.instance;
+      final layouts = GardenLayoutStore.instance;
+      await t.runAsync(() async {
+        await (await SharedPreferences.getInstance()).setString(
+          MongiGardenStore.storageKey,
+          jsonEncode(
+            MongiGardenData(
+              seedTokens: 5,
+              essence: 12,
+              seeds: {'pine': 7},
+              wateredOn: {'pine': MongiGardenData.dayKey(DateTime.now())},
+            ).toJson(),
+          ),
+        );
+        await store.reload();
+        await layouts.update(
+          (_) => GardenLayout(
+            spaces: 3,
+            positions: {'seed:pine': const Offset(.82, .76)},
+          ),
+        );
+      });
+      await openGarden(t, _Garden(), focusPlant: id);
+      await t.pumpAndSettle();
+      final view = t.widget<GardenWorldView>(find.byType(GardenWorldView));
+      expect(view.focusPlantId, id == 'pine' ? 'pine' : null);
+      if (id == 'pine') {
+        expect(find.byKey(const Key('focused-plant-name')), findsOneWidget);
+        final plantRect = t.getRect(
+          find.byKey(const ValueKey('world-item-seed:pine')),
+        );
+        final canvasRect = t.getRect(find.byType(GardenWorldView));
+        expect(canvasRect.overlaps(plantRect), isTrue);
+      } else {
+        expect(find.byKey(const Key('focused-plant-name')), findsNothing);
+      }
+      expect(store.value.seeds, {'pine': 7});
+      expect(store.value.seedTokens, 5);
+      expect(store.value.essence, 12);
+      expect(layouts.value.positions['seed:pine'], const Offset(.82, .76));
+      await t.runAsync(() async {
+        await store.reload();
+        await layouts.reload();
+      });
+      expect(store.value.seeds, {'pine': 7});
+      expect(layouts.value.positions['seed:pine'], const Offset(.82, .76));
+      expect(t.takeException(), isNull);
+      await t.pumpWidget(const SizedBox());
+    });
+  }
+
   for (final fullscreen in [false, true]) {
     testWidgets(
       'moving an existing plant cancels, rejects invalid land and survives reload without charging fullscreen=$fullscreen',
@@ -877,6 +1046,7 @@ void main() {
         expect(find.byKey(ValueKey('cultivation-tool-$i')), findsOneWidget);
       expect(store.value.seeds, initial.seeds);
       Future<void> capture(String name) async {
+        await t.pumpAndSettle();
         final out = Platform.environment['DIRECT_GARDEN_REVIEW_DIR'];
         if (out == null) return;
         await t.runAsync(() async {
@@ -907,6 +1077,8 @@ void main() {
       Future<void> chooseCherry() async {
         await t.tap(find.byKey(const ValueKey('cultivation-tool-0')));
         await t.pumpAndSettle();
+        await chooseMind(t, note: true);
+        await t.ensureVisible(find.text('벚꽃나무 심을 자리 고르기'));
         await t.tap(find.text('벚꽃나무 심을 자리 고르기'));
         await t.pumpAndSettle();
       }
@@ -940,6 +1112,7 @@ void main() {
       await t.pumpAndSettle();
       expect(store.value.seedTokens, 2);
       expect(layouts.value.positions.containsKey('seed:cherry'), isFalse);
+      expect(PlantMemoryStore.instance.value.containsKey('cherry'), isFalse);
       await chooseCherry();
       await chooseGround();
       var injected = false;
@@ -995,6 +1168,7 @@ void main() {
       await confirm();
       expect(store.value.seedTokens, 2);
       expect(find.textContaining('저장하지 못했어요'), findsOneWidget);
+      expect(PlantMemoryStore.instance.value.containsKey('cherry'), isFalse);
       await confirm();
       SessionTransaction.fault = null;
       expect(store.value.seedTokens, 1);
@@ -1013,6 +1187,14 @@ void main() {
       expect(find.byKey(const Key('located-plant-highlight')), findsOneWidget);
       expect(store.value.seedTokens, tokensAfterPlant);
       await capture('03-after-planting');
+      expect(
+        PlantMemoryStore.instance.value['cherry']!.timeline.single.emotionCatId,
+        'weary',
+      );
+      expect(
+        PlantMemoryStore.instance.value['cherry']!.timeline.single.note,
+        '많이 지쳤지만, 오늘도 하루를 보냈다.',
+      );
       await t.runAsync(() async {
         await t.tap(find.byKey(const Key('focused-plant-water')));
         await t.tap(find.byKey(const Key('focused-plant-water')));
@@ -1036,6 +1218,29 @@ void main() {
       );
       expect(find.byKey(const ValueKey('needs-water-cherry')), findsNothing);
       await capture('05-first-watered');
+      final wateringNotice = find.byType(SnackBar);
+      if (wateringNotice.evaluate().isNotEmpty) {
+        await t.pump(t.widget<SnackBar>(wateringNotice).duration);
+        await t.pumpAndSettle();
+      }
+      expect(wateringNotice, findsNothing);
+      await t.ensureVisible(find.byKey(const Key('focused-plant-memory')));
+      await t.runAsync(() async {
+        await t.tap(find.byKey(const Key('focused-plant-memory')));
+        await PlantMemoryStore.instance.reload();
+        await t.pump();
+      });
+      await t.pumpAndSettle();
+      expect(find.byType(PlantMemoryEditor), findsOneWidget);
+      await t.ensureVisible(find.text('많이 지쳤지만, 오늘도 하루를 보냈다.').last);
+      await t.pumpAndSettle();
+      await capture('07-private-mind-readback');
+      await t.runAsync(() async {
+        Navigator.of(t.element(find.byType(PlantMemoryEditor))).pop();
+        await LocalRecordTransaction.run(() async {});
+        await t.pump();
+      });
+      await t.pumpAndSettle();
       await t.tap(find.byKey(const ValueKey('cultivation-tool-2')));
       await t.pumpAndSettle();
       expect(
@@ -1104,7 +1309,7 @@ void main() {
       expect(find.text('정원 전체 지도'), findsOneWidget);
       await t.tap(find.byKey(const Key('fullscreen-exit')));
       await t.pumpAndSettle();
-      expect(find.text('가로 전체화면'), findsOneWidget);
+      expect(find.text('가로 보기'), findsOneWidget);
       expect(rotations.last, ['DeviceOrientation.portraitUp']);
       expect(find.byKey(const Key('focused-plant-name')), findsOneWidget);
       await t.pumpWidget(const SizedBox());
@@ -1259,6 +1464,8 @@ void main() {
       await tester.pump();
       await tester.tap(find.byKey(const Key('open-plant-picker')));
       await tester.pumpAndSettle();
+      await chooseMind(tester);
+      await tester.ensureVisible(find.text('소나무 심을 자리 고르기'));
       await tester.tap(find.text('소나무 심을 자리 고르기'));
       await tester.pumpAndSettle();
       expect(find.byKey(const Key('confirm-plant-location')), findsOneWidget);
@@ -1281,7 +1488,7 @@ void main() {
       final garden = _Garden();
       await openGarden(tester, garden, ownerRoute: true);
       expect(tester.takeException(), isNull);
-      for (final title in ['씨앗 심기', '물주기', '내 식물', '가로 전체화면']) {
+      for (final title in ['마음 심기', '물주기', '내 식물', '가로 보기']) {
         expect(find.text(title), findsWidgets);
       }
       final screen = tester.widget<GardenWorldScreen>(

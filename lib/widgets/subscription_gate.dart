@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import 'package:flutter/material.dart';
 import '../services/subscription_service.dart';
 import '../screens/premium_screen.dart';
@@ -12,16 +13,16 @@ Future<bool> requestSubscription(
     final open = await showDialog<bool>(
       context: context,
       builder: (dialog) => AlertDialog(
-        title: const Text('마음냥 구독'),
+        title: Text(tr("마음냥 구독")),
         content: Text(message),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialog, false),
-            child: const Text('계속 무료로 이용'),
+            child: Text(tr("계속 무료로 이용")),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialog, true),
-            child: const Text('구독 알아보기'),
+            child: Text(tr("구독 알아보기")),
           ),
         ],
       ),
@@ -39,26 +40,29 @@ class SubscriptionNotice extends StatelessWidget {
   final VoidCallback? onReturn;
   const SubscriptionNotice({super.key, required this.message, this.onReturn});
   @override
-  Widget build(BuildContext context) => Card(
-    child: Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.lock_outline),
-          const SizedBox(height: 8),
-          Text(message),
-          TextButton(
-            onPressed: () async {
-              await requestSubscription(context);
-              if (context.mounted) onReturn?.call();
-            },
-            child: const Text('마음냥 구독 알아보기'),
-          ),
-        ],
+  Widget build(BuildContext context) {
+    Localizations.localeOf(context);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.lock_outline),
+            const SizedBox(height: 8),
+            Text(message),
+            TextButton(
+              onPressed: () async {
+                await requestSubscription(context);
+                if (context.mounted) onReturn?.call();
+              },
+              child: Text(tr("마음냥 구독 알아보기")),
+            ),
+          ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 /// Builds protected content only after entitlement is checked; raw records are
@@ -87,6 +91,7 @@ class _SubscriptionGateState extends State<SubscriptionGate> {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     if (widget.free) return widget.builder(context);
     return FutureBuilder<bool>(
       future: _access,

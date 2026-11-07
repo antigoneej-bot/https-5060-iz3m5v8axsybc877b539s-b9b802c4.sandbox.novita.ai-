@@ -23,10 +23,11 @@ export async function mutateOrchard(db,uid,body,{now=Date.now()}={}) {
  const [old,snap]=await Promise.all([tx.get(receipt),tx.get(ref(db,uid))]);
  const s=structuredClone(snap.data()??fresh(now));
  if(old.exists){if(old.data().fingerprint!==fingerprint)throw new Error('request-conflict');return {orchard:view(s,now),result:old.data().result};}
- let receiver, nickname;
+ let receiver, nickname, recipientName;
  if(op==='gift'){
   const a=await readVillageAccess(db,uid,gardenId,tx),b=await readVillageAccess(db,gardenId,uid,tx);
   if(!a.alive||!b.alive||a.blocked||b.blocked||!a.accepted||!b.accepted)throw new Error('neighbor-required');
+  recipientName=a.garden.data()?.nickname??'이웃';
   if(!a.settings.receiveGifts)throw new Error('gifts-disabled');
   receiver=structuredClone((await tx.get(ref(db,gardenId))).data()??fresh(now));
   nickname=(await tx.get(db.doc(`villageProfiles/${uid}`))).data()?.nickname??'이웃';
@@ -52,6 +53,7 @@ export async function mutateOrchard(db,uid,body,{now=Date.now()}={}) {
   }
  }
  if(s.coins>1000000000||Object.values(s.stock).some(n=>n>1000000)||receiver&&Object.values(receiver.stock).some(n=>n>1000000))throw new Error('orchard-full');
+ if(op==='gift')tx.set(db.doc(`users/${uid}/sentGardenGifts/orchard_${requestId}`),{kind,quantity,recipientId:gardenId,recipientName,sentAt:now});
  tx.set(ref(db,uid),s);if(receiver)tx.set(ref(db,gardenId),receiver);
  tx.set(receipt,{fingerprint,result,createdAt:now});
  return {orchard:view(s,now),result};

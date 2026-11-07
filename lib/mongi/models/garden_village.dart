@@ -1,3 +1,4 @@
+import '../../models/companion_coat.dart';
 import 'public_garden.dart';
 
 String? _nextCursor(Map<String, dynamic> json) {
@@ -97,6 +98,7 @@ class GardenNeighbor {
   final String status;
   final DateTime? requestedAt;
   final bool? canVisit;
+  final CompanionCoat? publicCoat;
 
   const GardenNeighbor({
     required this.gardenId,
@@ -104,6 +106,7 @@ class GardenNeighbor {
     this.status = 'none',
     this.requestedAt,
     this.canVisit,
+    this.publicCoat,
   });
 
   String get displayName =>
@@ -119,6 +122,9 @@ class GardenNeighbor {
       nickname: json['nickname'] is String ? json['nickname'] as String : null,
       status: json['status'] is String ? json['status'] as String : 'none',
       requestedAt: DateTime.tryParse(json['requestedAt']?.toString() ?? ''),
+      publicCoat: json['publicCat'] is Map
+          ? CompanionCoat.parse(json['publicCat']['coat'])
+          : null,
       canVisit: json['canVisit'] is bool ? json['canVisit'] as bool : null,
     );
   }

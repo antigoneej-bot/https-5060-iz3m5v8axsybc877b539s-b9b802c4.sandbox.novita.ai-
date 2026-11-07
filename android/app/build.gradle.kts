@@ -10,6 +10,7 @@ plugins {
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
     id("com.google.gms.google-services")
+    id("com.google.firebase.crashlytics")
 }
 
 val keystorePropertiesFile = rootProject.file("key.properties")
@@ -128,4 +129,13 @@ dependencies {
 // from Dart options; the store-only google-services client has a different id.
 tasks.matching { it.name == "processDebugGoogleServices" }.configureEach {
     enabled = false
+}
+
+// Local verification must not silently upload mapping/symbol files. The release
+// operator can explicitly opt in after reviewing the Crashlytics rollout.
+tasks.matching {
+    it.name.startsWith("uploadCrashlyticsMappingFile") ||
+    it.name.startsWith("uploadCrashlyticsSymbolFile")
+}.configureEach {
+    enabled = providers.gradleProperty("uploadCrashlyticsSymbols").orNull == "true"
 }

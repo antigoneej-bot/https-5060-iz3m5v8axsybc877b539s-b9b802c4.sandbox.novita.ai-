@@ -69,3 +69,32 @@ test('simultaneous deliveries use one bell and silent subsequent channel',async(
  assert.equal(messages.filter(m=>m.android.notification.sound==='garden_bell').length,1);
  assert.equal(messages[1].android.notification.channelId,'garden_updates_silent_v1');
 });
+
+
+test('push language belongs to each device and queued jobs use the newest language', async()=>{
+ const db=memoryDb(), second=token+'-second';
+ await setPushDevice(db,'a',{token,enabled:true,social:true,booking:true,language:'en'},now);
+ await setPushDevice(db,'a',{token:second,enabled:true,social:true,booking:true,language:'ko'},now);
+ for (const category of ['social','booking']) {
+   const id='locale-'+category, sent=[];
+   await db.doc(`gardenPushJobs/${id}`).set({uid:'a',category,createdAt:now,expiresAt:now+10000,state:'queued'});
+   await deliverPushJob(db,id,{send:async m=>sent.push(m)},now);
+   assert.equal(sent.find(m=>m.token===token).notification.title,'Mindnyang Garden');
+   assert.equal(/[가-힣]/.test(sent.find(m=>m.token===token).notification.body),false);
+   assert.equal(sent.find(m=>m.token===second).notification.title,'마음냥 정원');
+ }
+ const id='locale-changed';
+ await db.doc(`gardenPushJobs/${id}`).set({uid:'a',category:'social',createdAt:now,expiresAt:now+10000,state:'queued'});
+ await setPushDevice(db,'a',{token,enabled:true,social:true,booking:true,language:'ko'},now+1);
+ const sent=[];await deliverPushJob(db,id,{send:async m=>sent.push(m)},now+2);
+ assert.equal(sent.find(m=>m.token===token).notification.title,'마음냥 정원');
+});
+test('invalid locale rejected; legacy sync preserves locale only for same owner',async()=>{
+ const db=memoryDb();
+ await assert.rejects(setPushDevice(db,'a',{token,enabled:true,social:true,booking:true,language:'fr'},now),/invalid-push-settings/);
+ await setPushDevice(db,'a',{token,enabled:true,social:true,booking:true,language:'en'},now);
+ await setPushDevice(db,'a',{token,enabled:true,social:true,booking:true},now);
+ assert.equal([...db.rows.values()][0].language,'en');
+ await setPushDevice(db,'b',{token,enabled:true,social:true,booking:true},now);
+ assert.equal([...db.rows.values()][0].language,'ko');
+});

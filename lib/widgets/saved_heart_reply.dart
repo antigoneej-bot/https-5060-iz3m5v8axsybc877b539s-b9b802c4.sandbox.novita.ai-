@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import 'package:flutter/material.dart';
 import '../models/special_letter_entry.dart';
 import '../services/special_letter_service.dart';
@@ -47,15 +48,15 @@ class _SavedHeartReplyState extends State<SavedHeartReply> {
             onPressed: () => setState(() {
               _archive = _readArchive();
             }),
-            child: const Text('이전에 받은 답장 다시 읽기'),
+            child: Text(tr("이전에 받은 답장 다시 읽기")),
           );
         }
         final text = snapshot.data;
         if (text == null) return const SizedBox.shrink();
         return ExpansionTile(
           tilePadding: EdgeInsets.zero,
-          title: const Text('이전에 받은 답장'),
-          subtitle: const Text('과거에 저장된 내용이에요'),
+          title: Text(tr("이전에 받은 답장")),
+          subtitle: Text(tr("과거에 저장된 내용이에요")),
           children: [
             SelectableText(
               text,

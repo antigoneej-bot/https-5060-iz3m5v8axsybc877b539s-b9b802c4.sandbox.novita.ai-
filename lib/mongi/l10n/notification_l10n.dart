@@ -3,11 +3,7 @@ import 'gen/app_localizations.dart';
 /// [NotificationService.scheduleDaily]에 전달할, 언어별로 지역화된 알림
 /// 콘텐츠를 한곳에 모아 담는 값 객체.
 ///
-/// [NotificationService] 자체는 [AppLocalizations]/[BuildContext]에
-/// 접근할 수 없는 순수 서비스 클래스이므로, 지역화는 항상
-/// [BuildContext]를 가진 호출부(main.dart의 부트스트랩, settings_screen.dart)
-/// 에서 이 헬퍼로 만들어 넘겨준다. 넘겨주지 않으면(null) 서비스는 기존
-/// 한국어 기본값을 그대로 사용한다(하위 호환).
+/// 화면에서 명시적으로 전달하거나, 서비스가 현재 앱 언어로 생성한다.
 class NotificationContent {
   final String title;
   final String channelName;

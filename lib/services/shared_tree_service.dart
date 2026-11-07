@@ -98,7 +98,7 @@ class SharedTreeService {
   }
 
   Future<void> reportNote(String id, String noteId) async {
-    await _call('reportSharedTreeNote', {'id':id, 'noteId':noteId});
+    await _call('reportSharedTreeNote', {'id': id, 'noteId': noteId});
   }
 
   Future<SharedTree> water(String id) async {

@@ -1,3 +1,4 @@
+import '../../l10n/app_language.dart';
 import 'package:flutter/material.dart';
 import 'seed.dart';
 import 'garden_decoration.dart';
@@ -81,9 +82,9 @@ class GardenLayout {
     _ => throw ArgumentError.value(zone, 'zone'),
   };
   static String nameForZone(int zone) => switch (zone) {
-    1 => '작은 정원',
-    0 => '꽃밭',
-    2 => '나무 뜰',
+    1 => tr('작은 정원'),
+    0 => tr('꽃밭'),
+    2 => tr('나무 뜰'),
     _ => throw ArgumentError.value(zone, 'zone'),
   };
   int? get nextZone => !isOpen(0)
@@ -123,11 +124,11 @@ class GardenLayout {
   }
 
   String? placementError(String id, Offset p, Iterable<String> visible) {
-    if (!itemIds.contains(id)) return '알 수 없는 아이템이에요.';
-    if (pondBounds.contains(p)) return '연못에는 심을 수 없어요. 잔디를 골라 주세요.';
+    if (!itemIds.contains(id)) return tr('알 수 없는 아이템이에요.');
+    if (pondBounds.contains(p)) return tr('연못에는 심을 수 없어요. 잔디를 골라 주세요.');
     if (!onGround(p) || visiblePosition(id, p) != p)
-      return '다 자랄 공간이 있도록 잔디 안쪽을 골라 주세요.';
-    if (!isOpen(spaceFor(p.dx))) return '아직 열리지 않은 공간이에요.';
+      return tr('다 자랄 공간이 있도록 잔디 안쪽을 골라 주세요.');
+    if (!isOpen(spaceFor(p.dx))) return tr('아직 열리지 않은 공간이에요.');
     for (final other in visible) {
       if (other == id) continue;
       final delta = p - position(other);
@@ -136,7 +137,7 @@ class GardenLayout {
       if ((delta.dx * 2400).abs() <
               _groundHalfWidth(id) + _groundHalfWidth(other) + 12 &&
           (delta.dy * 800).abs() < 52) {
-        return '다른 아이템과 조금 떨어뜨려 주세요.';
+        return tr('다른 아이템과 조금 떨어뜨려 주세요.');
       }
     }
     return null;

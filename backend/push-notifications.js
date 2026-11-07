@@ -7,6 +7,7 @@ export async function setPushDevice(db, uid, input, now = Date.now()) {
   if (!validToken(input.token) || typeof input.enabled !== 'boolean' ||
       (input.enabled && (typeof input.social !== 'boolean' || typeof input.booking !== 'boolean'))) throw new Error('invalid-push-settings');
   if (input.bellSound !== undefined && typeof input.bellSound !== 'boolean') throw new Error('invalid-push-settings');
+  if (input.language !== undefined && !['ko', 'en'].includes(input.language)) throw new Error('invalid-push-settings');
   const ref = db.doc(`gardenPushDevices/${hash(input.token)}`);
   await db.runTransaction(async tx => {
     const old = await tx.get(ref);
@@ -15,7 +16,7 @@ export async function setPushDevice(db, uid, input, now = Date.now()) {
       if (old.data()?.uid === uid) tx.delete(ref);
       return;
     }
-    tx.set(ref, {uid, token: input.token, social: input.social, booking: input.booking, ...(typeof input.bellSound === 'boolean' ? {bellSound: input.bellSound} : {}), updatedAt: now, lastBellAt: old.data()?.uid === uid ? (old.data()?.lastBellAt ?? 0) : 0});
+    tx.set(ref, {uid, language: input.language ?? (old.data()?.uid === uid ? old.data()?.language ?? 'ko' : 'ko'), token: input.token, social: input.social, booking: input.booking, ...(typeof input.bellSound === 'boolean' ? {bellSound: input.bellSound} : {}), updatedAt: now, lastBellAt: old.data()?.uid === uid ? (old.data()?.lastBellAt ?? 0) : 0});
   });
   return {registered: input.enabled};
 }
@@ -94,7 +95,7 @@ export async function deliverPushJob(db, id, messaging, now = Date.now()) {
             return true;
           });
           await messaging.send({token: current.token,
-            notification: {title: '마음냥 정원', body: job.category === 'social' ? '정원에 새로운 응원이나 선물이 도착했어요.' : '예약한 모임에 변경 소식이 있어요. 앱에서 확인해 주세요.'},
+            notification: pushCopy(job.category, current.language),
             data: {kind: job.category, owner: hash(job.uid), notice: id},
             android: {ttl: Math.max(0, job.expiresAt - now), collapseKey: job.category,
               notification: {channelId: sound ? 'garden_updates_bell_v1' : typeof current.bellSound === 'boolean' ? 'garden_updates_silent_v1' : 'garden_updates', ...(sound ? {sound: 'garden_bell'} : {}), tag: job.category}},
@@ -118,4 +119,14 @@ export async function deliverPushJob(db, id, messaging, now = Date.now()) {
     });
     throw error;
   }
+}
+
+export function pushCopy(category, language) {
+  return language === 'en'
+    ? {title: 'Mindnyang Garden', body: category === 'social'
+      ? 'New encouragement or a gift has arrived in your garden.'
+      : 'An event you registered for has changed. Open the app for details.'}
+    : {title: '마음냥 정원', body: category === 'social'
+      ? '정원에 새로운 응원이나 선물이 도착했어요.'
+      : '예약한 모임에 변경 소식이 있어요. 앱에서 확인해 주세요.'};
 }

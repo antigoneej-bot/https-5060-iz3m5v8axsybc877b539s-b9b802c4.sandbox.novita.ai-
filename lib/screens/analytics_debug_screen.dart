@@ -62,7 +62,11 @@ class _AnalyticsDebugScreenState extends State<AnalyticsDebugScreen> {
       children: [
         Text(
           '이 기기에서 지금까지 발생한 이벤트 횟수와, 설치 후 며칠째\n다시 앱을 열었는지(리텐션 마일스톤)를 보여줍니다.',
-          style: bodyFont(fontSize: 12.5, color: AppColors.inkSoft, height: 1.6),
+          style: bodyFont(
+            fontSize: 12.5,
+            color: AppColors.inkSoft,
+            height: 1.6,
+          ),
         ),
         const SizedBox(height: 8),
         Container(
@@ -78,7 +82,11 @@ class _AnalyticsDebugScreenState extends State<AnalyticsDebugScreen> {
               Expanded(
                 child: Text(
                   '이 기기 1대만의 데이터입니다. 실제 시장 리텐션(%)을 보려면\nFirebase Analytics 연결이 필요합니다.',
-                  style: bodyFont(fontSize: 11, color: AppColors.inkSoft, height: 1.5),
+                  style: bodyFont(
+                    fontSize: 11,
+                    color: AppColors.inkSoft,
+                    height: 1.5,
+                  ),
                 ),
               ),
             ],

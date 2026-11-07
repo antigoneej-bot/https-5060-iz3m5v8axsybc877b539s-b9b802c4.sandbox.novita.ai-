@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -39,7 +40,7 @@ class _MyGardenReservationsScreenState extends State<MyGardenReservationsScreen>
         setState(() {
           _bookings = [];
           _loading = false;
-          _error = '계정이 바뀌었어요. 화면을 닫고 다시 열어 주세요.';
+          _error = tr("계정이 바뀌었어요. 화면을 닫고 다시 열어 주세요.");
         });
       });
     }
@@ -73,7 +74,7 @@ class _MyGardenReservationsScreenState extends State<MyGardenReservationsScreen>
         setState(() {
           _bookings = [];
           _loading = false;
-          _error = '계정이 바뀌었어요. 화면을 닫고 다시 열어 주세요.';
+          _error = tr("계정이 바뀌었어요. 화면을 닫고 다시 열어 주세요.");
         });
         return;
       }
@@ -135,16 +136,16 @@ class _MyGardenReservationsScreenState extends State<MyGardenReservationsScreen>
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('이 모임 신청을 취소할까요?'),
-        content: Text(booking.news?.title ?? '신청 내역을 삭제하고 자리를 돌려드려요.'),
+        title: Text(tr("이 모임 신청을 취소할까요?")),
+        content: Text(booking.news?.title ?? tr("신청 내역을 삭제하고 자리를 돌려드려요.")),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('유지하기'),
+            child: Text(tr("유지하기")),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('신청 취소'),
+            child: Text(tr("신청 취소")),
           ),
         ],
       ),
@@ -161,7 +162,7 @@ class _MyGardenReservationsScreenState extends State<MyGardenReservationsScreen>
       );
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('신청을 취소했어요.')));
+      ).showSnackBar(SnackBar(content: Text(tr("신청을 취소했어요."))));
     } catch (error) {
       if (mounted && _owner == _service.currentOwner) {
         ScaffoldMessenger.of(
@@ -173,15 +174,17 @@ class _MyGardenReservationsScreenState extends State<MyGardenReservationsScreen>
     }
   }
 
-  String _date(DateTime value) =>
-      DateFormat('yyyy.MM.dd (E) HH:mm', 'ko_KR').format(value.toLocal());
+  String _date(DateTime value) => DateFormat(
+    'yyyy.MM.dd (E) HH:mm',
+    AppLanguage.instance.isEnglish ? 'en_US' : 'ko_KR',
+  ).format(value.toLocal());
   String _status(GardenEventBooking booking) {
-    if (booking.eventUnavailable) return '소식이 삭제 또는 정리 중이에요';
-    if (booking.session?.state == 'canceled') return '운영자가 취소한 일정';
+    if (booking.eventUnavailable) return tr("소식이 삭제 또는 정리 중이에요");
+    if (booking.session?.state == 'canceled') return tr("운영자가 취소한 일정");
     if (booking.session?.endsAt.isBefore(DateTime.now()) == true) {
-      return '종료된 일정';
+      return tr("종료된 일정");
     }
-    return '신청 완료';
+    return tr("신청 완료");
   }
 
   @override
@@ -190,12 +193,12 @@ class _MyGardenReservationsScreenState extends State<MyGardenReservationsScreen>
     return Scaffold(
       backgroundColor: AppColors.bg0,
       appBar: AppBar(
-        title: const Text('내 신청 내역'),
+        title: Text(tr("내 신청 내역")),
         actions: [
           IconButton(
             onPressed: _busy || _loading ? null : _load,
             icon: const Icon(Icons.refresh),
-            tooltip: '새로고침',
+            tooltip: tr("새로고침"),
           ),
         ],
       ),
@@ -206,15 +209,15 @@ class _MyGardenReservationsScreenState extends State<MyGardenReservationsScreen>
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.all(20),
             children: [
-              const Text('신청한 모임의 날짜와 상태를 확인할 수 있어요. 시간은 이 기기의 현지 시간으로 표시해요.'),
+              Text(tr("신청한 모임의 날짜와 상태를 확인할 수 있어요. 시간은 이 기기의 현지 시간으로 표시해요.")),
               const SizedBox(height: 16),
               if (_loading)
                 const Center(child: CircularProgressIndicator())
               else if (_error != null) ...[
                 Text(_error!),
-                TextButton(onPressed: _load, child: const Text('다시 확인')),
+                TextButton(onPressed: _load, child: Text(tr("다시 확인"))),
               ] else if (sameOwner && _bookings.isEmpty)
-                const Text('아직 신청한 모임이 없어요.')
+                Text(tr("아직 신청한 모임이 없어요."))
               else if (sameOwner)
                 for (final booking in _bookings)
                   Card(
@@ -224,13 +227,13 @@ class _MyGardenReservationsScreenState extends State<MyGardenReservationsScreen>
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           Text(
-                            booking.news?.title ?? '신청한 모임',
+                            booking.news?.title ?? tr("신청한 모임"),
                             style: titleFont(fontSize: 18),
                           ),
                           const SizedBox(height: 8),
                           Text(
                             booking.sessionStartsAt == null
-                                ? '날짜는 정원소식에서 확인해 주세요.'
+                                ? tr("날짜는 정원소식에서 확인해 주세요.")
                                 : _date(booking.sessionStartsAt!),
                           ),
                           if (booking.session?.label != null)
@@ -241,11 +244,11 @@ class _MyGardenReservationsScreenState extends State<MyGardenReservationsScreen>
                           if (!booking.eventUnavailable)
                             TextButton(
                               onPressed: _busy ? null : () => _open(booking),
-                              child: const Text('모임 안내와 접속 링크 보기'),
+                              child: Text(tr("모임 안내와 접속 링크 보기")),
                             ),
                           OutlinedButton(
                             onPressed: _busy ? null : () => _cancel(booking),
-                            child: const Text('신청 취소하기'),
+                            child: Text(tr("신청 취소하기")),
                           ),
                         ],
                       ),

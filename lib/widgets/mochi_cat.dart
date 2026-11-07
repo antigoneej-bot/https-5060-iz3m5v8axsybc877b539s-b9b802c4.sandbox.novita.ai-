@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import 'package:flutter/material.dart';
 
 /// 마음 돌보기 탭 전용 마스코트 - 치즈태비 아기 고양이 "모찌".
@@ -47,7 +48,7 @@ enum CatEmotion {
   happy(
     animatedAsset: 'assets/mochi/mochi_happy_animated.webp',
     staticAsset: 'assets/mochi/mochi_happy_static.png',
-    label: '해맑은 모찌',
+    label: "해맑은 모찌",
   ),
 
   /// 하루 결석 - 문 쪽을 바라보며 조용히 기다리는 모습. 살짝 고개를
@@ -55,7 +56,7 @@ enum CatEmotion {
   waiting(
     animatedAsset: 'assets/mochi/mochi_waiting_animated.webp',
     staticAsset: 'assets/mochi/mochi_waiting_static.png',
-    label: '기다리는 모찌',
+    label: "기다리는 모찌",
   ),
 
   /// 3일 이상 결석 - 몸을 동그랗게 말고 꼬리를 끌어안은 채 그리워하는
@@ -63,7 +64,7 @@ enum CatEmotion {
   missing(
     animatedAsset: 'assets/mochi/mochi_missing_animated.webp',
     staticAsset: 'assets/mochi/mochi_missing_static.png',
-    label: '그리워하는 모찌',
+    label: "그리워하는 모찌",
   ),
 
   /// 7일 이상 결석 - 두 발을 모으고 걱정스러운 눈빛으로 미세하게
@@ -71,19 +72,20 @@ enum CatEmotion {
   worried(
     animatedAsset: 'assets/mochi/mochi_worried_animated.webp',
     staticAsset: 'assets/mochi/mochi_worried_static.png',
-    label: '걱정하는 모찌',
+    label: "걱정하는 모찌",
   );
   // TODO: curious/sleeping/shocked/kneading 추후 추가
 
   const CatEmotion({
     required this.animatedAsset,
     required this.staticAsset,
-    required this.label,
-  });
+    required String label,
+  }) : _label = label;
 
   final String animatedAsset;
   final String staticAsset;
-  final String label;
+  final String _label;
+  String get label => tr(_label);
 
   /// 마지막 방문일로부터 지난 일수(결석일수)에 따라 어떤 감정을 보여줄지
   /// 결정합니다. 0~1일(정상 범위)은 [happy], 2~2일은 [waiting],

@@ -1,5 +1,6 @@
 import 'package:characters/characters.dart';
 import '../models/seed.dart';
+import '../../data/shadow_cats_data.dart';
 
 /// Calendar days are stored without a time zone: a chosen anniversary must not
 /// move when a backup is opened in another country.
@@ -28,28 +29,38 @@ class PlantMemoryEntry {
   final String note;
   final String? sourceLetterId;
   final DateTime? sourceWrittenAt;
+
+  /// A private emotion-card ID, independent of the companion's appearance.
+  final String? emotionCatId;
   const PlantMemoryEntry({
     required this.id,
     required this.on,
     required this.note,
     this.sourceLetterId,
     this.sourceWrittenAt,
+    this.emotionCatId,
   });
   Map<String, dynamic> toJson() => {
     'id': id,
     'on': on,
     'note': note,
+    if (emotionCatId != null) 'emotionCatId': emotionCatId,
     if (sourceLetterId != null) 'sourceLetterId': sourceLetterId,
     if (sourceWrittenAt != null)
       'sourceWrittenAt': sourceWrittenAt!.toIso8601String(),
   };
   factory PlantMemoryEntry.fromJson(Map<dynamic, dynamic> data) {
     final id = data['id'], note = data['note'];
+    final emotion = data['emotionCatId'];
+    if (emotion != null &&
+        (emotion is! String || !shadowCats.any((cat) => cat.id == emotion))) {
+      throw const FormatException('담아둔 감정을 확인해 주세요.');
+    }
     parsePlantMemoryDay(data['on']);
     if (id is! String ||
         !RegExp(r'^[a-zA-Z0-9_-]{1,80}$').hasMatch(id) ||
         note is! String ||
-        note.trim().isEmpty ||
+        (note.trim().isEmpty && emotion == null) ||
         note.characters.length > 300) {
       throw const FormatException('식물의 추억 기록이 올바르지 않아요.');
     }
@@ -73,6 +84,7 @@ class PlantMemoryEntry {
       id: id,
       on: data['on'] as String,
       note: note,
+      emotionCatId: emotion as String?,
       sourceLetterId: sourceId as String?,
       sourceWrittenAt: writtenAt,
     );

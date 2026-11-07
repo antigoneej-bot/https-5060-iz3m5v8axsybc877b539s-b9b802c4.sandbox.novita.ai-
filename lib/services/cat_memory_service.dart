@@ -91,9 +91,7 @@ class CatMemoryService {
       if (due != null) candidates.add((entry: entry, dueDate: due));
     }
     if (candidates.isEmpty) return null;
-    candidates.sort(
-      (a, b) => a.entry.capturedAt.compareTo(b.entry.capturedAt),
-    );
+    candidates.sort((a, b) => a.entry.capturedAt.compareTo(b.entry.capturedAt));
     return candidates.first;
   }
 

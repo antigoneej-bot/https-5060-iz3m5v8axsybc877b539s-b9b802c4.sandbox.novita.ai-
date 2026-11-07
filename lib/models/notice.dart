@@ -1,3 +1,5 @@
+import '../l10n/app_language.dart';
+
 /// 정원소식(구 "공지사항") 모델.
 ///
 /// 서버(Firestore `gardenNews` 컬렉션, Cloud Functions `gardenApi`를 통해서만
@@ -177,11 +179,11 @@ extension NoticeTypeLabel on NoticeType {
   String get label {
     switch (this) {
       case NoticeType.info:
-        return '안내';
+        return tr("안내");
       case NoticeType.update:
-        return '업데이트';
+        return tr("업데이트");
       case NoticeType.event:
-        return '이벤트';
+        return tr("이벤트");
     }
   }
 }
@@ -204,11 +206,11 @@ extension NoticeStatusLabel on NoticeStatus {
   String get label {
     switch (this) {
       case NoticeStatus.recruiting:
-        return '모집 중';
+        return tr("모집 중");
       case NoticeStatus.ongoing:
-        return '진행 중';
+        return tr("진행 중");
       case NoticeStatus.closed:
-        return '마감';
+        return tr("마감");
     }
   }
 }
@@ -243,17 +245,17 @@ class GardenEventSession {
       (bookingOpensAt == null || !now.isBefore(bookingOpensAt!));
 
   String availabilityAt(DateTime now) {
-    if (state == 'canceled') return '취소된 일정';
+    if (state == 'canceled') return tr("취소된 일정");
     if (state == 'closed' ||
         !now.isBefore(bookingClosesAt) ||
         !now.isBefore(startsAt)) {
-      return '신청 마감';
+      return tr("신청 마감");
     }
     if (bookingOpensAt != null && now.isBefore(bookingOpensAt!)) {
-      return '신청 시작 전';
+      return tr("신청 시작 전");
     }
-    if (reservedCount >= capacity) return '정원 마감';
-    return '신청 가능';
+    if (reservedCount >= capacity) return tr("정원 마감");
+    return tr("신청 가능");
   }
 
   static GardenEventSession? tryFromJson(Map<String, dynamic> json) {

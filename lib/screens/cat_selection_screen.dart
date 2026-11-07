@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../data/cat_browse_groups.dart';
 import 'dart:math';
@@ -143,13 +144,16 @@ class _CatSelectionScreenState extends State<CatSelectionScreen>
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     final app = context.watch<AppStateProvider>();
     final catalog = shadowCats.where((c) => c.selectable).toList();
     final recent = app.history.map((e) => e.catId).toSet().take(3).toList();
     final filtered = catalog.where((cat) {
       if (_favoritesOnly && !_favorites.contains(cat.id)) return false;
       if (_query.isNotEmpty)
-        return '${cat.keyword} ${cat.nameKr}'.contains(_query);
+        return '${cat.displayKeyword} ${cat.displayName}'
+            .toLowerCase()
+            .contains(_query.toLowerCase());
       return _group == null || catBrowseGroups[_group]!.contains(cat.id);
     }).toList();
     final browsing =
@@ -160,7 +164,7 @@ class _CatSelectionScreenState extends State<CatSelectionScreen>
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-          '지금 내 기분과 가장 닮은\n고양이를 골라보세요',
+          tr("지금 내 기분과 가장 닮은\n고양이를 골라보세요"),
           textAlign: TextAlign.center,
           style: titleFont(
             fontSize: 19,
@@ -170,7 +174,7 @@ class _CatSelectionScreenState extends State<CatSelectionScreen>
         ),
         const SizedBox(height: 6),
         Text(
-          '좌우로 넘기며 지금 마음과 닮은 고양이를 만나보세요.\n오늘 고른 감정이 함께 키우는 고양이를 바꾸지는 않아요.',
+          tr("좌우로 넘기며 지금 마음과 닮은 고양이를 만나보세요.\n오늘 고른 감정이 함께 키우는 고양이를 바꾸지는 않아요."),
           textAlign: TextAlign.center,
           style: bodyFont(
             fontSize: 12.5,
@@ -202,7 +206,7 @@ class _CatSelectionScreenState extends State<CatSelectionScreen>
                 }),
               ),
             _EmotionFilterPill(
-              label: '모든 감정',
+              label: tr("모든 감정"),
               selected: _group == null && !_favoritesOnly && _query.isEmpty,
               colorSet:
                   _pillColors[catBrowseGroups.length % _pillColors.length],
@@ -215,7 +219,7 @@ class _CatSelectionScreenState extends State<CatSelectionScreen>
               }),
             ),
             _EmotionFilterPill(
-              label: '즐겨찾기',
+              label: tr("즐겨찾기"),
               icon: Icons.star_rounded,
               selected: _favoritesOnly,
               colorSet:
@@ -234,7 +238,7 @@ class _CatSelectionScreenState extends State<CatSelectionScreen>
         if (!browsing && recent.isNotEmpty) ...[
           const SizedBox(height: 18),
           Text(
-            '최근에 고른 마음',
+            tr("최근에 고른 마음"),
             style: bodyFont(
               fontSize: 12.5,
               fontWeight: FontWeight.w600,
@@ -248,7 +252,7 @@ class _CatSelectionScreenState extends State<CatSelectionScreen>
             children: [
               for (final id in recent)
                 _RecentEmotionChip(
-                  label: shadowCatById(id).keyword,
+                  label: shadowCatById(id).displayKeyword,
                   onTap: () {
                     final cat = shadowCatById(id);
                     if (cat.isPremium && !isPremiumUser) {
@@ -262,9 +266,9 @@ class _CatSelectionScreenState extends State<CatSelectionScreen>
           ),
         ],
         if (browsing && allCats.isEmpty)
-          const Padding(
+          Padding(
             padding: EdgeInsets.all(16),
-            child: Text('찾는 고양이가 없어요. 다른 감정이나 전체 고양이를 골라보세요.'),
+            child: Text(tr("찾는 고양이가 없어요. 다른 감정이나 전체 고양이를 골라보세요.")),
           ),
         if (_checkedReassurance)
           AnimatedSize(
@@ -281,13 +285,16 @@ class _CatSelectionScreenState extends State<CatSelectionScreen>
           alignment: WrapAlignment.spaceBetween,
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            Text('${allCats.length}가지 마음', style: bodyFont(fontSize: 13)),
+            Text(
+              tr("{0}가지 마음", [allCats.length]),
+              style: bodyFont(fontSize: 13),
+            ),
             TextButton.icon(
               onPressed: () => setState(() => _showAll = !_showAll),
               icon: Icon(
                 _showAll ? Icons.swipe_rounded : Icons.grid_view_rounded,
               ),
-              label: Text(_showAll ? '좌우로 보기' : '전체 보기'),
+              label: Text(_showAll ? tr("좌우로 보기") : tr("전체 보기")),
             ),
           ],
         ),
@@ -336,8 +343,8 @@ class _CatSelectionScreenState extends State<CatSelectionScreen>
                     right: 0,
                     child: IconButton(
                       tooltip: _favorites.contains(cat.id)
-                          ? '즐겨찾기 해제'
-                          : '즐겨찾기 추가',
+                          ? tr("즐겨찾기 해제")
+                          : tr("즐겨찾기 추가"),
                       onPressed: () => _toggleFavorite(cat.id),
                       icon: Icon(
                         _favorites.contains(cat.id)
@@ -365,6 +372,7 @@ class _ReassuranceBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     return GlassBlob(
       accent: AppColors.blobMintAccent,
       background: AppColors.blobMint,
@@ -375,7 +383,7 @@ class _ReassuranceBanner extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              '37가지 감정으로도 충분히 마음을 표현할 수 있어요',
+              tr("37가지 감정으로도 충분히 마음을 표현할 수 있어요"),
               style: bodyFont(fontSize: 12, color: AppColors.ink, height: 1.4),
             ),
           ),
@@ -406,6 +414,7 @@ class _PremiumCatIntroSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     final altIds = alternativeFreeCatIdsFor(cat.id);
     final altCats = <ShadowCat>[];
     for (final id in altIds) {
@@ -465,12 +474,12 @@ class _PremiumCatIntroSheet extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        '${cat.emoji} ${cat.nameKr}',
+                        '${cat.emoji} ${cat.displayName}',
                         style: titleFont(fontSize: 17, color: AppColors.ink),
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        '정원 플러스 Basic 캐릭터',
+                        tr("정원 플러스 Basic 캐릭터"),
                         style: bodyFont(
                           fontSize: 11,
                           color: AppColors.blobButterAccent,
@@ -483,7 +492,7 @@ class _PremiumCatIntroSheet extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Text(
-              '${cat.keyword}과는 다른, 더 섬세한 감정이에요',
+              tr("{0}과는 다른, 더 섬세한 감정이에요", [cat.displayKeyword]),
               style: bodyFont(
                 fontSize: 13.5,
                 color: AppColors.ink,
@@ -506,7 +515,11 @@ class _PremiumCatIntroSheet extends StatelessWidget {
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        '지금은 ${altCats.map((c) => "${c.emoji} ${c.nameKr}").join(" 또는 ")}로도\n비슷한 마음을 표현해볼 수 있어요',
+                        tr("지금은 {0}로도\n비슷한 마음을 표현해볼 수 있어요", [
+                          altCats
+                              .map((c) => "${c.emoji} ${c.displayName}")
+                              .join(tr(" 또는 ")),
+                        ]),
                         style: bodyFont(
                           fontSize: 12.5,
                           color: AppColors.ink,
@@ -538,7 +551,10 @@ class _PremiumCatIntroSheet extends StatelessWidget {
                     ),
                   ),
                   child: Text(
-                    '${altCats.first.emoji} ${altCats.first.nameKr}로 기록하기',
+                    tr("{0} {1}로 기록하기", [
+                      altCats.first.emoji,
+                      altCats.first.displayName,
+                    ]),
                     style: bodyFont(fontSize: 13, color: AppColors.ink),
                   ),
                 ),
@@ -546,7 +562,7 @@ class _PremiumCatIntroSheet extends StatelessWidget {
             ],
             const SizedBox(height: 20),
             Text(
-              '더 자세히 표현하고 싶다면?',
+              tr("더 자세히 표현하고 싶다면?"),
               textAlign: TextAlign.center,
               style: titleFont(fontSize: 15, color: AppColors.titlePastelGreen),
             ),
@@ -567,7 +583,7 @@ class _PremiumCatIntroSheet extends StatelessWidget {
                         ),
                       ),
                       child: Text(
-                        '나중에',
+                        tr("나중에"),
                         style: bodyFont(fontSize: 14, color: AppColors.inkSoft),
                       ),
                     ),
@@ -600,7 +616,7 @@ class _PremiumCatIntroSheet extends StatelessWidget {
                         ),
                       ),
                       child: Text(
-                        '자세히 보기',
+                        tr("자세히 보기"),
                         style: serifFont(fontSize: 14, color: Colors.white),
                       ),
                     ),
@@ -680,6 +696,7 @@ class _CatCardState extends State<_CatCard> {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     final accent = _accents[widget.seed % _accents.length];
     // 눌림(press)과 호버를 하나의 "활성" 상태로 합쳐, 터치 디바이스에서도
     // 탭하는 순간 즉시 카드가 살짝 눌리는 피드백을 받도록 합니다.
@@ -797,7 +814,7 @@ class _CatCardState extends State<_CatCard> {
                                     borderRadius: BorderRadius.circular(999),
                                   ),
                                   child: Text(
-                                    widget.cat.keyword,
+                                    widget.cat.displayKeyword,
                                     style: bodyFont(
                                       fontSize: 10,
                                       fontWeight: FontWeight.w600,
@@ -849,7 +866,7 @@ class _CatCardState extends State<_CatCard> {
                     Text(
                       widget.locked
                           ? '？？？'
-                          : '${widget.cat.emoji} ${widget.cat.keyword}',
+                          : '${widget.cat.emoji} ${widget.cat.displayKeyword}',
                       textAlign: TextAlign.center,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -891,6 +908,7 @@ class _EmotionSearchFieldState extends State<_EmotionSearchField> {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     final active = _focused || widget.controller.text.isNotEmpty;
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
@@ -932,7 +950,7 @@ class _EmotionSearchFieldState extends State<_EmotionSearchField> {
           decoration: InputDecoration(
             isDense: true,
             border: InputBorder.none,
-            hintText: '감정 찾기 · 예: 서운함, 감사',
+            hintText: tr("감정 찾기 · 예: 서운함, 감사"),
             hintStyle: bodyFont(
               fontSize: 13,
               color: AppColors.inkSoft.withValues(alpha: 0.75),
@@ -982,6 +1000,7 @@ class _EmotionFilterPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
@@ -1056,6 +1075,7 @@ class _RecentEmotionChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     return GestureDetector(
       onTap: onTap,
       child: Container(

@@ -1,0 +1,505 @@
+Analyzing lib, test...
+
+warning - lib/screens/weekly_shadow_map_screen.dart:32:8 - The value of the field '_loadingPremium' isn't used. Try removing the field, or using it. - unused_field
+warning - lib/screens/weekly_shadow_map_screen.dart:33:8 - The value of the field '_isPremium' isn't used. Try removing the field, or using it. - unused_field
+   info - lib/main.dart:285:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/main.dart:314:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/models/care_journal_entry.dart:139:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/models/coloring_boundaries.dart:13:5 - Statements in a for should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/models/coloring_boundaries.dart:20:11 - Statements in a for should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/models/coloring_stroke.dart:81:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/models/companion_journey.dart:124:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/models/companion_journey.dart:258:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/models/companion_journey.dart:269:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/models/companion_motion.dart:34:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/models/companion_reminder.dart:132:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/models/keepsake_tree.dart:30:5 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/models/keepsake_tree.dart:50:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/models/keepsake_tree.dart:115:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/models/keepsake_tree.dart:129:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/models/keepsake_tree.dart:132:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/models/keepsake_tree.dart:138:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/models/self_care_entry.dart:154:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/models/self_care_entry.dart:177:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/models/self_care_entry.dart:180:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/models/self_care_entry.dart:186:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/integration/cheer_flower_store.dart:186:11 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/integration/cheer_flower_store.dart:217:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/integration/mongi_garden_data.dart:190:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/integration/mongi_garden_data.dart:330:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/integration/mongi_garden_data.dart:408:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/integration/mongi_garden_store.dart:10:8 - The import of 'package:flutter/foundation.dart' is unnecessary because all of the used elements are also provided by the import of 'package:flutter/widgets.dart'. Try removing the import directive. - unnecessary_import
+   info - lib/mongi/integration/mongi_garden_store.dart:145:11 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/integration/mongi_garden_store.dart:183:11 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/integration/mongi_garden_store.dart:257:11 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/integration/mongi_garden_store.dart:271:13 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/integration/mongi_garden_store.dart:404:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/integration/mongi_garden_store.dart:444:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/integration/plant_memory_editor.dart:221:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/integration/plant_memory_editor.dart:229:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/integration/plant_memory_editor.dart:283:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/integration/plant_memory_editor.dart:410:31 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/integration/plant_memory_editor.dart:420:31 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/integration/plant_memory_editor.dart:446:33 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/models/garden_gifts.dart:29:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/models/garden_layout.dart:129:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/models/garden_life.dart:64:24 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/providers/garden_provider.dart:111:8 - The variable name '_legacy_premiumFramesUnlocked' isn't a lowerCamelCase identifier. Try changing the name to follow the lowerCamelCase style. - non_constant_identifier_names
+   info - lib/mongi/providers/garden_provider.dart:118:8 - The variable name '_legacy_decorationPackUnlocked' isn't a lowerCamelCase identifier. Try changing the name to follow the lowerCamelCase style. - non_constant_identifier_names
+   info - lib/mongi/providers/garden_provider.dart:685:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/providers/garden_provider.dart:813:8 - The variable name '_legacy_seasonPremiumPurchased' isn't a lowerCamelCase identifier. Try changing the name to follow the lowerCamelCase style. - non_constant_identifier_names
+   info - lib/mongi/providers/garden_provider.dart:1964:11 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/providers/garden_provider.dart:1984:11 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/providers/garden_provider.dart:2094:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/providers/garden_provider.dart:2141:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/screens/cat_visit_inbox_screen.dart:58:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/screens/cat_visit_inbox_screen.dart:76:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/screens/cat_visit_inbox_screen.dart:89:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/screens/garden_bloom_news_screen.dart:31:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/screens/garden_discovery_screen.dart:82:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/screens/garden_discovery_screen.dart:95:11 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/screens/garden_discovery_screen.dart:97:11 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/screens/garden_discovery_screen.dart:109:11 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/screens/garden_discovery_screen.dart:118:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/screens/garden_discovery_screen.dart:121:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/screens/garden_discovery_screen.dart:206:39 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/screens/garden_discovery_screen.dart:209:39 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/screens/garden_discovery_screen.dart:231:39 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/screens/garden_discovery_screen.dart:234:39 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/screens/garden_visit_screen.dart:185:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/screens/garden_visit_screen.dart:191:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/screens/garden_visit_screen.dart:251:11 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/screens/garden_visit_screen.dart:475:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/screens/garden_visit_screen.dart:482:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/screens/garden_visit_screen.dart:493:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/screens/garden_visit_screen.dart:495:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/screens/garden_visit_screen.dart:503:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/screens/garden_visit_screen.dart:509:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/screens/garden_world_screen.dart:9:8 - The import of 'dart:typed_data' is unnecessary because all of the used elements are also provided by the import of 'package:flutter/services.dart'. Try removing the import directive. - unnecessary_import
+   info - lib/mongi/screens/garden_world_screen.dart:124:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/screens/garden_world_screen.dart:372:30 - Don't use 'BuildContext's across async gaps. Try rewriting the code to not use the 'BuildContext', or guard the use with a 'mounted' check. - use_build_context_synchronously
+   info - lib/mongi/screens/garden_world_screen.dart:439:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/screens/garden_world_screen.dart:478:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/screens/garden_world_screen.dart:512:17 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/screens/garden_world_screen.dart:542:11 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/screens/garden_world_screen.dart:617:15 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/screens/garden_world_screen.dart:640:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/screens/garden_world_screen.dart:709:9 - Don't use 'BuildContext's across async gaps. Try rewriting the code to not use the 'BuildContext', or guard the use with a 'mounted' check. - use_build_context_synchronously
+   info - lib/mongi/screens/garden_world_screen.dart:715:9 - Don't use 'BuildContext's across async gaps. Try rewriting the code to not use the 'BuildContext', or guard the use with a 'mounted' check. - use_build_context_synchronously
+   info - lib/mongi/screens/garden_world_screen.dart:720:33 - Don't use 'BuildContext's across async gaps. Try rewriting the code to not use the 'BuildContext', or guard the use with a 'mounted' check. - use_build_context_synchronously
+   info - lib/mongi/screens/garden_world_screen.dart:724:9 - Don't use 'BuildContext's across async gaps. Try rewriting the code to not use the 'BuildContext', or guard the use with a 'mounted' check. - use_build_context_synchronously
+   info - lib/mongi/screens/garden_world_screen.dart:732:9 - Don't use 'BuildContext's across async gaps. Try rewriting the code to not use the 'BuildContext', or guard the use with a 'mounted' check. - use_build_context_synchronously
+   info - lib/mongi/screens/garden_world_screen.dart:1197:39 - Use interpolation to compose strings and values. Try using string interpolation to build the composite string. - prefer_interpolation_to_compose_strings
+   info - lib/mongi/screens/garden_world_screen.dart:1507:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/screens/my_shared_tree_notes_screen.dart:62:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/screens/my_shared_tree_notes_screen.dart:96:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/screens/my_shared_tree_notes_screen.dart:109:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/screens/public_garden_inbox_screen.dart:252:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/screens/public_garden_inbox_screen.dart:298:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/screens/public_garden_inbox_screen.dart:334:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/screens/public_garden_inbox_screen.dart:339:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/screens/public_garden_settings_screen.dart:119:15 - Don't use 'BuildContext's across async gaps. Try rewriting the code to not use the 'BuildContext', or guard the use with a 'mounted' check. - use_build_context_synchronously
+   info - lib/mongi/screens/public_garden_settings_screen.dart:392:25 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/screens/public_garden_settings_screen.dart:453:29 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/screens/public_garden_settings_screen.dart:474:31 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/screens/quiet_mode_screen.dart:500:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/screens/settings_screen.dart:766:20 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/screens/shared_trees_screen.dart:77:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/screens/shared_trees_screen.dart:85:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/screens/shared_trees_screen.dart:121:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/screens/shared_trees_screen.dart:301:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/screens/shared_trees_screen.dart:324:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/screens/shared_trees_screen.dart:388:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/screens/shared_trees_screen.dart:398:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/screens/shared_trees_screen.dart:433:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/screens/shared_trees_screen.dart:494:25 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/screens/shared_trees_screen.dart:728:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/screens/shared_trees_screen.dart:854:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/services/ad_service.dart:36:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/services/ad_service.dart:72:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/services/ad_service.dart:93:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/services/ad_service.dart:102:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/widgets/banner_ad_slot.dart:108:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/widgets/banner_ad_slot.dart:117:15 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/widgets/banner_ad_slot.dart:210:11 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/widgets/companion_name_editor.dart:43:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/widgets/garden_ambient.dart:540:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/widgets/garden_basic_item_art.dart:37:42 - Statements in a for should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/widgets/garden_basic_item_art.dart:47:36 - Statements in a for should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/widgets/garden_keepsake_sheets.dart:163:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/widgets/garden_plant_picker.dart:83:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/widgets/garden_plant_picker.dart:97:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/widgets/garden_walking_cat.dart:36:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/widgets/garden_world_view.dart:248:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/widgets/garden_world_view.dart:255:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/widgets/garden_world_view.dart:398:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/widgets/garden_world_view.dart:433:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/widgets/garden_world_view.dart:442:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/widgets/garden_world_view.dart:551:13 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/widgets/garden_world_view.dart:1028:25 - Unnecessary use of string interpolation. Try replacing the string literal with the variable name. - unnecessary_string_interpolations
+   info - lib/mongi/widgets/garden_world_view.dart:1028:25 - Use interpolation to compose strings and values. Try using string interpolation to build the composite string. - prefer_interpolation_to_compose_strings
+   info - lib/mongi/widgets/garden_world_view.dart:1426:15 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/widgets/garden_world_view.dart:1721:33 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/widgets/garden_world_view.dart:1763:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/widgets/garden_world_view.dart:1770:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/widgets/resting_garden_view.dart:155:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/widgets/resting_garden_view.dart:253:11 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/mongi/widgets/resting_garden_view.dart:255:11 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/account_screen.dart:67:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/account_screen.dart:73:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/account_screen.dart:120:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/account_screen.dart:169:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/account_screen.dart:194:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/account_screen.dart:220:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/account_screen.dart:249:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/account_screen.dart:405:33 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/care_connection_screen.dart:26:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/care_journal_screen.dart:40:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/care_journal_screen.dart:61:15 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/care_journal_screen.dart:65:15 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/care_journal_screen.dart:76:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/care_journal_screen.dart:81:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/care_journal_screen.dart:279:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/cat_selection_screen.dart:152:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/cat_walk_screen.dart:41:5 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/cat_walk_screen.dart:83:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/cat_walk_screen.dart:124:17 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/cat_walk_screen.dart:167:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/cat_walk_screen.dart:204:13 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/cat_walk_screen.dart:207:13 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/cat_walk_screen.dart:253:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/cat_walk_screen.dart:305:28 - Empty catch block. Try adding statements to the block, adding a comment to the block, or removing the 'catch' clause. - empty_catches
+   info - lib/screens/coloring_healing_screen.dart:84:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/coloring_healing_screen.dart:93:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/coloring_healing_screen.dart:152:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/coloring_healing_screen.dart:155:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/coloring_healing_screen.dart:372:9 - 'translate' is deprecated and shouldn't be used. Use translateByVector3, translateByVector4, or translateByDouble instead. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib/screens/coloring_healing_screen.dart:376:9 - 'scale' is deprecated and shouldn't be used. Use scaleByVector3, scaleByVector4, or scaleByDouble instead. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib/screens/coloring_healing_screen.dart:417:19 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/coloring_healing_screen.dart:555:23 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/coloring_healing_screen.dart:565:23 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/coloring_healing_screen.dart:643:11 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/coloring_healing_screen.dart:788:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/companion_coat_screen.dart:225:29 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/companion_coat_screen.dart:227:29 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/data_safety_screen.dart:10:8 - The import of 'dart:typed_data' is unnecessary because all of the used elements are also provided by the import of 'package:flutter/services.dart'. Try removing the import directive. - unnecessary_import
+   info - lib/screens/data_safety_screen.dart:43:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/data_safety_screen.dart:150:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/data_safety_screen.dart:186:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/data_safety_screen.dart:213:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/data_safety_screen.dart:393:27 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/data_safety_screen.dart:425:25 - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check. Guard a 'State.context' use with a 'mounted' check on the State, and other BuildContext use with a 'mounted' check on the BuildContext. - use_build_context_synchronously
+   info - lib/screens/data_safety_screen.dart:446:27 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/data_safety_screen.dart:496:29 - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check. Guard a 'State.context' use with a 'mounted' check on the State, and other BuildContext use with a 'mounted' check on the BuildContext. - use_build_context_synchronously
+   info - lib/screens/data_safety_screen.dart:547:29 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/data_safety_screen.dart:582:29 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/emotion_archive_screen.dart:68:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/emotion_archive_screen.dart:77:11 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/emotion_archive_screen.dart:92:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/emotion_archive_screen.dart:103:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/emotion_archive_screen.dart:143:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/emotion_archive_screen.dart:269:37 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/emotion_archive_screen.dart:522:44 - Use the null-aware operator '?.' rather than an explicit 'null' comparison. Try using '?.'. - prefer_null_aware_operators
+   info - lib/screens/emotion_statistics_screen.dart:511:33 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/garden_updates_screen.dart:32:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/garden_updates_screen.dart:42:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/home_screen.dart:85:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/home_screen.dart:200:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/home_screen.dart:205:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/home_screen.dart:250:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/home_screen.dart:265:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/home_screen.dart:381:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/keepsake_forest_screen.dart:31:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/keepsake_forest_screen.dart:37:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/keepsake_forest_screen.dart:221:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/keepsake_forest_screen.dart:297:23 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/keepsake_forest_screen.dart:357:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/keepsake_forest_screen.dart:363:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/keepsake_forest_screen.dart:475:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/keepsake_forest_screen.dart:604:41 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/keepsake_forest_screen.dart:630:25 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/legacy_coloring_screen.dart:76:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/legacy_coloring_screen.dart:90:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/legacy_coloring_screen.dart:202:25 - 'red' is deprecated and shouldn't be used. Use (*.r * 255.0).round() & 0xff. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib/screens/legacy_coloring_screen.dart:203:22 - 'green' is deprecated and shouldn't be used. Use (*.g * 255.0).round() & 0xff. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib/screens/legacy_coloring_screen.dart:204:22 - 'blue' is deprecated and shouldn't be used. Use (*.b * 255.0).round() & 0xff. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib/screens/legacy_coloring_screen.dart:223:23 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/legacy_coloring_screen.dart:225:23 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/legacy_coloring_screen.dart:227:23 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/legacy_coloring_screen.dart:249:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/legacy_coloring_screen.dart:393:29 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/memory_cards_screen.dart:47:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/memory_cards_screen.dart:56:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/memory_cards_screen.dart:62:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/memory_cards_screen.dart:79:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/memory_cards_screen.dart:86:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/memory_cards_screen.dart:213:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/memory_cards_screen.dart:243:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/memory_cards_screen.dart:425:51 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/my_screen.dart:437:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/my_screen.dart:445:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/orchard_screen.dart:89:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/orchard_screen.dart:294:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/self_care_entry_screen.dart:213:21 - 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib/screens/self_care_entry_screen.dart:238:23 - 'groupValue' is deprecated and shouldn't be used. Use a RadioGroup ancestor to manage group value instead. This feature was deprecated after v3.32.0-0.0.pre. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib/screens/self_care_entry_screen.dart:241:23 - 'onChanged' is deprecated and shouldn't be used. Use RadioGroup to handle value change instead. This feature was deprecated after v3.32.0-0.0.pre. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib/screens/self_care_entry_screen.dart:261:23 - 'groupValue' is deprecated and shouldn't be used. Use a RadioGroup ancestor to manage group value instead. This feature was deprecated after v3.32.0-0.0.pre. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib/screens/self_care_entry_screen.dart:265:23 - 'onChanged' is deprecated and shouldn't be used. Use RadioGroup to handle value change instead. This feature was deprecated after v3.32.0-0.0.pre. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib/screens/self_care_entry_screen.dart:402:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/self_care_entry_screen.dart:442:21 - 'groupValue' is deprecated and shouldn't be used. Use a RadioGroup ancestor to manage group value instead. This feature was deprecated after v3.32.0-0.0.pre. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib/screens/self_care_entry_screen.dart:445:21 - 'onChanged' is deprecated and shouldn't be used. Use RadioGroup to handle value change instead. This feature was deprecated after v3.32.0-0.0.pre. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib/screens/self_care_screen.dart:232:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/self_care_screen.dart:307:13 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/self_care_screen.dart:314:13 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/screens/welcome_intro_screen.dart:93:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/acceptance_reply_matcher.dart:128:11 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/acceptance_reply_matcher.dart:168:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/acceptance_reply_matcher.dart:172:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/acceptance_reply_matcher.dart:300:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/auto_backup_service.dart:98:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/auto_backup_service.dart:163:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/background_audio_bridge.dart:18:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/background_audio_bridge.dart:41:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/backup_codec.dart:3:8 - The import of 'dart:typed_data' is unnecessary because all of the used elements are also provided by the import of 'package:flutter/foundation.dart'. Try removing the import directive. - unnecessary_import
+   info - lib/services/backup_service.dart:12:8 - The import of '../mongi/integration/plant_memory.dart' is unnecessary because all of the used elements are also provided by the import of '../mongi/integration/plant_memory_store.dart'. Try removing the import directive. - unnecessary_import
+   info - lib/services/backup_service.dart:13:8 - The import of '../mongi/integration/mongi_garden_data.dart' is unnecessary because all of the used elements are also provided by the import of '../mongi/integration/mongi_garden_store.dart'. Try removing the import directive. - unnecessary_import
+   info - lib/services/backup_service.dart:35:8 - The import of '../models/garden_memory_book.dart' is unnecessary because all of the used elements are also provided by the import of 'garden_memory_book_store.dart'. Try removing the import directive. - unnecessary_import
+   info - lib/services/backup_service.dart:157:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/backup_service.dart:160:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/backup_service.dart:319:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/backup_service.dart:333:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/backup_service.dart:388:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/backup_service.dart:393:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/backup_service.dart:400:11 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/backup_service.dart:430:13 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/backup_service.dart:439:13 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/backup_service.dart:463:13 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/backup_service.dart:484:13 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/backup_service.dart:491:13 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/backup_service.dart:497:13 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/backup_service.dart:502:13 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/backup_service.dart:509:11 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/backup_service.dart:551:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/backup_service.dart:562:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/backup_service.dart:619:11 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/backup_service.dart:650:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/backup_service.dart:723:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/brush_coloring_store.dart:20:11 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/care_journal_store.dart:57:11 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/care_journal_store.dart:60:11 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/care_journal_store.dart:138:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/care_journal_store.dart:141:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/care_journal_store.dart:317:11 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/care_journal_store.dart:330:11 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/care_journal_store.dart:332:11 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/care_journal_store.dart:343:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/care_journal_store.dart:350:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/cloud_service.dart:50:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/cloud_service.dart:59:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/cloud_service.dart:61:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/cloud_service.dart:65:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/cloud_service.dart:67:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/cloud_service.dart:80:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/cloud_service.dart:94:11 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/cloud_service.dart:104:11 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/cloud_service.dart:122:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/cloud_service.dart:125:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/cloud_service.dart:173:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/cloud_service.dart:175:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/cloud_service.dart:178:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/cloud_service.dart:283:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/cloud_service.dart:592:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/coloring_store.dart:11:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/coloring_store.dart:17:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/coloring_store.dart:39:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/coloring_store.dart:44:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/consciousness_insight_service.dart:1:1 - Dangling library doc comment. Add a 'library' directive after the library comment. - dangling_library_doc_comments
+   info - lib/services/garden_bell.dart:17:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/garden_bell.dart:23:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/garden_personal_gallery_store.dart:2:8 - The import of 'dart:typed_data' is unnecessary because all of the used elements are also provided by the import of 'package:flutter/foundation.dart'. Try removing the import directive. - unnecessary_import
+   info - lib/services/garden_push_service.dart:62:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/garden_push_service.dart:86:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/garden_push_service.dart:92:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/garden_push_service.dart:170:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/garden_style_store.dart:22:45 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/garden_village_service.dart:52:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/garden_village_service.dart:207:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/garden_village_service.dart:216:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/keepsake_tree_store.dart:47:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/keepsake_tree_store.dart:74:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/keepsake_tree_store.dart:77:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/keepsake_tree_store.dart:99:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/meditation_audio_service.dart:47:13 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/meditation_audio_service.dart:107:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/meditation_audio_service.dart:142:11 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/meditation_audio_service.dart:176:15 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/meditation_audio_service.dart:237:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/meditation_completion_service.dart:73:13 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/meditation_course_store.dart:72:11 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/meditation_course_store.dart:75:11 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/meditation_course_store.dart:78:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/meditation_course_store.dart:115:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/meditation_course_store.dart:124:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/meditation_library_store.dart:71:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/meditation_library_store.dart:80:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/meditation_library_store.dart:89:11 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/meditation_sleep_service.dart:72:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/memory_card_service.dart:18:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/memory_card_service.dart:39:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/memory_card_service.dart:64:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/notice_service.dart:73:13 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/notification_service.dart:358:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/orchard_service.dart:28:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/orchard_service.dart:46:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/orchard_service.dart:93:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/personal_reply_engine.dart:291:11 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/reply_safety.dart:148:11 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/reply_situation.dart:26:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/reply_situation.dart:28:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/reply_situation.dart:101:11 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/reply_tone.dart:64:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/self_care_summary.dart:91:11 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/self_care_summary.dart:94:11 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/shared_tree_service.dart:49:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/sound_service.dart:123:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/sound_service.dart:272:13 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/storage_service.dart:678:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/storage_service.dart:680:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/storage_service.dart:694:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/storage_service.dart:707:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/storage_service.dart:709:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/storage_service.dart:721:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/storage_service.dart:734:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/storage_service.dart:736:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/subscription_service.dart:428:15 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/subscription_service.dart:614:13 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/subscription_service.dart:619:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/services/subscription_service.dart:682:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/utils/companion_name.dart:16:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/widgets/account_access_bridge.dart:100:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/widgets/companion_coat_art.dart:36:5 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/widgets/companion_loaf_art.dart:52:60 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/widgets/companion_reminder_settings.dart:37:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/widgets/companion_reminder_settings.dart:43:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/widgets/companion_reminder_settings.dart:64:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/widgets/daily_care_card.dart:36:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/widgets/daily_care_card.dart:42:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/widgets/emotion_comic_book.dart:216:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/widgets/garden_personal_canvas.dart:57:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/widgets/garden_personal_canvas.dart:81:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/widgets/garden_personal_canvas.dart:101:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/widgets/garden_push_settings.dart:30:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/widgets/garden_push_settings.dart:52:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/widgets/garden_push_settings.dart:54:17 - Unnecessary use of string interpolation. Try replacing the string literal with the variable name. - unnecessary_string_interpolations
+   info - lib/widgets/garden_push_settings.dart:85:21 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/widgets/growth_header.dart:23:19 - Unnecessary braces in a string interpolation. Try removing the braces. - unnecessary_brace_in_string_interps
+   info - lib/widgets/healing_activities.dart:110:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/widgets/healing_activities.dart:122:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/widgets/home_companion_touch.dart:98:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/widgets/home_companion_touch.dart:111:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/widgets/keepsake_tree_art.dart:297:17 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/widgets/letter_care_closing_card.dart:14:7 - Use an initializing formal to assign a parameter to a field. Try using an initialing formal ('this.letter') to initialize the field. - prefer_initializing_formals
+   info - lib/widgets/letter_care_closing_card.dart:45:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/widgets/letter_care_closing_card.dart:61:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/widgets/letter_care_closing_card.dart:201:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/widgets/meditation_audio_player.dart:48:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/widgets/meditation_audio_player.dart:61:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/widgets/meditation_audio_player.dart:171:57 - Unnecessary braces in a string interpolation. Try removing the braces. - unnecessary_brace_in_string_interps
+   info - lib/widgets/meditation_check_in.dart:25:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/widgets/meditation_check_in.dart:27:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/widgets/meditation_check_in.dart:73:33 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/widgets/meditation_check_in.dart:76:33 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/widgets/meditation_courses_card.dart:62:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/widgets/meditation_favorite.dart:36:15 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/widgets/meditation_sleep_controls.dart:39:25 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/widgets/meditation_video_player.dart:99:15 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/widgets/meditation_video_player.dart:115:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/widgets/meditation_video_player.dart:131:15 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/widgets/meditation_video_player.dart:137:15 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/widgets/neighbor_news_bubble.dart:37:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/widgets/neighbor_news_bubble.dart:52:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/widgets/neighbor_news_bubble.dart:56:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/widgets/orchard_gift_inbox.dart:41:11 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/widgets/orchard_gift_inbox.dart:57:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/widgets/orchard_gift_inbox.dart:60:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/widgets/pastel_garden_shell.dart:367:20 - Unnecessary braces in a string interpolation. Try removing the braces. - unnecessary_brace_in_string_interps
+   info - lib/widgets/reply_feedback.dart:52:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/widgets/sound_panel.dart:84:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib/widgets/subscription_gate.dart:95:11 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - test/app_lock_gate_test.dart:1:8 - The import of 'package:flutter/foundation.dart' is unnecessary because all of the used elements are also provided by the import of 'package:flutter/material.dart'. Try removing the import directive. - unnecessary_import
+   info - test/app_lock_gate_test.dart:4:8 - Can't use a relative path to import a library in 'lib'. Try fixing the relative path or changing the import to a 'package:' import. - avoid_relative_lib_imports
+   info - test/app_lock_gate_test.dart:5:8 - Can't use a relative path to import a library in 'lib'. Try fixing the relative path or changing the import to a 'package:' import. - avoid_relative_lib_imports
+   info - test/background_music_test.dart:3:8 - The imported package 'audioplayers_platform_interface' isn't a dependency of the importing package. Try adding a dependency for 'audioplayers_platform_interface' in the 'pubspec.yaml' file. - depend_on_referenced_packages
+   info - test/brush_coloring_store_order_test.dart:1:8 - The import of 'package:flutter/material.dart' is unnecessary because all of the used elements are also provided by the import of 'package:flutter_test/flutter_test.dart'. Try removing the import directive. - unnecessary_import
+   info - test/calendar_period_test.dart:2:8 - Can't use a relative path to import a library in 'lib'. Try fixing the relative path or changing the import to a 'package:' import. - avoid_relative_lib_imports
+   info - test/cat_visit_test.dart:191:13 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - test/cat_visit_test.dart:199:13 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - test/cat_walk_screen_test.dart:3:8 - The import of 'package:flutter/foundation.dart' is unnecessary because all of the used elements are also provided by the import of 'package:flutter/material.dart'. Try removing the import directive. - unnecessary_import
+   info - test/coalescing_refresh_test.dart:3:8 - Can't use a relative path to import a library in 'lib'. Try fixing the relative path or changing the import to a 'package:' import. - avoid_relative_lib_imports
+   info - test/coloring_boundaries_test.dart:55:9 - Statements in a for should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - test/coloring_boundaries_test.dart:55:37 - Statements in a for should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - test/companion_care_notifications_ui_test.dart:10:8 - The imported package 'audioplayers_platform_interface' isn't a dependency of the importing package. Try adding a dependency for 'audioplayers_platform_interface' in the 'pubspec.yaml' file. - depend_on_referenced_packages
+   info - test/companion_care_panel_test.dart:16:8 - The imported package 'audioplayers_platform_interface' isn't a dependency of the importing package. Try adding a dependency for 'audioplayers_platform_interface' in the 'pubspec.yaml' file. - depend_on_referenced_packages
+   info - test/companion_family_test.dart:8:8 - The import of 'package:flutter/material.dart' is unnecessary because all of the used elements are also provided by the import of 'package:flutter_test/flutter_test.dart'. Try removing the import directive. - unnecessary_import
+   info - test/companion_motion_test.dart:22:7 - Unnecessary constructor invocation. Try using a collection literal. - prefer_collection_literals
+   info - test/companion_notifications_test.dart:18:8 - The imported package 'audioplayers_platform_interface' isn't a dependency of the importing package. Try adding a dependency for 'audioplayers_platform_interface' in the 'pubspec.yaml' file. - depend_on_referenced_packages
+   info - test/companion_shelters_render_test.dart:2:8 - The imported package 'audioplayers_platform_interface' isn't a dependency of the importing package. Try adding a dependency for 'audioplayers_platform_interface' in the 'pubspec.yaml' file. - depend_on_referenced_packages
+   info - test/emotion_archive_usability_test.dart:129:15 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - test/encrypted_corruption_preservation_test.dart:65:26 - Use interpolation to compose strings and values. Try using string interpolation to build the composite string. - prefer_interpolation_to_compose_strings
+   info - test/encryption_migration_test.dart:4:8 - Can't use a relative path to import a library in 'lib'. Try fixing the relative path or changing the import to a 'package:' import. - avoid_relative_lib_imports
+   info - test/garden_basic_items_test.dart:10:8 - The imported package 'audioplayers_platform_interface' isn't a dependency of the importing package. Try adding a dependency for 'audioplayers_platform_interface' in the 'pubspec.yaml' file. - depend_on_referenced_packages
+   info - test/garden_gift_pagination_test.dart:140:15 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - test/garden_layout_test.dart:3:8 - The import of 'package:flutter/material.dart' is unnecessary because all of the used elements are also provided by the import of 'package:flutter/services.dart'. Try removing the import directive. - unnecessary_import
+   info - test/garden_nature_execution_test.dart:8:8 - The imported package 'audioplayers_platform_interface' isn't a dependency of the importing package. Try adding a dependency for 'audioplayers_platform_interface' in the 'pubspec.yaml' file. - depend_on_referenced_packages
+   info - test/garden_nature_execution_test.dart:116:17 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - test/garden_nature_execution_test.dart:135:11 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - test/garden_navigation_regression_test.dart:2:8 - The import of 'package:flutter/rendering.dart' is unnecessary because all of the used elements are also provided by the import of 'package:flutter/material.dart'. Try removing the import directive. - unnecessary_import
+   info - test/garden_personal_gallery_test.dart:3:8 - The import of 'dart:typed_data' is unnecessary because all of the used elements are also provided by the import of 'package:flutter/services.dart'. Try removing the import directive. - unnecessary_import
+   info - test/garden_personal_gallery_test.dart:4:8 - The import of 'package:flutter/material.dart' is unnecessary because all of the used elements are also provided by the import of 'package:flutter/services.dart'. Try removing the import directive. - unnecessary_import
+   info - test/garden_plant_transaction_test.dart:3:8 - The import of 'package:flutter/material.dart' is unnecessary because all of the used elements are also provided by the import of 'package:flutter/services.dart'. Try removing the import directive. - unnecessary_import
+   info - test/garden_sound_timer_test.dart:1:8 - The import of 'dart:async' is unnecessary because all of the used elements are also provided by the import of 'package:flutter_test/flutter_test.dart'. Try removing the import directive. - unnecessary_import
+   info - test/garden_sound_timer_test.dart:3:8 - The imported package 'audioplayers_platform_interface' isn't a dependency of the importing package. Try adding a dependency for 'audioplayers_platform_interface' in the 'pubspec.yaml' file. - depend_on_referenced_packages
+   info - test/garden_world_offline_test.dart:13:8 - The imported package 'audioplayers_platform_interface' isn't a dependency of the importing package. Try adding a dependency for 'audioplayers_platform_interface' in the 'pubspec.yaml' file. - depend_on_referenced_packages
+   info - test/garden_world_offline_test.dart:83:13 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - test/garden_world_offline_test.dart:230:11 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - test/garden_world_offline_test.dart:432:13 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - test/garden_world_offline_test.dart:654:15 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - test/garden_world_offline_test.dart:786:15 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - test/garden_world_offline_test.dart:864:9 - Statements in a for should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - test/garden_world_offline_test.dart:1011:13 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - test/garden_world_offline_test.dart:1057:13 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - test/garden_world_offline_test.dart:1361:13 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - test/garden_world_offline_test.dart:1394:13 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - test/garden_world_offline_test.dart:1484:13 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - test/garden_world_offline_test.dart:1488:15 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - test/garden_world_offline_test.dart:1541:13 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - test/garden_world_view_test.dart:1:8 - The imported package 'audioplayers_platform_interface' isn't a dependency of the importing package. Try adding a dependency for 'audioplayers_platform_interface' in the 'pubspec.yaml' file. - depend_on_referenced_packages
+   info - test/home_companion_welcome_test.dart:1:8 - The imported package 'audioplayers_platform_interface' isn't a dependency of the importing package. Try adding a dependency for 'audioplayers_platform_interface' in the 'pubspec.yaml' file. - depend_on_referenced_packages
+   info - test/home_companion_welcome_test.dart:253:15 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - test/home_companion_welcome_test.dart:334:9 - Statements in a for should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - test/home_companion_welcome_test.dart:362:9 - Statements in a for should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - test/home_companion_welcome_test.dart:369:9 - Statements in a for should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - test/legacy_scope_migration_test.dart:6:8 - Can't use a relative path to import a library in 'lib'. Try fixing the relative path or changing the import to a 'package:' import. - avoid_relative_lib_imports
+   info - test/legacy_scope_migration_test.dart:7:8 - Can't use a relative path to import a library in 'lib'. Try fixing the relative path or changing the import to a 'package:' import. - avoid_relative_lib_imports
+   info - test/legacy_scope_migration_test.dart:8:8 - Can't use a relative path to import a library in 'lib'. Try fixing the relative path or changing the import to a 'package:' import. - avoid_relative_lib_imports
+   info - test/meditation_audio_test.dart:6:8 - The import of 'package:audioplayers/audioplayers.dart' is unnecessary because all of the used elements are also provided by the import of 'package:audioplayers_platform_interface/audioplayers_platform_interface.dart'. Try removing the import directive. - unnecessary_import
+   info - test/meditation_audio_test.dart:7:8 - The imported package 'audioplayers_platform_interface' isn't a dependency of the importing package. Try adding a dependency for 'audioplayers_platform_interface' in the 'pubspec.yaml' file. - depend_on_referenced_packages
+   info - test/meditation_library_test.dart:31:9 - Statements in a for should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - test/meditation_video_completion_test.dart:9:8 - The imported package 'audioplayers_platform_interface' isn't a dependency of the importing package. Try adding a dependency for 'audioplayers_platform_interface' in the 'pubspec.yaml' file. - depend_on_referenced_packages
+   info - test/mongi_session_transaction_test.dart:4:8 - The import of 'package:flutter_app/mongi/integration/mongi_garden_data.dart' is unnecessary because all of the used elements are also provided by the import of 'package:flutter_app/mongi/integration/mongi_garden_store.dart'. Try removing the import directive. - unnecessary_import
+   info - test/mongi_session_transaction_test.dart:256:11 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - test/orchard_test.dart:162:15 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - test/orchard_test.dart:360:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - test/pastel_garden_shell_test.dart:1:8 - The imported package 'audioplayers_platform_interface' isn't a dependency of the importing package. Try adding a dependency for 'audioplayers_platform_interface' in the 'pubspec.yaml' file. - depend_on_referenced_packages
+   info - test/persisted_submission_test.dart:3:8 - Can't use a relative path to import a library in 'lib'. Try fixing the relative path or changing the import to a 'package:' import. - avoid_relative_lib_imports
+   info - test/remaining_proposals_test.dart:3:8 - The import of 'package:flutter/material.dart' is unnecessary because all of the used elements are also provided by the import of 'package:flutter/services.dart'. Try removing the import directive. - unnecessary_import
+   info - test/remaining_proposals_test.dart:111:30 - Statements in a for should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - test/remaining_proposals_test.dart:113:44 - Statements in a for should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - test/reply_situation_test.dart:104:11 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - test/restore_complete_dialog_test.dart:25:27 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - test/shared_tree_screen_test.dart:132:13 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - test/shared_tree_service_test.dart:177:13 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - test/support/fake_audioplayers_platform.dart:3:8 - The imported package 'audioplayers_platform_interface' isn't a dependency of the importing package. Try adding a dependency for 'audioplayers_platform_interface' in the 'pubspec.yaml' file. - depend_on_referenced_packages
+   info - test/support/fake_global_audioplayers_platform.dart:3:8 - The imported package 'audioplayers_platform_interface' isn't a dependency of the importing package. Try adding a dependency for 'audioplayers_platform_interface' in the 'pubspec.yaml' file. - depend_on_referenced_packages
+
+501 issues found.

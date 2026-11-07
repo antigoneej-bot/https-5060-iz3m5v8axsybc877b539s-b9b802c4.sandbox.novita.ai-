@@ -8,6 +8,8 @@ class AnimatedTeenCat extends StatelessWidget {
   const AnimatedTeenCat({super.key, this.size = 132, this.reactionToken = 0});
   @override
   Widget build(BuildContext context) => GrowthCatMotion(
-    asset: 'assets/growth/teen_frames/teen_01.png', size: size, reactionToken: reactionToken,
+    asset: 'assets/growth/teen_frames/teen_01.png',
+    size: size,
+    reactionToken: reactionToken,
   );
 }

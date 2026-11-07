@@ -30,7 +30,7 @@ void main() {
     await show([]);
     expect(t.widget<Semantics>(cat).properties.label, isNot(contains('일어나기')));
     await show(['cat_cushion'], readOnly: true);
-    expect(find.bySemanticsLabel('내가 색칠한 작품 액자'), findsNothing);
+    expect(find.bySemanticsLabel('간직한 작품 액자'), findsNothing);
     expect(t.takeException(), isNull);
     await t.pumpWidget(const SizedBox());
   });

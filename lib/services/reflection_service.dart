@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import 'package:intl/intl.dart';
 import '../providers/app_state_provider.dart';
 import '../data/shadow_cats_data.dart';
@@ -83,7 +84,7 @@ class ReflectionService {
   /// 고양이 id로 한글 이름을 찾습니다. 도감에 없는 id면 빈 문자열.
   static String catNameFor(String? catId) {
     if (catId == null) return '';
-    return shadowCatById(catId).nameKr;
+    return shadowCatById(catId).displayName;
   }
 
   /// 화면3(월간 서술형 요약)의 문장을 규칙 기반(빈도 비교 + 템플릿)으로
@@ -94,23 +95,23 @@ class ReflectionService {
     required String? secondHalfCatId,
   }) {
     if (firstHalfCatId == null && secondHalfCatId == null) {
-      return '이번 달은 아직 기록이 충분하지 않아요. 편지를 몇 번 더 써보면\n흐름을 함께 살펴볼 수 있어요.';
+      return tr("이번 달은 아직 기록이 충분하지 않아요. 편지를 몇 번 더 써보면\n흐름을 함께 살펴볼 수 있어요.");
     }
     if (firstHalfCatId == null) {
       final b = catNameFor(secondHalfCatId);
-      return '이번 달, 당신은 $b와 함께했어요.';
+      return tr("이번 달, 당신은 {0}와 함께했어요.", [b]);
     }
     if (secondHalfCatId == null) {
       final a = catNameFor(firstHalfCatId);
-      return '이번 달, 당신은 $a와 함께했어요.';
+      return tr("이번 달, 당신은 {0}와 함께했어요.", [a]);
     }
     if (firstHalfCatId == secondHalfCatId) {
       final a = catNameFor(firstHalfCatId);
-      return '이번 달, 당신은 꾸준히 $a와 함께했어요.';
+      return tr("이번 달, 당신은 꾸준히 {0}와 함께했어요.", [a]);
     }
     final a = catNameFor(firstHalfCatId);
     final b = catNameFor(secondHalfCatId);
-    return '이번 달, 당신의 감정은 초반엔 $a에서\n후반엔 $b로 흘러갔어요.';
+    return tr("이번 달, 당신의 감정은 초반엔 {0}에서\n후반엔 {1}로 흘러갔어요.", [a, b]);
   }
 
   // ── 데일리 카드뽑기(무의식) 발전: 동시성 비교 · 반복되는 그림자 ──
@@ -127,11 +128,17 @@ class ReflectionService {
     if (consciousCatId == null || unconsciousCatId == null) return null;
     if (consciousCatId == unconsciousCatId) {
       final name = catNameFor(consciousCatId);
-      return '오늘 편지에서 고른 마음과, 무작위로 뽑힌 카드가\n똑같이 $name였어요. 반가운 우연이에요. 마음에 와닿는 부분만 돌아보세요.';
+      return tr(
+        "오늘 편지에서 고른 마음과, 무작위로 뽑힌 카드가\n똑같이 {0}였어요. 반가운 우연이에요. 마음에 와닿는 부분만 돌아보세요.",
+        [name],
+      );
     }
     final a = catNameFor(consciousCatId);
     final b = catNameFor(unconsciousCatId);
-    return '오늘 편지에서는 $a를 골랐지만,\n무작위로 뽑힌 카드는 $b였어요. 서로 다른 결을 보여준 하루예요.';
+    return tr("오늘 편지에서는 {0}를 골랐지만,\n무작위로 뽑힌 카드는 {1}였어요. 서로 다른 결을 보여준 하루예요.", [
+      a,
+      b,
+    ]);
   }
 
   /// 이번 달(달력 기준) 안에서 뽑힌 데일리 카드(무의식)만 골라냅니다.
@@ -178,6 +185,9 @@ class ReflectionService {
     });
     if (topId == null || topCount < threshold) return null;
     final name = catNameFor(topId);
-    return '이번 달 무작위 카드뽑기에서 $name가 $topCount번\n나타났어요. 무작위 추첨 기록이며, 실제 감정이나 숨겨진 마음을 뜻하지 않아요.';
+    return tr(
+      "이번 달 무작위 카드뽑기에서 {0}가 {1}번\n나타났어요. 무작위 추첨 기록이며, 실제 감정이나 숨겨진 마음을 뜻하지 않아요.",
+      [name, topCount],
+    );
   }
 }

@@ -1,9 +1,11 @@
+import '../l10n/app_language.dart';
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 import '../services/keepsake_tree_store.dart';
 import '../widgets/keepsake_tree_art.dart';
 import '../widgets/premium_test_access.dart';
-import '../mongi/widgets/garden_keepsake_sheets.dart' show showPlantMemoryManager;
+import '../mongi/widgets/garden_keepsake_sheets.dart'
+    show showPlantMemoryManager;
 
 class KeepsakeForestScreen extends StatefulWidget {
   final KeepsakeTreeStore? store;
@@ -34,7 +36,7 @@ class _KeepsakeForestScreenState extends State<KeepsakeForestScreen> {
         });
     } catch (_) {
       if (mounted)
-        setState(() => error = '기억의 숲을 불러오지 못했어요. 저장된 기록은 지우지 않았어요.');
+        setState(() => error = tr("기억의 숲을 불러오지 못했어요. 저장된 기록은 지우지 않았어요."));
     } finally {
       if (mounted) setState(() => busy = false);
     }
@@ -58,130 +60,138 @@ class _KeepsakeForestScreenState extends State<KeepsakeForestScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    backgroundColor: const Color(0xFFFFFAF2),
-    appBar: AppBar(
-      title: const Text('기억의 나무'),
-      actions: [
-        IconButton(
-          tooltip: '새로고침',
-          onPressed: busy ? null : load,
-          icon: const Icon(Icons.refresh),
-        ),
-      ],
-    ),
-    body: SafeArea(
-      child: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          const Text(
-            '기억하고 싶은 날,\n씨앗 하나를 심어요.',
-            style: TextStyle(
-              fontSize: 26,
-              fontWeight: FontWeight.w700,
-              height: 1.4,
-            ),
+  Widget build(BuildContext context) {
+    Localizations.localeOf(context);
+    return Scaffold(
+      backgroundColor: const Color(0xFFFFFAF2),
+      appBar: AppBar(
+        title: Text(tr("기억의 나무")),
+        actions: [
+          IconButton(
+            tooltip: tr("새로고침"),
+            onPressed: busy ? null : load,
+            icon: const Icon(Icons.refresh),
           ),
-          const SizedBox(height: 8),
-          const Text('사랑도, 용서도, 평화도.\n내가 고른 씨앗에 날짜와 이야기를 담아 천천히 키워요.'),
-          const PremiumFeatureLabel('기억의 씨앗 심기 · 나무 키우기'),
-          if (busy) const LinearProgressIndicator(),
-          if (error != null) ...[
-            Text(error!),
-            TextButton(
-              onPressed: busy ? null : load,
-              child: const Text('다시 불러오기'),
-            ),
-          ],
-          FilledButton.icon(
-            onPressed: busy || error != null ? null : plant,
-            icon: const Icon(Icons.add),
-            label: const Text('기억의 씨앗 심기'),
-          ),
-          const SizedBox(height: 16),
-          if (!busy && trees.isEmpty && error == null) ...[
-            SizedBox(
-              height: 230,
-              child: KeepsakeTreeArt(
-                kind: KeepsakeKind.love,
-                metal: KeepsakeMetal.gold,
-                stage: 0,
+        ],
+      ),
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.all(20),
+          children: [
+            Text(
+              tr("기억하고 싶은 날,\n씨앗 하나를 심어요."),
+              style: TextStyle(
+                fontSize: 26,
+                fontWeight: FontWeight.w700,
+                height: 1.4,
               ),
             ),
-            const Text(
-              '아직 심은 씨앗이 없어요.\n처음부터 큰 나무가 생기지 않아요.',
-              textAlign: TextAlign.center,
+            const SizedBox(height: 8),
+            Text(tr("사랑도, 용서도, 평화도.\n내가 고른 씨앗에 날짜와 이야기를 담아 천천히 키워요.")),
+            PremiumFeatureLabel(tr("기억의 씨앗 심기 · 나무 키우기")),
+            if (busy) const LinearProgressIndicator(),
+            if (error != null) ...[
+              Text(error!),
+              TextButton(
+                onPressed: busy ? null : load,
+                child: Text(tr("다시 불러오기")),
+              ),
+            ],
+            FilledButton.icon(
+              onPressed: busy || error != null ? null : plant,
+              icon: const Icon(Icons.add),
+              label: Text(tr("기억의 씨앗 심기")),
             ),
-          ],
-          for (final tree in trees)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 16),
-              child: Card(
-                color: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(28),
-                  side: BorderSide(
-                    color: Color(tree.metal.color).withValues(alpha: .4),
-                  ),
+            const SizedBox(height: 16),
+            if (!busy && trees.isEmpty && error == null) ...[
+              SizedBox(
+                height: 230,
+                child: KeepsakeTreeArt(
+                  kind: KeepsakeKind.love,
+                  metal: KeepsakeMetal.gold,
+                  stage: 0,
                 ),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(28),
-                  onTap: () async {
-                    await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => _TreeDetail(tree: tree, store: store),
+              ),
+              Text(
+                tr("아직 심은 씨앗이 없어요.\n처음부터 큰 나무가 생기지 않아요."),
+                textAlign: TextAlign.center,
+              ),
+            ],
+            for (final tree in trees)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: Card(
+                  color: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(28),
+                    side: BorderSide(
+                      color: Color(tree.metal.color).withValues(alpha: .4),
+                    ),
+                  ),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(28),
+                    onTap: () async {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => _TreeDetail(tree: tree, store: store),
+                        ),
+                      );
+                      if (mounted) load();
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        children: [
+                          SizedBox(
+                            height: 240,
+                            child: KeepsakeTreeArt(
+                              kind: tree.kind,
+                              metal: tree.metal,
+                              stage: tree.stage,
+                            ),
+                          ),
+                          Text(
+                            tree.name,
+                            style: const TextStyle(
+                              fontSize: 21,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          Text(
+                            '${tree.kind.label} · ${tree.metal.label} · ${tree.stageLabel}',
+                          ),
+                          Text(
+                            tr("{0} · 추억 {1}개", [
+                              tree.notes.first.day,
+                              tree.notes.length,
+                            ]),
+                          ),
+                          Text(tr("함께 돌본 {0}일", [tree.careDays.length])),
+                          const SizedBox(height: 10),
+                          Text(tr("추억 보기 · 돌보기  →")),
+                        ],
                       ),
-                    );
-                    if (mounted) load();
-                  },
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      children: [
-                        SizedBox(
-                          height: 240,
-                          child: KeepsakeTreeArt(
-                            kind: tree.kind,
-                            metal: tree.metal,
-                            stage: tree.stage,
-                          ),
-                        ),
-                        Text(
-                          tree.name,
-                          style: const TextStyle(
-                            fontSize: 21,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        Text(
-                          '${tree.kind.label} · ${tree.metal.label} · ${tree.stageLabel}',
-                        ),
-                        Text(
-                          '${tree.notes.first.day} · 추억 ${tree.notes.length}개',
-                        ),
-                        Text('함께 돌본 ${tree.careDays.length}일'),
-                        const SizedBox(height: 10),
-                        const Text('추억 보기 · 돌보기  →'),
-                      ],
                     ),
                   ),
                 ),
               ),
+            const SizedBox(height: 12),
+            Text(
+              tr(
+                "쉬는 날에도 시들지 않아요. 기록한 날짜와 내용은 나만 볼 수 있어요. 설정의 데이터 백업에 기억의 나무도 함께 담겨요.",
+              ),
+              textAlign: TextAlign.center,
             ),
-          const SizedBox(height: 12),
-          const Text(
-            '쉬는 날에도 시들지 않아요. 기록한 날짜와 내용은 나만 볼 수 있어요. 설정의 데이터 백업에 기억의 나무도 함께 담겨요.',
-            textAlign: TextAlign.center,
-          ),
-          TextButton(
-            onPressed: () => showPlantMemoryManager(context),
-            child: const Text('이전 정원 식물에 남긴 추억 보기'),
-          ),
-        ],
+            TextButton(
+              onPressed: () => showPlantMemoryManager(context),
+              child: Text(tr("이전 정원 식물에 남긴 추억 보기")),
+            ),
+          ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 class _SeedEditor extends StatefulWidget {
@@ -209,7 +219,9 @@ class _SeedEditorState extends State<_SeedEditor> {
     setState(() => busy = true);
     try {
       final tree = await widget.store.plant(
-        name: name.text.trim().isEmpty ? '${kind.label}의 기억' : name.text,
+        name: name.text.trim().isEmpty
+            ? tr("{0}의 기억", [kind.label])
+            : name.text,
         kind: kind,
         metal: metal,
         day: day,
@@ -223,7 +235,7 @@ class _SeedEditorState extends State<_SeedEditor> {
               ? e.message.toString()
               : e is FormatException
               ? e.message
-              : '씨앗을 저장하지 못했어요. 다시 시도해주세요.',
+              : tr("씨앗을 저장하지 못했어요. 다시 시도해주세요."),
         );
     } finally {
       if (mounted) setState(() => busy = false);
@@ -231,96 +243,99 @@ class _SeedEditorState extends State<_SeedEditor> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    backgroundColor: const Color(0xFFFFFAF2),
-    appBar: AppBar(title: const Text('기억의 씨앗 고르기')),
-    body: SafeArea(
-      child: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          const Text(
-            '어떤 마음을 심을까요?',
-            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-          ),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              for (final k in KeepsakeKind.values)
-                ChoiceChip(
-                  label: Text('${k.label}의 씨앗'),
-                  selected: kind == k,
-                  onSelected: busy ? null : (_) => setState(() => kind = k),
-                ),
-            ],
-          ),
-          Text(kind.description),
-          SizedBox(
-            height: 175,
-            child: KeepsakeTreeArt(kind: kind, metal: metal, stage: 0),
-          ),
-          const Text('자라날 나무의 빛깔'),
-          Wrap(
-            spacing: 8,
-            children: [
-              for (final m in KeepsakeMetal.values)
-                ChoiceChip(
-                  label: Text(m.label),
-                  avatar: CircleAvatar(
-                    backgroundColor: Color(m.color),
-                    radius: 7,
+  Widget build(BuildContext context) {
+    Localizations.localeOf(context);
+    return Scaffold(
+      backgroundColor: const Color(0xFFFFFAF2),
+      appBar: AppBar(title: Text(tr("기억의 씨앗 고르기"))),
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.all(20),
+          children: [
+            Text(
+              tr("어떤 마음을 심을까요?"),
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            ),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final k in KeepsakeKind.values)
+                  ChoiceChip(
+                    label: Text(tr("{0}의 씨앗", [k.label])),
+                    selected: kind == k,
+                    onSelected: busy ? null : (_) => setState(() => kind = k),
                   ),
-                  selected: metal == m,
-                  onSelected: busy ? null : (_) => setState(() => metal = m),
-                ),
-            ],
-          ),
-          TextField(
-            controller: name,
-            maxLength: 60,
-            enabled: !busy,
-            decoration: const InputDecoration(
-              labelText: '나무 이름',
-              hintText: '예: 엄마와의 봄날',
+              ],
             ),
-          ),
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('기념할 날짜'),
-            subtitle: Text(day),
-            trailing: const Icon(Icons.calendar_month),
-            onTap: busy
-                ? null
-                : () async {
-                    final selected = await pickKeepsakeDate(context, day);
-                    if (selected != null && mounted)
-                      setState(() => day = selected);
-                  },
-          ),
-          TextField(
-            controller: note,
-            maxLength: 3000,
-            minLines: 4,
-            maxLines: 8,
-            enabled: !busy,
-            decoration: const InputDecoration(
-              labelText: '기억하고 싶은 내용',
-              hintText: '이 씨앗에 담고 싶은 사람, 순간, 약속을 적어주세요.',
-              border: OutlineInputBorder(),
+            Text(kind.description),
+            SizedBox(
+              height: 175,
+              child: KeepsakeTreeArt(kind: kind, metal: metal, stage: 0),
             ),
-          ),
-          const Text('기념일과 실제 심은 날은 따로 기록해요. 과거 날짜를 적어도 오늘은 씨앗부터 시작해요.'),
-          if (error != null)
-            Text(error!, style: const TextStyle(color: Colors.red)),
-          const SizedBox(height: 12),
-          FilledButton(
-            onPressed: busy ? null : save,
-            child: Text(busy ? '씨앗을 심고 있어요…' : '이 기억으로 씨앗 심기'),
-          ),
-        ],
+            Text(tr("자라날 나무의 빛깔")),
+            Wrap(
+              spacing: 8,
+              children: [
+                for (final m in KeepsakeMetal.values)
+                  ChoiceChip(
+                    label: Text(m.label),
+                    avatar: CircleAvatar(
+                      backgroundColor: Color(m.color),
+                      radius: 7,
+                    ),
+                    selected: metal == m,
+                    onSelected: busy ? null : (_) => setState(() => metal = m),
+                  ),
+              ],
+            ),
+            TextField(
+              controller: name,
+              maxLength: 60,
+              enabled: !busy,
+              decoration: InputDecoration(
+                labelText: tr("나무 이름"),
+                hintText: tr("예: 엄마와의 봄날"),
+              ),
+            ),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(tr("기념할 날짜")),
+              subtitle: Text(day),
+              trailing: const Icon(Icons.calendar_month),
+              onTap: busy
+                  ? null
+                  : () async {
+                      final selected = await pickKeepsakeDate(context, day);
+                      if (selected != null && mounted)
+                        setState(() => day = selected);
+                    },
+            ),
+            TextField(
+              controller: note,
+              maxLength: 3000,
+              minLines: 4,
+              maxLines: 8,
+              enabled: !busy,
+              decoration: InputDecoration(
+                labelText: tr("기억하고 싶은 내용"),
+                hintText: tr("이 씨앗에 담고 싶은 사람, 순간, 약속을 적어주세요."),
+                border: OutlineInputBorder(),
+              ),
+            ),
+            Text(tr("기념일과 실제 심은 날은 따로 기록해요. 과거 날짜를 적어도 오늘은 씨앗부터 시작해요.")),
+            if (error != null)
+              Text(error!, style: const TextStyle(color: Colors.red)),
+            const SizedBox(height: 12),
+            FilledButton(
+              onPressed: busy ? null : save,
+              child: Text(busy ? tr("씨앗을 심고 있어요…") : tr("이 기억으로 씨앗 심기")),
+            ),
+          ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 Future<String?> pickKeepsakeDate(BuildContext context, String day) async {
@@ -329,7 +344,7 @@ Future<String?> pickKeepsakeDate(BuildContext context, String day) async {
     initialDate: DateTime.parse(day),
     firstDate: DateTime(1900),
     lastDate: DateTime(2200, 12, 31),
-    helpText: '기억하고 싶은 날짜',
+    helpText: tr("기억하고 싶은 날짜"),
   );
   return d == null
       ? null
@@ -363,7 +378,7 @@ class _TreeDetailState extends State<_TreeDetail> {
         setState(
           () => error = e is StateError
               ? e.message.toString()
-              : '저장하지 못했어요. 새로고침 후 다시 시도해주세요.',
+              : tr("저장하지 못했어요. 새로고침 후 다시 시도해주세요."),
         );
     } finally {
       if (mounted) setState(() => busy = false);
@@ -374,7 +389,7 @@ class _TreeDetailState extends State<_TreeDetail> {
     await change(() async {
       final all = await widget.store.load();
       final found = all.where((t) => t.id == tree.id).firstOrNull;
-      if (found == null) throw StateError('삭제된 나무예요. 목록으로 돌아가주세요.');
+      if (found == null) throw StateError(tr("삭제된 나무예요. 목록으로 돌아가주세요."));
       return found;
     });
   }
@@ -413,11 +428,11 @@ class _TreeDetailState extends State<_TreeDetail> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('취소'),
+              child: Text(tr("취소")),
             ),
             FilledButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('삭제'),
+              child: Text(tr("삭제")),
             ),
           ],
         ),
@@ -430,7 +445,7 @@ class _TreeDetailState extends State<_TreeDetail> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, update) => AlertDialog(
-          title: const Text('나무 이름과 빛깔'),
+          title: Text(tr("나무 이름과 빛깔")),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -438,7 +453,7 @@ class _TreeDetailState extends State<_TreeDetail> {
                 TextField(
                   controller: controller,
                   maxLength: 60,
-                  decoration: const InputDecoration(labelText: '나무 이름'),
+                  decoration: InputDecoration(labelText: tr("나무 이름")),
                 ),
                 Wrap(
                   spacing: 6,
@@ -457,11 +472,11 @@ class _TreeDetailState extends State<_TreeDetail> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('취소'),
+              child: Text(tr("취소")),
             ),
             FilledButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('저장'),
+              child: Text(tr("저장")),
             ),
           ],
         ),
@@ -477,6 +492,7 @@ class _TreeDetailState extends State<_TreeDetail> {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     final canCare = tree.canCare(widget.store.now());
     final notes = [...tree.notes]..sort((a, b) => b.day.compareTo(a.day));
     return Scaffold(
@@ -485,12 +501,12 @@ class _TreeDetailState extends State<_TreeDetail> {
         title: Text(tree.name),
         actions: [
           IconButton(
-            tooltip: '이름·빛깔 수정',
+            tooltip: tr("이름·빛깔 수정"),
             onPressed: busy ? null : settings,
             icon: const Icon(Icons.edit_outlined),
           ),
           IconButton(
-            tooltip: '새로고침',
+            tooltip: tr("새로고침"),
             onPressed: busy ? null : refresh,
             icon: const Icon(Icons.refresh),
           ),
@@ -501,7 +517,7 @@ class _TreeDetailState extends State<_TreeDetail> {
           padding: const EdgeInsets.all(20),
           children: [
             Text(
-              '${tree.kind.label}의 씨앗에서 자라는 ${tree.metal.label} 기억',
+              tr("{0}의 씨앗에서 자라는 {1} 기억", [tree.kind.label, tree.metal.label]),
               textAlign: TextAlign.center,
             ),
             SizedBox(
@@ -518,7 +534,7 @@ class _TreeDetailState extends State<_TreeDetail> {
               style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700),
             ),
             Text(
-              '심은 날 ${tree.plantedDay} · 돌본 ${tree.careDays.length}일',
+              tr("심은 날 {0} · 돌본 {1}일", [tree.plantedDay, tree.careDays.length]),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 12),
@@ -532,8 +548,8 @@ class _TreeDetailState extends State<_TreeDetail> {
             const SizedBox(height: 8),
             Text(
               tree.nextCare == null
-                  ? '나무는 다 자랐지만 추억은 계속 쌓을 수 있어요.'
-                  : '${tree.nextCare}일 더 돌보면 다음 모습으로 자라요.',
+                  ? tr("나무는 다 자랐지만 추억은 계속 쌓을 수 있어요.")
+                  : tr("{0}일 더 돌보면 다음 모습으로 자라요.", [tree.nextCare]),
               textAlign: TextAlign.center,
             ),
             if (busy) const LinearProgressIndicator(),
@@ -544,23 +560,25 @@ class _TreeDetailState extends State<_TreeDetail> {
                   ? null
                   : () => change(() => widget.store.change(tree, care: true)),
               icon: const Icon(Icons.water_drop_outlined),
-              label: Text(canCare ? '오늘의 물과 마음 주기' : '오늘은 돌봄을 마쳤어요'),
+              label: Text(canCare ? tr("오늘의 물과 마음 주기") : tr("오늘은 돌봄을 마쳤어요")),
             ),
-            const Text(
-              '한국 날짜 기준 하루 한 번 자라요. 씨앗 → 새싹(3일) → 어린 나무(7일) → 빛나는 나무(14일) → 보석나무(30일). 쉬어도 성장은 줄어들지 않아요.',
+            Text(
+              tr(
+                "한국 날짜 기준 하루 한 번 자라요. 씨앗 → 새싹(3일) → 어린 나무(7일) → 빛나는 나무(14일) → 보석나무(30일). 쉬어도 성장은 줄어들지 않아요.",
+              ),
               style: TextStyle(fontSize: 12),
             ),
             const SizedBox(height: 20),
             Row(
               children: [
-                const Expanded(
+                Expanded(
                   child: Text(
-                    '이 나무에 담긴 추억',
+                    tr("이 나무에 담긴 추억"),
                     style: TextStyle(fontSize: 21, fontWeight: FontWeight.bold),
                   ),
                 ),
                 IconButton(
-                  tooltip: '추억 더하기',
+                  tooltip: tr("추억 더하기"),
                   onPressed: busy ? null : () => editNote(),
                   icon: const Icon(Icons.add_circle_outline),
                 ),
@@ -590,7 +608,7 @@ class _TreeDetailState extends State<_TreeDetail> {
                         children: [
                           TextButton(
                             onPressed: busy ? null : () => editNote(note),
-                            child: const Text('날짜·내용 수정'),
+                            child: Text(tr("날짜·내용 수정")),
                           ),
                           if (tree.notes.length > 1)
                             TextButton(
@@ -598,8 +616,10 @@ class _TreeDetailState extends State<_TreeDetail> {
                                   ? null
                                   : () async {
                                       if (await confirm(
-                                        '이 추억을 삭제할까요?',
-                                        '이 날짜에 남긴 내용만 삭제하며 나무의 성장은 그대로 유지해요.',
+                                        tr("이 추억을 삭제할까요?"),
+                                        tr(
+                                          "이 날짜에 남긴 내용만 삭제하며 나무의 성장은 그대로 유지해요.",
+                                        ),
                                       ))
                                         await change(
                                           () => widget.store.change(
@@ -610,7 +630,7 @@ class _TreeDetailState extends State<_TreeDetail> {
                                           ),
                                         );
                                     },
-                              child: const Text('추억 삭제'),
+                              child: Text(tr("추억 삭제")),
                             ),
                         ],
                       ),
@@ -624,8 +644,10 @@ class _TreeDetailState extends State<_TreeDetail> {
                   ? null
                   : () async {
                       if (!await confirm(
-                        '기억의 나무를 삭제할까요?',
-                        '이 나무의 추억 ${tree.notes.length}개와 성장 기록을 모두 삭제해요. 앱 안에서는 되돌릴 수 없어요.',
+                        tr("기억의 나무를 삭제할까요?"),
+                        tr("이 나무의 추억 {0}개와 성장 기록을 모두 삭제해요. 앱 안에서는 되돌릴 수 없어요.", [
+                          tree.notes.length,
+                        ]),
                       ))
                         return;
                       setState(() => busy = true);
@@ -638,8 +660,8 @@ class _TreeDetailState extends State<_TreeDetail> {
                         if (mounted) setState(() => busy = false);
                       }
                     },
-              child: const Text(
-                '이 나무와 추억 전체 삭제',
+              child: Text(
+                tr("이 나무와 추억 전체 삭제"),
                 style: TextStyle(color: Color(0xFFA2646C)),
               ),
             ),
@@ -669,50 +691,55 @@ class _NoteEditorState extends State<_NoteEditor> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: Text(widget.previous == null ? '추억 더하기' : '추억 수정')),
-    body: SafeArea(
-      child: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          ListTile(
-            title: Text(day),
-            trailing: const Icon(Icons.calendar_month),
-            onTap: () async {
-              final d = await pickKeepsakeDate(context, day);
-              if (d != null && mounted) setState(() => day = d);
-            },
-          ),
-          TextField(
-            controller: text,
-            minLines: 6,
-            maxLines: 12,
-            maxLength: 3000,
-            decoration: const InputDecoration(
-              labelText: '기억하고 싶은 내용',
-              border: OutlineInputBorder(),
-            ),
-          ),
-          if (error != null) Text(error!),
-          FilledButton(
-            onPressed: () {
-              if (text.text.trim().isEmpty) {
-                setState(() => error = '기억하고 싶은 내용을 적어주세요.');
-                return;
-              }
-              Navigator.pop(
-                context,
-                KeepsakeNote(
-                  id: widget.previous?.id ?? const Uuid().v4(),
-                  day: day,
-                  text: text.text.trim(),
-                ),
-              );
-            },
-            child: const Text('이 추억 저장'),
-          ),
-        ],
+  Widget build(BuildContext context) {
+    Localizations.localeOf(context);
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(widget.previous == null ? tr("추억 더하기") : tr("추억 수정")),
       ),
-    ),
-  );
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.all(20),
+          children: [
+            ListTile(
+              title: Text(day),
+              trailing: const Icon(Icons.calendar_month),
+              onTap: () async {
+                final d = await pickKeepsakeDate(context, day);
+                if (d != null && mounted) setState(() => day = d);
+              },
+            ),
+            TextField(
+              controller: text,
+              minLines: 6,
+              maxLines: 12,
+              maxLength: 3000,
+              decoration: InputDecoration(
+                labelText: tr("기억하고 싶은 내용"),
+                border: OutlineInputBorder(),
+              ),
+            ),
+            if (error != null) Text(error!),
+            FilledButton(
+              onPressed: () {
+                if (text.text.trim().isEmpty) {
+                  setState(() => error = tr("기억하고 싶은 내용을 적어주세요."));
+                  return;
+                }
+                Navigator.pop(
+                  context,
+                  KeepsakeNote(
+                    id: widget.previous?.id ?? const Uuid().v4(),
+                    day: day,
+                    text: text.text.trim(),
+                  ),
+                );
+              },
+              child: Text(tr("이 추억 저장")),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

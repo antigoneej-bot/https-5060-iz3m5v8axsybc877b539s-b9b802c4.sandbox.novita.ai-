@@ -1,3 +1,4 @@
+import '../../l10n/app_language.dart';
 import 'package:flutter/material.dart';
 import '../integration/mongi_garden_data.dart';
 import '../models/seed.dart';
@@ -27,10 +28,10 @@ class GardenCoreTools extends StatelessWidget {
           ? 2
           : 4;
       final names = [
-        '씨앗 심기',
-        watering ? '물주기 마치기' : '물주기',
-        '내 식물',
-        '가로 전체화면',
+        tr('마음 심기'),
+        watering ? tr('물주기 마치기') : tr('물주기'),
+        tr('내 식물'),
+        AppLanguage.instance.isEnglish ? 'Full view' : tr('가로 보기'),
       ];
       final icons = [
         Icons.spa_outlined,
@@ -74,7 +75,13 @@ class GardenCoreTools extends StatelessWidget {
                                 children: [
                                   Icon(icons[i], size: 23),
                                   const SizedBox(height: 3),
-                                  Text(names[i], textAlign: TextAlign.center),
+                                  Text(
+                                    names[i],
+                                    textAlign: TextAlign.center,
+                                    semanticsLabel: i == 3
+                                        ? tr('가로 전체화면')
+                                        : null,
+                                  ),
                                 ],
                               ),
                       ),
@@ -118,7 +125,7 @@ class _GardenPlantListState extends State<GardenPlantList> {
     try {
       await widget.onWater(id);
     } catch (_) {
-      if (mounted) setState(() => _error = '물주기를 저장하지 못했어요. 다시 시도해 주세요.');
+      if (mounted) setState(() => _error = tr('물주기를 저장하지 못했어요. 다시 시도해 주세요.'));
     } finally {
       if (mounted) setState(() => _busy.remove(id));
     }
@@ -138,12 +145,12 @@ class _GardenPlantListState extends State<GardenPlantList> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('내 식물', style: Theme.of(context).textTheme.titleLarge),
-            const Text('식물을 누르면 정원 속 위치로 이동해요.'),
+            Text(tr('내 식물'), style: Theme.of(context).textTheme.titleLarge),
+            Text(tr('식물을 누르면 정원 속 위치로 이동해요.')),
             if (plants.isEmpty)
-              const Padding(
+              Padding(
                 padding: EdgeInsets.all(24),
-                child: Text('아직 심은 식물이 없어요. 씨앗을 골라 심어보세요.'),
+                child: Text(tr('아직 심은 식물이 없어요. 씨앗을 골라 심어보세요.')),
               ),
             if (_error != null)
               Text(
@@ -169,8 +176,8 @@ class _GardenPlantListState extends State<GardenPlantList> {
                         ),
                         title: Text(seed.label),
                         subtitle: Text(
-                          '${seed.growthLabel(widget.data.seeds[seed.id]!)} · ${widget.data.wateredOn[seed.id] == today ? '오늘 물주기 완료' : '오늘 물주기 전'}\n'
-                          '${seed.careUntilNextTier(widget.data.seeds[seed.id]!) > 0 ? '물주기만 할 경우 다음 성장까지 ${seed.careUntilNextTier(widget.data.seeds[seed.id]!)}회' : '다 자랐어요. 편하게 감상해 주세요.'}',
+                          '${seed.growthLabel(widget.data.seeds[seed.id]!)} · ${widget.data.wateredOn[seed.id] == today ? tr('오늘 물주기 완료') : tr('오늘 물주기 전')}\n'
+                          '${seed.careUntilNextTier(widget.data.seeds[seed.id]!) > 0 ? tr("물주기만 할 경우 다음 성장까지 {0}회", [seed.careUntilNextTier(widget.data.seeds[seed.id]!)]) : tr('다 자랐어요. 편하게 감상해 주세요.')}',
                         ),
                         trailing: const Icon(Icons.my_location),
                       ),
@@ -182,7 +189,7 @@ class _GardenPlantListState extends State<GardenPlantList> {
                             key: ValueKey('locate-button-${seed.id}'),
                             onPressed: () => widget.onLocate(seed),
                             icon: const Icon(Icons.my_location),
-                            label: const Text('위치 보기'),
+                            label: Text(tr('위치 보기')),
                           ),
                           if (widget.onMove != null)
                             TextButton.icon(
@@ -191,7 +198,7 @@ class _GardenPlantListState extends State<GardenPlantList> {
                                   ? null
                                   : () => widget.onMove!(seed),
                               icon: const Icon(Icons.open_with),
-                              label: const Text('위치 옮기기'),
+                              label: Text(tr('위치 옮기기')),
                             ),
                           TextButton.icon(
                             key: ValueKey('water-${seed.id}'),
@@ -201,14 +208,14 @@ class _GardenPlantListState extends State<GardenPlantList> {
                                 ? null
                                 : () => _water(seed.id),
                             icon: const Icon(Icons.water_drop_outlined),
-                            label: const Text('물주기'),
+                            label: Text(tr('물주기')),
                           ),
                           TextButton.icon(
                             onPressed: _busy.contains(seed.id)
                                 ? null
                                 : () => widget.onMemory(seed),
                             icon: const Icon(Icons.menu_book_outlined),
-                            label: const Text('추억 기록'),
+                            label: Text(tr('추억 기록')),
                           ),
                         ],
                       ),

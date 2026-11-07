@@ -1,3 +1,8 @@
+import '../l10n/app_language.dart';
+import '../models/backup_progress.dart';
+import '../widgets/backup_progress_view.dart';
+import '../widgets/consent_retry_notice.dart';
+import '../services/diagnostics_service.dart';
 import '../services/analytics_service.dart';
 import '../services/app_lock_service.dart';
 import 'package:provider/provider.dart';
@@ -31,7 +36,7 @@ class DataSafetyScreen extends StatefulWidget {
 
 class _DataSafetyScreenState extends State<DataSafetyScreen> {
   bool _busy = false;
-  String _message = '기록은 현재 이 기기에 저장됩니다.';
+  String _message = tr('기록은 현재 이 기기에 저장됩니다.');
   Future<void> _work(Future<void> Function() action) async {
     if (_busy) return;
     setState(() => _busy = true);
@@ -42,12 +47,12 @@ class _DataSafetyScreenState extends State<DataSafetyScreen> {
       if (mounted)
         setState(
           () => _message = e is PlatformException && e.code == 'no-device-lock'
-              ? '휴대전화 설정에서 PIN·패턴·비밀번호 잠금을 먼저 설정해 주세요.'
+              ? tr('휴대전화 설정에서 PIN·패턴·비밀번호 잠금을 먼저 설정해 주세요.')
               : e is CloudException
               ? e.toString()
               : e is FirebaseAuthException
-              ? '로그인 정보를 확인해 주세요. 이메일 인증 또는 비밀번호 재설정이 필요할 수 있어요.'
-              : '완료하지 못했어요. 암호·파일·저장 공간과 연결을 확인해 주세요. 기존 기록은 지우지 않았어요.',
+              ? tr('로그인 정보를 확인해 주세요. 이메일 인증 또는 비밀번호 재설정이 필요할 수 있어요.')
+              : tr('완료하지 못했어요. 암호·파일·저장 공간과 연결을 확인해 주세요. 기존 기록은 지우지 않았어요.'),
         );
     } finally {
       // A reload in progress must not let auto-backup read half-reloaded
@@ -80,20 +85,22 @@ class _DataSafetyScreenState extends State<DataSafetyScreen> {
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, update) => AlertDialog(
-          title: Text(creating ? '백업 암호 정하기' : '백업 암호 입력'),
+          title: Text(creating ? tr('백업 암호 정하기') : tr('백업 암호 입력')),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text(
-                  '앱 로그인 암호와 별개예요. 암호를 잃으면 새 기기에서 백업을 복원할 수 없어요. 안전한 곳에 보관해 주세요.',
+                Text(
+                  tr(
+                    '앱 로그인 암호와 별개예요. 암호를 잃으면 새 기기에서 백업을 복원할 수 없어요. 안전한 곳에 보관해 주세요.',
+                  ),
                 ),
                 TextField(
                   controller: controller,
                   obscureText: true,
                   enableSuggestions: false,
                   autocorrect: false,
-                  decoration: const InputDecoration(labelText: '백업 암호'),
+                  decoration: InputDecoration(labelText: tr('백업 암호')),
                   onChanged: (_) => update(() {}),
                 ),
                 if (creating)
@@ -102,8 +109,8 @@ class _DataSafetyScreenState extends State<DataSafetyScreen> {
                     obscureText: true,
                     enableSuggestions: false,
                     autocorrect: false,
-                    decoration: const InputDecoration(
-                      labelText: '암호 다시 입력 (12자 이상)',
+                    decoration: InputDecoration(
+                      labelText: tr('암호 다시 입력 (12자 이상)'),
                     ),
                     onChanged: (_) => update(() {}),
                   ),
@@ -113,7 +120,7 @@ class _DataSafetyScreenState extends State<DataSafetyScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('취소'),
+              child: Text(tr("취소")),
             ),
             TextButton(
               onPressed:
@@ -123,7 +130,7 @@ class _DataSafetyScreenState extends State<DataSafetyScreen> {
                               controller.text == confirm.text))
                   ? () => Navigator.pop(context, controller.text)
                   : null,
-              child: const Text('확인'),
+              child: Text(tr("확인")),
             ),
           ],
         ),
@@ -142,12 +149,14 @@ class _DataSafetyScreenState extends State<DataSafetyScreen> {
       password,
     );
     final path = await FilePicker.platform.saveFile(
-      dialogTitle: '암호화 백업 저장',
+      dialogTitle: tr('암호화 백업 저장'),
       fileName: 'maeumnyang-${DateTime.now().millisecondsSinceEpoch}.mng',
       bytes: bytes,
     );
     if (path != null && mounted)
-      setState(() => _message = '암호화 백업 파일을 저장했어요. 파일과 암호를 안전한 곳에 보관해 주세요.');
+      setState(
+        () => _message = tr('암호화 백업 파일을 저장했어요. 파일과 암호를 안전한 곳에 보관해 주세요.'),
+      );
   }
 
   Future<void> _restoreBytes(Uint8List bytes, {String? cloudUid}) async {
@@ -160,23 +169,33 @@ class _DataSafetyScreenState extends State<DataSafetyScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('복원 미리보기'),
+        title: Text(tr('복원 미리보기')),
         content: Text(
-          '백업 날짜: ${data['createdAt']}\n'
-          '${BackupService.count(data) > 0 ? '기록·초안·답장 항목: ${BackupService.count(data)}개\n' : ''}'
-          '${(data['settings'] as Map).keys.any((key) => key is String && key.startsWith('meditation.')) ? '백업에 포함된 명상 목록·기록·코스 진행도 함께 반영해요.\n' : ''}\n'
-          '기존 항목과 같은 ID는 현재 기록을 유지하고, 없는 항목만 추가해요.\n'
-          '${existing ? '현재 정원 이름·성장 설정은 유지해요.' : '새 정원에는 백업의 이름·성장 설정도 가져와요.'}\n'
-          '복원을 마치면 복원한 정원을 바로 열 수 있어요.',
+          [
+            tr('백업 날짜: {0}', [data['createdAt']]),
+            if (BackupService.count(data) > 0)
+              tr('기록·초안·답장 항목: {0}개', [BackupService.count(data)]),
+            if ((data['settings'] as Map).keys.any(
+              (key) => key is String && key.startsWith('meditation.'),
+            ))
+              tr('백업에 포함된 명상 목록·기록·코스 진행도 함께 반영해요.'),
+            tr('기존 항목과 같은 ID는 현재 기록을 유지하고, 없는 항목만 추가해요.\n'),
+            tr(
+              existing
+                  ? tr("현재 정원 이름·성장 설정은 유지해요.")
+                  : tr("새 정원에는 백업의 이름·성장 설정도 가져와요."),
+            ),
+            tr('복원을 마치면 복원한 정원을 바로 열 수 있어요.'),
+          ].join('\n'),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('취소'),
+            child: Text(tr("취소")),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('복원'),
+            child: Text(tr('복원')),
           ),
         ],
       ),
@@ -189,13 +208,13 @@ class _DataSafetyScreenState extends State<DataSafetyScreen> {
     await _showRestoreComplete(added);
   }
 
-  Future<void> _showRestoreComplete(int added, {String title = '복원 완료'}) async {
+  Future<void> _showRestoreComplete(int added, {String? title}) async {
     if (!mounted) return;
     await showDialog<void>(
       context: context,
       barrierDismissible: false,
       builder: (_) => RestoreCompleteDialog(
-        title: title,
+        title: title ?? tr('복원 완료'),
         added: added,
         reload: AppReloadService.reload,
       ),
@@ -210,7 +229,7 @@ class _DataSafetyScreenState extends State<DataSafetyScreen> {
     if (selected == null || selected.files.single.path == null) return;
     final file = File(selected.files.single.path!);
     if (await file.length() > BackupCodec.maxBytes)
-      throw const FormatException('파일이 너무 커요.');
+      throw FormatException(tr('파일이 너무 커요.'));
     await _restoreBytes(await file.readAsBytes());
   }
 
@@ -221,14 +240,14 @@ class _DataSafetyScreenState extends State<DataSafetyScreen> {
     final summary = await StorageService.getLegacyRecoverySummary();
     if (!mounted) return;
     if (summary.isEmpty) {
-      setState(() => _message = '이전 버전에서 추가로 가져올 기록이 없어요.');
+      setState(() => _message = tr('이전 버전에서 추가로 가져올 기록이 없어요.'));
       return;
     }
     final total = summary.values.fold<int>(0, (sum, count) => sum + count);
     final accepted = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('이전 버전의 기록 확인'),
+        title: Text(tr('이전 버전의 기록 확인')),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -236,12 +255,18 @@ class _DataSafetyScreenState extends State<DataSafetyScreen> {
             children: [
               for (final entry in summary.entries)
                 Text(
-                  '${StorageService.legacyRecoveryLabels[entry.key] ?? entry.key}: ${entry.value}개',
+                  tr('{0}: {1}개', [
+                    tr(
+                      StorageService.legacyRecoveryLabels[entry.key] ??
+                          entry.key,
+                    ),
+                    entry.value,
+                  ]),
                 ),
-              const SizedBox(height: 16),
-              const Text(
-                '이전 버전에서 남아 있는 기록이에요. 이미 삭제했던 기록이 포함될 수 있어요. '
-                '확인하면 현재 없는 기록만 추가하고 같은 ID는 현재 기록을 유지해요.',
+              SizedBox(height: 16),
+              Text(
+                tr('이전 버전에서 남아 있는 기록이에요. 이미 삭제했던 기록이 포함될 수 있어요. ') +
+                    tr('확인하면 현재 없는 기록만 추가하고 같은 ID는 현재 기록을 유지해요.'),
               ),
             ],
           ),
@@ -249,11 +274,11 @@ class _DataSafetyScreenState extends State<DataSafetyScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('취소'),
+            child: Text(tr("취소")),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: Text('확인하고 $total개 복원'),
+            child: Text(tr("확인하고 {0}개 복원", [total])),
           ),
         ],
       ),
@@ -261,7 +286,7 @@ class _DataSafetyScreenState extends State<DataSafetyScreen> {
     if (accepted != true) return;
     final added = await StorageService.restoreLegacyGuestData();
     if (!mounted) return;
-    await _showRestoreComplete(added, title: '이전 기록 복원 완료');
+    await _showRestoreComplete(added, title: tr('이전 기록 복원 완료'));
   }
 
   Future<void> _cloudRestore() async {
@@ -275,13 +300,13 @@ class _DataSafetyScreenState extends State<DataSafetyScreen> {
     );
     if (!mounted) return;
     if (versions.isEmpty) {
-      setState(() => _message = '서버에 저장된 백업이 없어요.');
+      setState(() => _message = tr('서버에 저장된 백업이 없어요.'));
       return;
     }
     final id = await showDialog<String>(
       context: context,
       builder: (context) => SimpleDialog(
-        title: const Text('복원할 백업 선택'),
+        title: Text(tr('복원할 백업 선택')),
         children: [
           for (final version in versions)
             SimpleDialogOption(
@@ -303,16 +328,17 @@ class _DataSafetyScreenState extends State<DataSafetyScreen> {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     final user = SocialAuthService.currentUser;
     return PopScope(
       canPop: !_busy,
       child: Scaffold(
-        appBar: AppBar(title: const Text('기록 보관과 백업')),
+        appBar: AppBar(title: Text(tr('기록 보관과 백업'))),
         body: ListView(
-          padding: const EdgeInsets.all(20),
+          padding: EdgeInsets.all(20),
           children: [
             Container(
-              padding: const EdgeInsets.all(18),
+              padding: EdgeInsets.all(18),
               decoration: BoxDecoration(
                 color: AppColors.catSageBg,
                 borderRadius: BorderRadius.circular(22),
@@ -320,20 +346,20 @@ class _DataSafetyScreenState extends State<DataSafetyScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.shield_outlined,
                     color: AppColors.titlePastelGreen,
                     size: 30,
                   ),
-                  const SizedBox(height: 10),
+                  SizedBox(height: 10),
                   Text(
-                    '소중한 기록을 안전하게',
+                    tr('소중한 기록을 안전하게'),
                     style: titleFont(
                       fontSize: 26,
                       color: AppColors.titlePastelGreen,
                     ),
                   ),
-                  const SizedBox(height: 6),
+                  SizedBox(height: 6),
                   Text(
                     _message,
                     style: bodyFont(fontSize: 14, color: AppColors.ink),
@@ -342,33 +368,51 @@ class _DataSafetyScreenState extends State<DataSafetyScreen> {
               ),
             ),
             if (_busy)
-              const Padding(
+              Padding(
                 padding: EdgeInsets.all(12),
                 child: LinearProgressIndicator(),
               ),
-            const SizedBox(height: 16),
-            const Text('편지는 기기에 자동 저장해요. 앱 삭제·분실에 대비하려면 별도 백업이 필요해요.'),
-            const SizedBox(height: 12),
+            SizedBox(height: 16),
+            Text(tr('편지는 기기에 자동 저장해요. 앱 삭제·분실에 대비하려면 별도 백업이 필요해요.')),
+            SizedBox(height: 12),
             FilledButton(
               onPressed: _busy ? null : () => _work(_export),
-              child: const Text('암호화 백업 파일 저장'),
+              child: Text(tr('암호화 백업 파일 저장')),
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: 8),
             OutlinedButton(
               onPressed: _busy ? null : () => _work(_import),
-              child: const Text('백업 파일에서 복원'),
+              child: Text(tr('백업 파일에서 복원')),
             ),
             TextButton(
               onPressed: _busy ? null : () => _work(_recoverLegacyRecords),
-              child: const Text('이전 버전의 누락 기록 확인'),
+              child: Text(tr('이전 버전의 누락 기록 확인')),
             ),
-            const Divider(height: 32),
+            Divider(height: 32),
+            ValueListenableBuilder<bool>(
+              valueListenable: DiagnosticsService.enabled,
+              builder: (_, enabled, __) => SwitchListTile(
+                title: Text(tr('오류 보고 공유')),
+                subtitle: Text(
+                  tr(
+                    '선택 사항이에요. 오류 유형·호출 위치와 기기 진단 정보를 Firebase에 보내요. 편지·감정 원문과 계정 식별자는 앱에서 첨부하지 않아요.',
+                  ),
+                ),
+                value: enabled,
+                onChanged: _busy
+                    ? null
+                    : (value) =>
+                          _work(() => DiagnosticsService.setEnabled(value)),
+              ),
+            ),
             ValueListenableBuilder<bool>(
               valueListenable: AnalyticsService.sharingEnabled,
               builder: (_, enabled, __) => SwitchListTile(
-                title: const Text('앱 개선을 위한 사용 통계 공유'),
-                subtitle: const Text(
-                  '선택 사항이에요. 일기 본문·선택한 감정은 보내지 않아요. Firebase가 앱 인스턴스·기기 정보를 처리할 수 있어요.',
+                title: Text(tr('앱 개선을 위한 사용 통계 공유')),
+                subtitle: Text(
+                  tr(
+                    '선택 사항이에요. 일기 본문·선택한 감정은 보내지 않아요. Firebase가 앱 인스턴스·기기 정보를 처리할 수 있어요.',
+                  ),
                 ),
                 value: enabled,
                 onChanged: _busy
@@ -377,12 +421,13 @@ class _DataSafetyScreenState extends State<DataSafetyScreen> {
                           _work(() => AnalyticsService().setSharing(value)),
               ),
             ),
+            const AnalyticsOptOutNotice(),
             ValueListenableBuilder<bool>(
               valueListenable: AppLockService.enabled,
               builder: (_, enabled, __) => SwitchListTile(
-                title: const Text('앱 잠금'),
-                subtitle: const Text(
-                  '휴대전화 PIN·패턴·비밀번호로 열어요. 잠금을 켜면 화면 캡처와 최근 앱 미리보기도 차단해요.',
+                title: Text(tr('앱 잠금')),
+                subtitle: Text(
+                  tr('휴대전화 PIN·패턴·비밀번호로 열어요. 잠금을 켜면 화면 캡처와 최근 앱 미리보기도 차단해요.'),
                 ),
                 value: enabled,
                 onChanged: _busy
@@ -392,8 +437,8 @@ class _DataSafetyScreenState extends State<DataSafetyScreen> {
                         if (mounted)
                           setState(
                             () => _message = accepted
-                                ? (value ? '앱 잠금을 켰어요.' : '앱 잠금을 껐어요.')
-                                : '잠금 변경을 취소했어요.',
+                                ? (value ? tr('앱 잠금을 켰어요.') : tr('앱 잠금을 껐어요.'))
+                                : tr('잠금 변경을 취소했어요.'),
                           );
                       }),
               ),
@@ -403,39 +448,43 @@ class _DataSafetyScreenState extends State<DataSafetyScreen> {
                   ? null
                   : () => _work(() async {
                       if (!await BackupService.hasDeferred()) {
-                        if (mounted) setState(() => _message = '보류한 복원이 없어요.');
+                        if (mounted)
+                          setState(() => _message = tr('보류한 복원이 없어요.'));
                         return;
                       }
                       final added = await BackupService.retryDeferred();
                       if (!mounted) return;
-                      await _showRestoreComplete(added, title: '보류한 복원 완료');
+                      await _showRestoreComplete(added, title: tr('보류한 복원 완료'));
                     }),
-              child: const Text('보류한 복원 다시 시도'),
+              child: Text(tr('보류한 복원 다시 시도')),
             ),
             TextButton(
               onPressed: _busy
                   ? null
                   : () => _work(() async {
                       if (!await BackupService.hasDeferred()) {
-                        if (mounted) setState(() => _message = '보류한 복원이 없어요.');
+                        if (mounted)
+                          setState(() => _message = tr('보류한 복원이 없어요.'));
                         return;
                       }
                       if (!mounted) return;
                       final accepted = await showDialog<bool>(
                         context: context,
                         builder: (context) => AlertDialog(
-                          title: const Text('보류한 복원을 그만할까요?'),
-                          content: const Text(
-                            '이미 추가된 기록은 유지해요. 아직 추가되지 않은 내용은 자동으로 복원하지 않으며 복원 원본은 기기에 암호화 보관해요. 이후 원본 백업 파일로 다시 복원할 수 있어요.',
+                          title: Text(tr('보류한 복원을 그만할까요?')),
+                          content: Text(
+                            tr(
+                              '이미 추가된 기록은 유지해요. 아직 추가되지 않은 내용은 자동으로 복원하지 않으며 복원 원본은 기기에 암호화 보관해요. 이후 원본 백업 파일로 다시 복원할 수 있어요.',
+                            ),
                           ),
                           actions: [
                             TextButton(
                               onPressed: () => Navigator.pop(context, false),
-                              child: const Text('취소'),
+                              child: Text(tr("취소")),
                             ),
                             FilledButton(
                               onPressed: () => Navigator.pop(context, true),
-                              child: const Text('복원 그만하기'),
+                              child: Text(tr('복원 그만하기')),
                             ),
                           ],
                         ),
@@ -444,45 +493,48 @@ class _DataSafetyScreenState extends State<DataSafetyScreen> {
                         await BackupService.archiveDeferred();
                         if (mounted)
                           setState(
-                            () => _message =
-                                '보류한 복원을 마무리했어요. 현재 기록을 유지하며 새 백업·복원을 이용할 수 있어요.',
+                            () => _message = tr(
+                              '보류한 복원을 마무리했어요. 현재 기록을 유지하며 새 백업·복원을 이용할 수 있어요.',
+                            ),
                           );
                       }
                     }),
-              child: const Text('보류한 복원 그만하기'),
+              child: Text(tr('보류한 복원 그만하기')),
             ),
-            const Divider(height: 32),
+            Divider(height: 32),
             ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.account_circle_outlined),
-              title: Text(user == null ? '간편 로그인' : '내 계정 관리'),
-              subtitle: const Text('카카오 · 네이버 · 구글 · 페이스북'),
-              trailing: const Icon(Icons.chevron_right),
+              leading: Icon(Icons.account_circle_outlined),
+              title: Text(user == null ? tr("간편 로그인") : tr("내 계정 관리")),
+              subtitle: Text(tr('카카오 · 네이버 · 구글 · 페이스북')),
+              trailing: Icon(Icons.chevron_right),
               onTap: _busy
                   ? null
                   : () => _work(() async {
                       await Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const AccountScreen(),
-                        ),
+                        MaterialPageRoute(builder: (_) => AccountScreen()),
                       );
                     }),
             ),
             if (!CloudService.enabled)
-              const Text('서버 백업은 연결 준비 후 이용할 수 있어요. 현재는 위의 파일 백업을 이용해 주세요.')
+              Text(tr('서버 백업은 연결 준비 후 이용할 수 있어요. 현재는 위의 파일 백업을 이용해 주세요.'))
             else ...[
               if (user == null)
-                const Text('서버 백업을 이용하려면 위에서 로그인해 주세요.')
+                Text(tr('서버 백업을 이용하려면 위에서 로그인해 주세요.'))
               else ...[
-                const Text(
-                  '이 기기의 정원 전체를 이 계정에 백업합니다. 처음 백업하거나 서버에서 복원한 계정에 연결되며 다른 계정으로는 백업·복원할 수 없어요. 로그아웃해도 기기 기록은 남아요.',
+                Text(
+                  tr(
+                    '이 기기의 정원 전체를 이 계정에 백업합니다. 처음 백업하거나 서버에서 복원한 계정에 연결되며 다른 계정으로는 백업·복원할 수 없어요. 로그아웃해도 기기 기록은 남아요.',
+                  ),
                 ),
-                const Text(
-                  '자동 백업은 구독 중 앱을 사용하는 동안 1분마다 변경을 확인해요. 새 기록이 있으면 마지막 백업 이후 최소 2분 간격으로 저장해요. 앱이 닫혀 있거나 연결이 끊기면 다음에 열 때 다시 시도해요. 최근 10개 버전을 보관하며 구독 종료 후에도 기존 백업은 복원할 수 있어요.',
+                Text(
+                  tr(
+                    '자동 백업은 구독 중 앱을 사용하는 동안 1분마다 변경을 확인해요. 새 기록이 있으면 마지막 백업 이후 최소 2분 간격으로 저장해요. 앱이 닫혀 있거나 연결이 끊기면 다음에 열 때 다시 시도해요. 최근 10개 버전을 보관하며 구독 종료 후에도 기존 백업은 복원할 수 있어요.',
+                  ),
                 ),
-                ValueListenableBuilder<String>(
+                ValueListenableBuilder<BackupProgress>(
                   valueListenable: AutoBackupService.instance.status,
-                  builder: (_, value, __) => Text(value),
+                  builder: (_, value, __) => BackupProgressView(value),
                 ),
                 TextButton(
                   onPressed: _busy
@@ -495,19 +547,21 @@ class _DataSafetyScreenState extends State<DataSafetyScreen> {
                           final consent = await showDialog<bool>(
                             context: context,
                             builder: (context) => AlertDialog(
-                              title: const Text('이 계정에 자동 백업할까요?'),
-                              content: const Text(
-                                '백업 암호를 기기의 보안 저장소에 보관해 자동 백업에 사용해요. 새 기기에서 복원할 암호는 별도로 보관해 주세요. 암호를 변경하면 이전 백업에는 이전 암호가 필요해요.',
+                              title: Text(tr('이 계정에 자동 백업할까요?')),
+                              content: Text(
+                                tr(
+                                  '백업 암호를 기기의 보안 저장소에 보관해 자동 백업에 사용해요. 새 기기에서 복원할 암호는 별도로 보관해 주세요. 암호를 변경하면 이전 백업에는 이전 암호가 필요해요.',
+                                ),
                               ),
                               actions: [
                                 TextButton(
                                   onPressed: () =>
                                       Navigator.pop(context, false),
-                                  child: const Text('취소'),
+                                  child: Text(tr("취소")),
                                 ),
                                 TextButton(
                                   onPressed: () => Navigator.pop(context, true),
-                                  child: const Text('켜기'),
+                                  child: Text(tr('켜기')),
                                 ),
                               ],
                             ),
@@ -517,7 +571,7 @@ class _DataSafetyScreenState extends State<DataSafetyScreen> {
                             await AutoBackupService.instance.enable(password);
                           }
                         }),
-                  child: const Text('자동 백업 켜기'),
+                  child: Text(tr('자동 백업 켜기')),
                 ),
                 TextButton(
                   onPressed: _busy
@@ -526,17 +580,17 @@ class _DataSafetyScreenState extends State<DataSafetyScreen> {
                           AutoBackupService.instance.paused = false;
                           await AutoBackupService.instance.run(force: true);
                         }),
-                  child: const Text('지금 서버에 백업'),
+                  child: Text(tr('지금 서버에 백업')),
                 ),
                 TextButton(
                   onPressed: _busy
                       ? null
                       : () => _work(AutoBackupService.instance.disable),
-                  child: const Text('자동 백업 끄기'),
+                  child: Text(tr('자동 백업 끄기')),
                 ),
                 TextButton(
                   onPressed: _busy ? null : () => _work(_cloudRestore),
-                  child: const Text('서버 백업에서 복원'),
+                  child: Text(tr('서버 백업에서 복원')),
                 ),
                 TextButton(
                   onPressed: _busy
@@ -545,10 +599,12 @@ class _DataSafetyScreenState extends State<DataSafetyScreen> {
                           await SocialAuthService.signOut();
                           if (mounted)
                             setState(
-                              () => _message = '로그아웃했어요. 이 기기의 기록은 그대로 남아 있어요.',
+                              () => _message = tr(
+                                "로그아웃했어요. 이 기기의 기록은 그대로 남아 있어요.",
+                              ),
                             );
                         }),
-                  child: const Text('로그아웃'),
+                  child: Text(tr("로그아웃")),
                 ),
                 TextButton(
                   onPressed: _busy
@@ -557,19 +613,21 @@ class _DataSafetyScreenState extends State<DataSafetyScreen> {
                           final confirm = await showDialog<bool>(
                             context: context,
                             builder: (context) => AlertDialog(
-                              title: const Text('서버 계정과 백업을 삭제할까요?'),
-                              content: const Text(
-                                '이 작업은 되돌릴 수 없어요. 함께 가꾸는 나무와 그 안의 공유 메모는 두 사람 모두에게서 삭제돼요. 기기 기록과 Play 구독은 별도로 남아요. 구독 해지는 Play에서 해주세요. 최근 5분 이내 로그인해야 삭제할 수 있어요.',
+                              title: Text(tr('서버 계정과 백업을 삭제할까요?')),
+                              content: Text(
+                                tr(
+                                  '이 작업은 되돌릴 수 없어요. 함께 가꾸는 나무와 그 안의 공유 메모는 두 사람 모두에게서 삭제돼요. 기기 기록과 Play 구독은 별도로 남아요. 구독 해지는 Play에서 해주세요. 최근 5분 이내 로그인해야 삭제할 수 있어요.',
+                                ),
                               ),
                               actions: [
                                 TextButton(
                                   onPressed: () =>
                                       Navigator.pop(context, false),
-                                  child: const Text('취소'),
+                                  child: Text(tr("취소")),
                                 ),
                                 TextButton(
                                   onPressed: () => Navigator.pop(context, true),
-                                  child: const Text('삭제'),
+                                  child: Text(tr('삭제')),
                                 ),
                               ],
                             ),
@@ -580,11 +638,12 @@ class _DataSafetyScreenState extends State<DataSafetyScreen> {
                           await SocialAuthService.signOut();
                           if (mounted)
                             setState(
-                              () => _message =
-                                  '서버 계정과 백업을 삭제했어요. 이 기기 기록은 남아 있어요.',
+                              () => _message = tr(
+                                '서버 계정과 백업을 삭제했어요. 이 기기 기록은 남아 있어요.',
+                              ),
                             );
                         }),
-                  child: const Text('서버 계정과 백업 삭제'),
+                  child: Text(tr('서버 계정과 백업 삭제')),
                 ),
               ],
             ],

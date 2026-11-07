@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 // 마음 돌보기의 여러 활동(출석/졸업/수집/애정표현 등)을 기준으로
 // 달성 여부를 판단하는 업적(뱃지) 시스템.
 //
@@ -42,8 +43,10 @@ class CatAchievementStats {
 class CatAchievement {
   final String id;
   final String emoji;
-  final String title;
-  final String description;
+  final String _title;
+  String get title => tr(_title);
+  final String _description;
+  String get description => tr(_description);
   final bool Function(CatAchievementStats stats) isUnlocked;
 
   /// 잠겨있을 때 진행 상황을 "3/7일"처럼 짧게 보여주는 문구.
@@ -52,11 +55,12 @@ class CatAchievement {
   const CatAchievement({
     required this.id,
     required this.emoji,
-    required this.title,
-    required this.description,
+    required String title,
+    required String description,
     required this.isUnlocked,
     required this.progressLabel,
-  });
+  }) : _title = title,
+       _description = description;
 }
 
 String _clampedProgress(int value, int target) =>

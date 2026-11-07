@@ -68,7 +68,8 @@ class _LivingGardenEntryState extends State<LivingGardenEntry> {
 
   void _openWorld() => Navigator.of(context).push(
     MaterialPageRoute(
-      builder: (_) => GardenWorldScreen.owned(onOpenCollection: widget.onGarden),
+      builder: (_) =>
+          GardenWorldScreen.owned(onOpenCollection: widget.onGarden),
     ),
   );
 

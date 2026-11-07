@@ -1,7 +1,11 @@
+import '../l10n/app_language.dart';
+
 class OrchardKind {
-  final String id, name, fruit;
+  final String id, _name, _fruit;
+  String get name => tr(_name);
+  String get fruit => tr(_fruit);
   final int price, sale;
-  const OrchardKind(this.id, this.name, this.fruit, this.price, this.sale);
+  const OrchardKind(this.id, this._name, this._fruit, this.price, this.sale);
   bool get edible => const ['tuna', 'chicken', 'kibble'].contains(id);
   static const all = [
     OrchardKind('apple', '사과나무', '사과', 0, 5),

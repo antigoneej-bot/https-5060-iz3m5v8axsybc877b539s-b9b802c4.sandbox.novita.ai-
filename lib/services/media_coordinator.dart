@@ -37,7 +37,8 @@ class MediaCoordinator {
     _sound.narrationPlaying = false;
     SoundManager.instance.narrationSuspended = false;
     unawaited(_sound.tryStartBgm());
-    if (SoundManager.instance.ambientRequested && !SoundManager.instance.sleepStopped) {
+    if (SoundManager.instance.ambientRequested &&
+        !SoundManager.instance.sleepStopped) {
       unawaited(SoundManager.instance.startAmbientNature());
     }
   }

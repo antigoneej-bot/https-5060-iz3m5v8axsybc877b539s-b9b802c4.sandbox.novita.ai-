@@ -1852,7 +1852,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get mindReportCollectionTitle => '감정 도감';
 
   @override
-  String get mindReportDiaryTitle => '감정 다이어리';
+  String get mindReportDiaryTitle => '정원 마음 일기';
 
   @override
   String mindReportDiaryCount(int count) {
@@ -2886,7 +2886,7 @@ class AppLocalizationsKo extends AppLocalizations {
       '언제나 네 곁에 있을게.\n다음 주에도 또 이야기해줘.\n\n너의 몽이가 🐾';
 
   @override
-  String get diaryHeaderTitle => '📔 감정 다이어리';
+  String get diaryHeaderTitle => '📔 정원 마음 일기';
 
   @override
   String get diaryEmptyTitle => '아직 남긴 기록이 없어요';

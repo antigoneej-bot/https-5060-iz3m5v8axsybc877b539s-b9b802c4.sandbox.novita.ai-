@@ -81,6 +81,10 @@ async function call(uid,body){
 }
 
 // Consent is enforced by the actual API, not merely a widget.
+const combinedEntry = await call('entry-user', {action:'getVillageEntry'});
+assert.equal(combinedEntry.status, 200);
+assert.match(combinedEntry.body.profile.inviteCode, /^[A-F0-9]{12}$/);
+assert.deepEqual(JSON.parse(JSON.stringify(combinedEntry.body.neighbors)), {neighbors:[], incoming:[], outgoing:[], blocked:[]});
 assert.equal((await call('consent-user',{action:'publishGarden'})).body.error,'community-consent-required');
 assert.equal((await call('consent-user',{action:'acceptCommunityPolicy',version:'old'})).status,403);
 assert.equal((await call('consent-user',{action:'acceptCommunityPolicy',version:'2026-10-31'})).status,200);

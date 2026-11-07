@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import 'dart:convert';
 import 'companion_coat.dart';
 
@@ -39,7 +40,7 @@ class CompanionJourney {
       residents.length < 6 && residents.values.every((days) => days >= 90);
   CompanionJourney adopt(CompanionCoat value) {
     if (!canAdopt || residents.containsKey(value)) {
-      throw StateError('함께하는 아이들이 다 자라면 새 아기를 데려올 수 있어요.');
+      throw StateError(tr("함께하는 아이들이 다 자라면 새 아기를 데려올 수 있어요."));
     }
     return _withFamily(
       value,
@@ -101,9 +102,13 @@ class CompanionJourney {
       ? 1
       : 0;
   String get stageLabel =>
-      const ['아기 고양이', '자라는 고양이', '든든한 고양이', '다 자란 고양이'][stage];
-  String get bondLabel =>
-      const ['서로 알아가는 중', '손길이 익숙해졌어요', '함께 쉬는 사이', '쌓인 시간이 있어요'][stage];
+      [tr("아기 고양이"), tr("자라는 고양이"), tr("든든한 고양이"), tr("다 자란 고양이")][stage];
+  String get bondLabel => [
+    tr("서로 알아가는 중"),
+    tr("손길이 익숙해졌어요"),
+    tr("함께 쉬는 사이"),
+    tr("쌓인 시간이 있어요"),
+  ][stage];
   int? get daysToNext =>
       stage == 3 ? null : thresholds[stage + 1] - activeGrowthDays;
   double get progress => stage == 3
@@ -241,39 +246,39 @@ class CompanionJourney {
         (raw['today'] != null && !_day(raw['today'])) ||
         raw['todayMoments'] is! List ||
         !(raw['todayMoments'] as List).every(names.contains)) {
-      throw const FormatException('고양이와 함께한 기록을 읽을 수 없어요.');
+      throw FormatException(tr("고양이와 함께한 기록을 읽을 수 없어요."));
     }
     final days = (raw['careDays'] as List).cast<String>();
     if (days.toSet().length != days.length ||
         (raw['today'] != null && !days.contains(raw['today'])) ||
         (raw['today'] == null && (raw['todayMoments'] as List).isNotEmpty) ||
         !(raw['firstMoments'] as Map).values.every(days.contains)) {
-      throw const FormatException('고양이 돌봄 날짜가 일치하지 않아요.');
+      throw FormatException(tr("고양이 돌봄 날짜가 일치하지 않아요."));
     }
     final members = <CompanionCoat, int>{};
     final last = <CompanionCoat, String>{};
     final familyRaw = raw['family'] ?? {};
     final lastRaw = raw['familyLastDays'] ?? {};
     if (familyRaw is! Map || lastRaw is! Map)
-      throw const FormatException('고양이 가족 기록 오류');
+      throw FormatException(tr("고양이 가족 기록 오류"));
     for (final e in familyRaw.entries) {
       final c = CompanionCoat.parse(e.key);
       if (c == null || e.value is! int || e.value < 0 || e.value > 136600) {
-        throw const FormatException('고양이 성장 기록 오류');
+        throw FormatException(tr("고양이 성장 기록 오류"));
       }
       members[c] = e.value as int;
     }
     for (final e in lastRaw.entries) {
       final c = CompanionCoat.parse(e.key);
       if (c == null || !members.containsKey(c) || !_day(e.value))
-        throw const FormatException('고양이 돌봄 날짜 오류');
+        throw FormatException(tr("고양이 돌봄 날짜 오류"));
       last[c] = e.value as String;
     }
     if (members.isNotEmpty &&
         !members.containsKey(
           CompanionCoat.parse(raw['coat']) ?? CompanionCoat.ginger,
         )) {
-      throw const FormatException('함께할 고양이 기록 오류');
+      throw FormatException(tr("함께할 고양이 기록 오류"));
     }
     return CompanionJourney(
       family: Map.unmodifiable(members),

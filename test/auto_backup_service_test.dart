@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_app/services/auto_backup_service.dart';
+import 'package:flutter_app/models/backup_progress.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -51,6 +52,8 @@ void main() {
       await service.run();
       expect(uploads, 3);
       expect(prefs.getString('last_cloud_backup_a'), confirmed);
+      expect(service.status.value.phase, BackupPhase.failed);
+      expect(service.status.value.confirmedAt, DateTime.parse(confirmed!));
       expect((await service.readSummary()).pendingChanges, true);
       fail = false;
       restoring = true;
@@ -101,6 +104,8 @@ void main() {
       await service.run(force: true);
       expect(prefs.getString('last_cloud_backup_a'), isNull);
       expect(prefs.getString('last_cloud_backup_b'), isNull);
+      expect(service.status.value.phase, BackupPhase.off);
+      expect(service.status.value.confirmedAt, isNull);
     },
     timeout: const Timeout(Duration(minutes: 2)),
   );

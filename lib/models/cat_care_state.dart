@@ -1,3 +1,5 @@
+import '../l10n/app_language.dart';
+
 /// 다마고치식 '마음 돌보기'에서 반려 고양이의 성장 단계.
 /// ⚠️ 정책 변경: 이제 반려 고양이는 항상 '아기 고양이(baby)' 단계로만
 /// 남습니다. teen/young/adult로 자라나는 성장 및 졸업(졸업 앨범, 새
@@ -92,7 +94,7 @@ class CatCareState {
   int? get daysUntilNextStage => null;
 
   /// 성장 단계 이름. 항상 '아기 고양이' 라벨을 반환합니다.
-  String get growthStageLabel => '아기 고양이';
+  String get growthStageLabel => tr("아기 고양이");
 
   /// 돌봄 온기 구간(기존 보상 계산과의 호환 유지)
   CatMoodState get moodState {
@@ -106,13 +108,13 @@ class CatCareState {
   String get moodLabel {
     switch (moodState) {
       case CatMoodState.warm:
-        return '온기를 많이 모았어요';
+        return tr("온기를 많이 모았어요");
       case CatMoodState.calm:
-        return '온기가 차곡차곡 쌓였어요';
+        return tr("온기가 차곡차곡 쌓였어요");
       case CatMoodState.tired:
-        return '온기를 모으고 있어요';
+        return tr("온기를 모으고 있어요");
       case CatMoodState.recovering:
-        return '온기를 쌓는 중이에요';
+        return tr("온기를 쌓는 중이에요");
     }
   }
 

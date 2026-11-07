@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../models/orchard.dart';
@@ -63,7 +64,7 @@ class _OrchardTreeArtState extends State<OrchardTreeArt>
   @override
   Widget build(BuildContext context) => Semantics(
     label:
-        '${widget.kind.name}, ${widget.stage < 3 ? '성장 중' : '열매 ${widget.fruitCount}개'}',
+        '${widget.kind.name}, ${widget.stage < 3 ? tr("성장 중") : tr("열매 {0}개", [widget.fruitCount])}',
     child: AnimatedBuilder(
       animation: clock,
       builder: (_, __) => CustomPaint(

@@ -1,3 +1,5 @@
+import '../l10n/app_language.dart';
+import '../widgets/consent_retry_notice.dart';
 import 'all_features_screen.dart';
 import '../widgets/sound_panel.dart';
 import '../widgets/garden_push_settings.dart';
@@ -53,22 +55,25 @@ class _MyScreenState extends State<MyScreen> {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     final app = context.watch<AppStateProvider>();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-          '마이',
+          tr("마이"),
           textAlign: TextAlign.center,
           style: titleFont(fontSize: 26, color: AppColors.titlePastelGreen),
         ),
         const SizedBox(height: 6),
         Text(
-          '나의 마음챙김 여정을 확인해보세요',
+          tr("나의 마음챙김 여정을 확인해보세요"),
           textAlign: TextAlign.center,
           style: bodyFont(fontSize: 12.5, color: AppColors.inkSoft),
         ),
         const SizedBox(height: 22),
+        const LanguageSetting(),
+        const SizedBox(height: 12),
         const FeatureDirectoryEntry(),
         const SizedBox(height: 12),
         const AccountEntryCard(),
@@ -78,7 +83,7 @@ class _MyScreenState extends State<MyScreen> {
         _ProfileCard(streak: app.streak, totalLetters: app.history.length),
         _InfoLinkRow(
           icon: Icons.auto_stories_outlined,
-          label: '고양이와 함께하는 여정',
+          label: tr("고양이와 함께하는 여정"),
           onTap: () => Navigator.of(context).push(
             MaterialPageRoute(builder: (_) => const SubscriberJourneysScreen()),
           ),
@@ -89,7 +94,7 @@ class _MyScreenState extends State<MyScreen> {
         Padding(
           padding: const EdgeInsets.only(left: 6),
           child: Text(
-            '🌼 이웃과 정원',
+            tr("🌼 이웃과 정원"),
             style: pathLabelFont(
               fontSize: 16,
               fontWeight: FontWeight.w700,
@@ -103,7 +108,7 @@ class _MyScreenState extends State<MyScreen> {
         Padding(
           padding: const EdgeInsets.only(left: 6),
           child: Text(
-            '⚙️ 설정',
+            tr("⚙️ 설정"),
             style: pathLabelFont(
               fontSize: 16,
               fontWeight: FontWeight.w700,
@@ -116,7 +121,7 @@ class _MyScreenState extends State<MyScreen> {
         const SizedBox(height: 14),
         _InfoLinkRow(
           icon: Icons.lock_outline,
-          label: '기록 보관·백업·잠금',
+          label: tr("기록 보관·백업·잠금"),
           onTap: () => Navigator.of(
             context,
           ).push(MaterialPageRoute(builder: (_) => const DataSafetyScreen())),
@@ -128,12 +133,12 @@ class _MyScreenState extends State<MyScreen> {
         const SizedBox(height: 12),
         _InfoLinkRow(
           icon: Icons.map_rounded,
-          label: '앱 사용법 튜토리얼',
+          label: tr("앱 사용법 튜토리얼"),
           onTap: () {
             Navigator.of(context).push(
               MaterialPageRoute(
-                builder: (_) => const FeatureScaffold(
-                  title: '앱 사용법',
+                builder: (_) => FeatureScaffold(
+                  title: tr("앱 사용법"),
                   child: AppTutorialScreen(),
                 ),
               ),
@@ -143,7 +148,7 @@ class _MyScreenState extends State<MyScreen> {
         const SizedBox(height: 4),
         _InfoLinkRow(
           icon: Icons.menu_book_rounded,
-          label: '마음냥 정원 소개',
+          label: tr("마음냥 정원 소개"),
           onTap: () {
             Navigator.of(
               context,
@@ -153,7 +158,7 @@ class _MyScreenState extends State<MyScreen> {
         const SizedBox(height: 4),
         _InfoLinkRow(
           icon: Icons.privacy_tip_rounded,
-          label: '개인정보처리방침 · 정신건강 안내',
+          label: tr("개인정보처리방침 · 정신건강 안내"),
           onTap: () {
             Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const PrivacyPolicyScreen()),
@@ -164,15 +169,15 @@ class _MyScreenState extends State<MyScreen> {
         if (AdService.instance.configured)
           _InfoLinkRow(
             icon: Icons.ad_units_outlined,
-            label: '광고 개인정보 선택',
+            label: tr("광고 개인정보 선택"),
             onTap: () async {
               final opened = await ConsentService.instance
                   .showPrivacyOptionsFormIfRequired();
               if (!context.mounted || opened) return;
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
+                SnackBar(
                   content: Text(
-                    '현재 변경할 광고 선택 항목이 없거나 연결하지 못했어요. 잠시 후 다시 시도해 주세요.',
+                    tr("현재 변경할 광고 선택 항목이 없거나 연결하지 못했어요. 잠시 후 다시 시도해 주세요."),
                   ),
                 ),
               );
@@ -180,7 +185,7 @@ class _MyScreenState extends State<MyScreen> {
           ),
         _InfoLinkRow(
           icon: Icons.description_rounded,
-          label: '이용약관',
+          label: tr("이용약관"),
           onTap: () {
             Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const TermsOfServiceScreen()),
@@ -193,12 +198,12 @@ class _MyScreenState extends State<MyScreen> {
           const SizedBox(height: 4),
           _InfoLinkRow(
             icon: Icons.query_stats_rounded,
-            label: '(개발자용) 로컬 지표 확인',
+            label: tr("(개발자용) 로컬 지표 확인"),
             onTap: () {
               Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (_) => const FeatureScaffold(
-                    title: '로컬 지표',
+                  builder: (_) => FeatureScaffold(
+                    title: tr("로컬 지표"),
                     child: AnalyticsDebugScreen(),
                   ),
                 ),
@@ -214,8 +219,8 @@ class _MyScreenState extends State<MyScreen> {
               final info = snapshot.data;
               return Text(
                 info == null
-                    ? '마음냥 정원'
-                    : '마음냥 정원 v${info.version}+${info.buildNumber}',
+                    ? tr("마음냥 정원")
+                    : tr("마음냥 정원 v{0}+{1}", [info.version, info.buildNumber]),
                 style: bodyFont(fontSize: 11, color: AppColors.inkSoft),
               );
             },
@@ -233,6 +238,7 @@ class _ProfileCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     return GlassBlob(
       accent: AppColors.blobButterAccent,
       background: AppColors.blobButter,
@@ -260,13 +266,15 @@ class _ProfileCard extends StatelessWidget {
           Expanded(
             child: Row(
               children: [
-                Expanded(child: _statColumn('$streak일', '연속 방문')),
+                Expanded(child: _statColumn(tr("{0}일", [streak]), tr("연속 방문"))),
                 Container(
                   width: 1,
                   height: 32,
                   color: AppColors.blobButterAccent.withValues(alpha: 0.25),
                 ),
-                Expanded(child: _statColumn('$totalLetters통', '보낸 편지')),
+                Expanded(
+                  child: _statColumn(tr("{0}통", [totalLetters]), tr("보낸 편지")),
+                ),
               ],
             ),
           ),
@@ -294,12 +302,15 @@ class _SettingsCard extends StatelessWidget {
   const _SettingsCard({required this.sound});
 
   @override
-  Widget build(BuildContext context) => GlassBlob(
-    accent: AppColors.blobLavenderAccent,
-    background: AppColors.blobLavender,
-    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-    child: SoundSettingsControls(sound: sound),
-  );
+  Widget build(BuildContext context) {
+    Localizations.localeOf(context);
+    return GlassBlob(
+      accent: AppColors.blobLavenderAccent,
+      background: AppColors.blobLavender,
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      child: SoundSettingsControls(sound: sound),
+    );
+  }
 }
 
 /// 데일리 돌보기 알림(로컬 푸시 리마인더) 설정 카드.
@@ -384,8 +395,14 @@ class _ReminderCardState extends State<_ReminderCard> {
 
   void _showReminderChangeFailed() {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('알림을 변경하지 못했어요. 기기 알림 권한을 확인하고 다시 시도해 주세요.'),
+      SnackBar(
+        content: Text(
+          tr(
+            _notif.cancellationPending.value.isNotEmpty
+                ? notificationCancellationMessage
+                : "알림을 변경하지 못했어요. 기기 알림 권한을 확인하고 다시 시도해 주세요.",
+          ),
+        ),
       ),
     );
   }
@@ -470,6 +487,7 @@ class _ReminderCardState extends State<_ReminderCard> {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     return GlassBlob(
       accent: AppColors.blobPeachAccent,
       background: AppColors.blobPeach,
@@ -487,7 +505,7 @@ class _ReminderCardState extends State<_ReminderCard> {
                 ),
                 const SizedBox(width: 10),
                 Text(
-                  '돌보기 리마인더',
+                  tr("돌보기 리마인더"),
                   style: pathLabelFont(
                     fontSize: 13.5,
                     fontWeight: FontWeight.w700,
@@ -516,9 +534,10 @@ class _ReminderCardState extends State<_ReminderCard> {
               child: GardenPushSettings(),
             ),
             const CompanionReminderSettingsTile(),
+            NotificationCancellationNotice(service: _notif),
             _reminderRow(
               emoji: '🌤️',
-              label: '아침 알림',
+              label: tr("아침 알림"),
               value: _morningEnabled,
               onChanged: _changingDailyReminder ? null : _onToggleMorning,
               timeLabel: _morningEnabled
@@ -532,7 +551,7 @@ class _ReminderCardState extends State<_ReminderCard> {
             ),
             _reminderRow(
               emoji: '🌙',
-              label: '저녁 알림',
+              label: tr("저녁 알림"),
               value: _eveningEnabled,
               onChanged: _changingDailyReminder ? null : _onToggleEvening,
               timeLabel: _eveningEnabled
@@ -546,7 +565,7 @@ class _ReminderCardState extends State<_ReminderCard> {
             ),
             _reminderRow(
               emoji: '🐈‍⬛',
-              label: '정원 방문 알림 (3일간 방문하지 않으면)',
+              label: tr("정원 방문 알림 (3일간 방문하지 않으면)"),
               value: _crisisEnabled,
               onChanged: _changingConditionalReminder
                   ? null
@@ -558,7 +577,7 @@ class _ReminderCardState extends State<_ReminderCard> {
             ),
             _reminderRow(
               emoji: '🔥',
-              label: '스트릭 임박 알림 (오늘 미완료 시)',
+              label: tr("스트릭 임박 알림 (오늘 미완료 시)"),
               value: _streakEnabled,
               onChanged: _changingConditionalReminder
                   ? null
@@ -650,7 +669,7 @@ class _FeedbackCardState extends State<_FeedbackCard> {
       String versionInfo = '';
       try {
         final info = await PackageInfo.fromPlatform();
-        versionInfo = '앱 버전: ${info.version}+${info.buildNumber}';
+        versionInfo = tr("앱 버전: {0}+{1}", [info.version, info.buildNumber]);
       } catch (_) {
         // 버전 정보를 못 가져와도 피드백 발송 자체는 계속 진행합니다.
       }
@@ -666,16 +685,16 @@ class _FeedbackCardState extends State<_FeedbackCard> {
       }
 
       final body =
-          '여기에 의견을 자유롭게 적어주세요! 😊\n\n\n\n'
-          '─────────────────\n'
-          '(아래 정보는 문제 파악에 도움이 되니 지우지 말아주세요)\n'
+          tr("여기에 의견을 자유롭게 적어주세요! 😊\n\n\n\n") +
+          '─────────────────\n' +
+          tr("(아래 정보는 문제 파악에 도움이 되니 지우지 말아주세요)\n") +
           '$versionInfo\n'
-          '$platformInfo';
+              '$platformInfo';
 
       final uri = Uri(
         scheme: 'mailto',
         path: _feedbackEmail,
-        query: _encodeQuery({'subject': '[마음냥 정원] 의견 보내기', 'body': body}),
+        query: _encodeQuery({'subject': tr("[마음냥 정원] 의견 보내기"), 'body': body}),
       );
 
       final launched = await launchUrl(uri);
@@ -691,7 +710,9 @@ class _FeedbackCardState extends State<_FeedbackCard> {
 
   void _showFallback() {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('이메일 앱을 열 수 없어요. $_feedbackEmail 로 직접 보내주세요.')),
+      SnackBar(
+        content: Text(tr("이메일 앱을 열 수 없어요. {0} 로 직접 보내주세요.", [_feedbackEmail])),
+      ),
     );
   }
 
@@ -706,6 +727,7 @@ class _FeedbackCardState extends State<_FeedbackCard> {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     return Material(
       color: Colors.transparent,
       borderRadius: BorderRadius.circular(28),
@@ -734,7 +756,7 @@ class _FeedbackCardState extends State<_FeedbackCard> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '의견 보내기',
+                      tr("의견 보내기"),
                       style: pathLabelFont(
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
@@ -743,7 +765,7 @@ class _FeedbackCardState extends State<_FeedbackCard> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      '더 좋은 정원을 만드는 데 목소리를 들려주세요',
+                      tr("더 좋은 정원을 만드는 데 목소리를 들려주세요"),
                       style: bodyFont(fontSize: 11.5, color: AppColors.inkSoft),
                     ),
                   ],
@@ -777,6 +799,7 @@ class _NeighborGardenCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     return GlassBlob(
       accent: AppColors.blobMintAccent,
       background: AppColors.blobMint,
@@ -786,8 +809,8 @@ class _NeighborGardenCard extends StatelessWidget {
           _neighborRow(
             context,
             emoji: '🌷',
-            label: '냥이 마을 · 내 이웃',
-            subtitle: '이웃을 찾고 정원을 방문해 응원과 꽃을 나눠요',
+            label: tr("냥이 마을 · 내 이웃"),
+            subtitle: tr("이웃을 찾고 정원을 방문해 응원과 꽃을 나눠요"),
             onTap: () {
               Navigator.of(context).push(
                 MaterialPageRoute(builder: (_) => const GardenVillageScreen()),
@@ -801,8 +824,8 @@ class _NeighborGardenCard extends StatelessWidget {
           _neighborRow(
             context,
             emoji: '💌',
-            label: '내가 건넨 꽃 소식',
-            subtitle: '선물한 꽃이 이웃 정원에 핀 소식을 확인해요',
+            label: tr("내가 건넨 꽃 소식"),
+            subtitle: tr("선물한 꽃이 이웃 정원에 핀 소식을 확인해요"),
             onTap: () {
               Navigator.of(context).push(
                 MaterialPageRoute(
@@ -889,6 +912,7 @@ class _InfoLinkRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     return Material(
       color: Colors.transparent,
       borderRadius: BorderRadius.circular(16),

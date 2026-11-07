@@ -5,6 +5,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/hive_encryption.dart';
 import '../models/garden_layout.dart';
+import 'plant_memory.dart';
 
 /// Durable write-ahead journal. Replay writes final values, never increments.
 class SessionTransaction {
@@ -39,6 +40,11 @@ class SessionTransaction {
     final raw = box.get(pendingKey);
     if (raw == null) return;
     final commit = Map<String, dynamic>.from(raw as Map);
+    final memory = commit['plantMemory'] == null
+        ? null
+        : PlantMemory.fromJson(
+            Map<dynamic, dynamic>.from(commit['plantMemory'] as Map),
+          );
     final writes = Map<String, dynamic>.from(commit['writes'] as Map);
     for (final entry in writes.entries) {
       await box.put(entry.key, entry.value);
@@ -49,6 +55,16 @@ class SessionTransaction {
     }
     await box.flush();
     await fault?.call('hive_flushed');
+    if (memory != null) {
+      // Written before publishing the planted state. A crash replays the same
+      // complete private timeline, rather than appending or charging again.
+      final memories = await HiveEncryption.openBox(
+        'garden_memories_local_user',
+      );
+      await memories.put(memory.plantId, memory.toJson());
+      await memories.flush();
+      await fault?.call('plant_memory_written');
+    }
     if (commit['layout'] != null) {
       final json = Map<String, dynamic>.from(commit['layout'] as Map);
       GardenLayout.fromJson(json);
@@ -76,14 +92,17 @@ class SessionTransaction {
     DraftBox draft,
     Map<String, dynamic> garden, {
     Map<String, dynamic>? layout,
+    PlantMemory? plantMemory,
   }) async {
     if (layout != null) GardenLayout.fromJson(layout);
+    if (plantMemory != null) PlantMemory.fromJson(plantMemory.toJson());
     await fault?.call('before_journal');
     await _box!.put(pendingKey, {
       'writes': draft.writes,
       'deletes': draft.deletes.toList(),
       'garden': jsonEncode(garden),
       if (layout != null) 'layout': layout,
+      if (plantMemory != null) 'plantMemory': plantMemory.toJson(),
     });
     await _box!.flush();
     await fault?.call('journal_flushed');

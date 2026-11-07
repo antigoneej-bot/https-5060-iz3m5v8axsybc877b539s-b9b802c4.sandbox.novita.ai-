@@ -39,8 +39,7 @@ class LetterEmojiDecorator {
     IntimacyTag.lifelongFriend: '💕',
   };
 
-  static String forGreeting(GrowthTag growth) =>
-      _greetingEmoji[growth] ?? '🐾';
+  static String forGreeting(GrowthTag growth) => _greetingEmoji[growth] ?? '🐾';
 
   static String forCatMood(CatMoodTag mood) => _catMoodEmoji[mood] ?? '🐾';
 

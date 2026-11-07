@@ -1,3 +1,4 @@
+import '../../l10n/app_language.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -63,6 +64,7 @@ class _GardenCareEntryScreenState extends State<GardenCareEntryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     final garden = context.watch<GardenProvider>();
     final l10n = AppLocalizations.of(context);
     final checkedEmotion = garden.todayCheckInEmotionName;
@@ -171,6 +173,7 @@ class QuietEmotionSheetState extends State<QuietEmotionSheet> {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     final l10n = AppLocalizations.of(context);
     return SizedBox(
       height: MediaQuery.sizeOf(context).height * .72,
@@ -189,7 +192,7 @@ class QuietEmotionSheetState extends State<QuietEmotionSheet> {
                     ),
                   ),
                   IconButton(
-                    tooltip: '닫기',
+                    tooltip: tr("닫기"),
                     onPressed: () => Navigator.of(context).pop(),
                     icon: const Icon(Icons.close),
                   ),

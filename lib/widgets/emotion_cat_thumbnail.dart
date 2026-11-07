@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
@@ -57,7 +58,7 @@ class EmotionCatThumbnail extends StatelessWidget {
     final subject =
         subjects[asset.split('/').last] ?? const Rect.fromLTWH(0, 0, 1, 1);
     return Semantics(
-      label: '$label 고양이',
+      label: tr("{0} 고양이", [label]),
       image: true,
       child: ClipRect(
         child: LayoutBuilder(

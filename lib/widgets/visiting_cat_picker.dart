@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/cat_visit.dart';
@@ -32,7 +33,7 @@ Future<VisitingCat?> pickVisitingCat(
               title,
               style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
-            const Text('털색·성장 모습·고양이 이름만 이웃과 나눠요. 마음 기록은 공유하지 않아요.'),
+            Text(tr("털색·성장 모습·고양이 이름만 이웃과 나눠요. 마음 기록은 공유하지 않아요.")),
             for (final member in care.journey.residents.entries)
               Builder(
                 builder: (context) {
@@ -68,7 +69,7 @@ Future<VisitingCat?> pickVisitingCat(
                     ),
                     title: Text(cat.name),
                     subtitle: Text(
-                      '${member.key.label} · ${const ['아기', '자라는 중', '든든한 고양이', '성묘'][stage]}',
+                      '${member.key.label} · ${[tr("아기"), tr("자라는 중"), tr("든든한 고양이"), tr("성묘")][stage]}',
                     ),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => Navigator.pop(sheet, cat),

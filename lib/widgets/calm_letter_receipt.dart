@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../theme.dart';
@@ -106,13 +107,13 @@ class _CalmLetterReceiptState extends State<CalmLetterReceipt>
       ),
       const SizedBox(height: 8),
       Text(
-        '편지를 조용히 담아두었어요',
+        tr("편지를 조용히 담아두었어요"),
         textAlign: TextAlign.center,
         style: titleFont(fontSize: 20, color: AppColors.ink),
       ),
       const SizedBox(height: 6),
       Text(
-        '지금의 마음 그대로, 기록에 남아 있어요.',
+        tr("지금의 마음 그대로, 기록에 남아 있어요."),
         textAlign: TextAlign.center,
         style: bodyFont(fontSize: 13, color: AppColors.inkSoft),
       ),

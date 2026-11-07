@@ -137,7 +137,7 @@ class _StoryStage extends StatelessWidget {
           Text(cat.emoji, style: const TextStyle(fontSize: 22)),
           const SizedBox(height: 4),
           Text(
-            cat.nameKr,
+            cat.displayName,
             style: titleFont(fontSize: 22, color: AppColors.ink),
           ),
           Text(
@@ -191,7 +191,7 @@ class _StoryStage extends StatelessWidget {
                 elevation: 0,
               ),
               child: Text(
-                '${cat.nameKr}에게 편지쓰기',
+                '${cat.displayName}에게 편지쓰기',
                 style: pathLabelFont(fontSize: 16, color: Colors.white),
               ),
             ),
@@ -294,7 +294,7 @@ class _LetterStageState extends State<_LetterStage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      widget.cat.nameKr,
+                      widget.cat.displayName,
                       style: pathLabelFont(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
@@ -302,7 +302,7 @@ class _LetterStageState extends State<_LetterStage> {
                       ),
                     ),
                     Text(
-                      '#${widget.cat.keyword}',
+                      '#${widget.cat.displayKeyword}',
                       style: bodyFont(fontSize: 11.5, color: AppColors.inkSoft),
                     ),
                   ],
@@ -340,7 +340,8 @@ class _LetterStageState extends State<_LetterStage> {
             ],
           ),
           JournalBox(
-            question: _writingPrompt ?? '${widget.cat.nameKr}에게, 하고 싶은 말이 있나요?',
+            question:
+                _writingPrompt ?? '${widget.cat.displayName}에게, 하고 싶은 말이 있나요?',
             hint: '오늘 있었던 일이나 지금 마음을 한 줄만 남겨도 괜찮아요.',
             controller: widget.controller,
           ),

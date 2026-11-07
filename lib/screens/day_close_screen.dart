@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/promise_provider.dart';
@@ -42,13 +43,13 @@ class _DayCloseScreenState extends State<DayCloseScreen> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-          '오늘 하루를\n조용히 닫아볼까요?',
+          tr("오늘 하루를\n조용히 닫아볼까요?"),
           textAlign: TextAlign.center,
           style: titleFont(fontSize: 22, color: AppColors.ink, height: 1.4),
         ),
         const SizedBox(height: 10),
         Text(
-          '오늘 곁에 남긴 약속들을 살짝 들여다봐요',
+          tr("오늘 곁에 남긴 약속들을 살짝 들여다봐요"),
           textAlign: TextAlign.center,
           style: bodyFont(fontSize: 12.5, color: AppColors.inkSoft),
         ),
@@ -73,7 +74,7 @@ class _DayCloseScreenState extends State<DayCloseScreen> {
               ),
               const SizedBox(height: 10),
               Text(
-                '남은 약속들은 오늘 밤 조용히 곁을 떠나,\n내일 새로운 약속으로 다시 만나요',
+                tr("남은 약속들은 오늘 밤 조용히 곁을 떠나,\n내일 새로운 약속으로 다시 만나요"),
                 textAlign: TextAlign.center,
                 style: bodyFont(
                   fontSize: 12,
@@ -95,7 +96,7 @@ class _DayCloseScreenState extends State<DayCloseScreen> {
               const SizedBox(width: 14),
               Expanded(
                 child: Text(
-                  '고양이가 오늘도 당신 곁에서 웅크리고 하루를 함께 보냈어요',
+                  tr("고양이가 오늘도 당신 곁에서 웅크리고 하루를 함께 보냈어요"),
                   style: bodyFont(
                     fontSize: 12.5,
                     color: AppColors.inkSoft,

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import '../../l10n/app_language.dart';
 import 'plant_memory.dart';
+import '../../data/shadow_cats_data.dart';
 
 /// A read-only view over saved memories, never an automatic public post.
 class MatureTreeMemories extends StatelessWidget {
@@ -48,23 +50,32 @@ class MatureTreeMemories extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              '다 자란 나무, 계속 쌓이는 추억',
+              tr('다 자란 나무, 계속 쌓이는 추억'),
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 8),
-            Text('내가 남긴 추억 ${entries.length}개 · 나만 볼 수 있어요'),
+            Text(tr('내가 남긴 추억 {0}개 · 나만 볼 수 있어요', [entries.length])),
             if (days != null && days > 0)
               Text(
-                '함께한 $days일${next == null ? '' : ' · $next일까지 ${next - days}일'}',
+                tr('함께한 {0}일', [days]) +
+                    (next == null
+                        ? ''
+                        : tr(' · {0}일까지 {1}일', [next, next - days])),
               ),
-            if (days != null && days <= 0) Text('기념 시작일 · $anniversaryOn'),
+            if (days != null && days <= 0)
+              Text(tr('기념 시작일 · {0}', [anniversaryOn])),
             if (sorted.isEmpty)
-              const Text('크기는 다 자랐지만 이야기는 계속돼요. 오늘 기억하고 싶은 한 장면을 남겨 보세요.'),
+              Text(tr('크기는 다 자랐지만 이야기는 계속돼요. 오늘 기억하고 싶은 한 장면을 남겨 보세요.')),
             for (final entry in sorted.take(3))
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 7),
                 child: Text(
-                  '${entry.on}\n${entry.note}',
+                  [
+                    entry.on,
+                    if (entry.emotionCatId != null)
+                      shadowCatById(entry.emotionCatId!).displayKeyword,
+                    if (entry.note.isNotEmpty) entry.note,
+                  ].join('\n'),
                   maxLines: 4,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -74,7 +85,7 @@ class MatureTreeMemories extends StatelessWidget {
               children: [
                 for (final month in months.entries)
                   ActionChip(
-                    label: Text('${month.key} · ${month.value}개'),
+                    label: Text(tr('{0} · {1}개', [month.key, month.value])),
                     onPressed:
                         onMonth == null ||
                             DateTime.parse(
@@ -85,19 +96,16 @@ class MatureTreeMemories extends StatelessWidget {
                   ),
               ],
             ),
-            if (months.isNotEmpty) const Text('달을 누르면 그 달의 정원 기록집을 열어요.'),
+            if (months.isNotEmpty) Text(tr('달을 누르면 그 달의 정원 기록집을 열어요.')),
             Wrap(
               spacing: 8,
               children: [
                 FilledButton.tonal(
                   onPressed: onWrite,
-                  child: const Text('오늘의 추억 더하기'),
+                  child: Text(tr('오늘의 추억 더하기')),
                 ),
                 if (entries.isNotEmpty)
-                  TextButton(
-                    onPressed: onHistory,
-                    child: const Text('모든 추억 보기'),
-                  ),
+                  TextButton(onPressed: onHistory, child: Text(tr('모든 추억 보기'))),
               ],
             ),
           ],

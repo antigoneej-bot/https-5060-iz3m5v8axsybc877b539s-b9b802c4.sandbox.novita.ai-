@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import 'access_policy.dart';
 import 'cloud_service.dart';
 import '../utils/feature_flags.dart';
@@ -37,13 +38,16 @@ class SubscriptionRestoreResult {
       status == SubscriptionRestoreStatus.signInRequired;
 
   String get message => switch (status) {
-    SubscriptionRestoreStatus.restored => '구독을 복원했어요. 이용 권한을 다시 확인했어요.',
-    SubscriptionRestoreStatus.noActivePurchase =>
-      '이 계정에서 복원할 구독을 찾지 못했어요. 구매할 때 사용한 마음냥 계정과 Play 계정을 확인해 주세요.',
-    SubscriptionRestoreStatus.unavailable =>
-      '구매 내역을 확인하지 못했어요. 기존 이용 상태를 유지했으니 연결 후 다시 시도해 주세요.',
-    SubscriptionRestoreStatus.signInRequired =>
-      '구매할 때 사용한 마음냥 계정으로 로그인한 뒤 다시 시도해 주세요.',
+    SubscriptionRestoreStatus.restored => tr("구독을 복원했어요. 이용 권한을 다시 확인했어요."),
+    SubscriptionRestoreStatus.noActivePurchase => tr(
+      "이 계정에서 복원할 구독을 찾지 못했어요. 구매할 때 사용한 마음냥 계정과 Play 계정을 확인해 주세요.",
+    ),
+    SubscriptionRestoreStatus.unavailable => tr(
+      "구매 내역을 확인하지 못했어요. 기존 이용 상태를 유지했으니 연결 후 다시 시도해 주세요.",
+    ),
+    SubscriptionRestoreStatus.signInRequired => tr(
+      "구매할 때 사용한 마음냥 계정으로 로그인한 뒤 다시 시도해 주세요.",
+    ),
   };
 }
 
@@ -113,17 +117,17 @@ class SubscriptionService {
     }
   }
 
-  static const String displayPrice = '월 4,900원';
-  static const String displayYearlyPrice = '연 29,000원';
-  static const String displayYearlyMonthlyEquivalent = '월 2,417원 상당';
-  static const String yearlyDiscountLabel = '약 51% 할인';
-  static const String displayYearlyOriginalPrice = '58,800원';
-  static const String yearlySavingsLabel = '29,800원 절약';
-  static const String earlybirdLabel = '마음냥 통합 구독';
-  static const String earlybirdCaption = '구독은 언제든 해지할 수 있어요';
-  static const String billingComingSoonLabel = '곧 스토어에서 만나요';
-  static const String billingComingSoonCaption =
-      '결제와 서버 확인 준비 중이에요 · 혜택은 미리 둘러볼 수 있어요';
+  static String get displayPrice => tr("월 4,900원");
+  static String get displayYearlyPrice => tr("연 29,000원");
+  static String get displayYearlyMonthlyEquivalent => tr("월 2,417원 상당");
+  static String get yearlyDiscountLabel => tr("약 51% 할인");
+  static String get displayYearlyOriginalPrice => tr("58,800원");
+  static String get yearlySavingsLabel => tr("29,800원 절약");
+  static String get earlybirdLabel => tr("마음냥 통합 구독");
+  static String get earlybirdCaption => tr("구독은 언제든 해지할 수 있어요");
+  static String get billingComingSoonLabel => tr("곧 스토어에서 만나요");
+  static String get billingComingSoonCaption =>
+      tr("결제와 서버 확인 준비 중이에요 · 혜택은 미리 둘러볼 수 있어요");
 
   late final InAppPurchase _iap = InAppPurchase.instance;
   StreamSubscription<List<PurchaseDetails>>? _purchaseSub;
@@ -232,14 +236,21 @@ class SubscriptionService {
     final store = _products[productIdFor(plan)];
     final phases = _phases(store);
     if (phases.isNotEmpty) {
-      return '${plan == SubscriptionPlan.yearly ? '연' : '월'} ${phases.last.formattedPrice}';
+      if (AppLanguage.instance.isEnglish) {
+        return '${phases.last.formattedPrice}/${plan == SubscriptionPlan.yearly ? 'year' : 'month'}';
+      }
+      return '${plan == SubscriptionPlan.yearly ? tr("연") : tr("월")} ${phases.last.formattedPrice}';
     }
-    return '${plan == SubscriptionPlan.yearly ? '연간' : '월간'} 가격 확인 중';
+    return tr("{0} 가격 확인 중", [
+      plan == SubscriptionPlan.yearly ? tr("연간") : tr("월간"),
+    ]);
   }
 
   String productAvailabilityLabel(SubscriptionPlan plan) =>
       _productIssues[productIdFor(plan)] ??
-      '${plan == SubscriptionPlan.yearly ? '연간' : '월간'} 상품을 아직 불러오지 못했어요. 다시 확인해 주세요.';
+      (AppLanguage.instance.isEnglish
+          ? 'The ${plan == SubscriptionPlan.yearly ? 'annual' : 'monthly'} plan hasn’t loaded yet. Please check again.'
+          : '${plan == SubscriptionPlan.yearly ? '연간' : '월간'} 상품을 아직 불러오지 못했어요. 다시 확인해 주세요.');
 
   String offerLabelFor(SubscriptionPlan plan) {
     final phases = _phases(_products[productIdFor(plan)]);
@@ -251,14 +262,37 @@ class SubscriptionService {
             r'^P([0-9]+)([DWMY])$',
           ).firstMatch(phase.billingPeriod)!;
           final amount = int.parse(match[1]!);
-          final unit = {'D': '일', 'W': '주', 'M': '개월', 'Y': '년'}[match[2]]!;
+          final displayedAmount = phase.priceAmountMicros == 0
+              ? amount * phase.billingCycleCount
+              : amount;
+          final unit = AppLanguage.instance.isEnglish
+              ? {
+                  'D': displayedAmount == 1 ? 'day' : 'days',
+                  'W': displayedAmount == 1 ? 'week' : 'weeks',
+                  'M': displayedAmount == 1 ? 'month' : 'months',
+                  'Y': displayedAmount == 1 ? 'year' : 'years',
+                }[match[2]]!
+              : {
+                  'D': '일',
+                  'W': tr("주"),
+                  'M': tr("개월"),
+                  'Y': tr("년"),
+                }[match[2]]!;
           if (phase.priceAmountMicros == 0) {
-            return '${amount * phase.billingCycleCount}$unit 무료체험';
+            return tr("{0}{1} 무료체험", [amount * phase.billingCycleCount, unit]);
           }
-          return '$amount$unit마다 ${phase.formattedPrice} · ${phase.billingCycleCount}회';
+          return tr("{0}{1}마다 {2} · {3}회", [
+            amount,
+            unit,
+            phase.formattedPrice,
+            phase.billingCycleCount,
+          ]);
         })
         .join(' → ');
-    return '${introductory.isEmpty ? '' : '$introductory 후 '}${priceLabelFor(plan)} 자동 결제 · 결제 전 Google Play의 최종 조건을 확인해 주세요.';
+    return tr("{0}{1} 자동 결제 · 결제 전 Google Play의 최종 조건을 확인해 주세요.", [
+      introductory.isEmpty ? '' : tr("{0} 후 ", [introductory]),
+      priceLabelFor(plan),
+    ]);
   }
 
   /// 앱 시작 시 한 번 호출: 스토어 연결 + 미완료 구매 처리 + 상품 조회.
@@ -292,7 +326,7 @@ class SubscriptionService {
       final available = await _iap.isAvailable();
       if (!available) {
         _initialized = false;
-        if (kDebugMode) debugPrint('SubscriptionService: 스토어 사용 불가');
+        if (kDebugMode) debugPrint(tr("SubscriptionService: 스토어 사용 불가"));
         return;
       }
 
@@ -321,17 +355,20 @@ class SubscriptionService {
     _products.clear();
     _productIssues.clear();
     for (final id in ids) {
-      final name = id == yearlyProductId ? '연간' : '월간';
+      final name = id == yearlyProductId ? tr("연간") : tr("월간");
       _productIssues[id] = resp.error != null
-          ? 'Google Play에서 $name 상품을 확인하지 못했어요. 잠시 후 다시 확인해 주세요.'
-          : '$name 구독 상품이 이 Play 계정에서 조회되지 않아요. 다른 상품은 별도로 이용할 수 있어요.';
+          ? tr("Google Play에서 {0} 상품을 확인하지 못했어요. 잠시 후 다시 확인해 주세요.", [name])
+          : tr("{0} 구독 상품이 이 Play 계정에서 조회되지 않아요. 다른 상품은 별도로 이용할 수 있어요.", [
+              name,
+            ]);
     }
     for (final p in resp.productDetails) {
       if (!ids.contains(p.id)) continue;
       if (!_matchesPolicy(p)) {
         if (!_products.containsKey(p.id)) {
-          _productIssues[p.id] =
-              '이 상품의 결제 주기를 확인하지 못했어요. 월간·연간 자동 갱신 상품 설정을 확인해 주세요.';
+          _productIssues[p.id] = tr(
+            "이 상품의 결제 주기를 확인하지 못했어요. 월간·연간 자동 갱신 상품 설정을 확인해 주세요.",
+          );
         }
         continue;
       }
@@ -528,7 +565,9 @@ class SubscriptionService {
     if (v && !storeBillingEnabled) {
       if (kDebugMode) {
         debugPrint(
-          'SubscriptionService: storeBillingEnabled=false — setPremium(true) 무시',
+          tr(
+            "SubscriptionService: storeBillingEnabled=false — setPremium(true) 무시",
+          ),
         );
       }
       return;
@@ -552,11 +591,11 @@ class SubscriptionService {
     SubscriptionPlan plan = SubscriptionPlan.monthly,
     bool replaceMonthly = false,
   }) async {
-    if (kIsWeb) throw StateError('웹 프리뷰에서는 결제를 지원하지 않아요.');
-    if (!_cloudEnabled) throw StateError('서버 결제 확인 준비 후 구매할 수 있어요.');
+    if (kIsWeb) throw StateError(tr("웹 프리뷰에서는 결제를 지원하지 않아요."));
+    if (!_cloudEnabled) throw StateError(tr("서버 결제 확인 준비 후 구매할 수 있어요."));
     if (!storeBillingEnabled) {
       if (kDebugMode) {
-        debugPrint('SubscriptionService: 스토어 결제 미연동 — purchasePremium 차단');
+        debugPrint(tr("SubscriptionService: 스토어 결제 미연동 — purchasePremium 차단"));
       }
       return false;
     }
@@ -572,8 +611,10 @@ class SubscriptionService {
     if (product == null) {
       if (kDebugMode) {
         debugPrint(
-          'SubscriptionService: 상품 없음 ${productIdFor(plan)} — '
-          'Play Console 구독·내부테스트 AAB를 확인하세요',
+          tr(
+            "SubscriptionService: 상품 없음 {0} — Play Console 구독·내부테스트 AAB를 확인하세요",
+            [productIdFor(plan)],
+          ),
         );
       }
       return false;
@@ -863,7 +904,7 @@ class SubscriptionService {
       await prefs.setBool(_premiumKey, false);
       await prefs.remove(_premiumSinceKey);
       if (kDebugMode) {
-        debugPrint('SubscriptionService: 로컬 프리미엄 플래그 제거');
+        debugPrint(tr("SubscriptionService: 로컬 프리미엄 플래그 제거"));
       }
     }
   }

@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import '../services/access_policy.dart';
 import '../services/subscription_service.dart';
 import 'subscription_gate.dart';
@@ -79,7 +80,11 @@ class _MeditationVideoPlayerState extends State<MeditationVideoPlayer>
 
   Future<void> _play(VideoPlayerController controller) =>
       MediaCoordinator.instance.run(() async {
-        if (!mounted || !_expanded || !_foreground) return;
+        if (!mounted ||
+            !_expanded ||
+            !_foreground ||
+            AppLanguage.instance.isEnglish)
+          return;
         final key = widget.assetPath.split('/').last.split('.').first;
         if (!AccessPolicy.meditationAllowed(
           key,
@@ -229,6 +234,8 @@ class _MeditationVideoPlayerState extends State<MeditationVideoPlayer>
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
+    if (AppLanguage.instance.isEnglish) return const EnglishMeditationNotice();
     if (_checking || !_exists) return const SizedBox.shrink();
 
     return Padding(
@@ -360,6 +367,8 @@ class _MiniIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
+    if (AppLanguage.instance.isEnglish) return const EnglishMeditationNotice();
     return GestureDetector(
       onTap: onTap,
       child: Container(

@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import 'local_record_transaction.dart';
 import 'garden_bell.dart';
 import 'dart:async';
@@ -6,6 +7,7 @@ import 'dart:math';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest_all.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
@@ -60,7 +62,82 @@ class NotificationService with WidgetsBindingObserver {
 
   bool _initialized = false;
   bool _observingLifecycle = false;
+  bool _dailyNeedsRefresh = true;
+  final _initialization = LocalRecordQueue();
   final _conditionalChanges = LocalRecordQueue();
+  // Desired OFF lives in the existing preference keys. This notifier describes
+  // native cancellation, not consent. OFF is reconciled again after restart.
+  final cancellationPending = ValueNotifier<Set<String>>(<String>{});
+
+  void _pendingCancellation(String kind, bool pending) {
+    final next = {...cancellationPending.value};
+    pending ? next.add(kind) : next.remove(kind);
+    if (!setEquals(next, cancellationPending.value)) {
+      cancellationPending.value = Set.unmodifiable(next);
+    }
+  }
+
+  Future<bool> _cancelOff(String kind, List<int> ids) async {
+    var succeeded = kIsWeb || _initialized;
+    if (!kIsWeb && _initialized) {
+      for (final id in ids) {
+        try {
+          await _plugin.cancel(id);
+        } catch (_) {
+          succeeded = false;
+        }
+      }
+    }
+    _pendingCancellation(kind, !succeeded);
+    return succeeded;
+  }
+
+  Future<bool> _requestOff(
+    String kind,
+    List<int> ids,
+    Future<void> Function() save,
+  ) async {
+    try {
+      await save();
+    } catch (_) {
+      // A failed disk write is not a persisted opt-out.
+      await (await SharedPreferences.getInstance()).reload();
+      return false;
+    }
+    _pendingCancellation(kind, true);
+    await init();
+    return _cancelOff(kind, ids);
+  }
+
+  Future<void> _reconcileOffReminders() async {
+    final groups = <(String, List<int>, Future<bool> Function())>[
+      ('morning', [_morningId], StorageService.getMorningEnabled),
+      ('evening', [_eveningId], StorageService.getEveningEnabled),
+      ('visit', [_crisisId], StorageService.getCrisisEnabled),
+      ('streak', [_streakId], StorageService.getStreakEnabled),
+      (
+        'companion',
+        CompanionNotifications.ids,
+        () async => (await getCompanionReminderSettings()).enabled,
+      ),
+    ];
+    for (final group in groups) {
+      try {
+        if (!await group.$3()) {
+          await _cancelOff(group.$1, group.$2);
+        } else {
+          _pendingCancellation(group.$1, false);
+        }
+      } catch (_) {
+        /* Leave unknown settings unchanged. */
+      }
+    }
+  }
+
+  Future<void> retryPendingCancellations() => _serializeConditional(() async {
+    await init();
+    await _reconcileOffReminders();
+  });
 
   Future<T> _serializeConditional<T>(Future<T> Function() action) =>
       _conditionalChanges.run(action);
@@ -68,7 +145,7 @@ class NotificationService with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      unawaited(refreshForForegroundVisit());
+      unawaited(refreshForForegroundVisit().catchError((Object _) {}));
     }
   }
 
@@ -76,10 +153,14 @@ class NotificationService with WidgetsBindingObserver {
   /// This never asks for permission; only an explicit settings action does that.
   Future<void> refreshForForegroundVisit() => _serializeConditional(() async {
     if (kIsWeb ||
-        !_initialized ||
         WidgetsBinding.instance.lifecycleState != AppLifecycleState.resumed) {
       return;
     }
+    await init();
+    await _reconcileOffReminders();
+    if (!_initialized) return;
+    await _configureLocalTimezone();
+    await _restoreDailyIfNeeded();
     await _refreshCrisisReminder();
     await _refreshStreakReminder();
     await _refreshCompanionSafely();
@@ -103,72 +184,79 @@ class NotificationService with WidgetsBindingObserver {
   final deepLinkChanges = _DeepLinkNotifier();
   final companionReminderChanges = _DeepLinkNotifier();
 
-  static const List<String> _morningMessages = [
-    '오늘 아침, 마음은 어떤가요? 🌤️',
-    '잠깐, 지금 기분을 골라볼까요? 🐾',
-    '오늘도 그림자 고양이들이 정원에서 기다리고 있어요',
-    '하루를 시작하기 전, 마음 한 번 들여다볼까요?',
-    '오늘의 감정과 닮은 고양이를 만나러 가볼까요? 🌱',
+  static List<String> get _morningMessages => [
+    tr("오늘 아침, 마음은 어떤가요? 🌤️"),
+    tr("잠깐, 지금 기분을 골라볼까요? 🐾"),
+    tr("오늘도 그림자 고양이들이 정원에서 기다리고 있어요"),
+    tr("하루를 시작하기 전, 마음 한 번 들여다볼까요?"),
+    tr("오늘의 감정과 닮은 고양이를 만나러 가볼까요? 🌱"),
   ];
 
-  static const List<String> _morningMessagesWithName = [
-    '{name}가 오늘 하루도 함께하고 싶어해요',
-    '{name}와 함께 오늘의 감정을 나눠보세요',
-    '{name}가 아침 인사를 건네고 있어요 🐾',
+  static List<String> get _morningMessagesWithName => [
+    tr("{name}가 오늘 하루도 함께하고 싶어해요"),
+    tr("{name}와 함께 오늘의 감정을 나눠보세요"),
+    tr("{name}가 아침 인사를 건네고 있어요 🐾"),
   ];
 
-  static const List<String> _eveningMessages = [
-    '오늘 하루를 조용히 닫아볼까요? 🌙',
-    '잠들기 전, 오늘 남긴 약속들을 살펴볼까요?',
-    '하루의 끝, 정원에 잠깐 들러주세요',
-    '오늘도 애썼어요. 마음을 가만히 정리해볼까요?',
-    '오늘 하루는 어땠나요? 잠깐 돌아봐요',
+  static List<String> get _eveningMessages => [
+    tr("오늘 하루를 조용히 닫아볼까요? 🌙"),
+    tr("잠들기 전, 오늘 남긴 약속들을 살펴볼까요?"),
+    tr("하루의 끝, 정원에 잠깐 들러주세요"),
+    tr("오늘도 애썼어요. 마음을 가만히 정리해볼까요?"),
+    tr("오늘 하루는 어땠나요? 잠깐 돌아봐요"),
   ];
 
-  static const List<String> _eveningMessagesWithName = [
-    '{name}가 오늘 하루 얘기를 듣고 싶어해요',
-    '{name}와 함께 하루를 마무리해보세요 🌛',
+  static List<String> get _eveningMessagesWithName => [
+    tr("{name}가 오늘 하루 얘기를 듣고 싶어해요"),
+    tr("{name}와 함께 하루를 마무리해보세요 🌛"),
   ];
 
   /// 앱 실행 시 1회 초기화합니다. 알림 권한은 이 시점에는 요청하지 않고,
   /// 사용자가 설정에서 알림을 켤 때 명시적으로 요청합니다(불필요한 권한
   /// 팝업으로 첫 인상을 해치지 않기 위함).
-  Future<void> init() async {
-    if (_initialized) return;
-    await StorageService.migrateLegacyReminderIfNeeded();
-    if (kIsWeb) {
-      // 웹 플랫폼은 로컬 알림 예약을 지원하지 않으므로, 웹 프리뷰에서는
-      // 초기화만 완료 처리하고 실제 알림 기능은 비활성 상태로 둡니다.
-      await _plugin
-          .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin
-          >()
-          ?.createNotificationChannel(
-            const AndroidNotificationChannel(
-              'garden_updates',
-              '이웃·예약 소식',
-              importance: Importance.defaultImportance,
-            ),
-          );
-      _initialized = true;
-      return;
-    }
-    tz_data.initializeTimeZones();
-    await _configureLocalTimezone();
+  Future<void> init() => _initialization.run(_initialize);
 
-    const androidSettings = AndroidInitializationSettings(
-      '@mipmap/ic_launcher',
-    );
-    const iosSettings = DarwinInitializationSettings(
-      requestAlertPermission: false,
-      requestBadgePermission: false,
-      requestSoundPermission: false,
-    );
-    const initSettings = InitializationSettings(
-      android: androidSettings,
-      iOS: iosSettings,
-    );
+  Future<void> _initialize() async {
+    if (_initialized) return;
+    // Keep a retry path even when the optional native plugin is unavailable.
+    if (!_observingLifecycle && !kIsWeb) {
+      WidgetsBinding.instance.addObserver(this);
+      _observingLifecycle = true;
+    }
     try {
+      await StorageService.migrateLegacyReminderIfNeeded();
+      if (kIsWeb) {
+        // 웹 플랫폼은 로컬 알림 예약을 지원하지 않으므로, 웹 프리뷰에서는
+        // 초기화만 완료 처리하고 실제 알림 기능은 비활성 상태로 둡니다.
+        await _plugin
+            .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin
+            >()
+            ?.createNotificationChannel(
+              AndroidNotificationChannel(
+                'garden_updates',
+                tr("이웃·예약 소식"),
+                importance: Importance.defaultImportance,
+              ),
+            );
+        _initialized = true;
+        return;
+      }
+      tz_data.initializeTimeZones();
+      await _configureLocalTimezone();
+
+      const androidSettings = AndroidInitializationSettings(
+        '@mipmap/ic_launcher',
+      );
+      const iosSettings = DarwinInitializationSettings(
+        requestAlertPermission: false,
+        requestBadgePermission: false,
+        requestSoundPermission: false,
+      );
+      const initSettings = InitializationSettings(
+        android: androidSettings,
+        iOS: iosSettings,
+      );
       await _plugin.initialize(
         initSettings,
         onDidReceiveNotificationResponse: _onNotificationTap,
@@ -187,53 +275,81 @@ class NotificationService with WidgetsBindingObserver {
       // Cancel only retired reply channels; daily/visit reminders stay intact.
       await _plugin.cancel(_catReplyId);
       await _plugin.cancel(_heartLetterReplyId);
+      await _createGardenBellChannels();
+      _initialized = true;
     } catch (e) {
-      if (kDebugMode) debugPrint('NotificationService init 실패: $e');
-      return;
+      if (kDebugMode) {
+        debugPrint(
+          'NotificationService initialization unavailable (${e.runtimeType})',
+        );
+      }
     }
+  }
+
+  Future<void> _createGardenBellChannels() async {
     final android = _plugin
         .resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin
         >();
     await android?.createNotificationChannel(
-      const AndroidNotificationChannel(
+      AndroidNotificationChannel(
         GardenBell.soundChannel,
-        '정원 소식 · 유리종',
+        tr("정원 소식 · 유리종"),
         importance: Importance.defaultImportance,
         sound: RawResourceAndroidNotificationSound('garden_bell'),
         enableVibration: false,
       ),
     );
     await android?.createNotificationChannel(
-      const AndroidNotificationChannel(
+      AndroidNotificationChannel(
         GardenBell.silentChannel,
-        '정원 소식 · 조용히',
+        tr("정원 소식 · 조용히"),
         importance: Importance.defaultImportance,
         playSound: false,
         enableVibration: false,
       ),
     );
-    _initialized = true;
-    if (!_observingLifecycle) {
-      WidgetsBinding.instance.addObserver(this);
-      _observingLifecycle = true;
-    }
+    await android?.createNotificationChannel(
+      AndroidNotificationChannel(
+        'garden_updates',
+        tr('이웃·예약 소식'),
+        importance: Importance.defaultImportance,
+      ),
+    );
   }
 
-  /// 기기 로컬 타임존을 timezone 패키지에 연결합니다.
-  /// 설정하지 않으면 tz.local이 UTC라 아침/저녁 알림 시각이 어긋납니다.
-  /// (한국 앱 기준으로 Asia/Seoul을 사용. UTC+9 외 기기에서도 KST 스케줄.)
+  /// Android supplies its IANA zone, including DST transitions. Unknown zones
+  /// use the device's current offset, never an assumed country or UI language.
   Future<void> _configureLocalTimezone() async {
+    Map<Object?, Object?>? device;
     try {
-      tz.setLocalLocation(tz.getLocation('Asia/Seoul'));
-      if (kDebugMode) {
-        debugPrint('NotificationService timezone: Asia/Seoul');
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        debugPrint('NotificationService timezone set failed: $e');
-      }
+      device = await const MethodChannel(
+        'garden/device_timezone',
+      ).invokeMapMethod<Object?, Object?>('read');
+    } catch (_) {
+      // Platforms without this native bridge retain local-clock scheduling.
     }
+    tz.Location? location;
+    final id = device?['id'];
+    if (id is String) {
+      try {
+        location = tz.getLocation(id);
+      } catch (_) {}
+    }
+    if (location == null) {
+      final offset = device?['offsetSeconds'];
+      final seconds = offset is int && offset.abs() <= 86400
+          ? offset
+          : _now().timeZoneOffset.inSeconds;
+      final minutes = seconds.abs() ~/ 60;
+      final name =
+          'GMT${seconds < 0 ? '-' : '+'}${(minutes ~/ 60).toString().padLeft(2, '0')}:${(minutes % 60).toString().padLeft(2, '0')}';
+      location = tz.Location(name, [], [], [
+        tz.TimeZone(seconds * 1000, isDst: false, abbreviation: name),
+      ]);
+    }
+    if (tz.local.name != location.name) _dailyNeedsRefresh = true;
+    tz.setLocalLocation(location);
   }
 
   void openGardenUpdate(String kind) {
@@ -254,16 +370,16 @@ class NotificationService with WidgetsBindingObserver {
           : kind == 'booking'
           ? 2002
           : 2003,
-      '마음냥 정원',
+      tr("마음냥 정원"),
       kind == 'social'
-          ? '정원에 새로운 응원이나 선물이 도착했어요.'
+          ? tr("정원에 새로운 응원이나 선물이 도착했어요.")
           : kind == 'booking'
-          ? '예약한 모임의 변경 소식을 확인해 주세요.'
-          : '새로운 정원소식이 도착했어요.',
+          ? tr("예약한 모임의 변경 소식을 확인해 주세요.")
+          : tr("새로운 정원소식이 도착했어요."),
       NotificationDetails(
         android: AndroidNotificationDetails(
           sound ? GardenBell.soundChannel : GardenBell.silentChannel,
-          sound ? '정원 소식 · 유리종' : '정원 소식 · 조용히',
+          sound ? tr("정원 소식 · 유리종") : tr("정원 소식 · 조용히"),
           importance: Importance.defaultImportance,
           priority: Priority.defaultPriority,
           playSound: sound,
@@ -282,7 +398,7 @@ class NotificationService with WidgetsBindingObserver {
     return NotificationDetails(
       android: AndroidNotificationDetails(
         sound ? GardenBell.soundChannel : GardenBell.silentChannel,
-        sound ? '정원 소식 · 유리종' : '정원 소식 · 조용히',
+        sound ? tr("정원 소식 · 유리종") : tr("정원 소식 · 조용히"),
         importance: Importance.defaultImportance,
         priority: Priority.defaultPriority,
         playSound: sound,
@@ -350,6 +466,25 @@ class NotificationService with WidgetsBindingObserver {
     final nextEnabled = enabled ?? oldEnabled;
     final nextTime = time ?? oldTime;
     var nativeChanged = false;
+    if (nextTime.$1 < 0 ||
+        nextTime.$1 > 23 ||
+        nextTime.$2 < 0 ||
+        nextTime.$2 > 59)
+      return false;
+    if (!nextEnabled) {
+      return _requestOff(morning ? 'morning' : 'evening', [id], () async {
+        // Preserve the chosen clock time; opt-out does not edit it.
+        try {
+          if (time != null) await saveTime(nextTime.$1, nextTime.$2);
+          await saveEnabled(false);
+        } catch (_) {
+          if (time != null) {
+            try { await saveTime(oldTime.$1, oldTime.$2); } catch (_) {}
+          }
+          rethrow;
+        }
+      });
+    }
     try {
       if (nextTime.$1 < 0 ||
           nextTime.$1 > 23 ||
@@ -368,6 +503,7 @@ class NotificationService with WidgetsBindingObserver {
       }
       await saveTime(nextTime.$1, nextTime.$2);
       await saveEnabled(nextEnabled);
+      _pendingCancellation(morning ? 'morning' : 'evening', false);
       return true;
     } catch (_) {
       // Keep the old schedule and settings if a later disk write failed.
@@ -418,6 +554,8 @@ class NotificationService with WidgetsBindingObserver {
     required Future<void> Function(bool) save,
     required Future<bool> Function() refresh,
   }) => _serializeConditional(() async {
+    final kind = id == _crisisId ? 'visit' : 'streak';
+    if (!enabled) return _requestOff(kind, [id], () => save(false));
     try {
       await init();
       if (enabled && (kIsWeb || !await _requestPermission())) {
@@ -431,7 +569,10 @@ class NotificationService with WidgetsBindingObserver {
         await _plugin.cancel(id);
         return true;
       }
-      if (await refresh()) return true;
+      if (await refresh()) {
+        _pendingCancellation(kind, false);
+        return true;
+      }
       await save(false);
       await _plugin.cancel(id);
       return false;
@@ -459,16 +600,30 @@ class NotificationService with WidgetsBindingObserver {
 
   /// 앱 시작 시, 이미 켜져 있는 설정이 있다면 모든 종류의 알림을 다시
   /// 계산 · 재예약합니다(기기 재부팅, 알림 문구 가변화, 조건부 발송 갱신 등에 대응).
-  Future<void> restoreIfEnabled() async {
+  Future<void> restoreIfEnabled() => _serializeConditional(() async {
     await init();
-    if (kIsWeb) return;
+    await _reconcileOffReminders();
+    if (kIsWeb || !_initialized) return;
+    await _configureLocalTimezone();
+    _dailyNeedsRefresh = true;
+    await _restoreDailyIfNeeded();
+    if (WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed) {
+      await _refreshCrisisReminder();
+      await _refreshStreakReminder();
+    }
+    await restoreReplyNotification();
+    await _refreshCompanionSafely();
+  });
 
+  Future<void> _restoreDailyIfNeeded() async {
+    if (!_dailyNeedsRefresh) return;
+    var succeeded = true;
     if (await StorageService.getMorningEnabled()) {
       final (h, m) = await StorageService.getMorningTime();
       try {
         await _scheduleMorning(h, m);
       } catch (_) {
-        await StorageService.setMorningEnabled(false);
+        succeeded = false;
       }
     }
     if (await StorageService.getEveningEnabled()) {
@@ -476,13 +631,27 @@ class NotificationService with WidgetsBindingObserver {
       try {
         await _scheduleEvening(h, m);
       } catch (_) {
-        await StorageService.setEveningEnabled(false);
+        succeeded = false;
       }
     }
-    await refreshForForegroundVisit();
-    await restoreReplyNotification();
-    await refreshCompanionReminders();
+    // A temporary native failure is not a withdrawal of the user's consent.
+    _dailyNeedsRefresh = !succeeded;
   }
+
+  /// Rebuild only existing opt-ins; no permission prompt or visit timestamp.
+  Future<void> refreshLanguage() => _serializeConditional(() async {
+    if (kIsWeb) return;
+    await init();
+    await _reconcileOffReminders();
+    if (!_initialized) return;
+    await _createGardenBellChannels();
+    await _configureLocalTimezone();
+    _dailyNeedsRefresh = true;
+    await _restoreDailyIfNeeded();
+    await _refreshCrisisReminder();
+    await _refreshStreakReminder();
+    await _refreshCompanionSafely();
+  });
 
   /// 오늘의 미션(편지 쓰기 등)을 완수했을 때 호출합니다. 오늘 예약된
   /// '스트릭 임박' 알림이 있다면 더 이상 필요 없으므로 취소합니다.
@@ -535,7 +704,7 @@ class NotificationService with WidgetsBindingObserver {
     try {
       final catId = StorageService.getLastMetCatId();
       if (catId == null) return null;
-      return shadowCatById(catId).nameKr;
+      return shadowCatById(catId).displayName;
     } catch (e) {
       if (kDebugMode) debugPrint('NotificationService 마지막 고양이 조회 실패: $e');
       return null;
@@ -553,7 +722,7 @@ class NotificationService with WidgetsBindingObserver {
       final scheduled = _nextInstanceOf(hour, minute);
       await _plugin.zonedSchedule(
         _morningId,
-        '마음냥 정원 🌤️',
+        tr("마음냥 정원 🌤️"),
         body,
         scheduled,
         await _reminderBellDetails(),
@@ -580,7 +749,7 @@ class NotificationService with WidgetsBindingObserver {
       final scheduled = _nextInstanceOf(hour, minute);
       await _plugin.zonedSchedule(
         _eveningId,
-        '마음냥 정원 🌙',
+        tr("마음냥 정원 🌙"),
         body,
         scheduled,
         await _reminderBellDetails(),
@@ -610,13 +779,13 @@ class NotificationService with WidgetsBindingObserver {
       final rng = Random();
       final String body;
       if (name != null && name.trim().isNotEmpty) {
-        body = '${name.trim()}와 정원에서 잠깐 쉬어가도 좋아요';
+        body = tr("{0}와 정원에서 잠깐 쉬어가도 좋아요", [name.trim()]);
       } else if (lastCatName != null && lastCatName.isNotEmpty) {
         body = rng.nextBool()
-            ? '$lastCatName와 만났던 정원에 잠깐 들러볼까요?'
-            : '오늘 마음은 어떤가요? 편할 때 정원에서 쉬어가세요';
+            ? tr("{0}와 만났던 정원에 잠깐 들러볼까요?", [lastCatName])
+            : tr("오늘 마음은 어떤가요? 편할 때 정원에서 쉬어가세요");
       } else {
-        body = '편할 때 정원에 들러 잠깐 쉬어가세요';
+        body = tr("편할 때 정원에 들러 잠깐 쉬어가세요");
       }
 
       final now = tz.TZDateTime.from(_now(), tz.local);
@@ -624,7 +793,7 @@ class NotificationService with WidgetsBindingObserver {
 
       await _plugin.zonedSchedule(
         _crisisId,
-        '마음냥 정원 🐈‍⬛',
+        tr("마음냥 정원 🐈‍⬛"),
         body,
         scheduled,
         await _reminderBellDetails(),
@@ -668,16 +837,19 @@ class NotificationService with WidgetsBindingObserver {
       final lastCatName = _lastMetCatName();
       final String body;
       if (streak > 0 && lastCatName != null && lastCatName.isNotEmpty) {
-        body = '$streak일째 함께하고 있어요, $lastCatName도 오늘을 기다리고 있어요 🐾';
+        body = tr("{0}일째 함께하고 있어요, {1}도 오늘을 기다리고 있어요 🐾", [
+          streak,
+          lastCatName,
+        ]);
       } else if (streak > 0) {
-        body = '$streak일째 함께하고 있어요, 오늘도 잠깐 들러줄까요? 🐾';
+        body = tr("{0}일째 함께하고 있어요, 오늘도 잠깐 들러줄까요? 🐾", [streak]);
       } else {
-        body = '오늘 아직 마음을 돌보지 않았어요. 잠깐 들러줄까요? 🐾';
+        body = tr("오늘 아직 마음을 돌보지 않았어요. 잠깐 들러줄까요? 🐾");
       }
 
       await _plugin.zonedSchedule(
         _streakId,
-        '마음냥 정원 🔥',
+        tr("마음냥 정원 🔥"),
         body,
         todayTarget,
         await _reminderBellDetails(),
@@ -720,7 +892,7 @@ class NotificationService with WidgetsBindingObserver {
   }) async {}
 
   tz.TZDateTime _nextInstanceOf(int hour, int minute) {
-    final now = tz.TZDateTime.now(tz.local);
+    final now = tz.TZDateTime.from(_now(), tz.local);
     var scheduled = tz.TZDateTime(
       tz.local,
       now.year,
@@ -729,8 +901,16 @@ class NotificationService with WidgetsBindingObserver {
       hour,
       minute,
     );
-    if (scheduled.isBefore(now)) {
-      scheduled = scheduled.add(const Duration(days: 1));
+    if (!scheduled.isAfter(now)) {
+      // A calendar day can be 23 or 25 hours across DST. Preserve wall time.
+      scheduled = tz.TZDateTime(
+        tz.local,
+        now.year,
+        now.month,
+        now.day + 1,
+        hour,
+        minute,
+      );
     }
     return scheduled;
   }

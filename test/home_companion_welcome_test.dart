@@ -313,6 +313,14 @@ void main() {
                 find.byKey(const Key('home-petting-heart')),
                 findsOneWidget,
               );
+              expect(
+                t.getRect(find.byKey(const Key('home-loving-greeting'))).top,
+                greaterThanOrEqualTo(
+                  t
+                      .getRect(find.byKey(const Key('home-companion-presence')))
+                      .bottom,
+                ),
+              );
             }
             if (i == 58)
               await capture(t, shot, 'home-${coat.name}-petting.png');
@@ -532,7 +540,7 @@ void main() {
         ..remove('local_user_mongi_garden_v1');
       expect(afterGreeting, storedBeforePet);
       expect(MongiGardenStore.instance.value.essence, greaterThanOrEqualTo(5));
-      await t.pump(const Duration(milliseconds: 1700));
+      await t.pump(const Duration(milliseconds: 3300));
       expect(find.byKey(const Key('home-petting-heart')), findsNothing);
       await t.ensureVisible(find.byKey(const Key('home-companion-care')));
       await t.tap(find.byKey(const Key('home-companion-care')));
@@ -673,7 +681,14 @@ void main() {
         await finishGreetingSave(t);
       });
       await t.pump();
-      expect(find.byKey(const Key('home-petting-heart')), findsNothing);
+      expect(find.byKey(const Key('home-petting-heart')), findsOneWidget);
+      expect(find.byKey(const Key('home-loving-greeting')), findsOneWidget);
+      expect(
+        t.getRect(find.byKey(const Key('home-loving-greeting'))).top,
+        greaterThanOrEqualTo(
+          t.getRect(find.byKey(const Key('home-companion-presence'))).bottom,
+        ),
+      );
       expect(cat(t).coat, CompanionCoat.black);
       await t.pumpWidget(const SizedBox());
       care.dispose();
@@ -785,11 +800,15 @@ void main() {
       await care.selectCoat(CompanionCoat.white);
       await t.pump();
       expect(cat(t).coat, CompanionCoat.white);
+      app.currentLetterId = 'already-saved';
+      app.flowStage = FlowStage.meditation;
       await revealHomeControl(t, find.byKey(const Key('home-record')));
       await t.tap(find.byKey(const Key('home-record')));
       await t.pump();
       await t.pump(const Duration(milliseconds: 350));
       expect(find.byType(CatFlowTabScreen), findsOneWidget);
+      expect(app.currentLetterId, isNull);
+      expect(app.flowStage, FlowStage.selecting);
       Navigator.of(t.element(find.byType(CatFlowTabScreen))).pop();
       await t.pump();
       await t.pump(const Duration(milliseconds: 350));

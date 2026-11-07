@@ -119,7 +119,9 @@ class _CompanionPresenceState extends State<CompanionPresence>
                   _clock.value * 72 > 2.7 &&
                   _clock.value * 72 < 4.2,
           blinking: _allowed,
-          resting: widget.resting || widget.interaction == CompanionInteraction.resting,
+          resting:
+              widget.resting ||
+              widget.interaction == CompanionInteraction.resting,
           headTilt: frame.headTilt,
           eyeClosure: widget.resting ? 1 : frame.eyeClosure,
           breath: frame.breath,

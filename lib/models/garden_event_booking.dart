@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import 'notice.dart';
 
 /// An authenticated server receipt, never a locally reserved seat.
@@ -21,7 +22,7 @@ class GardenEventBooking {
   factory GardenEventBooking.fromJson(Map<String, dynamic> json) {
     final newsId = json['newsId'];
     if (newsId is! String || newsId.isEmpty) {
-      throw const FormatException('신청 내역을 다시 확인해 주세요.');
+      throw FormatException(tr("신청 내역을 다시 확인해 주세요."));
     }
     return GardenEventBooking(
       newsId: newsId,

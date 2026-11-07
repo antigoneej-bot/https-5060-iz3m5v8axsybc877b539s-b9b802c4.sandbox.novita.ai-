@@ -1,3 +1,5 @@
+import '../l10n/app_language.dart';
+
 /// 정원 플러스 포인트로 구매할 수 있는 반려 고양이 상점 아이템.
 /// 별도의 이미지 에셋 없이도 바로 적용할 수 있도록, 이모지 하나로 표현되는
 /// 가벼운 코스메틱/소모품 아이템입니다.
@@ -18,7 +20,8 @@ enum CatWearSlot { head, neck, body, feet, decor }
 class CatAccessory {
   final String id;
   final String emoji;
-  final String label;
+  final String _label;
+  String get label => tr(_label);
   final int pointCost;
   final CatItemType type;
 
@@ -28,11 +31,11 @@ class CatAccessory {
   const CatAccessory({
     required this.id,
     required this.emoji,
-    required this.label,
+    required String label,
     required this.pointCost,
     this.type = CatItemType.wearable,
     this.slot,
-  });
+  }) : _label = label;
 }
 
 /// 상점에서 판매하는 전체 아이템 목록.

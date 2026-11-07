@@ -1,3 +1,4 @@
+import '../../l10n/app_language.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/cat_care_provider.dart';
@@ -23,7 +24,7 @@ Future<void> editCompanionName(BuildContext context) async {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('취소'),
+          child: Text(tr("취소")),
         ),
         FilledButton(
           onPressed: () => Navigator.pop(context, controller.text.trim()),

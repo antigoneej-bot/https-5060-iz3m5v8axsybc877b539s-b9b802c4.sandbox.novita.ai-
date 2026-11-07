@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/cat_care_provider.dart';
@@ -17,6 +18,7 @@ class CatShopScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     final care = context.watch<CatCareProvider>();
     final consumables = catAccessoriesByType(CatItemType.consumable);
     final wearables = catAccessoriesByType(CatItemType.wearable);
@@ -47,18 +49,18 @@ class CatShopScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '보유 포인트',
+                      tr("보유 포인트"),
                       style: bodyFont(fontSize: 11, color: AppColors.inkSoft),
                     ),
                     Text(
-                      '마음에 드는 아이템을 골라 꾸며보세요',
+                      tr("마음에 드는 아이템을 골라 꾸며보세요"),
                       style: bodyFont(fontSize: 10.5, color: AppColors.inkSoft),
                     ),
                   ],
                 ),
               ),
               Text(
-                '${care.points}점',
+                tr("{0}점", [care.points]),
                 style: numberFont(
                   fontSize: 18,
                   fontWeight: FontWeight.w800,
@@ -71,16 +73,16 @@ class CatShopScreen extends StatelessWidget {
         const SizedBox(height: 18),
         _ShopSectionSignpost(
           emoji: '🍽️',
-          title: '먹거리 · 손질',
-          subtitle: '구매해서 보관함에 모아두고, 필요할 때 "사용하기"로 챙겨주세요',
+          title: tr("먹거리 · 손질"),
+          subtitle: tr("구매해서 보관함에 모아두고, 필요할 때 \"사용하기\"로 챙겨주세요"),
         ),
         const SizedBox(height: 10),
         _ConsumableRow(items: consumables, care: care),
         const SizedBox(height: 26),
         _ShopSectionSignpost(
           emoji: '👕',
-          title: '옷 · 악세서리',
-          subtitle: '부위가 다르면 여러 개를 한꺼번에 착용할 수 있어요',
+          title: tr("옷 · 악세서리"),
+          subtitle: tr("부위가 다르면 여러 개를 한꺼번에 착용할 수 있어요"),
         ),
         const SizedBox(height: 10),
         ...wearables.map((accessory) {
@@ -101,7 +103,7 @@ class CatShopScreen extends StatelessWidget {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text(
-                        '포인트가 부족해요. ${accessory.pointCost}점이 필요해요.',
+                        tr("포인트가 부족해요. {0}점이 필요해요.", [accessory.pointCost]),
                       ),
                     ),
                   );
@@ -115,8 +117,8 @@ class CatShopScreen extends StatelessWidget {
         const SizedBox(height: 26),
         _ShopSectionSignpost(
           emoji: '🏠',
-          title: '우리집 가구',
-          subtitle: '구매하면 바로 우리 집에 놓여요 · 입는 게 아니라 꾸미는 아이템이에요',
+          title: tr("우리집 가구"),
+          subtitle: tr("구매하면 바로 우리 집에 놓여요 · 입는 게 아니라 꾸미는 아이템이에요"),
         ),
         const SizedBox(height: 10),
         ...furniture.map((accessory) {
@@ -133,7 +135,7 @@ class CatShopScreen extends StatelessWidget {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text(
-                        '포인트가 부족해요. ${accessory.pointCost}점이 필요해요.',
+                        tr("포인트가 부족해요. {0}점이 필요해요.", [accessory.pointCost]),
                       ),
                     ),
                   );
@@ -159,6 +161,7 @@ class _ShopSectionSignpost extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     return Row(
       children: [
         Text(emoji, style: const TextStyle(fontSize: 18)),
@@ -197,6 +200,7 @@ class _ConsumableRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     return SizedBox(
       height: 160 + (MediaQuery.textScalerOf(context).scale(14) - 14) * 6,
       child: ListView.separated(
@@ -215,7 +219,9 @@ class _ConsumableRow extends StatelessWidget {
               if (!success && context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text('포인트가 부족해요. ${accessory.pointCost}점이 필요해요.'),
+                    content: Text(
+                      tr("포인트가 부족해요. {0}점이 필요해요.", [accessory.pointCost]),
+                    ),
                   ),
                 );
               }
@@ -227,7 +233,10 @@ class _ConsumableRow extends StatelessWidget {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: Text(
-                            '${accessory.label}${_particle(accessory.label)} 주었어요! 마음 온도가 살짝 올랐어요.',
+                            tr("{0}{1} 주었어요! 마음 온도가 살짝 올랐어요.", [
+                              accessory.label,
+                              _particle(accessory.label),
+                            ]),
                           ),
                           duration: const Duration(seconds: 2),
                         ),
@@ -242,10 +251,10 @@ class _ConsumableRow extends StatelessWidget {
   }
 
   String _particle(String word) {
-    if (word.isEmpty) return '을';
+    if (word.isEmpty) return tr("을");
     final last = word.runes.last;
     final hasJong = (last - 0xAC00) % 28 != 0;
-    return hasJong ? '을' : '를';
+    return hasJong ? tr("을") : tr("를");
   }
 }
 
@@ -265,6 +274,7 @@ class _ConsumableCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     final accent = AppColors.blobPeachAccent;
     final background = AppColors.blobPeach;
     return Container(
@@ -323,7 +333,7 @@ class _ConsumableCard extends StatelessWidget {
           ),
           const SizedBox(height: 2),
           Text(
-            '${accessory.pointCost}점',
+            tr("{0}점", [accessory.pointCost]),
             style: bodyFont(fontSize: 10, color: AppColors.inkSoft),
           ),
           const Spacer(),
@@ -331,13 +341,13 @@ class _ConsumableCard extends StatelessWidget {
             width: double.infinity,
             child: onUse != null
                 ? _SmallButton(
-                    label: '사용하기',
+                    label: tr("사용하기"),
                     color: accent,
                     filled: true,
                     onTap: onUse!,
                   )
                 : _SmallButton(
-                    label: '구매',
+                    label: tr("구매"),
                     color: canAfford ? accent : AppColors.inkSoft,
                     filled: canAfford,
                     onTap: onBuy,
@@ -370,6 +380,7 @@ class _AccessoryTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     final accent = equipped
         ? AppColors.blobMintAccent
         : (owned ? AppColors.blobPeachAccent : AppColors.blobLavenderAccent);
@@ -418,8 +429,11 @@ class _AccessoryTile extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   owned
-                      ? '보유 중 · ${catWearSlotLabel(accessory.slot!)} 부위'
-                      : '${accessory.pointCost}점 · ${catWearSlotLabel(accessory.slot!)} 부위',
+                      ? tr("보유 중 · {0} 부위", [catWearSlotLabel(accessory.slot!)])
+                      : tr("{0}점 · {1} 부위", [
+                          accessory.pointCost,
+                          catWearSlotLabel(accessory.slot!),
+                        ]),
                   style: bodyFont(fontSize: 11, color: AppColors.inkSoft),
                 ),
               ],
@@ -427,21 +441,21 @@ class _AccessoryTile extends StatelessWidget {
           ),
           if (equipped)
             _SmallButton(
-              label: '해제',
+              label: tr("해제"),
               color: accent,
               filled: false,
               onTap: onUnequip,
             )
           else if (owned)
             _SmallButton(
-              label: '장착',
+              label: tr("장착"),
               color: accent,
               filled: true,
               onTap: onEquip,
             )
           else
             _SmallButton(
-              label: '구매',
+              label: tr("구매"),
               color: canAfford ? accent : AppColors.inkSoft,
               filled: canAfford,
               onTap: onBuy,
@@ -469,6 +483,7 @@ class _FurnitureTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     final accent = owned
         ? AppColors.blobMintAccent
         : AppColors.blobLavenderAccent;
@@ -514,7 +529,7 @@ class _FurnitureTile extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  owned ? '우리 집에 놓여있어요' : '${accessory.pointCost}점',
+                  owned ? tr("우리 집에 놓여있어요") : tr("{0}점", [accessory.pointCost]),
                   style: bodyFont(fontSize: 11, color: AppColors.inkSoft),
                 ),
               ],
@@ -529,7 +544,7 @@ class _FurnitureTile extends StatelessWidget {
                 border: Border.all(color: accent.withValues(alpha: 0.4)),
               ),
               child: Text(
-                '✓ 배치완료',
+                tr("✓ 배치완료"),
                 style: pathLabelFont(
                   fontSize: 11.5,
                   fontWeight: FontWeight.w700,
@@ -539,7 +554,7 @@ class _FurnitureTile extends StatelessWidget {
             )
           else
             _SmallButton(
-              label: '구매',
+              label: tr("구매"),
               color: canAfford ? accent : AppColors.inkSoft,
               filled: canAfford,
               onTap: onBuy,
@@ -564,6 +579,7 @@ class _SmallButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Localizations.localeOf(context);
     return GestureDetector(
       onTap: onTap,
       child: Container(

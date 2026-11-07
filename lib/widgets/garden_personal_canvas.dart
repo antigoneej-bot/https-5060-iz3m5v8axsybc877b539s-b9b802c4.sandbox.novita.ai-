@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
@@ -119,10 +120,12 @@ class _GardenPersonalCanvasState extends State<GardenPersonalCanvas> {
       } finally {
         image.dispose();
       }
-      message('정원 사진첩에 저장했어요.');
+      message(tr("정원 사진첩에 저장했어요."));
     } catch (e) {
       message(
-        e is StateError ? e.message.toString() : '사진을 저장하지 못했어요. 다시 시도해 주세요.',
+        e is StateError
+            ? e.message.toString()
+            : tr("사진을 저장하지 못했어요. 다시 시도해 주세요."),
       );
     } finally {
       if (mounted) setState(() => busy = false);
@@ -160,14 +163,14 @@ class _GardenPersonalCanvasState extends State<GardenPersonalCanvas> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   IconButton(
-                    tooltip: '정원 사진 찍기',
+                    tooltip: tr("정원 사진 찍기"),
                     onPressed: widget.enabled && !busy ? photograph : null,
                     icon: Icon(
                       busy ? Icons.hourglass_top : Icons.photo_camera_outlined,
                     ),
                   ),
                   IconButton(
-                    tooltip: '정원 사진첩·전시 관리',
+                    tooltip: tr("정원 사진첩·전시 관리"),
                     onPressed: widget.enabled && !busy ? album : null,
                     icon: const Icon(Icons.photo_library_outlined),
                   ),

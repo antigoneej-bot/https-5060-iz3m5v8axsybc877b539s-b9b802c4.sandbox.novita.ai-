@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import 'package:flutter/material.dart';
 import '../mongi/screens/mental_health_support_screen.dart';
 import '../services/reply_safety.dart';
@@ -31,7 +32,7 @@ class ReplySupportActions extends StatelessWidget {
                 ),
               ),
               icon: const Icon(Icons.support_agent),
-              label: const Text('지금 도움받을 곳 보기'),
+              label: Text(tr("지금 도움받을 곳 보기")),
             ),
           ],
         ),
