@@ -1,0 +1,25 @@
+101번 Windows 노트북 인수
+
+기준은 pubspec.yaml의 1.0.98+101. 100번 전달본/AAB로 작업을 시작하지 말 것.
+START-GARDEN-RECOVERY-101-KO.txt, docs/GARDEN-RECOVERY-101-KO.txt를 먼저 확인.
+Flutter 3.35.4, pubspec.lock, third_party/in_app_purchase_android_billing8를 유지.
+
+이번 PC에서 Android 빌드는 보류됨. 새 101 AAB는 아직 없음.
+C: 공간이 수백 MB 미만이라 빌드 임시 공간이 부족. 노트북에서 기존 키로 이어서 준비.
+서명키는 소스 ZIP/GitHub에 없음. 사용자가 보관한 기존 release-key.jks/key.properties를 별도로 사용.
+비밀번호·개인키를 채팅/로그/소스에 넣지 말 것. 새 키 생성 금지.
+
+빌드 전 확인
+- 실제 Play Console에 101 이상이 있으면 더 높은 번호 필요. 이 작업에서 Play 최대 버전 재조회는 하지 않음.
+- com.mysticcat.journal 유지. source versionName 1.0.98 / versionCode 101.
+- 이전 공개 업로드 인증서 SHA-256 BE:BA:A5:9B:C1:C8:79:A0:A6:85:BA:3B:D6:99:A5:80:10:BC:5E:5F:52:BA:24:B5:F6:3F:0F:6C:CA:D7:81:9B와 비교.
+- UNLOCK_ALL_PREMIUM=true, APP_CHECK_DEBUG_PROVIDER=false, TEST_SHOW_ONBOARDING=false, RELEASE_ENV=internal 유지.
+- 기존 garden API / socialAuth 주소와 google-services.json의 Web OAuth client를 사용.
+- 기존 상품 ID·서버 설정·서명키·개인 데이터 형식 변경 금지.
+- AAB만 준비. APK/서버 배포/스토어 업로드/USB 연결 재시도는 요청되지 않으면 하지 않음.
+
+빌드 후 실제 검증
+- bundletool validate, base manifest 패키지·버전, jarsigner verify, 업로드 인증서 일치 확인.
+- 네이티브 16KB 호환과 내부 플래그 확인. 결과와 AAB SHA-256 기록.
+- 기존 기록 있는 휴대폰에서 앱 삭제 없이 업데이트한 결과는 별도 실기기 검증.
+- 이 소스의 위젯 테스트 결과를 휴대폰 업데이트 성공으로 대신하지 말 것.

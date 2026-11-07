@@ -1,8 +1,41 @@
+import 'package:provider/provider.dart';
+import 'package:flutter_app/models/companion_coat.dart';
+import 'package:flutter_app/models/companion_journey.dart';
+import 'package:flutter_app/providers/cat_care_provider.dart';
+import 'package:flutter_app/widgets/companion_coat_art.dart';
+import 'package:flutter_app/widgets/companion_presence.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_app/widgets/calm_letter_receipt.dart';
 
 void main() {
+  for (final coat in CompanionCoat.values) {
+    testWidgets('saved-letter receipt keeps selected companion ' + coat.name, (
+      t,
+    ) async {
+      final care = CatCareProvider();
+      addTearDown(care.dispose);
+      care.journey = CompanionJourney(coat: coat, automaticBehavior: false);
+      care.journeyReady = true;
+      await t.pumpWidget(
+        ChangeNotifierProvider<CatCareProvider>.value(
+          value: care,
+          child: const MaterialApp(home: Scaffold(body: CalmLetterReceipt())),
+        ),
+      );
+      await t.pump();
+      expect(
+        t.widget<CompanionCoatScope>(find.byType(CompanionCoatScope)).coat,
+        coat,
+      );
+      expect(
+        t.widget<CompanionPresence>(find.byType(CompanionPresence)).enabled,
+        isFalse,
+      );
+      expect(care.journey.coat, coat);
+      await t.pumpWidget(const SizedBox());
+    });
+  }
   Widget screen({required bool reduced}) => MaterialApp(
     home: MediaQuery(
       data: MediaQueryData(disableAnimations: reduced),

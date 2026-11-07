@@ -1,3 +1,4 @@
+import '../l10n/app_language.dart';
 import '../widgets/letter_care_closing_card.dart';
 import '../widgets/calm_letter_receipt.dart';
 import '../widgets/reply_support_actions.dart';
@@ -29,8 +30,12 @@ import 'meditation_category_screen.dart';
 /// 고양이 선택 이후의 전체 플로우: 사연 → 편지(보내는 즉시 저장+온도 +1도)
 /// → 명상(완전히 선택사항, 실천하면 온도 +1도 추가) → 완료
 class MeditationFlowScreen extends StatefulWidget {
-  const MeditationFlowScreen({super.key, this.onCareCompleted});
-  final VoidCallback? onCareCompleted;
+  const MeditationFlowScreen({
+    super.key,
+    this.onCareCompleted,
+    this.onPlantSavedFeeling,
+  });
+  final VoidCallback? onCareCompleted, onPlantSavedFeeling;
 
   @override
   State<MeditationFlowScreen> createState() => _MeditationFlowScreenState();
@@ -99,6 +104,7 @@ class _MeditationFlowScreenState extends State<MeditationFlowScreen> {
       case FlowStage.meditation:
         return _MeditationStage(
           onCareCompleted: widget.onCareCompleted,
+          onPlantSavedFeeling: widget.onPlantSavedFeeling,
           cat: cat,
           moodEmoji: _moodEmoji,
           letterText: savedText,
@@ -408,12 +414,13 @@ class _LetterStageState extends State<_LetterStage> {
 /// 하지 않고 건너뛰어도 전혀 문제가 없습니다. 실천하면 마음 온도가
 /// 추가로 +1도 더 오릅니다.
 class _MeditationStage extends StatefulWidget {
-  final VoidCallback? onCareCompleted;
+  final VoidCallback? onCareCompleted, onPlantSavedFeeling;
   final ShadowCat cat;
   final String? moodEmoji;
   final String letterText;
   const _MeditationStage({
     this.onCareCompleted,
+    this.onPlantSavedFeeling,
     required this.cat,
     this.moodEmoji,
     required this.letterText,
@@ -493,14 +500,33 @@ class _MeditationStageState extends State<_MeditationStage> {
                   },
             child: const Text('오늘은 여기까지'),
           ),
-          OutlinedButton.icon(
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => const GardenWorldScreen.owned(),
-              ),
-            ),
-            icon: const Icon(Icons.park_outlined),
-            label: const Text('정원에서 잠깐 쉬기'),
+          Builder(
+            builder: (context) {
+              final app = context.watch<AppStateProvider>();
+              final entries = app.history.where(
+                (entry) => entry.id == app.currentLetterId,
+              );
+              return OutlinedButton.icon(
+                key: const Key('plant-saved-letter-feeling'),
+                onPressed: entries.isEmpty
+                    ? null
+                    : () {
+                        if (widget.onPlantSavedFeeling != null) {
+                          widget.onPlantSavedFeeling!();
+                          return;
+                        }
+                        Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => GardenWorldScreen.owned(
+                              initialPlantEmotionId: entries.first.catId,
+                            ),
+                          ),
+                        );
+                      },
+                icon: const Icon(Icons.spa_outlined),
+                label: Text(tr('오늘의 감정을 심어볼까?')),
+              );
+            },
           ),
           const SizedBox(height: 12),
           const GardenRecordCard(),

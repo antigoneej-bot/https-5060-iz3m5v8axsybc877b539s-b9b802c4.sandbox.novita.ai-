@@ -15,6 +15,60 @@ import 'package:flutter_app/mongi/widgets/living_garden_scene.dart';
 
 void main() {
   testWidgets(
+    'recovery keeps companion visible, blinks without ambient motion and follows evening time',
+    (t) async {
+      t.view.physicalSize = const Size(390, 844);
+      t.view.devicePixelRatio = 1;
+      addTearDown(t.view.resetPhysicalSize);
+      addTearDown(t.view.resetDevicePixelRatio);
+      var now = DateTime(2026, 11, 7, 17, 59);
+      await t.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: GardenWorldView(
+              clock: () => now,
+              cultivationMode: true,
+              fillViewport: true,
+              motionEnabled: false,
+              companionAutomaticBehavior: true,
+              layout: GardenLayout(
+                positions: const {'seed:pine': Offset(.36, .55)},
+              ),
+              seeds: const {'pine': 6},
+              decorations: const [],
+              onMove: (_, __) async {},
+              onMemory: (_) {},
+              onPlant: () {},
+              onDecorate: () {},
+            ),
+          ),
+        ),
+      );
+      await t.pump();
+      await t.pump(const Duration(milliseconds: 100));
+      final viewport = t.getRect(find.byKey(const Key('garden-world-camera')));
+      final cat = t.getRect(find.byKey(const Key('garden-companion')));
+      expect(cat.left, greaterThanOrEqualTo(viewport.left));
+      expect(cat.right, lessThanOrEqualTo(viewport.right));
+      expect(
+        t.widget<GardenCatArt>(find.byType(GardenCatArt).first).blinking,
+        isTrue,
+      );
+
+      await t.pump(const Duration(milliseconds: 3200));
+      expect(t.binding.transientCallbackCount, greaterThan(0));
+      now = DateTime(2026, 11, 7, 18, 1);
+      await t.pump(const Duration(minutes: 1));
+      final backdrop = t.widget<Image>(
+        find.byKey(const Key('original-garden-backdrop')),
+      );
+      expect((backdrop.image as AssetImage).assetName, contains('night'));
+      await t.pumpWidget(const SizedBox());
+      expect(t.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
     'inspection preserves plant bounds and root, persists beyond flash, and tracks real watering',
     (t) async {
       t.view.physicalSize = const Size(390, 844);
@@ -37,6 +91,7 @@ void main() {
                 seeds: const {'pine': 1},
                 decorations: const [],
                 motionEnabled: false,
+                companionAutomaticBehavior: false,
                 fillViewport: true,
                 cultivationMode: true,
                 focusPlantId: focus,
@@ -69,11 +124,25 @@ void main() {
         find.byKey(const ValueKey('world-position-seed:pine')),
       );
       await show(focus: 'pine');
-      final groundStack = t.widget<SizedBox>(find.byKey(const Key('garden-world-ground'))).child! as Stack;
-      final haloIndex = groundStack.children.indexWhere((w) => w.key == const Key('located-plant-highlight'));
-      final itemsIndex = groundStack.children.indexWhere((w) => w.key == const Key('garden-item-layer'));
+      final groundStack =
+          t
+                  .widget<SizedBox>(
+                    find.byKey(const Key('garden-world-ground')),
+                  )
+                  .child!
+              as Stack;
+      final haloIndex = groundStack.children.indexWhere(
+        (w) => w.key == const Key('located-plant-highlight'),
+      );
+      final itemsIndex = groundStack.children.indexWhere(
+        (w) => w.key == const Key('garden-item-layer'),
+      );
       expect(haloIndex, greaterThanOrEqualTo(0));
-      expect(haloIndex, lessThan(itemsIndex), reason: 'Halo must never paint over plant artwork or its name');
+      expect(
+        haloIndex,
+        lessThan(itemsIndex),
+        reason: 'Halo must never paint over plant artwork or its name',
+      );
       expect(
         t.getSize(art),
         size,
@@ -142,6 +211,7 @@ void main() {
               body: GardenWorldView(
                 fillViewport: true,
                 motionEnabled: false,
+                companionAutomaticBehavior: false,
                 readOnly: readOnly,
                 layout: layout,
                 seeds: const {'pine': 1},
@@ -204,6 +274,7 @@ void main() {
               body: GardenWorldView(
                 immersive: true,
                 motionEnabled: false,
+                companionAutomaticBehavior: false,
                 readOnly: readOnly,
                 layout: GardenLayout(spaces: 2),
                 seeds: const {'love': 3},
@@ -252,6 +323,7 @@ void main() {
             body: GardenWorldView(
               readOnly: readOnly,
               motionEnabled: false,
+              companionAutomaticBehavior: false,
               companionScale: scale,
               onCompanionCare: () => calls++,
               layout: GardenLayout(spaces: 3),
@@ -323,6 +395,7 @@ void main() {
               builder: (context, update) => GardenWorldView(
                 layout: layout,
                 motionEnabled: motionEnabled,
+                companionAutomaticBehavior: motionEnabled,
                 readOnly: readOnly,
                 onCompanionCare: companionCare,
                 companionScale: companionScale,
@@ -540,7 +613,7 @@ void main() {
     await tester.pumpWidget(const SizedBox());
     expect(tester.binding.transientCallbackCount, 0);
   });
-  testWidgets('global motion preference leaves no running ticker', (
+  testWidgets('both motion preferences off leave no running ticker', (
     tester,
   ) async {
     await showWorld(tester, reduced: false, motionEnabled: false);

@@ -6,7 +6,18 @@ import 'hive_encryption.dart';
 /// Drafts never fall back to plaintext storage.
 class DraftService {
   static Future<Box>? _opening;
-  static Future<Box> box() => _opening ??= _open();
+  static Future<Box> box() async {
+    // Restore/account teardown can close Hive after the shared open completed.
+    // Never hand a closed handle to the next editor or discard operation.
+    for (var attempt = 0; attempt < 2; attempt++) {
+      final opening = _opening ??= _open();
+      final opened = await opening;
+      if (opened.isOpen) return opened;
+      if (identical(_opening, opening)) _opening = null;
+    }
+    throw StateError('Draft storage closed while reopening');
+  }
+
   static Future<Box> _open() async {
     try {
       return await HiveEncryption.openPreservingFile(

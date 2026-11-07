@@ -1,0 +1,89 @@
+{
+  "version": "1.0.98+101",
+  "codeCommit": "19fa3f5b04b14e181064f2c273e85a94997444ca",
+  "baseCommit": "25595940e206217ffc39e3e9d122414c67bbe322",
+  "flutter": "3.35.4",
+  "wholeFlutterTests": {
+    "passed": 1205,
+    "failed": 0,
+    "status": {
+      "code": 0,
+      "start": "2026-11-07T12:13:49.609Z",
+      "finished": "2026-11-07T12:24:16.903Z",
+      "args": [
+        "C:\\Users\\11251\\Documents\\Codex\\2026-10-31\\firebase-plugin-firebase-openai-curated-remote\\work\\flutter-pinned\\flutter\\bin\\cache\\flutter_tools.snapshot",
+        "--suppress-analytics",
+        "test",
+        "--no-pub",
+        "--reporter",
+        "expanded",
+        "--concurrency",
+        "2",
+        "--timeout",
+        "2m"
+      ]
+    }
+  },
+  "staticAnalysis": {
+    "errors": 0,
+    "warnings": 0,
+    "infos": 671,
+    "status": {
+      "code": 0,
+      "start": "2026-11-07T12:24:17.036Z",
+      "finished": "2026-11-07T12:26:11.626Z",
+      "args": [
+        "C:\\Users\\11251\\Documents\\Codex\\a64\\flutter-sdk-72\\bin\\cache\\flutter_tools.snapshot",
+        "--suppress-analytics",
+        "analyze",
+        "--no-pub",
+        "--no-fatal-infos"
+      ]
+    },
+    "flags": [
+      "--no-pub",
+      "--no-fatal-infos"
+    ]
+  },
+  "captureMatrix": {
+    "sizes": [
+      [
+        320,
+        640
+      ],
+      [
+        390,
+        844
+      ],
+      [
+        844,
+        390
+      ]
+    ],
+    "textScale": [
+      1,
+      2
+    ],
+    "execution": "Flutter widget rendering; not a physical device or emulator",
+    "selectedCoats": [
+      "ginger",
+      "tabby",
+      "white",
+      "black",
+      "tuxedo",
+      "calico"
+    ]
+  },
+  "notRun": [
+    "physical Samsung Buddy3 update and persistence",
+    "real billing",
+    "two-account neighbor interaction",
+    "iOS",
+    "new APK/AAB build",
+    "server deployment",
+    "Play upload"
+  ],
+  "buildBlocker": "Insufficient C: free space for Android build; temporary-directory cleanup rejected by automatic policy review; no deletion workaround attempted",
+  "internalPremiumUnlockPreserved": true,
+  "storageSchemaChanged": false
+}

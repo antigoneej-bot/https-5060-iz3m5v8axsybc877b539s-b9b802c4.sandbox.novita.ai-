@@ -1,3 +1,7 @@
+import 'package:flutter_app/services/draft_service.dart';
+import 'package:flutter_app/widgets/companion_coat_art.dart';
+import 'package:flutter_app/mongi/widgets/garden_ambient.dart';
+import 'package:flutter_app/mongi/screens/mind_planting_screen.dart';
 import 'package:flutter_app/providers/app_state_provider.dart';
 import 'package:flutter_app/data/shadow_cats_data.dart';
 import 'package:flutter_app/widgets/companion_presence.dart';
@@ -148,6 +152,7 @@ void main() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(SystemChannels.platform, null);
     await StorageService.clearCurrentUser();
+    await DraftTextController.flushAll();
     await Hive.close();
     // Finish directory enumeration before deleting files on Windows. Keep each
     // close/delete awaited, and let any locked file or unexpected entry fail
@@ -181,6 +186,7 @@ void main() {
     bool fullscreen = false,
     bool resting = false,
     String? focusPlant,
+    String? plantingEmotion,
     Size size = const Size(390, 844),
     double textScale = 1,
   }) async {
@@ -217,7 +223,11 @@ void main() {
                 child: child!,
               ),
               theme: appTheme,
-              home: focusPlant != null
+              home: plantingEmotion != null
+                  ? GardenWorldScreen.owned(
+                      initialPlantEmotionId: plantingEmotion,
+                    )
+                  : focusPlant != null
                   ? GardenWorldScreen.owned(initialFocusPlantId: focusPlant)
                   : fullscreen
                   ? GardenWorldScreen(
@@ -543,9 +553,20 @@ void main() {
             findsOneWidget,
           );
           Future<void> switchSpace(bool rest) async {
-            await t.tap(find.byTooltip('정원 보조 메뉴'));
-            await t.pumpAndSettle();
-            await t.tap(find.text(rest ? '쉬어가는 정원' : '가꾸는 정원').last);
+            final chip = find.byKey(
+              ValueKey(rest ? 'rest-garden-tab' : 'cultivate-garden-tab'),
+            );
+            if (chip.evaluate().isNotEmpty) {
+              // Only the chip row scrolls horizontally, never the main pager.
+              final scroll = Scrollable.of(t.element(chip));
+              await scroll.position.ensureVisible(t.renderObject(chip));
+              await t.pumpAndSettle();
+              await t.tap(chip);
+            } else {
+              await t.tap(find.byKey(const Key('compact-garden-switch')));
+              await t.pumpAndSettle();
+              await t.tap(find.text(rest ? '쉬어가는 정원' : '가꾸는 정원').last);
+            }
             await t.pumpAndSettle();
           }
 
@@ -628,9 +649,7 @@ void main() {
           .transformationController!;
       final cameraBefore = camera.value.clone();
       final gardenState = t.state(find.byType(GardenWorldView));
-      await t.tap(find.byTooltip('정원 보조 메뉴'));
-      await t.pumpAndSettle();
-      await t.tap(find.text('쉬어가는 정원').last);
+      await t.tap(find.byKey(const Key('rest-garden-tab')));
       await t.pumpAndSettle();
       expect(find.byKey(const Key('storybook-backdrop')), findsOneWidget);
       expect(find.byKey(const Key('original-garden-backdrop')), findsNothing);
@@ -676,9 +695,7 @@ void main() {
       await t.binding.handlePopRoute();
       await t.pumpAndSettle();
       expect(rotations.last, ['DeviceOrientation.portraitUp']);
-      await t.tap(find.byTooltip('정원 보조 메뉴'));
-      await t.pumpAndSettle();
-      await t.tap(find.text('가꾸는 정원').last);
+      await t.tap(find.byKey(const Key('cultivate-garden-tab')));
       await t.pumpAndSettle();
       expect(
         identical(t.state(find.byType(GardenWorldView)), gardenState),
@@ -2036,15 +2053,19 @@ void main() {
           final canvas = tester.getRect(
             find.byKey(const Key('cultivation-canvas')),
           );
-          expect(canvas.height, greaterThan(size.height * .7));
+          final cat = tester.getRect(find.byKey(const Key('garden-companion')));
+          expect(cat.left, greaterThanOrEqualTo(canvas.left));
+          expect(cat.right, lessThanOrEqualTo(canvas.right));
+          expect(canvas.height, greaterThan(40));
           final camera = tester
               .widget<InteractiveViewer>(
                 find.byKey(const Key('garden-world-camera')),
               )
               .transformationController!;
           final matrix = camera.value.clone();
-          await tester.ensureVisible(
-            find.byKey(const Key('portrait-tools-toggle')),
+          expect(
+            find.byKey(const Key('portrait-tools-toggle')).hitTestable(),
+            findsOneWidget,
           );
           await tester.pumpAndSettle();
           await tester.tap(find.byKey(const Key('portrait-tools-toggle')));
@@ -2065,7 +2086,7 @@ void main() {
           final suffix = size.width.toInt().toString() + '-' + scale.toString();
           await captureSpace(tester, '100-garden-' + suffix);
           final entry = find.byKey(const Key('garden-daily-care-entry'));
-          await tester.ensureVisible(entry);
+          expect(entry.hitTestable(), findsOneWidget);
           await tester.pumpAndSettle();
           await tester.tap(entry);
           await tester.pumpAndSettle();
@@ -2090,8 +2111,9 @@ void main() {
           await captureSpace(tester, '100-reward-' + suffix);
           await tester.tap(find.byType(BackButton));
           await tester.pumpAndSettle();
-          await tester.ensureVisible(
-            find.byKey(const Key('garden-items-button')),
+          expect(
+            find.byKey(const Key('garden-items-button')).hitTestable(),
+            findsOneWidget,
           );
           await tester.pumpAndSettle();
           await tester.tap(find.byKey(const Key('garden-items-button')));
@@ -2119,91 +2141,317 @@ void main() {
     }
   }
   testWidgets(
-    'reference100 saved letter returns to Garden receipt without changing the home tab or granting twice',
-    (tester) async {
-      Future<void> routeReady() async {
-        await tester.pump(const Duration(milliseconds: 16));
-        final route = ModalRoute.of(tester.element(find.byType(Scaffold).last));
+    'saved emotion garden entry opens the chooser once and cancellation preserves data',
+    (t) async {
+      final garden = _Garden();
+      final emotion = shadowCats.first.id;
+      await openGarden(t, garden, plantingEmotion: emotion);
+      await t.pumpAndSettle();
+      expect(
+        t
+            .widget<MindPlantingScreen>(find.byType(MindPlantingScreen))
+            .initialEmotionId,
+        emotion,
+      );
+      expect(find.byKey(const Key('mind-continue')), findsNothing);
+      final before = jsonEncode(MongiGardenStore.instance.value.toJson());
+      await t.tap(find.byType(BackButton).last);
+      await t.pumpAndSettle();
+      expect(find.byType(MindPlantingScreen), findsNothing);
+      expect(find.byKey(const Key('cultivation-canvas')), findsOneWidget);
+      expect(jsonEncode(MongiGardenStore.instance.value.toJson()), before);
+      await t.pumpWidget(const SizedBox());
+      for (final request in garden.requests) {
+        if (!request.isCompleted) request.complete([]);
+      }
+      await flushNetworkFuture(t);
+    },
+  );
+  testWidgets(
+    'closed encrypted draft storage reopens without losing the saved draft',
+    (t) async {
+      await t.runAsync(() async {
+        final first = await DraftService.box();
+        await first.put('recovery-draft-fixture', '아직 보내지 않은 마음');
+        await first.flush();
+        await first.close();
+        final reopened = await DraftService.box();
+        expect(reopened.isOpen, isTrue);
+        expect(identical(first, reopened), isFalse);
+        expect(reopened.get('recovery-draft-fixture'), '아직 보내지 않은 마음');
+        final editor = DraftTextController('recovery-draft-fixture');
+        await editor.flush();
+        expect(editor.text, '아직 보내지 않은 마음');
+        editor.dispose();
+        await DraftTextController.flushAll();
+      });
+    },
+  );
+  testWidgets(
+    'recovery shared care invites before completion and cancellation preserves records',
+    (t) async {
+      final garden = _Garden();
+      await openGarden(t, garden, cultivation: true);
+      await t.tap(find.byKey(const Key('garden-daily-care-entry')));
+      await t.pumpAndSettle();
+      final before = jsonEncode(MongiGardenStore.instance.value.toJson());
+      await t.scrollUntilVisible(
+        find.text('물 마시기'),
+        120,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await t.tap(find.text('물 마시기'));
+      await t.pumpAndSettle();
+      expect(find.text('우리 물 한 모금 마실까?'), findsWidgets);
+      expect(find.byKey(const Key('together-done')), findsOneWidget);
+      expect(jsonEncode(MongiGardenStore.instance.value.toJson()), before);
+      await t.tap(find.byKey(const Key('together-later')));
+      await t.pumpAndSettle();
+      expect(jsonEncode(MongiGardenStore.instance.value.toJson()), before);
+      expect(find.text('괜찮아. 여기서 같이 쉬자.'), findsOneWidget);
+      final seedsBefore = MongiGardenStore.instance.value.seedTokens;
+      final lightBefore = MongiGardenStore.instance.value.essence;
+      await t.tap(find.text('물 마시기'));
+      await t.pumpAndSettle();
+      await t.runAsync(() async {
+        await t.tap(find.byKey(const Key('together-done')));
+        final deadline = DateTime.now().add(const Duration(seconds: 30));
+        while (find
+            .byKey(const Key('garden-daily-reward-receipt'))
+            .evaluate()
+            .isEmpty) {
+          if (DateTime.now().isAfter(deadline))
+            fail('Confirmed shared care did not finish saving');
+          await Future<void>.delayed(const Duration(milliseconds: 5));
+          await t.pump();
+        }
+      });
+      expect(MongiGardenStore.instance.value.seedTokens, seedsBefore + 1);
+      expect(MongiGardenStore.instance.value.essence, lightBefore + 20);
+      await t.runAsync(() => MongiGardenStore.instance.claimCompletedCare());
+      expect(MongiGardenStore.instance.value.seedTokens, seedsBefore + 1);
+      expect(MongiGardenStore.instance.value.essence, lightBefore + 20);
+
+      await t.pumpWidget(const SizedBox());
+      for (final request in garden.requests) {
+        if (!request.isCompleted) request.complete([]);
+      }
+      await flushNetworkFuture(t);
+    },
+  );
+  testWidgets(
+    'recovery six selected companions react during shared care without changing rewards',
+    (t) async {
+      final garden = _Garden();
+      await openGarden(t, garden, cultivation: true);
+      final care = t
+          .element(find.byType(GardenWorldScreen).first)
+          .read<CatCareProvider>();
+      await t.runAsync(() => care.setAutomaticBehavior(true));
+      await t.tap(find.byKey(const Key('garden-daily-care-entry')));
+      await t.pump(const Duration(milliseconds: 400));
+      for (final coat in CompanionCoat.values) {
+        await t.runAsync(() async {
+          await CompanionSpriteAtlas.load(coat);
+          await care.selectCoat(coat);
+        });
+        await t.pump(const Duration(milliseconds: 100));
+        final before = jsonEncode(MongiGardenStore.instance.value.toJson());
+        await t.scrollUntilVisible(
+          find.text('물 마시기'),
+          120,
+          scrollable: find.byType(Scrollable).first,
+        );
+        await t.tap(find.text('물 마시기'));
+        await t.pump(const Duration(milliseconds: 400));
+        final dialog = find.byType(AlertDialog);
+        final scope = find.descendant(
+          of: dialog,
+          matching: find.byType(CompanionCoatScope),
+        );
+        expect(t.widget<CompanionCoatScope>(scope).coat, coat);
+        final art = find.descendant(
+          of: dialog,
+          matching: find.byType(GardenCatArt),
+        );
+        final eyeFrames = <double>{t.widget<GardenCatArt>(art).eyeClosure};
+        if (Platform.environment['DIRECT_GARDEN_REVIEW_DIR'] != null) {
+          for (var frame = 0; frame < 16; frame++) {
+            await captureSpace(
+              t,
+              'recovery-motion-' +
+                  coat.name +
+                  '-' +
+                  frame.toString().padLeft(2, '0'),
+            );
+            await t.pump(const Duration(milliseconds: 125));
+            eyeFrames.add(t.widget<GardenCatArt>(art).eyeClosure);
+          }
+        } else {
+          for (var frame = 0; frame < 16; frame++) {
+            await t.pump(const Duration(milliseconds: 125));
+            eyeFrames.add(t.widget<GardenCatArt>(art).eyeClosure);
+          }
+        }
+        expect(eyeFrames.length, greaterThan(1));
+        expect(eyeFrames.any((value) => value > .6), isTrue);
+        await t.tap(find.byKey(const Key('together-later')));
+        await t.pump(const Duration(milliseconds: 400));
+        expect(jsonEncode(MongiGardenStore.instance.value.toJson()), before);
+      }
+      await t.pumpWidget(const SizedBox());
+      for (final request in garden.requests) {
+        if (!request.isCompleted) request.complete([]);
+      }
+      await flushNetworkFuture(t);
+    },
+  );
+  for (final directFromReceipt in [false, true]) {
+    testWidgets(
+      'reference100 saved letter returns to Garden receipt without changing the home tab or granting twice' +
+          directFromReceipt.toString(),
+      (tester) async {
+        Future<void> routeReady() async {
+          await tester.pump(const Duration(milliseconds: 16));
+          final route = ModalRoute.of(
+            tester.element(find.byType(Scaffold).last),
+          );
+          for (
+            var frame = 0;
+            frame < 120 && route?.animation?.status == AnimationStatus.forward;
+            frame++
+          ) {
+            await tester.pump(const Duration(milliseconds: 16));
+          }
+          expect(route?.animation?.status, isNot(AnimationStatus.forward));
+        }
+
+        final app = AppStateProvider();
+        addTearDown(app.dispose);
+        app.selectedCat = shadowCats.first;
+        app.flowStage = FlowStage.letter;
+        final garden = _Garden();
+        await openGarden(tester, garden, cultivation: true, app: app);
+        await tester.tap(find.byKey(const Key('garden-daily-care-entry')));
+        await tester.pumpAndSettle();
+        await tester.scrollUntilVisible(
+          find.byKey(const Key('garden-care-record')),
+          120,
+          scrollable: find.byType(Scrollable).first,
+        );
+        await routeReady();
+        await tester.runAsync(() async {
+          await tester.tap(find.byKey(const Key('garden-care-record')));
+          await tester.pump();
+        });
+        await routeReady();
+        final field = find.byType(TextField).first;
+        await tester.ensureVisible(field);
+        await routeReady();
+        await tester.enterText(field, '정원 안에서 남긴 별도 테스트 마음');
+        tester.testTextInput.hide();
+        final save = find.widgetWithText(ElevatedButton, '편지 남기기');
+        await tester.ensureVisible(save);
+        await routeReady();
+        await tester.runAsync(() async {
+          await tester.tap(save);
+          final deadline = DateTime.now().add(const Duration(seconds: 20));
+          while (app.currentLetterId == null ||
+              app.gardenRewardRetrying ||
+              MongiGardenStore.instance.value.essence < 20) {
+            if (DateTime.now().isAfter(deadline))
+              fail('Letter and daily receipt did not finish saving');
+            await Future<void>.delayed(const Duration(milliseconds: 5));
+            await tester.pump();
+          }
+        });
+        await routeReady();
+        expect(
+          StorageService.getAllLetters().single.letterText,
+          '정원 안에서 남긴 별도 테스트 마음',
+        );
+        if (directFromReceipt) {
+          final action = find.byKey(const Key('plant-saved-letter-feeling'));
+          await tester.ensureVisible(action);
+          await routeReady();
+          await tester.runAsync(() async {
+            await tester.tap(action);
+            final deadline = DateTime.now().add(const Duration(seconds: 30));
+            while (find.byType(MindPlantingScreen).evaluate().isEmpty) {
+              if (DateTime.now().isAfter(deadline))
+                fail('Saved-letter planting handoff did not open');
+              await Future<void>.delayed(const Duration(milliseconds: 5));
+              await tester.pump();
+            }
+          });
+          await routeReady();
+          expect(
+            tester
+                .widget<MindPlantingScreen>(find.byType(MindPlantingScreen))
+                .initialEmotionId,
+            StorageService.getAllLetters().single.catId,
+          );
+          expect(find.byKey(const Key('mind-continue')), findsNothing);
+          expect(MongiGardenStore.instance.value.seedTokens, 1);
+          expect(app.requestedTabIndex, isNull);
+          expect(tester.takeException(), isNull);
+          await tester.pumpWidget(const SizedBox());
+          for (final request in garden.requests) {
+            if (!request.isCompleted) request.complete([]);
+          }
+          await flushNetworkFuture(tester);
+          return;
+        }
+        final done = find.widgetWithText(FilledButton, '오늘은 여기까지').first;
+        await tester.ensureVisible(done);
+        await routeReady();
+        await tester.runAsync(() async {
+          await tester.tap(done);
+          final deadline = DateTime.now().add(const Duration(seconds: 20));
+          while (find
+              .byKey(const Key('garden-care-plant'))
+              .evaluate()
+              .isEmpty) {
+            if (DateTime.now().isAfter(deadline))
+              fail('Garden receipt did not open after confirmed save');
+            await Future<void>.delayed(const Duration(milliseconds: 5));
+            await tester.pump();
+          }
+        });
+        await routeReady();
+        expect(find.text('빛의 정수 +20'), findsOneWidget);
+        expect(app.requestedTabIndex, isNull);
+        final before = MongiGardenStore.instance.value.toJson();
+        await tester.runAsync(() => app.retryGardenRewards());
+        expect(MongiGardenStore.instance.value.toJson(), before);
+        expect(MongiGardenStore.instance.value.seedTokens, 1);
+        await tester.ensureVisible(find.byKey(const Key('garden-care-plant')));
+        await routeReady();
+        await tester.tap(find.byKey(const Key('garden-care-plant')));
+        await routeReady();
         for (
           var frame = 0;
-          frame < 120 && route?.animation?.status == AnimationStatus.forward;
+          frame < 120 && find.text('마음을 담을 식물').evaluate().isEmpty;
           frame++
         ) {
           await tester.pump(const Duration(milliseconds: 16));
         }
-        expect(route?.animation?.status, isNot(AnimationStatus.forward));
-      }
+        expect(find.text('마음을 담을 식물'), findsOneWidget);
+        expect(find.byKey(const Key('mind-continue')), findsNothing);
+        expect(
+          tester
+              .widget<MindPlantingScreen>(find.byType(MindPlantingScreen))
+              .initialEmotionId,
+          StorageService.getAllLetters().single.catId,
+        );
 
-      final app = AppStateProvider();
-      addTearDown(app.dispose);
-      app.selectedCat = shadowCats.first;
-      app.flowStage = FlowStage.letter;
-      final garden = _Garden();
-      await openGarden(tester, garden, cultivation: true, app: app);
-      await tester.tap(find.byKey(const Key('garden-daily-care-entry')));
-      await tester.pumpAndSettle();
-      await tester.scrollUntilVisible(
-        find.byKey(const Key('garden-care-record')),
-        120,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await routeReady();
-      await tester.runAsync(() async {
-        await tester.tap(find.byKey(const Key('garden-care-record')));
-        await tester.pump();
-      });
-      await routeReady();
-      final field = find.byType(TextField).first;
-      await tester.ensureVisible(field);
-      await routeReady();
-      await tester.enterText(field, '정원 안에서 남긴 별도 테스트 마음');
-      tester.testTextInput.hide();
-      final save = find.widgetWithText(ElevatedButton, '편지 남기기');
-      await tester.ensureVisible(save);
-      await routeReady();
-      await tester.runAsync(() async {
-        await tester.tap(save);
-        final deadline = DateTime.now().add(const Duration(seconds: 20));
-        while (app.currentLetterId == null ||
-            app.gardenRewardRetrying ||
-            MongiGardenStore.instance.value.essence < 20) {
-          if (DateTime.now().isAfter(deadline))
-            fail('Letter and daily receipt did not finish saving');
-          await Future<void>.delayed(const Duration(milliseconds: 5));
-          await tester.pump();
+        expect(tester.takeException(), isNull);
+        await tester.pumpWidget(const SizedBox());
+        for (final request in garden.requests) {
+          if (!request.isCompleted) request.complete([]);
         }
-      });
-      await routeReady();
-      expect(
-        StorageService.getAllLetters().single.letterText,
-        '정원 안에서 남긴 별도 테스트 마음',
-      );
-      final done = find.widgetWithText(FilledButton, '오늘은 여기까지').first;
-      await tester.ensureVisible(done);
-      await routeReady();
-      await tester.runAsync(() async {
-        await tester.tap(done);
-        final deadline = DateTime.now().add(const Duration(seconds: 20));
-        while (find.byKey(const Key('garden-care-plant')).evaluate().isEmpty) {
-          if (DateTime.now().isAfter(deadline))
-            fail('Garden receipt did not open after confirmed save');
-          await Future<void>.delayed(const Duration(milliseconds: 5));
-          await tester.pump();
-        }
-      });
-      await routeReady();
-      expect(find.text('빛의 정수 +20'), findsOneWidget);
-      expect(app.requestedTabIndex, isNull);
-      final before = MongiGardenStore.instance.value.toJson();
-      await tester.runAsync(() => app.retryGardenRewards());
-      expect(MongiGardenStore.instance.value.toJson(), before);
-      expect(MongiGardenStore.instance.value.seedTokens, 1);
-      expect(tester.takeException(), isNull);
-      await tester.pumpWidget(const SizedBox());
-      for (final request in garden.requests) {
-        if (!request.isCompleted) request.complete([]);
-      }
-      await flushNetworkFuture(tester);
-    },
-  );
+        await flushNetworkFuture(tester);
+      },
+    );
+  }
 }

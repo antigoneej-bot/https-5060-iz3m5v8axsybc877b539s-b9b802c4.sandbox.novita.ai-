@@ -85,7 +85,7 @@ class CompanionWelcomeHome extends StatelessWidget {
       Padding(
         padding: const EdgeInsets.symmetric(horizontal: 26),
         child: Text(
-          tr("왔구나, 여기서 같이 쉬자."),
+          tr("나랑 마음을 나눠볼래?"),
           key: const Key('home-greeting'),
           textAlign: TextAlign.center,
           style: text(15, color: const Color(0xff64745e)),

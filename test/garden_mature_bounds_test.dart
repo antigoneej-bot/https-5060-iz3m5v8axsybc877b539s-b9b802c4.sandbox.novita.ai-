@@ -59,6 +59,7 @@ void main() {
                   seeds: {'pine': growth, 'cherry': growth},
                   decorations: const [],
                   motionEnabled: false,
+                  companionAutomaticBehavior: false,
                   onMove: (_, __) async {},
                   onMemory: (_) {},
                   onPlant: () {},

@@ -25,6 +25,7 @@ void main() {
                     cameraGestures: true,
                     overviewRequested: map,
                     motionEnabled: false,
+                    companionAutomaticBehavior: false,
                     layout: GardenLayout(
                       spaces: 3,
                       positions: const {'seed:pine': Offset(.8, .7)},
@@ -122,6 +123,7 @@ void main() {
               fillViewport: true,
               cameraGestures: true,
               motionEnabled: false,
+              companionAutomaticBehavior: false,
               placementSeed: SeedType.byId('pine'),
               onPlacementPoint: (_) => selected++,
               layout: GardenLayout(

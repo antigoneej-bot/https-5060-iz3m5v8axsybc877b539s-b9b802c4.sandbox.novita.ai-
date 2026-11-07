@@ -1,3 +1,4 @@
+import '../mongi/screens/garden_daily_care_screen.dart';
 import '../l10n/app_language.dart';
 import '../widgets/home_moments.dart';
 import 'emotion_archive_screen.dart';
@@ -281,8 +282,35 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
   }
 
+  Future<void> _openTogetherCare() async {
+    if (_companionSheetOpen) return;
+    _companionSheetOpen = true;
+    final owner = CatCareService.localOwner;
+    try {
+      final result = await Navigator.of(context).push<Object>(
+        MaterialPageRoute(builder: (_) => const GardenDailyCareScreen()),
+      );
+      if (!mounted || owner != CatCareService.localOwner) return;
+      if (result == GardenCareDestination.garden) {
+        await _open(const GardenWorldScreen.owned());
+      } else if (result == true || result is String) {
+        await _open(
+          GardenWorldScreen.owned(
+            initialPlanting: true,
+            initialPlantEmotionId: result is String ? result : null,
+          ),
+        );
+      }
+    } finally {
+      _companionSheetOpen = false;
+    }
+  }
+
   void _action(PastelAction action) {
     switch (action) {
+      case PastelAction.togetherCare:
+        unawaited(_openTogetherCare());
+        break;
       case PastelAction.companion:
         if (_companionSheetOpen) return;
         _companionSheetOpen = true;

@@ -36,7 +36,8 @@ class MindPlantingChoice {
 /// A private draft only: choosing an emotion does not replace the active
 /// companion, create a letter, award currency, or persist a planting.
 class MindPlantingScreen extends StatefulWidget {
-  const MindPlantingScreen({super.key});
+  const MindPlantingScreen({super.key, this.initialEmotionId});
+  final String? initialEmotionId;
   @override
   State<MindPlantingScreen> createState() => _MindPlantingScreenState();
 }
@@ -49,6 +50,16 @@ class _MindPlantingScreenState extends State<MindPlantingScreen> {
   bool _childRouteOpen = false;
   final _owner = CatCareService.localOwner;
   String? _saveError;
+
+  @override
+  void initState() {
+    super.initState();
+    final id = widget.initialEmotionId;
+    if (id != null && shadowCats.any((cat) => cat.id == id)) {
+      _emotion = shadowCatById(id);
+      _choosingPlant = true;
+    }
+  }
 
   PlantingMind get _draft => PlantingMind(
     id: _requestId,
@@ -364,7 +375,7 @@ class _MindPlantingScreenState extends State<MindPlantingScreen> {
   Widget build(BuildContext context) {
     Localizations.localeOf(context);
     return PopScope(
-      canPop: !_choosingPlant && !_saving,
+      canPop: (!_choosingPlant || widget.initialEmotionId != null) && !_saving,
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop && mounted && !_saving) {
           setState(() => _choosingPlant = false);
@@ -378,7 +389,7 @@ class _MindPlantingScreenState extends State<MindPlantingScreen> {
             onPressed: _saving
                 ? null
                 : () {
-                    if (_choosingPlant) {
+                    if (_choosingPlant && widget.initialEmotionId == null) {
                       setState(() => _choosingPlant = false);
                     } else {
                       Navigator.pop(context);

@@ -1,3 +1,7 @@
+최신 수정본: 마음냥 정원 1.0.98+101
+START-GARDEN-RECOVERY-101-KO.txt와 docs/GARDEN-RECOVERY-101-KO.txt를 먼저 읽어 주세요.
+새 AAB는 아직 만들지 않았습니다. 아래는 이전 버전의 보존된 안내로, 이번 검증 결과가 아닙니다.
+
 마음냥 정원 1.0.76+79 통합 확인용 소스
 
 입력: Mindnyang-1.0.74-77-Full-Source (2).zip의 전체 1·2차·남은 제안 소스.

@@ -104,22 +104,18 @@ void main() {
     expect(MongiGardenStore.instance.value.seedTokens, before);
     platform.events.add(VideoEvent(eventType: VideoEventType.completed));
     await tester.pumpAndSettle();
-    for (
-      var i = 0;
-      i < 30 && MongiGardenStore.instance.value.seedTokens == before;
-      i++
-    ) {
-      await tester.runAsync(
-        () => Future<void>.delayed(const Duration(milliseconds: 20)),
-      );
-      await tester.pump();
-    }
+    // Queue behind the completion event and await its durable acknowledgement.
+    // A fixed 600ms disk-I/O budget flakes under the full parallel suite.
+    await waitForWrite(tester, MeditationCompletionService.instance.retry());
+    expect(MeditationCompletionService.instance.saveProblem.value, isNull);
     expect(MongiGardenStore.instance.value.seedTokens, before + 1);
     expect(platform.playing, true);
     expect(platform.mixWithOthers, isFalse);
     final completed = MeditationCompletionService.instance.completed.value;
     platform.events.add(VideoEvent(eventType: VideoEventType.completed));
     await tester.pumpAndSettle();
+    await waitForWrite(tester, MeditationCompletionService.instance.retry());
+    expect(MeditationCompletionService.instance.saveProblem.value, isNull);
     expect(MongiGardenStore.instance.value.seedTokens, before + 1);
     expect(platform.playing, true);
     expect(platform.mixWithOthers, isFalse);
@@ -156,4 +152,22 @@ void main() {
     await closing;
     await tester.pumpAndSettle();
   });
+}
+
+Future<void> waitForWrite(WidgetTester tester, Future<void> write) async {
+  var finished = false;
+  final pending = write.whenComplete(() => finished = true);
+  final deadline = Stopwatch()..start();
+  while (!finished && deadline.elapsed < const Duration(seconds: 30)) {
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 1)),
+    );
+    await tester.pump();
+  }
+  expect(
+    finished,
+    isTrue,
+    reason: 'await the queued durable write acknowledgement',
+  );
+  await pending;
 }

@@ -42,7 +42,11 @@ void main() {
     );
     await tester.pumpAndSettle();
     final adopt = find.byKey(const ValueKey('adopt-white'));
-    await tester.scrollUntilVisible(adopt, 150, scrollable:find.byType(Scrollable).first);
+    await tester.scrollUntilVisible(
+      adopt,
+      150,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.ensureVisible(adopt);
     await tester.tap(adopt);
     await tester.pumpAndSettle();
@@ -104,6 +108,7 @@ void main() {
                   readOnly: readOnly,
                   fillViewport: true,
                   motionEnabled: false,
+                  companionAutomaticBehavior: false,
                   family: care.journey.residents,
                   activeCoat: CompanionCoat.white,
                   companionScale: .82,

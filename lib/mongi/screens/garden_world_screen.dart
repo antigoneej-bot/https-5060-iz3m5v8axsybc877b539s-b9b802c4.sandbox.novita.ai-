@@ -1,5 +1,4 @@
 import '../../l10n/app_language.dart';
-import '../widgets/garden_essence_chip.dart';
 import 'garden_daily_care_screen.dart';
 import '../../widgets/garden_style_sheet.dart';
 import '../../services/garden_style_store.dart';
@@ -58,6 +57,8 @@ class GardenWorldScreen extends StatefulWidget {
 
   /// A read-only navigation request, resolved against saved plants after load.
   final String? initialFocusPlantId;
+  final String? initialPlantEmotionId;
+  final bool initialPlanting;
   final VoidCallback? onOpenCollection;
   const GardenWorldScreen({
     super.key,
@@ -69,6 +70,8 @@ class GardenWorldScreen extends StatefulWidget {
     this.cultivation = true,
     this.embedded = false,
     this.initialFocusPlantId,
+    this.initialPlantEmotionId,
+    this.initialPlanting = false,
   });
   const GardenWorldScreen.owned({
     Key? key,
@@ -77,6 +80,8 @@ class GardenWorldScreen extends StatefulWidget {
     bool initialLandscape = false,
     bool embedded = false,
     String? initialFocusPlantId,
+    String? initialPlantEmotionId,
+    bool initialPlanting = false,
   }) : this(
          key: key,
          onOpenCollection: onOpenCollection,
@@ -85,6 +90,8 @@ class GardenWorldScreen extends StatefulWidget {
          cultivation: true,
          embedded: embedded,
          initialFocusPlantId: initialFocusPlantId,
+         initialPlantEmotionId: initialPlantEmotionId,
+         initialPlanting: initialPlanting,
        );
 
   const GardenWorldScreen.tools({Key? key})
@@ -97,6 +104,8 @@ class GardenWorldScreen extends StatefulWidget {
 class _GardenWorldScreenState extends State<GardenWorldScreen>
     with WidgetsBindingObserver {
   String? _requestedRestItem;
+  bool _initialPlantOpened = false;
+  final _navigationOwner = CatCareService.localOwner;
   Uint8List? _galleryArtwork;
   int _restRequest = 0;
   Future<void> _chooseCatRest() async {
@@ -357,6 +366,16 @@ class _GardenWorldScreenState extends State<GardenWorldScreen>
             (MongiGardenStore.instance.value.seeds[id] ?? 0) > 0) {
           _focusPlant(matches.single);
         }
+      }
+      if (_error == null &&
+          !_initialPlantOpened &&
+          (widget.initialPlanting || widget.initialPlantEmotionId != null)) {
+        _initialPlantOpened = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && _navigationOwner == CatCareService.localOwner) {
+            unawaited(_plant(initialEmotionId: widget.initialPlantEmotionId));
+          }
+        });
       }
       // Open the saved personal garden before waiting for any network work.
       // A slow server must not turn an offline garden into a loading screen.
@@ -813,373 +832,409 @@ class _GardenWorldScreenState extends State<GardenWorldScreen>
     }
   }
 
-  Widget _buildCultivation(BuildContext context) =>
-      ValueListenableBuilder<MongiGardenData>(
-        valueListenable: MongiGardenStore.instance,
-        builder: (context, data, _) => _landscapeRequested
-            ? _buildFullscreenGarden(context, data)
-            : _buildPortraitGarden(context, data),
-      );
-
-  Future<void> _openDailyCare() async {
-    if (!_canChangeGarden) return;
-    final plant = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(builder: (_) => const GardenDailyCareScreen()),
-    );
-    if (mounted && plant == true && _canChangeGarden) await _plant();
-  }
-
-  Widget _buildPortraitGarden(BuildContext context, MongiGardenData data) {
-    return PopScope(
-      canPop: !_plantSaving && !_commitNeedsRecovery,
-      child: Scaffold(
-        backgroundColor: const Color(0xFFF9F5EA),
-        body: LayoutBuilder(
-          builder: (context, bounds) {
-            final large = MediaQuery.textScalerOf(context).scale(14) > 20;
-            return Stack(
-              fit: StackFit.expand,
-              children: [
-                Positioned.fill(
-                  child: SizedBox.expand(
-                    key: const ValueKey('cultivation-canvas'),
-                    child: IndexedStack(
-                      sizing: StackFit.expand,
-                      index: _restGarden ? 1 : 0,
+  Widget _buildCultivation(BuildContext context) => PopScope(
+    canPop: !_plantSaving && !_commitNeedsRecovery,
+    child: ValueListenableBuilder<MongiGardenData>(
+      valueListenable: MongiGardenStore.instance,
+      builder: (context, data, _) => _landscapeRequested
+          ? _buildFullscreenGarden(context, data)
+          : Scaffold(
+              backgroundColor: AppColors.bg0,
+              appBar: AppBar(
+                automaticallyImplyLeading: !widget.embedded,
+                toolbarHeight: MediaQuery.textScalerOf(context).scale(14) > 20
+                    ? 64
+                    : 44,
+                title: MediaQuery.sizeOf(context).height < 500
+                    ? PopupMenuButton<bool>(
+                        key: const Key('compact-garden-switch'),
+                        tooltip: tr('정원 바꾸기'),
+                        enabled: _canChangeGarden,
+                        onSelected: _changeGarden,
+                        itemBuilder: (_) => [
+                          PopupMenuItem(
+                            value: false,
+                            child: Text(tr('가꾸는 정원')),
+                          ),
+                          PopupMenuItem(
+                            value: true,
+                            child: Text(tr('쉬어가는 정원')),
+                          ),
+                        ],
+                        child: Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                _restGarden
+                                    ? tr('쉬어가는 정원')
+                                    : tr("내 정원 · 씨앗 {0}개", [data.seedTokens]),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(fontSize: 15),
+                              ),
+                            ),
+                            const Icon(Icons.expand_more, size: 20),
+                          ],
+                        ),
+                      )
+                    : Text(_restGarden ? tr('쉬어가는 정원') : tr("내 정원")),
+                actions: [
+                  TextButton(
+                    key: const Key('garden-daily-care-entry'),
+                    onPressed: _canChangeGarden ? _openDailyCare : null,
+                    child: Text(tr('마음돌봄')),
+                  ),
+                  IconButton(
+                    tooltip: tr('가로·세로 보기'),
+                    onPressed: _plantSaving ? null : _openFullGarden,
+                    icon: const Icon(Icons.screen_rotation_outlined),
+                  ),
+                  if (!_restGarden)
+                    PopupMenuButton<String>(
+                      key: const Key('portrait-garden-menu'),
+                      enabled: _canChangeGarden,
+                      tooltip: tr('정원 보조 메뉴'),
+                      onSelected: _plantSaving || _pendingSeed != null
+                          ? null
+                          : _cultivationMenu,
+                      itemBuilder: (_) => [
+                        if (widget.onOpenCollection != null)
+                          PopupMenuItem(
+                            value: 'collection',
+                            child: Text(tr('기록·활동 보기')),
+                          ),
+                        PopupMenuItem(
+                          value: 'cat-rest',
+                          child: Text(tr('고양이 쉼터')),
+                        ),
+                        PopupMenuItem(
+                          value: 'styles',
+                          child: Text(tr('계절·배치 저장')),
+                        ),
+                        PopupMenuItem(
+                          value: 'care-guide',
+                          child: Text(tr('성장·보상 안내')),
+                        ),
+                        PopupMenuItem(
+                          value: 'day',
+                          child: Text(tr('햇살 정원 보기')),
+                        ),
+                        PopupMenuItem(
+                          value: 'night',
+                          child: Text(tr('반딧불이 정원 보기')),
+                        ),
+                        PopupMenuItem(
+                          value: 'auto-light',
+                          child: Text(tr('현재 시간에 맞추기')),
+                        ),
+                        PopupMenuItem(
+                          value: 'memory',
+                          child: Text(tr("기억의 나무")),
+                        ),
+                        PopupMenuItem(
+                          value: 'orchard',
+                          child: Text(tr("열매 정원")),
+                        ),
+                        PopupMenuItem(
+                          value: 'neighbors',
+                          child: Text(tr("이웃 정원")),
+                        ),
+                        PopupMenuItem(
+                          value: 'decorate',
+                          child: Text(tr('장식 고르기')),
+                        ),
+                        PopupMenuItem(
+                          value: 'layout',
+                          child: Text(tr('정원 도구 · 장식 이동 · 확장')),
+                        ),
+                        PopupMenuItem(
+                          value: 'fullscreen',
+                          child: Text(tr('정원 전체화면')),
+                        ),
+                      ],
+                    ),
+                ],
+                bottom: MediaQuery.sizeOf(context).height < 500
+                    ? null
+                    : PreferredSize(
+                        preferredSize: Size.fromHeight(
+                          MediaQuery.textScalerOf(context).scale(13) + 36,
+                        ),
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 3,
+                          ),
+                          child: Row(
+                            children: [
+                              for (final resting in [false, true])
+                                Padding(
+                                  padding: const EdgeInsets.only(right: 8),
+                                  child: ChoiceChip(
+                                    key: ValueKey(
+                                      resting
+                                          ? 'rest-garden-tab'
+                                          : 'cultivate-garden-tab',
+                                    ),
+                                    label: Text(
+                                      resting ? tr('쉬어가는 정원') : tr('가꾸는 정원'),
+                                      style: TextStyle(fontSize: 13),
+                                    ),
+                                    selected: _restGarden == resting,
+                                    onSelected: _canChangeGarden
+                                        ? (_) => _changeGarden(resting)
+                                        : null,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+              ),
+              body: IndexedStack(
+                index: _restGarden ? 1 : 0,
+                children: [
+                  TickerMode(
+                    enabled: !_restGarden,
+                    child: Column(
                       children: [
-                        TickerMode(
-                          enabled: !_restGarden,
+                        if (_pendingSeed == null &&
+                            MediaQuery.sizeOf(context).height >= 500)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 3,
+                            ),
+                            child: Align(
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                tr('보유 씨앗 {0}개', [data.seedTokens]) +
+                                    (_cultWater ? tr(' · 물줄 식물을 눌러주세요') : ''),
+                                key: const Key('garden-seed-balance'),
+                              ),
+                            ),
+                          ),
+                        if (_pendingSeed == null &&
+                            _focusedPlantId == null &&
+                            !_loading &&
+                            _error == null &&
+                            _recentPlants(data).isNotEmpty)
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: TextButton.icon(
+                              key: const Key('recent-planted-location'),
+                              onPressed: () => _openRecentPlants(data),
+                              icon: const Icon(Icons.my_location, size: 18),
+                              label: Text(tr('최근 심은 식물 보기')),
+                            ),
+                          ),
+                        Expanded(
+                          key: const ValueKey('cultivation-canvas'),
                           child: _gardenContent(context),
                         ),
-                        TickerMode(
-                          enabled: _restGarden,
-                          child: RestingGardenView(
-                            key: const Key('resting-garden-space'),
-                            canvasOnly: true,
-                            cameraGestures: !widget.embedded,
-                            nightOverride: _gardenNight,
+                        if (_pendingSeed != null)
+                          ConstrainedBox(
+                            constraints: BoxConstraints(
+                              maxHeight:
+                                  (MediaQuery.sizeOf(context).height * .24)
+                                      .clamp(70, 155),
+                            ),
+                            child: SingleChildScrollView(
+                              child: Padding(
+                                padding: const EdgeInsets.fromLTRB(
+                                  10,
+                                  4,
+                                  10,
+                                  4,
+                                ),
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    Wrap(
+                                      alignment: WrapAlignment.center,
+                                      spacing: 8,
+                                      children: [
+                                        OutlinedButton(
+                                          key: const Key(
+                                            'cancel-plant-location',
+                                          ),
+                                          onPressed:
+                                              _plantSaving ||
+                                                  _commitNeedsRecovery
+                                              ? null
+                                              : () => setState(() {
+                                                  _pendingSeed = null;
+                                                  _pendingMind = null;
+                                                  _pendingMindOwner = null;
+                                                  _plantPoint = null;
+                                                  _plantError = null;
+                                                  _movingPlant = false;
+                                                }),
+                                          child: Text(tr("취소")),
+                                        ),
+                                        FilledButton(
+                                          key: const Key(
+                                            'confirm-plant-location',
+                                          ),
+                                          style: FilledButton.styleFrom(
+                                            foregroundColor: Colors.white,
+                                          ),
+                                          onPressed:
+                                              _plantSaving ||
+                                                  (!_commitNeedsRecovery &&
+                                                      _placementError != null)
+                                              ? null
+                                              : _confirmPlant,
+                                          child: Text(
+                                            _plantSaving
+                                                ? tr('저장 중…')
+                                                : _commitNeedsRecovery
+                                                ? tr('저장 다시 확인')
+                                                : _movingPlant
+                                                ? tr('이 위치로 옮기기')
+                                                : tr('여기에 마음 심기 · 씨앗 1개'),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    Text(
+                                      _plantError ??
+                                          _placementError ??
+                                          (_movingPlant
+                                              ? tr(
+                                                  "{0}를 이 자리로 옮길까요? 씨앗은 사용하지 않아요.",
+                                                  [_pendingSeed!.label],
+                                                )
+                                              : tr("{0}를 이 자리에 심을까요?", [
+                                                  _pendingSeed!.label,
+                                                ])),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        if (_pendingSeed == null &&
+                            _focusedPlantId != null &&
+                            (data.seeds[_focusedPlantId] ?? 0) > 0)
+                          _focusedPlantCard(data),
+                        if (_pendingSeed == null &&
+                            (!_landscapeRequested || _gardenToolsOpen))
+                          Row(
+                            children: [
+                              Expanded(
+                                child: TextButton.icon(
+                                  key: const Key('garden-items-button'),
+                                  onPressed: _canChangeGarden
+                                      ? () => showGardenDecorationSheet(context)
+                                      : null,
+                                  icon: const Icon(Icons.chair_outlined),
+                                  label: Text(tr('꾸미기')),
+                                ),
+                              ),
+                              Expanded(
+                                child: TextButton.icon(
+                                  key: const Key('portrait-tools-toggle'),
+                                  onPressed: () => setState(
+                                    () => _gardenToolsOpen = !_gardenToolsOpen,
+                                  ),
+                                  icon: Icon(
+                                    _gardenToolsOpen
+                                        ? Icons.expand_more
+                                        : Icons.expand_less,
+                                  ),
+                                  label: Stack(
+                                    alignment: Alignment.center,
+                                    children: [
+                                      for (final open in [true, false])
+                                        Visibility(
+                                          visible: _gardenToolsOpen == open,
+                                          maintainSize: true,
+                                          maintainState: true,
+                                          maintainAnimation: true,
+                                          child: Text(
+                                            tr(open ? '도구 접기' : '도구 펼치기'),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        if (_landscapeRequested)
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: TextButton.icon(
+                              onPressed: () => setState(
+                                () => _gardenToolsOpen = !_gardenToolsOpen,
+                              ),
+                              icon: Icon(
+                                _gardenToolsOpen
+                                    ? Icons.expand_more
+                                    : Icons.expand_less,
+                              ),
+                              label: Text(
+                                _gardenToolsOpen ? tr('도구 접기') : tr('도구 펼치기'),
+                              ),
+                            ),
+                          ),
+                        Visibility(
+                          visible: _gardenToolsOpen,
+                          maintainState: true,
+                          maintainAnimation: true,
+                          maintainSize: true,
+                          child: GardenCoreTools(
+                            compact: _compactCultivationControls,
+                            watering: _cultWater,
+                            overview: _cultOverview,
+                            disabled:
+                                _loading ||
+                                _error != null ||
+                                _pendingSeed != null,
+                            onPlant: _plant,
+                            onWater: () => setState(() {
+                              _cultWater = !_cultWater;
+                              _cultOverview = false;
+                            }),
+                            onPlants: _myPlants,
+                            onOverview: _openFullGarden,
                           ),
                         ),
                       ],
                     ),
                   ),
-                ),
-                Positioned(
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  child: SafeArea(
-                    bottom: false,
-                    child: Container(
-                      color: const Color(0xECFFF9EC),
-                      padding: const EdgeInsets.fromLTRB(6, 4, 6, 4),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Row(
-                            children: [
-                              if (!widget.embedded)
-                                BackButton(
-                                  onPressed:
-                                      _plantSaving || _commitNeedsRecovery
-                                      ? null
-                                      : () => Navigator.of(context).maybePop(),
-                                ),
-                              Expanded(
-                                child: Text(
-                                  _restGarden ? tr('쉬어가는 정원') : tr('내 정원'),
-                                  style: const TextStyle(
-                                    fontSize: 21,
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                                ),
-                              ),
-                              if (!large)
-                                GardenEssenceChip(amount: data.essence),
-                              PopupMenuButton<String>(
-                                key: const Key('portrait-garden-menu'),
-                                tooltip: tr('정원 보조 메뉴'),
-                                enabled: _canChangeGarden,
-                                onSelected: (value) {
-                                  if (value == 'cultivate' || value == 'rest') {
-                                    _changeGarden(value == 'rest');
-                                  } else {
-                                    _cultivationMenu(value);
-                                  }
-                                },
-                                itemBuilder: (_) => [
-                                  PopupMenuItem(
-                                    value: 'cultivate',
-                                    child: Text(tr('가꾸는 정원')),
-                                  ),
-                                  PopupMenuItem(
-                                    value: 'rest',
-                                    child: Text(tr('쉬어가는 정원')),
-                                  ),
-                                  if (!_restGarden) ...[
-                                    if (widget.onOpenCollection != null)
-                                      PopupMenuItem(
-                                        value: 'collection',
-                                        child: Text(tr('기록·활동 보기')),
-                                      ),
-                                    PopupMenuItem(
-                                      value: 'cat-rest',
-                                      child: Text(tr('고양이 쉼터')),
-                                    ),
-                                    PopupMenuItem(
-                                      value: 'styles',
-                                      child: Text(tr('계절·배치 저장')),
-                                    ),
-                                    PopupMenuItem(
-                                      value: 'care-guide',
-                                      child: Text(tr('성장·보상 안내')),
-                                    ),
-                                    PopupMenuItem(
-                                      value: 'day',
-                                      child: Text(tr('햇살 정원 보기')),
-                                    ),
-                                    PopupMenuItem(
-                                      value: 'night',
-                                      child: Text(tr('반딧불이 정원 보기')),
-                                    ),
-                                    PopupMenuItem(
-                                      value: 'auto-light',
-                                      child: Text(tr('현재 시간에 맞추기')),
-                                    ),
-                                    PopupMenuItem(
-                                      value: 'memory',
-                                      child: Text(tr("기억의 나무")),
-                                    ),
-                                    PopupMenuItem(
-                                      value: 'orchard',
-                                      child: Text(tr("열매 정원")),
-                                    ),
-                                    PopupMenuItem(
-                                      value: 'neighbors',
-                                      child: Text(tr("이웃 정원")),
-                                    ),
-                                    PopupMenuItem(
-                                      value: 'decorate',
-                                      child: Text(tr('장식 고르기')),
-                                    ),
-                                    PopupMenuItem(
-                                      value: 'layout',
-                                      child: Text(tr('정원 도구 · 장식 이동 · 확장')),
-                                    ),
-                                    PopupMenuItem(
-                                      value: 'fullscreen',
-                                      child: Text(tr('정원 전체화면')),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                            ],
-                          ),
-                          if (large)
-                            Align(
-                              alignment: Alignment.centerLeft,
-                              child: GardenEssenceChip(amount: data.essence),
-                            ),
-                        ],
-                      ),
+                  TickerMode(
+                    enabled: _restGarden,
+                    child: RestingGardenView(
+                      cameraGestures: !widget.embedded,
+                      onFullscreen: _openFullGarden,
+                      fullscreen: _landscapeRequested,
+                      nightOverride: _gardenNight,
+                      onNightChanged: (value) =>
+                          setState(() => _gardenNight = value),
                     ),
                   ),
-                ),
-                Positioned(
-                  left: 10,
-                  top: MediaQuery.paddingOf(context).top + (large ? 120 : 64),
-                  child: _floatingPanel(
-                    ConstrainedBox(
-                      constraints: BoxConstraints(
-                        maxWidth: bounds.maxWidth * .58,
-                        maxHeight: bounds.maxHeight * .2,
-                      ),
-                      child: SingleChildScrollView(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            if (_restGarden)
-                              PopupMenuButton<bool?>(
-                                tooltip: tr('쉬어가는 정원 낮·밤'),
-                                onSelected: (value) =>
-                                    setState(() => _gardenNight = value),
-                                itemBuilder: (_) => [
-                                  PopupMenuItem(
-                                    value: false,
-                                    child: Text(tr('햇살 풍경')),
-                                  ),
-                                  PopupMenuItem(
-                                    value: true,
-                                    child: Text(tr('별빛 풍경')),
-                                  ),
-                                ],
-                                child: Padding(
-                                  padding: const EdgeInsets.all(12),
-                                  child: Text(tr('낮과 밤')),
-                                ),
-                              ),
-                            if (!_restGarden)
-                              Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 6,
-                                ),
-                                child: Text(
-                                  tr('보유 씨앗 {0}개', [data.seedTokens]),
-                                  key: const Key('garden-seed-balance'),
-                                  style: const TextStyle(fontSize: 13),
-                                ),
-                              ),
-                            if (!_restGarden && _pendingSeed == null)
-                              TextButton.icon(
-                                key: const Key('garden-daily-care-entry'),
-                                onPressed: _canChangeGarden
-                                    ? _openDailyCare
-                                    : null,
-                                icon: const Icon(
-                                  Icons.favorite_border,
-                                  size: 18,
-                                ),
-                                label: Text(tr('마음돌봄')),
-                              ),
-                            if (!_restGarden &&
-                                _pendingSeed == null &&
-                                _focusedPlantId == null &&
-                                !_loading &&
-                                _error == null &&
-                                _recentPlants(data).isNotEmpty)
-                              TextButton.icon(
-                                key: const Key('recent-planted-location'),
-                                onPressed: () => _openRecentPlants(data),
-                                icon: const Icon(Icons.spa_outlined, size: 18),
-                                label: Text(tr('최근 심은 식물 보기')),
-                              ),
-                            if (_cultWater && !_restGarden)
-                              Padding(
-                                padding: const EdgeInsets.all(8),
-                                child: Text(tr('물줄 식물을 눌러주세요')),
-                              ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                Positioned(
-                  left: 8,
-                  right: 8,
-                  bottom: 8,
-                  child: SafeArea(
-                    top: false,
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                        maxHeight: bounds.maxHeight * (large ? .46 : .42),
-                      ),
-                      child: SingleChildScrollView(
-                        key: const Key('garden-overlay-scroll'),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            if (!_restGarden && _pendingSeed != null)
-                              _floatingPanel(
-                                _fullscreenPlacementControls(context),
-                              ),
-                            if (!_restGarden &&
-                                _pendingSeed == null &&
-                                _focusedPlantId != null &&
-                                (data.seeds[_focusedPlantId] ?? 0) > 0)
-                              _floatingPanel(_focusedPlantCard(data)),
-                            if (!_restGarden && _pendingSeed != null)
-                              GardenCoreTools(
-                                compact: true,
-                                disabled: true,
-                                onPlant: _plant,
-                                onWater: () {},
-                                onPlants: _myPlants,
-                                onOverview: _openFullGarden,
-                              ),
-                            if (_pendingSeed == null) ...[
-                              Align(
-                                alignment: Alignment.centerRight,
-                                child: _floatingPanel(
-                                  Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      if (!_restGarden)
-                                        TextButton.icon(
-                                          key: const Key('garden-items-button'),
-                                          onPressed: _canChangeGarden
-                                              ? () => showGardenDecorationSheet(
-                                                  context,
-                                                )
-                                              : null,
-                                          icon: const Icon(
-                                            Icons.chair_outlined,
-                                            size: 19,
-                                          ),
-                                          label: Text(
-                                            large ? tr('꾸미기') : tr('우리 정원 꾸미기'),
-                                          ),
-                                        ),
-                                      IconButton(
-                                        key: const Key('portrait-tools-toggle'),
-                                        tooltip: _gardenToolsOpen
-                                            ? tr('도구 접기')
-                                            : tr('도구 펼치기'),
-                                        onPressed: () => setState(
-                                          () => _gardenToolsOpen =
-                                              !_gardenToolsOpen,
-                                        ),
-                                        icon: Icon(
-                                          _gardenToolsOpen
-                                              ? Icons.expand_more
-                                              : Icons.expand_less,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              if (!_restGarden && _gardenToolsOpen)
-                                GardenCoreTools(
-                                  compact: bounds.maxHeight < 420,
-                                  watering: _cultWater,
-                                  overview: _cultOverview,
-                                  disabled: _loading || _error != null,
-                                  onPlant: _plant,
-                                  onWater: () => setState(() {
-                                    _cultWater = !_cultWater;
-                                    _cultOverview = false;
-                                  }),
-                                  onPlants: _myPlants,
-                                  onOverview: _openFullGarden,
-                                ),
-                              if (_restGarden || !_gardenToolsOpen)
-                                _floatingPanel(
-                                  TextButton.icon(
-                                    key: _restGarden
-                                        ? const Key('rest-garden-overview')
-                                        : null,
-                                    onPressed: _openFullGarden,
-                                    icon: const Icon(Icons.fullscreen),
-                                    label: Text(tr('가로 전체화면')),
-                                  ),
-                                ),
-                            ],
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            );
-          },
-        ),
-      ),
+                ],
+              ),
+            ),
+    ),
+  );
+  Future<void> _openDailyCare() async {
+    if (!_canChangeGarden) return;
+    final owner = CatCareService.localOwner;
+    final plant = await Navigator.of(context).push<Object>(
+      MaterialPageRoute(builder: (_) => const GardenDailyCareScreen()),
     );
+    if (mounted &&
+        owner == CatCareService.localOwner &&
+        _canChangeGarden &&
+        (plant == true || plant is String)) {
+      await _plant(initialEmotionId: plant is String ? plant : null);
+    }
   }
 
   Future<void> _exitFullscreenGarden() async {
@@ -1246,7 +1301,7 @@ class _GardenWorldScreenState extends State<GardenWorldScreen>
                       enabled: _restGarden,
                       child: RestingGardenView(
                         canvasOnly: true,
-                        cameraGestures: true,
+                        cameraGestures: !widget.embedded,
                         overviewRequested: _cultOverview,
                         nightOverride: _gardenNight,
                       ),
@@ -1754,15 +1809,19 @@ class _GardenWorldScreenState extends State<GardenWorldScreen>
     );
   }
 
-  Future<void> _plant() async {
+  Future<void> _plant({String? initialEmotionId}) async {
     ScaffoldMessenger.maybeOf(context)?.removeCurrentSnackBar();
     if (_plantPickerOpen || _pendingSeed != null) return;
+    if (_restGarden) setState(() => _restGarden = false);
     if (!_cultivationEnabled) setState(() => _cultivationActivated = true);
     _plantPickerOpen = true;
     final owner = CatCareService.localOwner;
     try {
       final choice = await Navigator.of(context).push<MindPlantingChoice>(
-        MaterialPageRoute(builder: (_) => const MindPlantingScreen()),
+        MaterialPageRoute(
+          builder: (_) =>
+              MindPlantingScreen(initialEmotionId: initialEmotionId),
+        ),
       );
       if (!mounted || choice == null) return;
       if (owner != CatCareService.localOwner) {
@@ -1822,11 +1881,7 @@ class _GardenWorldScreenState extends State<GardenWorldScreen>
               prefetched: true,
               initialArtwork: _galleryArtwork,
               enabled: _canChangeGarden,
-              topPadding: _landscapeRequested
-                  ? 76
-                  : (MediaQuery.textScalerOf(context).scale(14) > 20
-                        ? 160
-                        : 76),
+              topPadding: _landscapeRequested ? 76 : 8,
               showControls: _cultivationEnabled,
               builder: (artwork) => GardenWorldView(
                 personalArtwork: artwork,
@@ -1839,9 +1894,7 @@ class _GardenWorldScreenState extends State<GardenWorldScreen>
                     _cultivationEnabled || immersive || _expandedGarden,
                 immersive: !_cultivationEnabled && immersive,
                 cultivationMode: _cultivationEnabled,
-                focusVerticalBias: _cultivationEnabled && !_landscapeRequested
-                    ? .04
-                    : -.12,
+                focusVerticalBias: -.12,
                 wateringRequested: _cultWater,
                 placementSeed: _pendingSeed,
                 placementCount: _movingPlant
@@ -1864,7 +1917,7 @@ class _GardenWorldScreenState extends State<GardenWorldScreen>
                 companionName: companionName,
                 family: companion.journey.residents,
                 activeCoat: companion.journey.coat ?? CompanionCoat.ginger,
-                companionScale: companion.journey.visualScale,
+                companionScale: companion.journey.visualScale * 1.4,
                 companionBondStage: companion.journey.stage,
                 companionAutomaticBehavior:
                     companion.journeyReady &&

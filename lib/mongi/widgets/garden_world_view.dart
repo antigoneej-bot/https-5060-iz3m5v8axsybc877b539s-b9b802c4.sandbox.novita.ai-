@@ -49,6 +49,7 @@ class GardenWorldView extends StatefulWidget {
   /// landscape is used only by the separate, non-mutating resting space.
   final bool originalScenery;
   final bool? nightOverride;
+  final DateTime Function()? clock;
   final int memoryDays, cheerFlowers;
   final int publicMemoryStage;
   final bool publicCheerBed;
@@ -123,6 +124,7 @@ class GardenWorldView extends StatefulWidget {
     this.readOnly = false,
     this.originalScenery = true,
     this.nightOverride,
+    this.clock,
     this.publicMemoryStage = 0,
     this.publicCheerBed = false,
     this.flowerKinds = const [],
@@ -407,11 +409,15 @@ class _GardenWorldViewState extends State<GardenWorldView>
       _selected = 'decor:' + widget.previewDecorationId!;
     }
     _wateringMode = widget.wateringRequested;
-    // Preserve the existing initial camera: saved plants must not start offscreen.
-    if (widget.cultivationMode && _items.isNotEmpty) {
-      _focusX = widget.layout.position(_items.first).dx;
+    if (widget.cultivationMode) {
+      final requested = 'seed:' + (widget.focusPlantId ?? '');
+      _focusX = _items.contains(requested) ? widget.layout.position(requested).dx : .5;
     }
     WidgetsBinding.instance.addObserver(this);
+    _lightingTimer = Timer.periodic(
+      const Duration(minutes: 1),
+      (_) => _refreshLighting(),
+    );
     _response.addStatusListener((status) {
       if (status == AnimationStatus.completed && mounted)
         setState(() => _responseKind = null);
@@ -433,8 +439,22 @@ class _GardenWorldViewState extends State<GardenWorldView>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     _foreground = state == AppLifecycleState.resumed;
+    if (_foreground) _refreshLighting();
     if (_foreground && mounted) setState(() {});
     _syncMotion();
+  }
+
+  bool get _nightForNow {
+    final hour = (widget.clock ?? DateTime.now)().hour;
+    return hour < 6 || hour >= 18;
+  }
+
+  Timer? _lightingTimer;
+  void _refreshLighting() {
+    if (!mounted || widget.nightOverride != null) return;
+    final hour = (widget.clock ?? DateTime.now)().hour;
+    final night = hour < 6 || hour >= 18;
+    if (_night != night) setState(() => _night = night);
   }
 
   void _syncMotion() {
@@ -494,7 +514,7 @@ class _GardenWorldViewState extends State<GardenWorldView>
   bool _catWanders = false;
   bool _loafRest = false;
   bool _editing = false, _saving = false;
-  late bool _night = DateTime.now().hour < 6 || DateTime.now().hour >= 19;
+  late bool _night = _nightForNow;
   String? _selected;
   MapEntry<String, Offset>? _undo;
   List<String> get _items => [
@@ -545,9 +565,7 @@ class _GardenWorldViewState extends State<GardenWorldView>
       _displayedMoment = null;
     }
     if (widget.nightOverride != oldWidget.nightOverride) {
-      _night =
-          widget.nightOverride ??
-          (DateTime.now().hour < 6 || DateTime.now().hour >= 19);
+      _night = widget.nightOverride ?? (_nightForNow);
     }
     if (widget.cultivationMode &&
         widget.placementSeed != null &&
@@ -570,6 +588,7 @@ class _GardenWorldViewState extends State<GardenWorldView>
         _overview = false;
         _viewport = Size.zero;
         _highlightPlant = id;
+
         _highlightTimer?.cancel();
         _highlightTimer = Timer(const Duration(seconds: 3), () {
           if (mounted) setState(() => _highlightPlant = null);
@@ -734,6 +753,7 @@ class _GardenWorldViewState extends State<GardenWorldView>
 
   @override
   void dispose() {
+    _lightingTimer?.cancel();
     _highlightTimer?.cancel();
     _expiryTimer?.cancel();
     _cushion.dispose();
@@ -2064,13 +2084,13 @@ class _GardenWorldViewState extends State<GardenWorldView>
                               : CompanionPresence(
                                   enabled:
                                       widget.companionAutomaticBehavior &&
-                                      _air.isAnimating &&
+                                      !_paused &&
                                       !_quiet,
                                   bondStage: widget.companionBondStage,
                                   night: _night,
                                   resting:
                                       _loafRest ||
-                                      moment.resting ||
+                                      _quiet ||
                                       (widget.visitingGuest != null &&
                                           widget.visitActivity == 'rest'),
                                 ),
@@ -2280,8 +2300,7 @@ class _GardenWorldViewState extends State<GardenWorldView>
                   faceLeft: math.cos(phase) < 0,
                 )
               : CompanionPresence(
-                  enabled:
-                      widget.companionAutomaticBehavior && _air.isAnimating,
+                  enabled: widget.companionAutomaticBehavior && !_paused,
                   bondStage: days >= 90 ? 3 : 0,
                   night: _night,
                 ),

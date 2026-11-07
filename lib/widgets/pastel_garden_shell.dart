@@ -45,6 +45,7 @@ enum PastelAction {
   emotionArchive,
   memoryBook,
   dataSafety,
+  togetherCare,
 }
 
 /// Five storybook pages. Persistence and permissions stay in existing routes.
@@ -776,6 +777,15 @@ class _PastelGardenShellState extends State<PastelGardenShell> {
   ]);
 
   Widget _care() => _panel([
+    _section(tr("나와 고양이, 함께 돌보기")),
+    Text(tr("우리 몸과 마음을 같이 챙겨볼까?"), textAlign: TextAlign.center),
+    FilledButton.icon(
+      key: const Key("open-together-care"),
+      onPressed: () => widget.onAction(PastelAction.togetherCare),
+      icon: const Icon(Icons.favorite_border),
+      label: Text(tr("함께 돌보기")),
+    ),
+    const SizedBox(height: 16),
     _section(tr("명상·힐링")),
     FilledButton.icon(
       onPressed: () => Navigator.push(

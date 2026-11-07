@@ -117,6 +117,7 @@ void main() {
                     careRemainders: {'pine': remainder},
                     decorations: const [],
                     motionEnabled: motion,
+                    companionAutomaticBehavior: false,
                     onMove: (_, __) async {},
                     onMemory: (_) {},
                     onPlant: () {},

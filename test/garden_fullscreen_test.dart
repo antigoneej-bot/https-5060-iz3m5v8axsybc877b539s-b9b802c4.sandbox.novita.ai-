@@ -37,6 +37,7 @@ void main() {
             fillViewport: fill,
             immersive: immersive,
             motionEnabled: false,
+            companionAutomaticBehavior: false,
             layout: GardenLayout(spaces: 3),
             seeds: const {'love': 3, 'peace': 8},
             decorations: const ['bench'],

@@ -1,3 +1,6 @@
+import '../../models/companion_journey.dart';
+import '../../services/cat_care_service.dart';
+import '../../widgets/companion_together_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../l10n/app_language.dart';
@@ -14,6 +17,8 @@ import '../widgets/garden_essence_chip.dart';
 
 /// Garden's care and receipt pages reuse existing activities and saved receipts.
 /// Opening, returning to, or repeatedly viewing this page never grants a reward.
+enum GardenCareDestination { garden }
+
 class GardenDailyCareScreen extends StatefulWidget {
   const GardenDailyCareScreen({super.key});
 
@@ -23,7 +28,11 @@ class GardenDailyCareScreen extends StatefulWidget {
 
 class _GardenDailyCareScreenState extends State<GardenDailyCareScreen> {
   bool _receipt = false, _busy = false;
+  bool _leavingForGarden = false;
   String? _error;
+  String? _recordedEmotion;
+  bool _togetherOpen = false;
+  String? _companionLine;
 
   Future<void> _activity(Future<void> Function() open) async {
     if (_busy) return;
@@ -33,7 +42,7 @@ class _GardenDailyCareScreenState extends State<GardenDailyCareScreen> {
     });
     try {
       await open();
-      if (!mounted) return;
+      if (!mounted || _leavingForGarden) return;
       await MongiGardenStore.instance.reload();
       if (!mounted) return;
       final today = MongiGardenData.dayKey(DateTime.now());
@@ -51,12 +60,13 @@ class _GardenDailyCareScreenState extends State<GardenDailyCareScreen> {
   Future<void> _record() async {
     final app = context.read<AppStateProvider>();
     if (app.currentLetterId != null) app.restartFlow();
-    await Navigator.of(context).push<void>(
+    final plantNow = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
         builder: (routeContext) => FeatureScaffold(
           title: tr('마음 기록하기'),
           child: CatFlowTabScreen(
-            onCareCompleted: () => Navigator.of(routeContext).pop(),
+            onCareCompleted: () => Navigator.of(routeContext).pop(false),
+            onPlantSavedFeeling: () => Navigator.of(routeContext).pop(true),
           ),
         ),
       ),
@@ -64,6 +74,62 @@ class _GardenDailyCareScreenState extends State<GardenDailyCareScreen> {
     // A saved letter and its daily reward are independent. Use the existing
     // idempotent retry path; do not manufacture a success receipt on failure.
     await app.retryGardenRewards();
+    final id = app.currentLetterId;
+    if (id != null) {
+      final saved = app.history.where((entry) => entry.id == id);
+      if (saved.isNotEmpty) _recordedEmotion = saved.first.catId;
+    }
+    if (plantNow == true && mounted) {
+      _leavingForGarden = true;
+      Navigator.of(context).pop(_recordedEmotion ?? true);
+    }
+  }
+
+  Future<void> _together(String activity) async {
+    if (_busy || _togetherOpen) return;
+    _togetherOpen = true;
+    final owner = CatCareService.localOwner;
+    final invitation = switch (activity) {
+      '물 마시기' => '우리 물 한 모금 마실까?',
+      '씻기' => '같이 개운해질까? 나는 털을 정리할게.',
+      '운동하기' => '나랑 천천히 기지개 켜볼까?',
+      _ => '우리 잠깐 걸을까?',
+    };
+    setState(() => _companionLine = tr(invitation));
+    final done = await showDialog<bool>(
+      context: context,
+      builder: (context) =>
+          CompanionTogetherDialog(activity: activity, invitation: invitation),
+    );
+    _togetherOpen = false;
+    if (!mounted) return;
+    if (done == true) {
+      if (owner != CatCareService.localOwner) return;
+      setState(() => _busy = true);
+      try {
+        await context.read<CatCareProvider>().rememberMoment(
+          CompanionMoment.care,
+          requiredSave: true,
+        );
+        if (owner != CatCareService.localOwner || !mounted) return;
+        await MongiGardenStore.instance.claimCompletedCare();
+        if (!mounted) return;
+        setState(() {
+          _receipt = true;
+          _error = null;
+        });
+      } catch (_) {
+        if (mounted) setState(() => _error = tr('돌봄을 저장하지 못했어요. 다시 눌러 주세요.'));
+        return;
+      } finally {
+        if (mounted) setState(() => _busy = false);
+      }
+    }
+    setState(
+      () => _companionLine = done == true
+          ? tr('같이 해줘서 고마워. 오늘은 이만큼이어도 좋아. 마음도 나눠볼래?')
+          : tr('괜찮아. 여기서 같이 쉬자.'),
+    );
   }
 
   @override
@@ -110,7 +176,10 @@ class _GardenDailyCareScreenState extends State<GardenDailyCareScreen> {
                       ),
                     ),
                   ),
-                  Text(tr('왔구나, 여기서 같이 쉬자.'), textAlign: TextAlign.center),
+                  Text(
+                    _companionLine ?? tr('오늘은 어떤 하루였어? 나랑 마음을 나눠볼래?'),
+                    textAlign: TextAlign.center,
+                  ),
                   SizedBox(
                     width: double.infinity,
                     height: (MediaQuery.sizeOf(context).height * .3).clamp(
@@ -158,8 +227,10 @@ class _GardenDailyCareScreenState extends State<GardenDailyCareScreen> {
                       key: const Key('garden-care-plant'),
                       onPressed: _busy
                           ? null
-                          : () => Navigator.of(context).pop(true),
-                      child: Text(tr('정원에서 심어보기')),
+                          : () => Navigator.of(
+                              context,
+                            ).pop(_recordedEmotion ?? true),
+                      child: Text(tr('오늘의 감정을 심어볼까?')),
                     ),
                     TextButton(
                       onPressed: () => Navigator.of(context).pop(),
@@ -174,9 +245,41 @@ class _GardenDailyCareScreenState extends State<GardenDailyCareScreen> {
                       key: const Key('garden-care-record'),
                       onPressed: _busy ? null : () => _activity(_record),
                       icon: const Icon(Icons.edit_outlined),
-                      label: Text(tr('마음 기록하기')),
+                      label: Text(tr('함께 마음 나누기 · 편지 쓰기')),
                     ),
                     const SizedBox(height: 10),
+                    LayoutBuilder(
+                      builder: (context, box) {
+                        final columns =
+                            MediaQuery.textScalerOf(context).scale(14) > 20
+                            ? 1
+                            : 2;
+                        return Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            for (final choice in const [
+                              ('물 마시기', Icons.water_drop_outlined),
+                              ('씻기', Icons.wash_outlined),
+                              ('운동하기', Icons.accessibility_new),
+                              ('산책하기', Icons.directions_walk),
+                            ])
+                              SizedBox(
+                                width:
+                                    (box.maxWidth - 8 * (columns - 1)) /
+                                    columns,
+                                child: OutlinedButton.icon(
+                                  onPressed: _busy
+                                      ? null
+                                      : () => _together(choice.$1),
+                                  icon: Icon(choice.$2, size: 20),
+                                  label: Text(tr(choice.$1)),
+                                ),
+                              ),
+                          ],
+                        );
+                      },
+                    ),
                     LayoutBuilder(
                       builder: (context, box) {
                         final columns =
@@ -226,7 +329,9 @@ class _GardenDailyCareScreenState extends State<GardenDailyCareScreen> {
                     const SizedBox(height: 12),
                     TextButton(
                       key: const Key('garden-care-return'),
-                      onPressed: () => Navigator.of(context).pop(),
+                      onPressed: () => Navigator.of(
+                        context,
+                      ).pop(GardenCareDestination.garden),
                       child: Text(tr('우리 정원 둘러보기')),
                     ),
                     if (data.careDays.contains(

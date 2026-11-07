@@ -14,6 +14,34 @@ import 'package:flutter_app/widgets/neighbor_news_bubble.dart';
 import 'package:flutter_app/widgets/storybook_art.dart';
 
 void main() {
+  testWidgets('Healing tab opens shared companion care from its first action', (
+    t,
+  ) async {
+    final actions = <PastelAction>[];
+    await t.pumpWidget(
+      MaterialApp(
+        home: PastelGardenShell(
+          onAction: actions.add,
+          onCoat: (_) {},
+          coat: CompanionCoat.ginger,
+          motionEnabled: false,
+          companionAutomaticBehavior: false,
+          gardenPreview: const SizedBox(),
+          actualGarden: const SizedBox(),
+        ),
+      ),
+    );
+    await t.pumpAndSettle();
+    await t.tap(find.byKey(const ValueKey('main-tab-3')));
+    await t.pumpAndSettle();
+    expect(
+      find.byKey(const Key('open-together-care')).hitTestable(),
+      findsOneWidget,
+    );
+    await t.tap(find.byKey(const Key('open-together-care')));
+    expect(actions, [PastelAction.togetherCare]);
+    await t.pumpWidget(const SizedBox());
+  });
   setUpAll(() async {
     AudioplayersPlatformInterface.instance = FakeAudioplayersPlatform();
     GlobalAudioplayersPlatformInterface.instance =

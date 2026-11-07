@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../integration/mongi_garden_data.dart';
 import '../models/seed.dart';
 import 'living_garden_scene.dart';
-import '../../widgets/storybook_art.dart';
 
 class GardenCoreTools extends StatelessWidget {
   const GardenCoreTools({
@@ -22,73 +21,76 @@ class GardenCoreTools extends StatelessWidget {
   @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, box) {
-      final large = MediaQuery.textScalerOf(context).scale(14) > 20;
-      final columns = large && box.maxWidth < 650 ? 2 : 4;
+      final columns =
+          box.maxWidth < 350 ||
+              (MediaQuery.textScalerOf(context).scale(14) > 20 &&
+                  box.maxWidth < 650)
+          ? 2
+          : 4;
       final names = [
         tr('씨앗 심기'),
         watering ? tr('물주기 마치기') : tr('물주기'),
         tr('내 식물'),
         tr('전체보기'),
       ];
-      final actions = [onPlant, onWater, onPlants, onOverview];
-      final pictures = <Widget>[
-        const StorySprite.icon(9),
-        Image.asset(
-          'assets/mongi/images/watering_can.png',
-          fit: BoxFit.contain,
-          excludeFromSemantics: true,
-        ),
-        const StorySprite.icon(5),
-        const Icon(Icons.map_outlined, color: Color(0xFF6C8861), size: 38),
+      final icons = [
+        Icons.spa_outlined,
+        Icons.water_drop_outlined,
+        Icons.park_outlined,
+        Icons.zoom_out_map,
       ];
-      return Wrap(
-        spacing: 6,
-        runSpacing: 6,
-        children: [
-          for (var i = 0; i < 4; i++)
-            SizedBox(
-              width: (box.maxWidth - 6 * (columns - 1)) / columns,
-              child: Material(
-                color: i == 1 && watering
-                    ? const Color(0xFFE1F0E4)
-                    : const Color(0xF7FFFAEF),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(18),
-                  side: const BorderSide(color: Color(0xFFE8D8B9)),
-                ),
-                clipBehavior: Clip.antiAlias,
-                child: TextButton(
-                  key: ValueKey('cultivation-tool-$i'),
-                  onPressed: disabled ? null : actions[i],
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 4,
-                      vertical: 8,
-                    ),
-                    minimumSize: const Size(48, 48),
-                    foregroundColor: const Color(0xFF344A32),
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (!compact)
-                        SizedBox(height: 40, width: 48, child: pictures[i]),
-                      const SizedBox(height: 4),
-                      Text(
-                        names[i],
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                        ),
-                        semanticsLabel: i == 3 ? tr('가로 전체화면') : null,
+      final actions = [onPlant, onWater, onPlants, onOverview];
+      return Material(
+        color: const Color(0xFFFBF8F0),
+        child: SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.all(6),
+            child: Wrap(
+              children: [
+                for (var i = 0; i < 4; i++)
+                  SizedBox(
+                    width: (box.maxWidth - 12) / columns,
+                    child: TextButton(
+                      key: ValueKey('cultivation-tool-$i'),
+                      onPressed: disabled ? null : actions[i],
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: compact
+                            ? Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(icons[i], size: 20),
+                                  const SizedBox(width: 5),
+                                  Flexible(
+                                    child: Text(
+                                      names[i],
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ),
+                                ],
+                              )
+                            : Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(icons[i], size: 23),
+                                  const SizedBox(height: 3),
+                                  Text(
+                                    names[i],
+                                    textAlign: TextAlign.center,
+                                    semanticsLabel: i == 3
+                                        ? tr('가로 전체화면')
+                                        : null,
+                                  ),
+                                ],
+                              ),
                       ),
-                    ],
+                    ),
                   ),
-                ),
-              ),
+              ],
             ),
-        ],
+          ),
+        ),
       );
     },
   );
