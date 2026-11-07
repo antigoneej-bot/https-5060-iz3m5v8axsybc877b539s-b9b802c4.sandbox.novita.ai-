@@ -24,6 +24,22 @@ class _ReviewGarden extends GardenProvider {
 void main() {
   tearDown(() => SubscriptionService.debugIsPremiumOverride = null);
   testWidgets('statistics layouts and calendar navigation', (tester) async {
+    Future<void> finishImages() async {
+      await tester.runAsync(() async {
+        for (final element in find.byType(Image).evaluate().toList()) {
+          Object? failure;
+          await precacheImage(
+            (element.widget as Image).image,
+            element,
+            onError: (error, _) => failure = error,
+          );
+          if (failure != null)
+            throw StateError('Review image failed: $failure');
+        }
+      });
+      await tester.pump();
+    }
+
     SharedPreferences.setMockInitialValues({});
     SubscriptionService.debugIsPremiumOverride = true;
     tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
@@ -119,6 +135,7 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+      await finishImages();
       expect(tester.takeException(), isNull, reason: scenario);
       await tester.runAsync(() async {
         final boundary =
@@ -135,6 +152,7 @@ void main() {
       });
       await tester.drag(find.byType(ListView).first, const Offset(0, -650));
       await tester.pumpAndSettle();
+      await finishImages();
       expect(tester.takeException(), isNull, reason: '$scenario scrolled');
       await tester.runAsync(() async {
         final img =
