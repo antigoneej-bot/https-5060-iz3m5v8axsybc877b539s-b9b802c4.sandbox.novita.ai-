@@ -9,8 +9,9 @@ import 'meditation_flow_screen.dart';
 /// 고양이선택 탭 - 고양이를 고르고 나면 사연 → 편지 → 명상 → 온도체크 → 완료 흐름이
 /// 같은 탭 안에서 이어집니다.
 class CatFlowTabScreen extends StatelessWidget {
-  const CatFlowTabScreen({super.key, this.initialGroup});
+  const CatFlowTabScreen({super.key, this.initialGroup, this.onCareCompleted});
   final String? initialGroup;
+  final VoidCallback? onCareCompleted;
 
   @override
   Widget build(BuildContext context) {
@@ -39,7 +40,10 @@ class CatFlowTabScreen extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 12),
-        MeditationFlowScreen(key: ValueKey(app.selectedCat!.id)),
+        MeditationFlowScreen(
+          key: ValueKey(app.selectedCat!.id),
+          onCareCompleted: onCareCompleted,
+        ),
       ],
     );
   }

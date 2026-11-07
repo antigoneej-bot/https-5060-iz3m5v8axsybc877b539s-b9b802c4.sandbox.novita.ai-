@@ -162,7 +162,7 @@ void main() {
         ),
       );
       await t.pumpAndSettle();
-      expect(find.text('가로 보기'), findsOneWidget);
+      expect(find.text('전체보기'), findsOneWidget);
       expect(find.bySemanticsLabel(RegExp('가로 전체화면')), findsOneWidget);
       await t.tap(find.byKey(const ValueKey('cultivation-tool-3')));
       expect(full, 1);

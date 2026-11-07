@@ -29,7 +29,8 @@ import 'meditation_category_screen.dart';
 /// 고양이 선택 이후의 전체 플로우: 사연 → 편지(보내는 즉시 저장+온도 +1도)
 /// → 명상(완전히 선택사항, 실천하면 온도 +1도 추가) → 완료
 class MeditationFlowScreen extends StatefulWidget {
-  const MeditationFlowScreen({super.key});
+  const MeditationFlowScreen({super.key, this.onCareCompleted});
+  final VoidCallback? onCareCompleted;
 
   @override
   State<MeditationFlowScreen> createState() => _MeditationFlowScreenState();
@@ -97,6 +98,7 @@ class _MeditationFlowScreenState extends State<MeditationFlowScreen> {
         );
       case FlowStage.meditation:
         return _MeditationStage(
+          onCareCompleted: widget.onCareCompleted,
           cat: cat,
           moodEmoji: _moodEmoji,
           letterText: savedText,
@@ -406,10 +408,12 @@ class _LetterStageState extends State<_LetterStage> {
 /// 하지 않고 건너뛰어도 전혀 문제가 없습니다. 실천하면 마음 온도가
 /// 추가로 +1도 더 오릅니다.
 class _MeditationStage extends StatefulWidget {
+  final VoidCallback? onCareCompleted;
   final ShadowCat cat;
   final String? moodEmoji;
   final String letterText;
   const _MeditationStage({
+    this.onCareCompleted,
     required this.cat,
     this.moodEmoji,
     required this.letterText,
@@ -479,6 +483,10 @@ class _MeditationStageState extends State<_MeditationStage> {
             onPressed: _busy
                 ? null
                 : () {
+                    if (widget.onCareCompleted != null) {
+                      widget.onCareCompleted!();
+                      return;
+                    }
                     final app = context.read<AppStateProvider>();
                     app.restartFlow();
                     app.requestHomeTab(0);

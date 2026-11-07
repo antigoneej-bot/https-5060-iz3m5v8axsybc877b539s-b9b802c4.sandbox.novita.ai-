@@ -1,0 +1,58 @@
+마음냥 정원 100번 — 정원 시안 반영 / Windows 노트북 인계
+작성: 2026-11-07
+
+최신 기준
+- 1.0.97+100 / com.mysticcat.journal. 보존된 99번에서 별도 작업.
+- 최신 안내: START-GARDEN-100-KO.txt, 이 문서, docs/GARDEN-100-VALIDATION-KO.txt.
+- 99번 및 그 이전 검증 문서는 과거 이력이며 이번 검증으로 재사용하지 않는다.
+- 이번 AAB는 확인된 99번보다 높은 100. Play Console 최대 번호는 직접 재조회하지 않음.
+- 내부 테스트 AAB만 제작. APK, USB 재시도, 서버/스토어 배포는 이번 범위 밖.
+
+사용자 확인 사항
+- 네 시안은 정원이라는 한 카테고리 안에 둔다.
+- 홈·내 정원·이웃·힐링·기록의 기존 다섯 탭은 유지한다.
+- 정원 탭은 저장된 실제 정원을 바로 표시한다. 마음돌봄은 정원 내부 보조 진입.
+- 흐름: 마음돌봄 → 실제 저장된 보상 확인 → 정원에서 심고 돌보기 → 꾸미기.
+- 기존 선택 고양이/이름/성장 에셋, 실제 2.5D 정원, 보상·구독 정책 유지.
+- 새 개인 데이터 형식/서버 API/재화 종류는 만들지 않음.
+
+구현과 주의 사항
+- 정원 메뉴/안내/도구를 캔버스 위에 겹친다. 도구 접기 전후 캔버스·카메라 불변.
+- 가로 전체화면/전체 지도 및 쉬어가는 정원의 감상 전용 동작은 유지.
+- 식물 선택 카드를 짧게 조정하고 저장 좌표를 바꾸지 않은 채 카메라로 식물을 카드 위에 표시.
+- 보상 영수증은 기존 careDays에 실제 저장된 일일 지급을 읽는다. 화면 열기만으로 지급하지 않는다.
+- 정원 경로의 편지 완료는 홈 탭 전환 대신 정원 돌봄 화면으로 돌아온다.
+- 장식은 미리 선택할 때 저장/차감하지 않는다. 확인 버튼에서 기존 얻기/배치 로직 사용.
+- 원래 홈/고양이 터치 보상/구독/서버/기록 저장 모델은 변경하지 않는다.
+
+노트북 준비
+- Flutter 3.35.4 stable, 기존 pubspec.lock 유지, JDK 21, 기존 Gradle/Android SDK/NDK 설정.
+- Node.js 22/Python/Git Bash는 기존 보조 검사에 사용. 이번 UI 변경은 서버 수정 없음.
+- android/local.properties는 새 PC 경로로 만든다. build/.dart_tool/.gradle 캐시는 이전하지 않는다.
+- 개인 서명키는 별도 전달한 release-key.jks와 key.properties 사용. 새 키를 만들지 않는다.
+- 서명키/비밀번호/Firebase 세션/서버 비밀값은 GitHub나 소스 ZIP에 포함하지 않는다.
+- 원래 서명 파일 위치: 기존 PC Downloads/mindnyang_garden_signing_key.
+- 원래 업로드 인증서 SHA-256:
+  BE:BA:A5:9B:C1:C8:79:A0:A6:85:BA:3B:D6:99:A5:80:10:BC:5E:5F:52:BA:24:B5:F6:3F:0F:6C:CA:D7:81:9B
+
+100번 내부 테스트 빌드 설정
+GARDEN_BACKEND_URL=https://gardenapi-zk2q7ixdva-du.a.run.app
+SOCIAL_AUTH_URL=https://asia-northeast3-mycatapp-99bc8.cloudfunctions.net/socialAuth
+GOOGLE_WEB_CLIENT_ID=기존 google-services.json의 client_type=3 값 사용
+UNLOCK_ALL_PREMIUM=true
+APP_CHECK_DEBUG_PROVIDER=false
+TEST_SHOW_ONBOARDING=false
+RELEASE_ENV=internal
+- --release --build-name=1.0.97 --build-number=100
+- tool/build_store_bundle.sh는 정식 출시 설정이므로 내부 개방 AAB와 다름.
+- 8GB PC에서는 파생 빌드 폴더의 Gradle workers만 1로 제한. R8/서명 유지.
+- 기존 99번 파생 빌드 캐시만 재사용하며 99번 원본 소스/전달 AAB/ZIP 보존.
+
+검증 범위
+- 이번 소스로 새 Flutter 분석/전체 테스트/위젯 실행 캡처를 수행한다.
+- 최종 실제 결과는 docs/GARDEN-100-VALIDATION-KO.txt 및 전달 폴더의 검증결과.txt 참조.
+- 위젯 캡처는 합성 테스트 기록을 사용하며 실제 삼성 Buddy3/에뮬레이터 실행이 아니다.
+- 실기기 업데이트·기존 개인 기록·Play 결제·두 계정 이웃·배터리/성능은 이번 미검증.
+- 업데이트 확인은 앱 삭제 없이 내부 테스트 트랙에서 진행한다.
+- 서버는 기존 98 배포 상태를 사용. 100 UI 변경을 위해 재배포할 필요 없음.
+- 노트북에서 추가 작업 전 버전/파일 해시를 확인하고 과거 소스로 덮어쓰지 않는다.

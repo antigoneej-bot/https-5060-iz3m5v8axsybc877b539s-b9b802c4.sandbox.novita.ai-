@@ -69,10 +69,12 @@ class GardenWorldView extends StatefulWidget {
   final VoidCallback onPlant, onDecorate;
   final Future<bool> Function(String id)? onWater;
   final bool preview;
+  final String? previewDecorationId;
   final bool cameraGestures;
 
   /// Fill the available phone canvas; hide optional chrome until requested.
   final bool fillViewport;
+  final double focusVerticalBias;
   final bool overviewRequested;
   final bool immersive;
   final String? focusPlantId;
@@ -90,8 +92,10 @@ class GardenWorldView extends StatefulWidget {
     this.requestedRestItem,
     this.restRequest = 0,
     this.preview = false,
+    this.previewDecorationId,
     this.cameraGestures = true,
     this.fillViewport = false,
+    this.focusVerticalBias = -.12,
     this.overviewRequested = false,
     this.immersive = false,
     this.focusPlantId,
@@ -396,6 +400,12 @@ class _GardenWorldViewState extends State<GardenWorldView>
     super.initState();
     _night = widget.nightOverride ?? _night;
     _overview = widget.overviewRequested;
+    if (widget.preview && widget.previewDecorationId != null) {
+      _focusX = widget.layout
+          .position('decor:' + widget.previewDecorationId!)
+          .dx;
+      _selected = 'decor:' + widget.previewDecorationId!;
+    }
     _wateringMode = widget.wateringRequested;
     // Preserve the existing initial camera: saved plants must not start offscreen.
     if (widget.cultivationMode && _items.isNotEmpty) {
@@ -504,6 +514,15 @@ class _GardenWorldViewState extends State<GardenWorldView>
       if (mounted) _considerReactions();
     });
     super.didUpdateWidget(oldWidget);
+    if (widget.preview &&
+        widget.previewDecorationId != null &&
+        widget.previewDecorationId != oldWidget.previewDecorationId) {
+      _focusX = widget.layout
+          .position('decor:' + widget.previewDecorationId!)
+          .dx;
+      _selected = 'decor:' + widget.previewDecorationId!;
+      _viewport = Size.zero;
+    }
     if (widget.restRequest != oldWidget.restRequest &&
         widget.requestedRestItem != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -559,8 +578,8 @@ class _GardenWorldViewState extends State<GardenWorldView>
           if (mounted)
             _jump(
               point.dx,
-              y: point.dy - .12,
-              scale: widget.cultivationMode ? _minScale * 1.25 : null,
+              y: point.dy + widget.focusVerticalBias,
+              scale: widget.cultivationMode ? _plantFocusScale(point) : null,
             );
         });
       }
@@ -624,6 +643,15 @@ class _GardenWorldViewState extends State<GardenWorldView>
         shape: const StadiumBorder(),
         minimumSize: const Size(0, 44),
       );
+
+  double _plantFocusScale(Offset point) {
+    // A portrait overlay covers the lower lawn. Near its bottom edge, a
+    // closer camera keeps the saved root visible without moving the plant.
+    final zoom = widget.focusVerticalBias > 0
+        ? math.max(1.5, .48 / (1 - point.dy).clamp(.09, 1)).clamp(1.5, 4)
+        : 1.25;
+    return _minScale * zoom;
+  }
 
   void _jump(double x, {double? scale, double y = .5}) {
     final s = (scale ?? _camera.value.getMaxScaleOnAxis())
@@ -1422,10 +1450,13 @@ class _GardenWorldViewState extends State<GardenWorldView>
                     : (_overview ? .5 : _focusX),
                 scale: _overview || _inspectedPlant == null
                     ? _minScale
-                    : _minScale * 1.25,
+                    : _plantFocusScale(
+                        widget.layout.position(_inspectedPlant!),
+                      ),
                 y: _overview || _inspectedPlant == null
                     ? .5
-                    : widget.layout.position(_inspectedPlant!).dy - .12,
+                    : widget.layout.position(_inspectedPlant!).dy +
+                          widget.focusVerticalBias,
               );
             }
           });
